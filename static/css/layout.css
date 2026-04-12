@@ -1,0 +1,242 @@
+/* layout.css — Three-column page structure: TOC | body | sidenotes */
+
+/* ============================================================
+   PAGE WRAPPER
+   The outer shell. Wide enough for TOC + body + sidenotes.
+   ============================================================ */
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ============================================================
+   HEADER
+   Full-width, sits above the three-column area.
+   (Nav styles live in components.css)
+   ============================================================ */
+
+body > header {
+    width: 100%;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-nav);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* ============================================================
+   CONTENT AREA
+   Three-column grid: [toc 220px] [body] [phantom 220px]
+   The phantom right column mirrors the TOC width so that the
+   body column is geometrically centered on the viewport.
+   Sidenotes are absolutely positioned inside #markdownBody and
+   overflow into the phantom column naturally.
+   ============================================================ */
+
+#content {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, var(--body-max-width)) 1fr;
+    align-items: start;
+    flex: 1;
+    width: 100%;
+    padding: 2rem var(--page-padding);
+}
+
+/* ============================================================
+   LEFT COLUMN — TABLE OF CONTENTS
+   Sticky sidebar, collapses below a breakpoint.
+   (TOC content + scroll tracking in toc.js / components.css)
+   ============================================================ */
+
+#toc {
+    grid-column: 1;
+    position: sticky;
+    top: calc(var(--nav-height, 4rem) + 1.5rem);
+    max-height: calc(100vh - var(--nav-height, 4rem) - 3rem);
+    overflow-y: auto;
+    padding-right: 1.5rem;
+    align-self: start;
+}
+
+/* ============================================================
+   CENTER COLUMN — MAIN BODY
+   Pinned to column 2 explicitly so it stays centered even when
+   the TOC is hidden (below 900px breakpoint).
+   #markdownBody must be position: relative — sidenotes.js
+   appends absolutely-positioned sidenote columns inside it.
+   ============================================================ */
+
+#markdownBody {
+    grid-column: 2;
+    width: min(var(--body-max-width), 100%);
+    position: relative;   /* REQUIRED by sidenotes.js */
+    min-width: 0;
+}
+
+/* ============================================================
+   STANDALONE PAGES (no #content wrapper)
+   essay-index, blog-index, tag-index, page, blog-post, search —
+   these emit #markdownBody as a direct child of <body>. Without
+   the #content flex-row wrapper there is no centering; fix it here.
+   ============================================================ */
+
+body > #markdownBody {
+    align-self: center;
+    padding: 2rem var(--page-padding);
+    flex: 1 0 auto;
+}
+
+@media (max-width: 680px) {
+    body > #markdownBody {
+        padding: 1.25rem var(--page-padding);
+    }
+}
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+body > footer {
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding: 1.5rem var(--page-padding);
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 1rem;
+}
+
+.footer-left a {
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-left a:hover {
+    color: var(--text-muted);
+}
+
+.footer-center {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+}
+
+.footer-license a {
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-license a:hover {
+    color: var(--text-muted);
+}
+
+.footer-totop {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.footer-totop:hover {
+    color: var(--text-muted);
+}
+
+.footer-right {
+    flex: 1;
+    text-align: right;
+}
+
+.footer-build-link {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+.footer-build-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+/*  Below ~1100px: not enough horizontal space for sidenotes.
+    The .sidenote asides are hidden by sidenotes.css; the Pandoc-generated
+    section.footnotes is shown instead (also handled by sidenotes.css). */
+
+/* ============================================================
+   FOCUS MODE
+   Hides the TOC, fades the header until hovered.
+   Activated by [data-focus-mode] on <html> (settings.js).
+   ============================================================ */
+
+[data-focus-mode] #toc {
+    display: none;
+}
+
+/*  Below ~900px: hide the TOC.
+    #markdownBody stays in grid-column 2, so it remains centered
+    with the phantom right column still balancing it. */
+@media (max-width: 900px) {
+    #toc {
+        display: none;
+    }
+}
+
+/*  Below ~680px: collapse to single-column, full-width body. */
+@media (max-width: 680px) {
+    #content {
+        grid-template-columns: 1fr;
+        padding: 1.25rem var(--page-padding);
+    }
+
+    #markdownBody {
+        grid-column: 1;
+        width: 100%;
+    }
+
+    /* Footer: stack vertically so three sections don't fight for width. */
+    body > footer {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.9rem 1rem;
+        text-align: center;
+    }
+
+    .footer-left {
+        justify-content: center;
+    }
+
+    .footer-right {
+        text-align: center;
+    }
+}
+
+/*  Below ~900px: body spans full width (TOC hidden, no phantom column). */
+@media (max-width: 900px) and (min-width: 681px) {
+    #markdownBody {
+        grid-column: 1 / -1;
+    }
+}

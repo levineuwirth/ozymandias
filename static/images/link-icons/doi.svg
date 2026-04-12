@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!--
+    DOI: two chain-link rings side by side.
+    Stroked paths with no fill — stroke pixels are opaque and work with mask-image.
+  -->
+  <!-- Left ring -->
+  <rect x="1" y="5.5" width="7.5" height="5" rx="2.5"
+        stroke="black" stroke-width="1.5" fill="none"/>
+  <!-- Right ring -->
+  <rect x="7.5" y="5.5" width="7.5" height="5" rx="2.5"
+        stroke="black" stroke-width="1.5" fill="none"/>
+</svg>

@@ -1,0 +1,8 @@
+packages: .
+
+with-compiler: ghc-9.6.6
+
+-- Optimise the build program itself. -O1 is sufficient and much faster
+-- to compile than -O2.
+program-options
+  ghc-options: -O1

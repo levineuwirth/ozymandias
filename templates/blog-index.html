@@ -1,0 +1,17 @@
+<main id="markdownBody">
+    <h1 class="page-title">$title$</h1>
+    <ul class="post-list">
+        $for(posts)$
+        <li class="post-list-item">
+            <a href="$url$">$title$</a>
+            $if(date)$
+            <span class="post-list-date"><time datetime="$date-iso$">$date$</time></span>
+            $endif$
+            $if(abstract)$
+            <p class="post-list-abstract">$abstract$</p>
+            $endif$
+        </li>
+        $endfor$
+    </ul>
+    $partial("templates/partials/paginate-nav.html")$
+</main>

@@ -1,0 +1,72 @@
+<div id="content">
+    <aside id="toc" aria-label="Table of contents" data-pagefind-ignore="all">
+        <div class="toc-header">
+            <span class="toc-active-label">Contents</span>
+            <button class="toc-toggle" aria-label="Toggle table of contents" aria-expanded="true">&#9662;</button>
+        </div>
+        <nav class="toc-nav">
+            $toc$
+        </nav>
+    </aside>
+    <main id="markdownBody" data-pagefind-body>
+        <h1 class="page-title">$title$</h1>
+        <div class="metadata composition-meta">
+            $if(essay-tags)$
+            <div class="meta-row meta-tags">
+                $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+            </div>
+            $endif$
+            $if(abstract)$
+            <div class="meta-row meta-description">
+                $abstract$
+            </div>
+            $endif$
+            <div class="meta-row meta-authors">
+                <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+            </div>
+            $if(instrumentation)$
+            <div class="meta-row composition-details">
+                <span class="comp-detail">$instrumentation$</span>
+                $if(duration)$<span class="comp-detail">$duration$</span>$endif$
+                $if(premiere)$<span class="comp-detail">premiered $premiere$</span>$endif$
+                $if(commissioned-by)$<span class="comp-detail">commissioned by $commissioned-by$</span>$endif$
+            </div>
+            $endif$
+            $if(has-score)$
+            <div class="meta-row composition-actions">
+                <a href="$score-url$" class="comp-btn">Open Full Score</a>
+                $if(pdf)$<a href="/music/$slug$/$pdf$" class="comp-btn comp-btn--secondary" download>PDF ↓</a>$endif$
+            </div>
+            $endif$
+        </div>
+        $if(recording)$
+        <div class="comp-recording" data-pagefind-ignore="all">
+            <audio class="comp-recording-audio" controls>
+                <source src="/music/$slug$/$recording$">
+            </audio>
+        </div>
+        $endif$
+        $if(has-movements)$
+        <div class="composition-movements" data-pagefind-ignore="all">
+            $for(movements)$
+            <div class="comp-movement">
+                <div class="comp-movement-header">
+                    <span class="comp-movement-name">$movement-name$</span>
+                    <span class="comp-movement-duration">$movement-duration$</span>
+                    $if(has-score)$
+                    <a class="comp-movement-score" href="$score-url$?p=$movement-page$">Score ↗</a>
+                    $endif$
+                </div>
+                $if(has-audio)$
+                <audio class="movement-audio" controls>
+                    <source src="/music/$slug$/$movement-audio$">
+                </audio>
+                $endif$
+            </div>
+            $endfor$
+        </div>
+        $endif$
+        $body$
+    </main>
+</div>
+$partial("templates/partials/page-footer.html")$

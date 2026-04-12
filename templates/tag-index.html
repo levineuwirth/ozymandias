@@ -1,0 +1,26 @@
+<main id="markdownBody">
+    <h1 class="page-title">$title$</h1>
+    $if(items)$
+    <ul class="essay-list">
+        $for(items)$
+        <li class="essay-list-item">
+            <a href="$url$">$title$</a>
+            $if(date)$
+            <span class="essay-list-date">$date$</span>
+            $endif$
+            $if(abstract)$
+            <p class="essay-list-abstract">$abstract$</p>
+            $endif$
+            $if(item-tags)$
+            <div class="essay-list-tags">
+                $for(item-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+            </div>
+            $endif$
+        </li>
+        $endfor$
+    </ul>
+    $else$
+    <p class="essay-list-empty">No items yet.</p>
+    $endif$
+    $partial("templates/partials/paginate-nav.html")$
+</main>

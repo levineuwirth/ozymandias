@@ -1,0 +1,305 @@
+/* base.css — Reset, custom properties, @font-face, dark mode */
+
+/* ============================================================
+   FONTS
+   ============================================================ */
+
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-semibold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-semibold-italic.woff2") format("woff2");
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("../fonts/spectral-bold-italic.woff2") format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Fira Sans";
+    src: url("../fonts/fira-sans-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Fira Sans";
+    src: url("../fonts/fira-sans-semibold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("../fonts/jetbrains-mono-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("../fonts/jetbrains-mono-italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+
+/* ============================================================
+   CUSTOM PROPERTIES (light mode defaults)
+   ============================================================ */
+
+:root {
+    /* Color palette */
+    --bg:              #faf8f4;
+    --bg-nav:          #faf8f4;
+    --bg-offset:       #f2f0eb;
+    --text:            #1a1a1a;
+    --text-muted:      #555555;
+    --text-faint:      #888888;
+    --border:          #cccccc;
+    --border-muted:    #aaaaaa;
+
+    /* Link colors */
+    --link:            #1a1a1a;
+    --link-underline:  #888888;
+    --link-hover:      #1a1a1a;
+    --link-hover-underline: #1a1a1a;
+    --link-visited:    #444444;
+
+    /* Selection */
+    --selection-bg:    #1a1a1a;
+    --selection-text:  #faf8f4;
+
+    /* Typography */
+    --font-serif:      "Spectral", "Georgia", "Times New Roman", serif;
+    --font-sans:       "Fira Sans", "Helvetica Neue", "Arial", sans-serif;
+    --font-mono:       "JetBrains Mono", "Consolas", "Menlo", monospace;
+
+    /* Scale & Rhythm (1 line = 33px or 1.65rem) */
+    --text-size:       20px;
+    --text-size-small: 0.85em;
+    --line-height:     1.65;
+
+    /* Layout */
+    --body-max-width:  800px;
+    --page-padding:    1.5rem;
+
+    /* Transitions */
+    --transition-fast:    0.15s ease;
+    --transition-medium:  0.28s ease;
+    --transition-slow:    0.5s  ease;
+
+    /* Writing activity heatmap (light mode) */
+    --hm-0: #e8e8e4;   /* empty cell */
+    --hm-1: #b4b4b0;   /* < 500 words */
+    --hm-2: #787874;   /* 500–1999 words */
+    --hm-3: #424240;   /* 2000–4999 words */
+    --hm-4: #1a1a1a;   /* 5000+ words */
+
+    /* Aliases (introduced for build.css, components.css, and the
+       annotation system, all of which referenced custom properties that
+       were never defined). Browsers silently fall back to the property's
+       initial value when var(--undefined) is used, so without these
+       aliases the build/annotation pages would degrade to default
+       greys/serif fonts.
+
+       Defining them here keeps a single source of truth — change the
+       primitive token (--border-muted, --font-sans, --bg-offset) and
+       every consumer follows. */
+    --rule:        var(--border-muted);
+    --font-ui:     var(--font-sans);
+    --bg-subtle:   var(--bg-offset);
+
+    /* Layout breakpoints — referenced from JS via getComputedStyle and
+       documented here for grep. CSS @media queries cannot use custom
+       properties, so the @media values throughout components.css and
+       layout.css must be kept in lockstep with these. */
+    --bp-phone:    540px;
+    --bp-tablet:   680px;
+    --bp-desktop:  900px;
+    --bp-wide:    1500px;
+}
+
+
+/* ============================================================
+   DARK MODE (Refined to Charcoal & Ink)
+   ============================================================ */
+
+/* Explicit dark mode */
+[data-theme="dark"] {
+    --bg:              #121212;
+    --bg-nav:          #181818;
+    --bg-offset:       #1a1a1a;
+    /* --text-faint was previously #6a6660, which yields ~2.8:1 contrast
+       on the #121212 background and fails WCAG AA. Bumped to #8b8680 for
+       a contrast of ~3.5:1, the minimum for non-text UI elements. */
+    --text:            #d4d0c8;
+    --text-muted:      #8c8881;
+    --text-faint:      #8b8680;
+    --border:          #333333;
+    --border-muted:    #444444;
+
+    --link:            #d4d0c8;
+    --link-underline:  #8b8680;
+    --link-hover:      #ffffff;
+    --link-hover-underline: #ffffff;
+    --link-visited:    #a39f98;
+
+    --selection-bg:    #d4d0c8;
+    --selection-text:  #121212;
+
+    /* Aliases — kept in sync with the light-mode definitions above. */
+    --bg-subtle:       var(--bg-offset);
+
+    /* Writing activity heatmap (dark mode) */
+    --hm-0: #252524;
+    --hm-1: #484844;
+    --hm-2: #6e6e6a;
+    --hm-3: #9e9e9a;
+    --hm-4: #d4d0c8;
+}
+
+/* System dark mode fallback */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg:              #121212;
+        --bg-nav:          #181818;
+        --bg-offset:       #1a1a1a;
+        --text:            #d4d0c8;
+        --text-muted:      #8c8881;
+        --text-faint:      #8b8680;
+        --border:          #333333;
+        --border-muted:    #444444;
+
+        --link:            #d4d0c8;
+        --link-underline:  #8b8680;
+        --link-hover:      #ffffff;
+        --link-hover-underline: #ffffff;
+        --link-visited:    #a39f98;
+
+        --selection-bg:    #d4d0c8;
+        --selection-text:  #121212;
+
+        --bg-subtle:       var(--bg-offset);
+
+        --hm-0: #252524;
+        --hm-1: #484844;
+        --hm-2: #6e6e6a;
+        --hm-3: #9e9e9a;
+        --hm-4: #d4d0c8;
+    }
+}
+
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    font-size: var(--text-size);
+    line-height: var(--line-height);
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    /* clip (not hidden) — prevents horizontal scroll at the viewport level
+       without creating a scroll container, so position:sticky still works. */
+    overflow-x: clip;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: clip;
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color var(--transition-fast),
+                color var(--transition-fast);
+}
+
+::selection {
+    background-color: var(--selection-bg);
+    color: var(--selection-text);
+}
+
+/* Global keyboard-focus indicator. Applies only when the user navigates
+   with the keyboard (`:focus-visible`), not on mouse click, so it does
+   not interfere with normal click feedback. Buttons, anchors, summaries
+   and form controls all share a single 2px outline so the focus path is
+   visible regardless of the surrounding component styling.
+
+   Individual components may override this with a tighter or differently
+   positioned ring, but the default is always present. */
+:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+button:focus,
+a:focus,
+summary:focus,
+[role="button"]:focus {
+    outline: none;   /* fall back to :focus-visible above */
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+}
+
+img, video, svg {
+    max-width: 100%;
+    height: auto;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 3.3rem 0; /* Two strict line-heights */
+}

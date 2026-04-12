@@ -1,0 +1,93 @@
+/* syntax.css — Monochrome Prism.js syntax highlighting.
+   No toggle — always active on language-annotated code blocks.
+   No hue: only bold, italic, and opacity variations matching site palette.
+   Dark mode is automatic via CSS custom properties. */
+
+
+/* Comments: faint + italic — least prominent */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata,
+.token.shebang {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+/* Keywords, control flow: bold — most prominent */
+.token.keyword,
+.token.rule,
+.token.important,
+.token.atrule,
+.token.builtin,
+.token.deleted {
+    font-weight: 700;
+}
+
+/* Strings: muted */
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.template-string,
+.token.inserted {
+    color: var(--text-muted);
+}
+
+/* Numbers and booleans: full text color (explicit for completeness) */
+.token.number,
+.token.boolean,
+.token.constant {
+    color: var(--text);
+}
+
+/* Punctuation and operators: faint — structural noise, recede */
+.token.punctuation,
+.token.operator {
+    color: var(--text-faint);
+}
+
+/* Functions and class names: semibold */
+.token.function,
+.token.function-definition,
+.token.class-name,
+.token.maybe-class-name {
+    font-weight: 600;
+}
+
+/* Tags (HTML/XML): semibold */
+.token.tag {
+    font-weight: 600;
+}
+
+/* Attribute names: muted */
+.token.attr-name,
+.token.property {
+    color: var(--text-muted);
+}
+
+/* Selectors (CSS): semibold */
+.token.selector {
+    font-weight: 600;
+}
+
+/* Type annotations and namespaces: italic + muted */
+.token.namespace,
+.token.type-annotation,
+.token.type {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Variables and parameters: italic */
+.token.variable,
+.token.parameter {
+    font-style: italic;
+}
+
+/* URLs: muted underline */
+.token.url {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+}

@@ -1,0 +1,122 @@
+/* reading.css — Codex layout for fiction and poetry.
+   Loaded only on pages where the "reading" context field is set. */
+
+/* ============================================================
+   SCROLL PROGRESS BAR
+   A 2px warm-gray line fixed at the very top of the viewport.
+   z-index 200 sits above the sticky nav (z-index 100).
+   ============================================================ */
+
+#reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background-color: var(--text-faint);
+    z-index: 200;
+    pointer-events: none;
+    transition: width 0.08s linear;
+}
+
+/* ============================================================
+   READING MODE — BASE
+   Slightly warmer background; narrower, book-like measure.
+   The class is applied to <body> by default.html.
+   ============================================================ */
+
+body.reading-mode {
+    --bg: #fdf9f1;
+    background-color: var(--bg);
+}
+
+[data-theme="dark"] body.reading-mode {
+    --bg: #1c1917;
+    background-color: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) body.reading-mode {
+        --bg: #1c1917;
+        background-color: var(--bg);
+    }
+}
+
+/* Reading body: narrower than the essay default (800px → ~62ch).
+   Since reading.html emits body > #markdownBody (no #content grid),
+   the centering is handled by the existing layout.css rule. */
+body.reading-mode > #markdownBody {
+    max-width: 62ch;
+}
+
+/* ============================================================
+   POETRY
+   ============================================================ */
+
+/* Slightly narrower measure for verse */
+body.reading-mode.poetry > #markdownBody {
+    max-width: 52ch;
+}
+
+/* Generous line height and stanza spacing */
+body.reading-mode.poetry > #markdownBody > p {
+    line-height: 1.85;
+    margin-bottom: 1.6rem;
+    /* Ragged right — no hyphenation, no justification */
+    hyphens: none;
+    text-align: left;
+}
+
+/* Suppress the prose dropcap — poetry opens without a floated initial */
+body.reading-mode.poetry > #markdownBody > p:first-of-type::first-letter {
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0;
+    color: inherit;
+}
+
+/* Suppress the smallcaps lead-in on the first line */
+body.reading-mode.poetry > #markdownBody > p:first-of-type::first-line {
+    font-variant-caps: normal;
+    letter-spacing: normal;
+}
+
+/* ============================================================
+   FICTION
+   ============================================================ */
+
+/* Chapter headings: Fira Sans smallcaps, centered, spaced */
+body.reading-mode.fiction > #markdownBody h2 {
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant: small-caps;
+    letter-spacing: 0.12em;
+    text-transform: lowercase;
+    color: var(--text-muted);
+    margin: 3.5rem 0 2.5rem;
+}
+
+/* Drop cap at the start of each chapter (h2 → next paragraph) */
+body.reading-mode.fiction > #markdownBody h2 + p::first-letter {
+    float: left;
+    font-size: 3.8em;
+    line-height: 0.8;
+    padding-top: 0.05em;
+    padding-right: 0.1em;
+    color: var(--text);
+    font-variant-caps: normal;
+}
+
+/* Smallcaps lead-in for chapter-opening lines */
+body.reading-mode.fiction > #markdownBody h2 + p::first-line {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.05em;
+}
+
+/* Scene breaks (***) — reuse the asterism but give it more breathing room */
+body.reading-mode.fiction > #markdownBody hr {
+    margin: 3rem 0;
+}

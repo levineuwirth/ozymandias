@@ -1,0 +1,51 @@
+<header data-pagefind-ignore="all">
+    <nav class="site-nav">
+        <!-- Row 1: primary links -->
+        <div class="nav-row-primary">
+            <div class="nav-primary">
+                $for(nav-links)$<a href="$href$">$label$</a>
+                $endfor$
+            </div>
+            <div class="nav-controls">
+                <button type="button" class="nav-portal-toggle" aria-label="Toggle portals" aria-expanded="false">
+                    <span class="nav-portal-arrow">▼</span>Portals
+                </button>
+                <div class="settings-wrap">
+                    <button type="button" class="settings-toggle" aria-label="Open settings" aria-expanded="false">⚙</button>
+                    <div class="settings-panel" aria-hidden="true">
+                        <div class="settings-section">
+                            <div class="settings-label">Theme</div>
+                            <div class="settings-row">
+                                <button type="button" class="settings-btn" data-action="theme-light">Light</button>
+                                <button type="button" class="settings-btn" data-action="theme-dark">Dark</button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-label">Text size</div>
+                            <div class="settings-row">
+                                <button type="button" class="settings-btn" data-action="text-smaller" aria-label="Decrease text size">A−</button>
+                                <button type="button" class="settings-btn" data-action="text-larger"  aria-label="Increase text size">A+</button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-label">Display</div>
+                            <div class="settings-col">
+                                <button type="button" class="settings-btn settings-btn--full" data-action="focus-mode">Focus Mode</button>
+                                <button type="button" class="settings-btn settings-btn--full" data-action="reduce-motion">Reduce Motion</button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <button type="button" class="settings-btn settings-btn--full" data-action="print">Print</button>
+                            <button type="button" class="settings-btn settings-btn--full settings-btn--danger" data-action="clear-annotations">Clear Annotations</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Row 2: portal links (collapsed by default, nav.js manages) -->
+        <div class="nav-portals">
+            $for(portals)$<a href="/$portal-slug$/">$portal-name$</a>
+            $endfor$
+        </div>
+    </nav>
+</header>

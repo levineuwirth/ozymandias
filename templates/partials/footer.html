@@ -1,0 +1,13 @@
+<footer data-pagefind-ignore="all">
+    <div class="footer-left">
+        <button class="footer-totop" aria-label="Return to top">↑ top</button>
+        <a href="/">$site-title$</a>
+    </div>
+    <div class="footer-center">
+        <span class="footer-license">$license$$if(source-url)$ · <a href="$source-url$">source</a>$endif$</span>
+    </div>
+    <div class="footer-right">
+        <a href="/build/" class="footer-build-link" aria-label="Build telemetry">build</a> $build-time$$if(gpg-fingerprint)$
+        · <a href="$url$.sig" class="footer-sig-link" aria-label="PGP signature for this page" title="Signing subkey $gpg-fingerprint$ · public key at $gpg-pubkey-url$">sig</a>$endif$
+    </div>
+</footer>

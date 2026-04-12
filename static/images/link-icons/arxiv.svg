@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!--
+    arXiv chi (χ): two thick diagonal bars.
+    The bottom-left→top-right diagonal is continuous.
+    The top-right→bottom-left diagonal is broken at center (chi, not X).
+    All shapes are filled so mask-image works reliably.
+  -->
+  <!-- Bar 1: top-left → bottom-right (continuous) -->
+  <polygon points="2,2.5 3.5,2.5 14,13.5 12.5,13.5" fill="black"/>
+  <!-- Bar 2 upper: top-right → center -->
+  <polygon points="14,2.5 12.5,2.5 8.8,7.6 10.3,7.6" fill="black"/>
+  <!-- Bar 2 lower: center → bottom-left -->
+  <polygon points="5.7,8.4 7.2,8.4 3.5,13.5 2,13.5" fill="black"/>
+</svg>

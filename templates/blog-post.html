@@ -1,0 +1,15 @@
+<main id="markdownBody" data-pagefind-body>
+    <h1 class="page-title">$title$</h1>
+    $if(date)$
+    <p class="post-date"><time datetime="$date-iso$">$date$</time></p>
+    $endif$
+    $body$
+    $if(backlinks)$
+    <footer class="page-meta-footer">
+        <div class="meta-footer-section" id="backlinks">
+            <h3>Backlinks</h3>
+            $backlinks$
+        </div>
+    </footer>
+    $endif$
+</main>

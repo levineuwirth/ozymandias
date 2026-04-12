@@ -1,0 +1,119 @@
+/* ── Music Catalog ────────────────────────────────────────────────────────── */
+
+.catalog-abstract {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.catalog-prose {
+    margin-bottom: 2.5rem;
+}
+
+/* ── Featured section ─────────────────────────────────────────────────────── */
+
+.catalog-featured {
+    margin-bottom: 3rem;
+}
+
+.catalog-featured-title {
+    color: var(--text);
+}
+
+/* ── Per-category sections ────────────────────────────────────────────────── */
+
+.catalog-page {
+    margin-top: 0.5rem;
+}
+
+.catalog-section {
+    margin-bottom: 2.5rem;
+}
+
+.catalog-section-title {
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.35rem;
+    margin-top: 0;
+    margin-bottom: 0.6rem;
+}
+
+/* ── Entry list ───────────────────────────────────────────────────────────── */
+
+.catalog-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.catalog-entry {
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--border) 50%, transparent));
+}
+
+.catalog-entry:last-child {
+    border-bottom: none;
+}
+
+.catalog-entry-main {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.catalog-title {
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.catalog-title:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.catalog-year,
+.catalog-duration {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.catalog-year::before {
+    content: "·";
+    margin-right: 0.35rem;
+    color: var(--text-muted);
+}
+
+.catalog-duration::before {
+    content: "·";
+    margin-right: 0.35rem;
+    color: var(--text-muted);
+}
+
+.catalog-ind {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    cursor: default;
+    line-height: 1;
+    position: relative;
+    top: -0.05em;
+}
+
+.catalog-instrumentation {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+}
+
+.catalog-empty {
+    color: var(--text-muted);
+    font-style: italic;
+}

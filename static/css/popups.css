@@ -1,0 +1,216 @@
+/* popups.css — Hover preview popup styles. */
+
+/* ============================================================
+   POPUP CONTAINER
+   Absolutely positioned, single shared element.
+   ============================================================ */
+
+.link-popup {
+    position: absolute;
+    z-index: 500;
+    max-width: 420px;
+    min-width: 200px;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.09);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    pointer-events: auto;
+
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.14s ease, visibility 0.14s ease;
+}
+
+.link-popup.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+/* ============================================================
+   SHARED POPUP CONTENT
+   ============================================================ */
+
+.popup-title {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 0.82rem;
+    margin-bottom: 0.3rem;
+    line-height: 1.35;
+}
+
+.popup-abstract,
+.popup-extract {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+/* Source label ("Wikipedia", "arXiv") */
+.popup-source {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin-bottom: 0.25rem;
+}
+
+/* Icon preceding the source label — same mask-image technique as inline link icons */
+.popup-source[data-popup-source]::before {
+    content: '';
+    display: inline-block;
+    flex-shrink: 0;
+    width:  0.85em;
+    height: 0.85em;
+    background-color: currentColor;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    opacity: 0.7;
+}
+
+.popup-source[data-popup-source="wikipedia"]::before {
+    mask-image: url('/images/link-icons/wikipedia.svg');
+    -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
+}
+.popup-source[data-popup-source="arxiv"]::before {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+.popup-source[data-popup-source="doi"]::before {
+    mask-image: url('/images/link-icons/doi.svg');
+    -webkit-mask-image: url('/images/link-icons/doi.svg');
+}
+.popup-source[data-popup-source="github"]::before {
+    mask-image: url('/images/link-icons/github.svg');
+    -webkit-mask-image: url('/images/link-icons/github.svg');
+}
+.popup-source[data-popup-source="youtube"]::before {
+    mask-image: url('/images/link-icons/youtube.svg');
+    -webkit-mask-image: url('/images/link-icons/youtube.svg');
+}
+.popup-source[data-popup-source="internet-archive"]::before {
+    mask-image: url('/images/link-icons/internet-archive.svg');
+    -webkit-mask-image: url('/images/link-icons/internet-archive.svg');
+}
+.popup-source[data-popup-source="biorxiv"]::before,
+.popup-source[data-popup-source="medrxiv"]::before {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+.popup-source[data-popup-source="openlibrary"]::before {
+    mask-image: url('/images/link-icons/worldcat.svg');
+    -webkit-mask-image: url('/images/link-icons/worldcat.svg');
+}
+.popup-source[data-popup-source="pubmed"]::before {
+    mask-image: url('/images/link-icons/orcid.svg');
+    -webkit-mask-image: url('/images/link-icons/orcid.svg');
+}
+
+/* Author list (arXiv, DOI, GitHub, etc.) */
+.popup-authors {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    font-style: italic;
+}
+
+/* Journal / year / language / stars line */
+.popup-meta {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ============================================================
+   CITATION POPUP
+   Shows the .csl-entry from the bibliography in-page.
+   ============================================================ */
+
+.popup-citation-entry {
+    display: block;
+}
+
+.popup-citation-entry + .popup-citation-entry {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border);
+}
+
+.popup-citation .csl-entry {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    /* Override the hanging-indent style used in the bibliography list */
+    padding-left: 0;
+    text-indent: 0;
+    margin-bottom: 0;
+}
+
+.popup-citation .csl-entry a {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+.popup-citation .ref-num {
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-right: 0.35em;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+.popup-citation .ref-num:hover {
+    color: var(--text);
+}
+
+/* Epistemic preview popup — content cloned from #epistemic; ep-* styles inherited */
+.popup-epistemic {
+    min-width: 230px;
+}
+
+/* PDF thumbnail popup — first-page image generated by pdftoppm at build time */
+.link-popup:has(.popup-pdf) {
+    padding: 0;
+    overflow: hidden;
+}
+
+.popup-pdf {
+    line-height: 0; /* collapse whitespace gap below <img> */
+}
+
+.popup-pdf-thumb {
+    display: block;
+    width: 320px;
+    max-width: 100%;
+    height: auto;
+    max-height: 420px;
+    object-fit: contain;
+    object-position: top left;
+}
+
+/* PGP signature popup */
+.popup-sig pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.45;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-muted);
+}

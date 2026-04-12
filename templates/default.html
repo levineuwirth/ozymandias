@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+$partial("templates/partials/head.html")$
+</head>
+<body$if(reading)$ class="reading-mode$if(poetry)$ poetry$endif$$if(fiction)$ fiction$endif$"$endif$>
+<a class="skip-link" href="#markdownBody">Skip to content</a>
+$partial("templates/partials/nav.html")$
+$if(search)$
+<script src="/pagefind/pagefind-ui.js"></script>
+<script src="/js/search.js" defer></script>
+<script src="/js/semantic-search.js" defer></script>
+$endif$
+$body$
+$partial("templates/partials/footer.html")$
+<!-- JS — all deferred -->
+<script src="/js/popups.js" defer></script>
+<script src="/js/annotations.js" defer></script>
+<script src="/js/selection-popup.js" defer></script>
+<script src="/js/settings.js" defer></script>
+<script src="/js/prism.min.js" defer></script>
+<script src="/js/toc.js" defer></script>
+<script src="/js/nav.js" defer></script>
+<script src="/js/gallery.js" defer></script>
+<script src="/js/sidenotes.js" defer></script>
+<script src="/js/lightbox.js" defer></script>
+$if(home)$<script src="/js/random.js" defer></script>$endif$
+$if(reading)$<script src="/js/reading.js" defer></script>$endif$
+$for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
+$if(math)$
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="/js/katex-bootstrap.js"></script>
+$endif$
+</body>
+</html>

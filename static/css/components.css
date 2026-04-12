@@ -1,0 +1,1451 @@
+/* components.css — Nav, TOC, metadata block, page footer.
+   Loaded on every page. */
+
+/* ============================================================
+   SKIP LINK
+   ============================================================ */
+
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    z-index: 9999;
+    padding: 0.5em 1em;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* ============================================================
+   NAV
+   Two-row: primary links (always visible) + portal links
+   (collapsed by default, expanded via nav.js + localStorage).
+   ============================================================ */
+
+nav.site-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    font-family: var(--font-sans);
+}
+
+/* Row 1: centered primary links + right-side controls */
+.nav-row-primary {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.65rem 1.5rem;
+}
+
+.nav-primary {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.06em;
+}
+
+.nav-primary a {
+    text-decoration: none;
+    color: var(--text-muted);
+    padding: 0.15rem 0.85rem;
+    transition: color var(--transition-fast);
+}
+
+.nav-primary a:hover {
+    color: var(--text);
+}
+
+.nav-primary a + a {
+    border-left: 1px solid var(--border);
+}
+
+/* Controls cluster: portals toggle + theme toggle, pinned right */
+.nav-controls {
+    position: absolute;
+    right: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-portal-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+}
+.nav-portal-toggle:hover {
+    color: var(--text-muted);
+}
+
+.nav-portal-arrow {
+    font-size: 0.6rem;
+    display: inline-block;
+    margin-right: 0.2em;
+    vertical-align: middle;
+}
+
+/* Settings button + panel */
+.settings-wrap {
+    position: relative;
+}
+
+.settings-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+.settings-toggle:hover,
+.settings-toggle[aria-expanded="true"] {
+    color: var(--text-muted);
+}
+
+.settings-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 800;
+    min-width: 148px;
+    padding: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+    display: none;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.settings-panel.is-open {
+    display: flex;
+}
+
+.settings-section {
+    padding: 0.3rem 0.2rem;
+}
+.settings-section + .settings-section {
+    border-top: 1px solid var(--border);
+    padding-top: 0.4rem;
+    margin-top: 0.1rem;
+}
+
+.settings-label {
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    line-height: 1;
+}
+
+.settings-row {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.settings-btn {
+    flex: 1;
+    background: var(--bg-offset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+                border-color var(--transition-fast);
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.settings-btn:hover:not(:disabled) {
+    background: var(--border);
+    color: var(--text);
+}
+.settings-btn.is-active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+}
+.settings-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.settings-btn--full {
+    width: 100%;
+    flex: none;
+    text-align: center;
+}
+
+.settings-btn--danger {
+    color: rgba(180, 80, 80, 0.85);
+}
+.settings-btn--danger:hover {
+    color: rgba(180, 80, 80, 1);
+}
+
+.settings-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+
+/* ============================================================
+   FOCUS MODE — header fade
+   TOC hide lives in layout.css.
+   ============================================================ */
+
+[data-focus-mode] body > header {
+    opacity: 0.07;
+    transition: opacity 0.5s ease;
+}
+
+[data-focus-mode] body > header:hover,
+[data-focus-mode] body > header:focus-within {
+    opacity: 1;
+    transition: opacity 0.15s ease;
+}
+
+
+/* ============================================================
+   REDUCE MOTION
+   Collapses all transitions and animations site-wide.
+   Applied to <html> before first paint by theme.js.
+   ============================================================ */
+
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+}
+
+/* ── Mobile nav (≤540px) ─────────────────────────────────────────────
+   Controls are position:absolute on desktop (out of flex flow, pinned
+   right). On narrow viewports they collide with the primary links.
+   Fix: bring them into flow, wrap the row, add a separator line.
+   ──────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 540px) {
+    .nav-row-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.4rem 0.75rem;
+        gap: 0.25rem 0;
+    }
+
+    .nav-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        font-size: 0.72rem;
+    }
+
+    /* Larger vertical padding → usable tap targets without extra markup */
+    .nav-primary a {
+        padding: 0.35rem 0.55rem;
+    }
+
+    /* border-left separators look broken on wrapped rows (the first link
+       of a new row still gets a left border). Replace with a gap. */
+    .nav-primary a + a {
+        border-left: none;
+        margin-left: 0.1rem;
+    }
+
+    /* Pull controls out of absolute positioning, span full width, center */
+    .nav-controls {
+        position: static;
+        width: 100%;
+        justify-content: center;
+        padding-top: 0.3rem;
+        border-top: 1px solid var(--border);
+        margin-top: 0.15rem;
+    }
+
+    .nav-portal-toggle {
+        padding: 0.3rem 0;
+    }
+
+    /* Portal row: tighter side padding on narrow screens */
+    .nav-portals {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .nav-portals a {
+        padding: 0.3rem 0.55rem;
+    }
+}
+
+/* Row 2: portal links — hidden until nav.js adds .is-open */
+.nav-portals {
+    display: none;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0.4rem 1.5rem 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.nav-portals.is-open {
+    display: flex;
+}
+
+.nav-portals a {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    color: var(--text-faint);
+    padding: 0.1rem 0.7rem;
+    transition: color var(--transition-fast);
+}
+.nav-portals a + a {
+    border-left: 1px solid var(--border);
+}
+.nav-portals a:hover {
+    color: var(--text);
+}
+
+
+/* ============================================================
+   TABLE OF CONTENTS
+   Sticky left sidebar (position: sticky set in layout.css).
+   toc.js manages: .is-active links, .is-collapsed state,
+   and the --toc-progress custom property for the progress bar.
+   ============================================================ */
+
+#toc {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    padding-right: 1.5rem;
+    padding-left: 0.5rem;
+}
+
+/* Header row: current section label + collapse toggle */
+.toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.35rem;
+    position: relative;
+}
+
+/* Progress track — full width, faint */
+.toc-header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 1px;
+    background: var(--border);
+}
+
+/* Progress fill — grows left→right with scroll */
+.toc-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 1px;
+    width: calc(var(--toc-progress, 0) * 100%);
+    background: var(--text-muted);
+    transition: width 0.12s ease;
+}
+
+/* Current section label */
+.toc-active-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+#toc.is-collapsed .toc-active-label {
+    color: var(--text-muted);
+}
+
+/* Collapse toggle button */
+.toc-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--transition-fast), transform 0.28s ease;
+}
+.toc-toggle:hover {
+    color: var(--text-muted);
+}
+#toc.is-collapsed .toc-toggle {
+    transform: rotate(-90deg);
+}
+
+/* Nav: animates open/closed via max-height. The collapsed state hides
+   the nav from the keyboard tab order *and* the accessibility tree
+   using `aria-hidden="true"` (set by toc.js). The transition still
+   works because we keep `max-height: 0` for the visual collapse. */
+.toc-nav {
+    overflow: hidden;
+    max-height: 80vh;
+    transition: max-height 0.3s ease;
+}
+#toc.is-collapsed .toc-nav {
+    max-height: 0;
+}
+#toc.is-collapsed .toc-nav a,
+#toc.is-collapsed .toc-nav button {
+    /* Belt-and-suspenders: even if aria-hidden is somehow stripped,
+       the collapsed nav cannot receive focus. The earlier rule used
+       `visibility: hidden` which already removed elements from the
+       focus order, but `visibility` interacts poorly with the
+       max-height transition; tabindex=-1 set by toc.js is preferred. */
+    pointer-events: none;
+}
+
+/* Nav list */
+.toc-nav ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.toc-nav > ol > li {
+    margin: 0.3rem 0;
+}
+
+.toc-nav > ol > li > ol {
+    margin: 0.1rem 0 0.2rem 0;
+}
+.toc-nav > ol > li > ol > li {
+    margin: 0.15rem 0;
+}
+
+.toc-nav a {
+    text-decoration: none;
+    color: var(--text-faint);
+    display: block;
+    padding: 0.1rem 0;
+    transition: color var(--transition-fast);
+}
+.toc-nav a:hover {
+    color: var(--text);
+}
+
+/* JS adds .is-active to the current heading's link */
+.toc-nav a.is-active {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* h2-level links slightly more prominent */
+.toc-nav > ol > li > a {
+    color: var(--text-muted);
+}
+.toc-nav > ol > li > a:hover,
+.toc-nav > ol > li > a.is-active {
+    color: var(--text);
+}
+
+/* h3-level links indented and smaller */
+.toc-nav > ol > li > ol > li > a {
+    padding-left: 0.75rem;
+    font-size: 0.74rem;
+}
+
+
+/* ============================================================
+   PAGE TITLE
+   ============================================================ */
+
+.page-title {
+    font-family: var(--font-sans);
+    font-size: 2.6rem;
+    font-weight: 600;
+    margin: 0 0 1.65rem 0;
+    line-height: 1.1;
+    color: var(--text);
+}
+
+
+/* ============================================================
+   METADATA BLOCK
+   Vertical sequence above the body: tags, description,
+   authors (optional), jump links to bottom footer sections.
+   ============================================================ */
+
+.metadata {
+    margin-bottom: 2.475rem;
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.meta-row {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* Tags, authors, jump links: centered */
+.meta-tags,
+.meta-authors,
+.meta-pagelinks {
+    text-align: center;
+}
+
+/* Description: blockquote style, left-aligned */
+.meta-description {
+    font-style: italic;
+    padding-left: 1.25em;
+    border-left: 2px solid var(--border);
+    color: var(--text-muted);
+}
+
+/* Tags: centered row of small-caps links separated by middots */
+.meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+}
+
+.meta-tag {
+    color: var(--text-faint);
+    text-decoration: none;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    transition: color var(--transition-fast);
+}
+
+.meta-tag:hover {
+    color: var(--text-muted);
+}
+
+.meta-tag + .meta-tag::before {
+    content: " · ";
+    color: var(--text-faint);
+    letter-spacing: 0;
+    font-variant-caps: normal;
+}
+
+/* Affiliation: institution name below author, in sans to contrast the serif author row */
+.meta-affiliation {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.meta-affiliation a {
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.meta-affiliation a:hover {
+    color: var(--text-muted);
+}
+
+/* Authors: "by" label + name */
+.meta-authors {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+}
+.meta-authors .meta-label {
+    font-variant-caps: all-small-caps;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    margin-right: 0.4rem;
+}
+
+/* Jump links: inline, separated by middots */
+.meta-pagelinks {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+.meta-pagelinks a {
+    color: var(--text-faint);
+    text-decoration: none;
+}
+.meta-pagelinks a:hover {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.meta-pagelinks a + a::before {
+    content: " · ";
+    color: var(--border);
+    display: inline-block;
+    text-decoration: none;
+    white-space: pre;
+}
+
+/* Top-of-page parallel tag strip — surfaces the full epistemic profile
+   inline so a reader sees status, trust score, and every orientation
+   axis at a glance, without scrolling to the footer. The trust chip
+   anchors the left edge; status sits next to it; the labeled rows
+   follow with their leading centerdot separators. Wraps freely. */
+.meta-epistemic-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem 0.55rem;
+}
+
+
+/* ============================================================
+   BOTTOM METADATA FOOTER
+   Full-width section outside the essay's three-column layout.
+   Structure: [Further Reading row?] [Bibliography row?] [metadata grid].
+   ============================================================ */
+
+.page-meta-footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem var(--page-padding);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+/* Each section is constrained and centered. */
+.page-meta-footer > * {
+    width: 100%;
+    max-width: min(1200px, 100%);
+}
+
+/* Shared heading style for full-width section headings */
+.meta-footer-full > h3,
+.meta-footer-section h3 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin: 0 0 0.75rem 0;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+}
+
+/* Full-width rows: Further Reading and Bibliography */
+.meta-footer-full {
+    width: 100%;
+}
+
+/* Metadata entries: horizontal auto-grid, centered */
+.meta-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    justify-content: center;
+    gap: 1.65rem 2rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-muted, var(--border));
+}
+
+.meta-footer-section p,
+.meta-footer-section ul {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.meta-footer-section ul {
+    padding-left: 1em;
+    list-style: none;
+}
+
+.meta-footer-section ul li::before {
+    content: "–\00a0";
+    color: var(--text-faint);
+}
+
+/* ============================================================
+   BACKLINKS LIST
+   ============================================================ */
+
+#backlinks .backlinks-list {
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+}
+
+#backlinks .backlinks-list li::before {
+    content: none;
+}
+
+.backlink-item {
+    padding: 0.3rem 0;
+}
+
+/* Source title — always visible */
+.backlink-source {
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+    font-variant: small-caps;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.backlink-source:hover {
+    color: var(--text);
+}
+
+/* Context toggle — collapsed by default */
+.backlink-details {
+    display: inline;
+}
+
+.backlink-summary {
+    display: inline;
+    margin-left: 0.4em;
+    font-size: 0.68rem;
+    font-family: var(--font-sans);
+    color: var(--text-faint);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.backlink-summary::-webkit-details-marker {
+    display: none;
+}
+
+.backlink-summary::before {
+    content: "▸\00a0";
+    font-size: 0.6em;
+    vertical-align: 0.1em;
+}
+
+details[open] > .backlink-summary::before {
+    content: "▾\00a0";
+}
+
+.backlink-summary:hover {
+    color: var(--text-muted);
+}
+
+/* Context paragraph — shown when <details> is open */
+.backlink-context {
+    margin-top: 0.35rem;
+    margin-bottom: 0.2rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--border-muted);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    line-height: 1.5;
+}
+
+.backlink-context a {
+    color: var(--text-faint);
+    text-decoration-color: var(--border-muted);
+}
+
+.backlink-context a:hover {
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   EPISTEMIC METADATA BLOCK
+   Compact display (status chip + confidence % + dot scales)
+   with an expandable <details> for the full profile.
+   ============================================================ */
+
+/* Status chip */
+.ep-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+/* Every labeled row beneath the primary line shares one class so new
+   epistemic fields can be added in the template without touching CSS.
+   Used by confidence, importance, evidence, scope, novelty, practicality. */
+.ep-row {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+}
+.ep-row::before { content: "·\00a0"; color: var(--border); }
+
+/* Dot scale (importance / evidence) — only ever used nested inside an
+   .ep-row wrapper, which already supplies the centerdot separator. */
+.ep-dots {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    line-height: 1;
+    vertical-align: 0.15em;
+}
+.ep-row .ep-dots::before { content: none; }
+
+/* Trust chip on the primary row — bordered numeric chip plus a small-caps
+   "trust" label, mirroring .ep-status typography so the two sit together. */
+.ep-trust {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.ep-score {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: normal;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.5em;
+    margin-right: 0.25em;
+}
+
+/* Definition list for expanded profile */
+.ep-expanded {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 0.75rem;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.ep-expanded dt {
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.ep-expanded dd {
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+}
+
+
+/* ============================================================
+   PAGINATION NAV
+   ============================================================ */
+
+.paginate-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-muted);
+    font-family: var(--font-sans);
+}
+
+.paginate-btn {
+    color: var(--text-faint);
+    text-decoration: none;
+    font-size: 1rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.paginate-btn:hover {
+    color: var(--text-muted);
+}
+
+.paginate-info {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ============================================================
+   CITATION MARKERS (inline superscripts)
+   ============================================================ */
+
+.cite-marker {
+    font-family: var(--font-sans);
+    font-size: 0.62em;
+    line-height: 1;
+    vertical-align: super;
+    margin: 0 0.08em;
+}
+
+.cite-link {
+    color: var(--text-faint);
+    text-decoration: none;
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.28em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cite-link:hover {
+    color: var(--text-muted);
+    border-color: var(--border);
+    text-decoration: none;
+}
+
+/* Tooltip shown on hover */
+.cite-tooltip {
+    position: absolute;
+    z-index: 200;
+    max-width: 340px;
+    padding: 0.55rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    pointer-events: auto;
+}
+
+.cite-tooltip em {
+    font-style: italic;
+}
+
+
+/* ============================================================
+   BIBLIOGRAPHY (inside .page-meta-footer #bibliography)
+   ============================================================ */
+
+/* Number badge preceding each entry */
+.ref-num {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-right: 0.4em;
+    white-space: nowrap;
+}
+
+/* Each bibliography entry */
+.csl-bib-body .csl-entry {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 0.6rem;
+    padding-left: 1.6em;
+    text-indent: -1.6em;
+}
+
+.csl-bib-body .csl-entry a {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+.csl-bib-body .csl-entry a:hover {
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   COLLAPSIBLE SECTIONS
+   collapse.js wraps h2/h3 content in .section-body divs and
+   injects .section-toggle buttons into the heading elements.
+   ============================================================ */
+
+.section-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.section-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 0 0 0 0.5em;
+    font-size: 0.5em;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.1em;
+    opacity: 0;
+    transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+h2:hover .section-toggle,
+h3:hover .section-toggle,
+.section-toggle:hover,
+.section-toggle:focus {
+    opacity: 1;
+}
+
+.section-toggle:hover {
+    color: var(--text-muted);
+}
+
+.section-toggle::before {
+    content: '▼';
+}
+
+.section-toggle[aria-expanded="false"]::before {
+    content: '▶';
+}
+
+
+/* ============================================================
+   PAGEFIND SEARCH UI
+   CSS custom property overrides so pagefind-ui matches the
+   site's design tokens. Pagefind reads these via var().
+   ============================================================ */
+
+#search {
+    margin-top: 1.65rem;
+    --pagefind-ui-scale: 0.85;
+    --pagefind-ui-primary: var(--text-muted);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-tag: var(--bg-offset);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 2px;
+    --pagefind-ui-font: var(--font-sans);
+}
+
+#search-timing {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em; /* reserve space to prevent layout shift */
+}
+
+/* Search tabs (Keyword / Semantic toggle) */
+.search-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.45rem 1rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+}
+
+.search-tab:hover       { color: var(--text-muted); }
+.search-tab.is-active   { color: var(--text); border-bottom-color: var(--text); }
+
+/* Search panels (keyword / semantic) — only active panel visible */
+.search-panel           { display: none; }
+.search-panel.is-active { display: block; }
+
+/* Semantic query input — mirrors Pagefind UI style */
+.semantic-query-input {
+    width: 100%;
+    margin-top: 1.65rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.semantic-query-input:focus { border-color: var(--text-muted); }
+
+.semantic-status {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
+
+/* Semantic results list */
+.semantic-results-list {
+    list-style: none;
+    margin: 1.2rem 0 0;
+    padding: 0;
+}
+
+.semantic-result {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.semantic-result:last-child { border-bottom: none; }
+
+.semantic-result-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.semantic-result-title:hover { text-decoration: underline; }
+
+.semantic-result-heading {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+}
+
+.semantic-result-excerpt {
+    margin: 0.3rem 0 0;
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* ============================================================
+   COMPOSITION LANDING PAGE
+   ============================================================ */
+
+.composition-meta .meta-row.composition-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+}
+
+.comp-detail + .comp-detail::before {
+    content: "·";
+    margin-right: 1.25rem;
+    color: var(--border);
+}
+
+.meta-row.composition-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.comp-btn {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.comp-btn:hover {
+    background: var(--bg-offset);
+}
+
+.comp-btn--secondary {
+    color: var(--text-muted);
+}
+
+/* Full-piece recording player */
+
+.comp-recording {
+    margin: 1.25rem 0;
+}
+
+.comp-recording-audio {
+    width: 100%;
+    height: 2rem;
+    accent-color: var(--text-muted);
+}
+
+/* Movement list */
+
+.composition-movements {
+    margin: 1.25rem 0;
+    border-top: 1px solid var(--border);
+}
+
+.comp-movement {
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.comp-movement-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.comp-movement-name {
+    font-weight: 600;
+    flex: 1 1 auto;
+}
+
+.comp-movement-duration {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.comp-movement-score {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.comp-movement-score:hover {
+    text-decoration: underline;
+}
+
+.movement-audio {
+    display: block;
+    width: 100%;
+    height: 2rem;
+    margin-top: 0.5rem;
+    accent-color: var(--text-muted);
+}
+
+
+/* ============================================================
+   TRANSCLUSION
+   States for <div class="transclude"> placeholders injected by
+   Filters.Transclusion and populated by transclude.js.
+   ============================================================ */
+
+/* Loading placeholder — subtle pulse so the page doesn't look broken
+   while the fetch is in flight. */
+.transclude--loading {
+    min-height: 1.65rem;
+    background: var(--bg-offset);
+    border-radius: 2px;
+    animation: transclude-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes transclude-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+}
+
+/* Loaded — transparent wrapper; content reads as native. */
+.transclude--loaded {
+    /* No visual treatment: transcluded content is visually native. */
+}
+
+/* Optional: uncomment to show a subtle left rule on loaded transclusions.
+.transclude--loaded {
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+    margin-left: -1rem;
+}
+*/
+
+/* Error state — faint inline notice. */
+.transclude--error {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    padding: 0.4rem 0;
+}
+
+/* Content wrapper — display:contents so the injected nodes participate
+   in normal document flow without adding a structural block. */
+.transclude--content {
+    display: contents;
+}
+
+/* ============================================================
+   COPY BUTTON
+   Injected by copy.js into every <pre> block. Fades in on hover.
+   ============================================================ */
+
+.copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: var(--bg);
+    border: 1px solid var(--border-muted);
+    border-radius: 3px;
+    padding: 0.2em 0.55em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+    user-select: none;
+    line-height: 1.6;
+}
+
+pre:hover .copy-btn,
+.copy-btn:focus-visible {
+    opacity: 1;
+}
+
+.copy-btn:hover {
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+
+.copy-btn[data-copied] {
+    color: var(--text-muted);
+    border-color: var(--border);
+    opacity: 1;
+}
+
+/* ============================================================
+   TOUCH DEVICES
+   (hover: none) and (pointer: coarse) reliably targets
+   touchscreen-primary devices (phones, tablets) without
+   relying on viewport width or user-agent sniffing.
+
+   Goals:
+     1. Suppress :hover states that "stick" after a tap
+     2. Ensure tap targets meet ~44px minimum
+     3. (popup disable is handled in popups.js)
+   ============================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Nav: ensure adequate vertical tap area even on wider tablets
+       where the ≤540px query doesn't fire */
+    .nav-primary a {
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .nav-portal-toggle {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+    /* Settings gear: expand hit area without visual change */
+    .settings-toggle {
+        padding: 0.5rem;
+        margin: -0.5rem;
+    }
+
+    /* Portal row links */
+    .nav-portals a {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+    /* Suppress stuck hover states — reset to their non-hover values */
+    .nav-primary a:hover           { color: var(--text-muted); }
+    .nav-portals a:hover           { color: var(--text-faint); }
+    .nav-portal-toggle:hover       { color: var(--text-faint); }
+    .settings-toggle:hover         { color: var(--text-faint); }
+    .toc-nav a:hover               { color: var(--text-faint); }
+    .toc-nav > ol > li > a:hover   { color: var(--text-muted); }
+    .hp-pro-row a:hover            { color: var(--text-muted); }
+    .hp-curiosity-row a:hover      { color: var(--text-muted); }
+    .hp-portal-name:hover          { text-decoration-color: var(--border-muted); }
+    .meta-tag:hover                { color: var(--text-faint); }
+    .backlink-source:hover         { color: var(--text-muted); }
+    .section-toggle:hover          { color: var(--text-faint); }
+
+    /* Copy button: always visible on touch (no persistent hover) */
+    .copy-btn { opacity: 1; }
+}
+
+/* ============================================================
+   PDF EMBED
+   Inline PDF.js viewer iframes rendered from {{pdf:...}} directives.
+   ============================================================ */
+
+.pdf-embed-wrapper {
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--bg-subtle);
+}
+
+.pdf-embed {
+    display: block;
+    width: 100%;
+    height: 70vh;
+    min-height: 420px;
+    border: none;
+}
+
+@media (max-width: 600px) {
+    .pdf-embed {
+        height: 60vh;
+        min-height: 300px;
+    }
+}

@@ -1,0 +1,31 @@
+[project]
+name = "ozymandias-tools"
+version = "0.1.0"
+description = "Build-time tooling for the Ozymandias static site template"
+requires-python = ">=3.12"
+dependencies = [
+    # Visualization
+    "matplotlib>=3.9,<4",
+    "altair>=5.4,<6",
+
+    # Embedding pipeline
+    # Upper bounds are intentionally generous (next major) but always
+    # present so that an unrelated `uv sync` upgrade can't silently pull
+    # an API-breaking 4.x release. Bump deliberately when validating.
+    "sentence-transformers>=3.4,<4",
+    "faiss-cpu>=1.9,<2",
+    "numpy>=2.0,<3",
+    "beautifulsoup4>=4.12,<5",
+    # CPU-only torch — avoids pulling ~3 GB of CUDA libraries
+    "torch>=2.5,<3",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[tool.uv]

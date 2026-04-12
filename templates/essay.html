@@ -1,0 +1,17 @@
+<div id="content">
+    <aside id="toc" aria-label="Table of contents" data-pagefind-ignore="all">
+        <div class="toc-header">
+            <span class="toc-active-label">Contents</span>
+            <button class="toc-toggle" aria-label="Toggle table of contents" aria-expanded="true">&#9662;</button>
+        </div>
+        <nav class="toc-nav">
+            $toc$
+        </nav>
+    </aside>
+    <main id="markdownBody" data-pagefind-body$if(no-collapse)$ data-no-collapse$endif$>
+        <h1 class="page-title">$title$</h1>
+        $partial("templates/partials/metadata.html")$
+        $body$
+    </main>
+</div>
+$partial("templates/partials/page-footer.html")$

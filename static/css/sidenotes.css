@@ -1,0 +1,157 @@
+/* sidenotes.css — Inline sidenote layout.
+   The Haskell Sidenotes filter converts Pandoc footnotes to:
+     <sup class="sidenote-ref"><a href="#sn-N">N</a></sup>
+     <span class="sidenote" id="sn-N"><sup class="sidenote-num">N</sup> …</span>
+
+   Layout strategy
+   ───────────────
+   On wide viewports (≥ 1500px) the sidenote <span> is positioned
+   absolutely relative to #markdownBody (which is position: relative).
+   We do NOT use float because float with negative margin is unreliable
+   across browsers when the float's margin box is effectively zero-width;
+   it tends to wrap below the paragraph rather than escaping to the right.
+
+   position: absolute with no explicit top/bottom uses the "hypothetical
+   static position" — the spot the element would occupy if position: static.
+   For an inline <span> inside a <p>, this is roughly the line containing
+   the sidenote reference, giving correct vertical alignment without JS.
+
+   On narrow viewports the <span> is hidden and the Pandoc-generated
+   <section class="footnotes"> at document end is shown instead.
+*/
+
+/* ============================================================
+   SIDENOTE REFERENCE (in-text superscript)
+   ============================================================ */
+
+.sidenote-ref {
+    font-size: 0.7em;
+    line-height: 0;
+    position: relative;
+    top: -0.4em;
+    font-family: var(--font-sans);
+    font-feature-settings: normal;
+}
+
+.sidenote-ref a {
+    color: var(--text-faint);
+    text-decoration: none;
+    padding: 0 0.1em;
+    transition: color var(--transition-fast);
+}
+
+.sidenote-ref a:hover,
+.sidenote-ref.is-active a {
+    color: var(--text);
+}
+
+/* Highlight the sidenote when its ref is hovered (CSS: adjacent sibling). */
+.sidenote-ref:hover + .sidenote,
+.sidenote.is-active {
+    color: var(--text);
+}
+
+
+/* ============================================================
+   SIDENOTE SPAN
+   position: absolute anchors to #markdownBody (position: relative).
+   left: 100% + gap puts the left edge just past the right side of
+   the body column.  No top/bottom → hypothetical static position.
+   ============================================================ */
+
+.sidenote {
+    position: absolute;
+    left: calc(100% + 1.5rem);   /* 1.5rem gap from body right edge */
+    width: clamp(200px, calc(50vw - var(--body-max-width) / 2 - var(--page-padding) - 1.5rem), 320px);
+
+    font-family: var(--font-serif);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+
+    text-indent: 0;
+    font-feature-settings: normal;
+    hyphens: none;
+    hanging-punctuation: none;
+}
+
+/* Number badge inside the sidenote — inline box, not a superscript */
+.sidenote-num {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: 0.65em;
+    font-weight: 600;
+    line-height: 1.35;
+    vertical-align: baseline;
+    color: var(--text-faint);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0 0.3em;
+    margin-right: 0.35em;
+}
+
+/* Paragraphs injected by blocksToHtml (rendered as inline-block spans
+   to keep them valid inside the outer <span class="sidenote">) */
+.sidenote-para {
+    display: block;
+    margin: 0;
+    text-indent: 0;
+}
+
+.sidenote-para + .sidenote-para {
+    margin-top: 0.4em;
+}
+
+.sidenote a {
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ─────────────────────────────────────────────────────────────
+   Side columns are 1fr (fluid). Sidenotes need at least
+   body(800px) + gap(24px) + sidenote(200px) + padding(48px) ≈ 1072px,
+   but a comfortable threshold is kept at 1500px so sidenotes
+   have enough room not to feel cramped.
+   ============================================================ */
+
+@media (min-width: 1500px) {
+    section.footnotes {
+        display: none;
+    }
+}
+
+@media (max-width: 1499px) {
+    .sidenote {
+        display: none;
+    }
+
+    section.footnotes {
+        display: block;
+        margin-top: 3.3rem;
+        padding-top: 1.65rem;
+        border-top: 1px solid var(--border-muted);
+    }
+}
+
+
+/* ============================================================
+   FOOTNOTE REFERENCES — shown on narrow viewports alongside
+   section.footnotes
+   ============================================================ */
+
+a.footnote-ref {
+    text-decoration: none;
+    color: var(--text-faint);
+    font-size: 0.75em;
+    line-height: 0;
+    position: relative;
+    top: -0.4em;
+    font-family: var(--font-sans);
+    transition: color var(--transition-fast);
+}
+
+a.footnote-ref:hover {
+    color: var(--text-muted);
+}

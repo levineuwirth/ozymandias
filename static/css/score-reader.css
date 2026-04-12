@@ -1,0 +1,246 @@
+/* score-reader.css — Full-page score reader layout.
+   Used only on /music/{slug}/score/ pages via score-reader-default.html. */
+
+/* ------------------------------------------------------------------
+   Top bar
+------------------------------------------------------------------ */
+
+.score-reader-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1.25rem;
+    height: 2.75rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-sans);
+    font-size: 0.825rem;
+}
+
+.score-reader-bar-left {
+    flex: 0 0 auto;
+}
+
+.score-reader-movements {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.score-reader-movements::-webkit-scrollbar { display: none; }
+
+.score-reader-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+}
+
+.score-reader-back {
+    color: var(--text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.score-reader-back:hover { color: var(--text); }
+
+.score-reader-mvt {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 3px;
+    transition: background 0.15s, color 0.15s;
+}
+.score-reader-mvt:hover,
+.score-reader-mvt.is-active {
+    background: var(--bg-code);
+    color: var(--text);
+}
+
+.score-reader-counter {
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.score-reader-pdf {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+}
+.score-reader-pdf:hover { color: var(--text); }
+
+/* ------------------------------------------------------------------
+   Score stage
+------------------------------------------------------------------ */
+
+.score-reader-stage {
+    padding-top: 2.75rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg);
+}
+
+.score-reader-viewport {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    gap: 1rem;
+}
+
+.score-page {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Dark-mode inversion — appropriate for pure B&W notation. */
+[data-theme="dark"] .score-page {
+    filter: invert(1);
+}
+
+/* ------------------------------------------------------------------
+   Prev / next buttons
+------------------------------------------------------------------ */
+
+.score-reader-prev,
+.score-reader-next {
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, border-color 0.15s;
+}
+.score-reader-prev:hover,
+.score-reader-next:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+.score-reader-prev:disabled,
+.score-reader-next:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* Narrow screens: score scrolls horizontally; arrow buttons hidden. */
+@media (max-width: 640px) {
+    .score-reader-viewport {
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding: 1rem 0;
+    }
+    .score-page {
+        min-width: 600px;
+    }
+    .score-reader-prev,
+    .score-reader-next {
+        display: none;
+    }
+}
+
+/* ------------------------------------------------------------------
+   Composition landing page additions (metadata block)
+------------------------------------------------------------------ */
+
+.composition-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.5rem;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+}
+
+.comp-detail { white-space: nowrap; }
+
+.composition-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.comp-btn {
+    display: inline-block;
+    padding: 0.35em 0.9em;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: var(--font-sans);
+    font-size: 0.825rem;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--bg);
+    transition: background 0.15s, border-color 0.15s;
+}
+.comp-btn:hover {
+    background: var(--bg-code);
+    border-color: var(--text-muted);
+}
+.comp-btn--secondary { color: var(--text-muted); }
+
+/* ------------------------------------------------------------------
+   Movement list
+------------------------------------------------------------------ */
+
+.composition-movements {
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.comp-movement-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+}
+
+.comp-movement-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.comp-movement-duration {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.comp-movement-score {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-decoration: none;
+    margin-left: auto;
+}
+.comp-movement-score:hover { color: var(--text); }
+
+.movement-audio {
+    width: 100%;
+    margin-top: 0.4rem;
+    accent-color: var(--text-muted);
+}

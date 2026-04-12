@@ -1,0 +1,35 @@
+<main id="markdownBody" data-pagefind-body>
+    <h1 class="page-title">$title$</h1>
+    <div class="cp-intro">$body$</div>
+    <nav class="cp-view-toggle" aria-label="View mode">
+        <button class="cp-toggle-btn is-active" data-target="cp-themed">by theme</button>
+        <button class="cp-toggle-btn" data-target="cp-chrono">chronological</button>
+    </nav>
+    $cp-themed-html$
+    $cp-chrono-html$
+</main>
+$partial("templates/partials/page-footer.html")$
+<script>
+(function () {
+    'use strict';
+    var themed = document.getElementById('cp-themed');
+    var chrono = document.getElementById('cp-chrono');
+    var btns   = document.querySelectorAll('.cp-toggle-btn');
+
+    function show(id) {
+        themed.hidden = (id !== 'cp-themed');
+        chrono.hidden = (id !== 'cp-chrono');
+        btns.forEach(function (b) {
+            b.classList.toggle('is-active', b.dataset.target === id);
+        });
+        localStorage.setItem('cp-view', id);
+    }
+
+    btns.forEach(function (btn) {
+        btn.addEventListener('click', function () { show(btn.dataset.target); });
+    });
+
+    var saved = localStorage.getItem('cp-view');
+    if (saved === 'cp-chrono') show('cp-chrono');
+}());
+</script>

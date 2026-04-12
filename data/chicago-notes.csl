@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0"
+       demote-non-dropping-particle="sort-only"
+       default-locale="en-US">
+
+  <info>
+    <title>Chicago Notes Bibliography</title>
+    <id>chicago-notes-ozymandias</id>
+    <link href="http://www.chicagomanualofstyle.org/tools_citationguide.html" rel="documentation"/>
+    <author><name>Ozymandias</name></author>
+    <updated>2026-03-15T00:00:00+00:00</updated>
+  </info>
+
+  <!-- ============================================================
+       MACROS
+       ============================================================ -->
+
+  <!-- Author names: Last, First for first author; First Last for rest -->
+  <macro name="contributors">
+    <names variable="author">
+      <name name-as-sort-order="first" and="text"
+            sort-separator=", " delimiter=", "
+            delimiter-precedes-last="always"/>
+      <label form="short" prefix=", "/>
+      <substitute>
+        <names variable="editor"/>
+        <names variable="translator"/>
+        <text macro="title"/>
+      </substitute>
+    </names>
+  </macro>
+
+  <!-- Editor names (for edited volumes) -->
+  <macro name="editor">
+    <names variable="editor">
+      <name and="text" delimiter=", "/>
+      <label form="short" prefix=", "/>
+    </names>
+  </macro>
+
+  <!-- Title: italics for book-like, quotes for articles/chapters -->
+  <macro name="title">
+    <choose>
+      <if type="book report" match="any">
+        <text variable="title" font-style="italic"/>
+      </if>
+      <else-if type="thesis">
+        <text variable="title" font-style="italic"/>
+      </else-if>
+      <else>
+        <text variable="title" quotes="true"/>
+      </else>
+    </choose>
+  </macro>
+
+  <!-- Container title (journal, book, website) -->
+  <macro name="container-title">
+    <choose>
+      <if type="chapter paper-conference" match="any">
+        <group delimiter=" ">
+          <text term="in" text-case="capitalize-first"/>
+          <text variable="container-title" font-style="italic"/>
+        </group>
+      </if>
+      <else-if type="article-journal article-magazine article-newspaper" match="any">
+        <text variable="container-title" font-style="italic"/>
+      </else-if>
+      <else-if type="webpage post post-weblog" match="any">
+        <text variable="container-title"/>
+      </else-if>
+    </choose>
+  </macro>
+
+  <!-- Year only -->
+  <macro name="year">
+    <choose>
+      <if variable="issued">
+        <date variable="issued">
+          <date-part name="year"/>
+        </date>
+      </if>
+      <else>
+        <text term="no date" form="short"/>
+      </else>
+    </choose>
+  </macro>
+
+  <!-- Full date (for web pages, newspaper articles) -->
+  <macro name="date-full">
+    <date variable="issued" delimiter=" ">
+      <date-part name="month" form="long"/>
+      <date-part name="day" suffix=","/>
+      <date-part name="year"/>
+    </date>
+  </macro>
+
+  <!-- Publisher: Place: Publisher -->
+  <macro name="publisher">
+    <group delimiter=": ">
+      <text variable="publisher-place"/>
+      <text variable="publisher"/>
+    </group>
+  </macro>
+
+  <!-- DOI or URL access link -->
+  <macro name="access">
+    <choose>
+      <if variable="DOI">
+        <text variable="DOI" prefix="https://doi.org/"/>
+      </if>
+      <else-if variable="URL">
+        <text variable="URL"/>
+      </else-if>
+    </choose>
+  </macro>
+
+  <!-- ============================================================
+       CITATION (inline — our Haskell filter replaces this entirely)
+       ============================================================ -->
+  <citation>
+    <sort>
+      <key macro="contributors"/>
+      <key macro="year"/>
+    </sort>
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <group delimiter=" ">
+        <names variable="author">
+          <name form="short" and="text" delimiter=", "/>
+          <substitute>
+            <names variable="editor"/>
+            <text macro="title"/>
+          </substitute>
+        </names>
+        <text macro="year"/>
+      </group>
+    </layout>
+  </citation>
+
+  <!-- ============================================================
+       BIBLIOGRAPHY
+       ============================================================ -->
+  <bibliography entry-spacing="0" hanging-indent="false">
+    <sort>
+      <!-- Sorted by appearance order in our Haskell post-processor.
+           This CSL sort is a fallback only. -->
+      <key macro="contributors"/>
+      <key macro="year"/>
+    </sort>
+    <layout suffix=".">
+      <group delimiter=". ">
+
+        <!-- Author(s) -->
+        <text macro="contributors"/>
+
+        <!-- Title -->
+        <text macro="title"/>
+
+        <!-- Type-specific publication details -->
+        <choose>
+
+          <!-- Book -->
+          <if type="book" match="any">
+            <group delimiter=". ">
+              <text macro="editor"/>
+              <group delimiter=", ">
+                <text macro="publisher"/>
+                <text macro="year"/>
+              </group>
+            </group>
+          </if>
+
+          <!-- Thesis / Dissertation -->
+          <else-if type="thesis">
+            <group delimiter=", ">
+              <text variable="genre"/>
+              <text variable="publisher"/>
+              <text macro="year"/>
+            </group>
+          </else-if>
+
+          <!-- Book chapter / conference paper -->
+          <else-if type="chapter paper-conference" match="any">
+            <group delimiter=". ">
+              <group delimiter=", ">
+                <text macro="container-title"/>
+                <text macro="editor"/>
+              </group>
+              <group delimiter=", ">
+                <text variable="page"/>
+                <group delimiter=", ">
+                  <text macro="publisher"/>
+                  <text macro="year"/>
+                </group>
+              </group>
+            </group>
+          </else-if>
+
+          <!-- Journal article -->
+          <else-if type="article-journal">
+            <group delimiter=" ">
+              <text macro="container-title"/>
+              <group delimiter=", ">
+                <text variable="volume"/>
+                <group>
+                  <text term="issue" form="short" suffix=". "/>
+                  <text variable="issue"/>
+                </group>
+              </group>
+              <group prefix="(" suffix="):">
+                <text macro="year"/>
+              </group>
+              <text variable="page"/>
+            </group>
+          </else-if>
+
+          <!-- Magazine / newspaper -->
+          <else-if type="article-magazine article-newspaper" match="any">
+            <group delimiter=", ">
+              <text macro="container-title"/>
+              <text macro="date-full"/>
+            </group>
+          </else-if>
+
+          <!-- Web page / blog post -->
+          <else-if type="webpage post post-weblog" match="any">
+            <group delimiter=". ">
+              <text macro="container-title"/>
+              <text macro="date-full"/>
+            </group>
+          </else-if>
+
+          <!-- Fallback -->
+          <else>
+            <group delimiter=", ">
+              <text macro="publisher"/>
+              <text macro="year"/>
+            </group>
+          </else>
+
+        </choose>
+      </group>
+
+      <!-- DOI / URL appended after the period -->
+      <text macro="access" prefix=" "/>
+    </layout>
+  </bibliography>
+
+</style>

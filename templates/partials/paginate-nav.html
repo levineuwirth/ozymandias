@@ -1,0 +1,14 @@
+$if(previousPageUrl)$
+<nav class="paginate-nav">
+    <a class="paginate-btn paginate-prev" href="$previousPageUrl$">&larr;</a>
+    <span class="paginate-info">$currentPageNum$ / $numPages$</span>
+    $if(nextPageUrl)$
+    <a class="paginate-btn paginate-next" href="$nextPageUrl$">&rarr;</a>
+    $endif$
+</nav>
+$else$$if(nextPageUrl)$
+<nav class="paginate-nav">
+    <span class="paginate-info">$currentPageNum$ / $numPages$</span>
+    <a class="paginate-btn paginate-next" href="$nextPageUrl$">&rarr;</a>
+</nav>
+$endif$$endif$

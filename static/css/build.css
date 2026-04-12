@@ -1,0 +1,165 @@
+/* ============================================================
+   Build telemetry page (/build/)
+   ============================================================ */
+
+.build-section {
+    margin: 2.5rem 0;
+}
+
+/* Summary + tag tables */
+.build-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95em;
+}
+
+.build-table th,
+.build-table td {
+    padding: 0.35rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+}
+
+.build-table th {
+    font-family: var(--font-ui);
+    font-size: 0.8em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--rule);
+}
+
+.build-table td:not(:first-child) {
+    font-variant-numeric: tabular-nums;
+}
+
+.build-total td {
+    font-weight: 600;
+    border-top: 2px solid var(--rule);
+    border-bottom: none;
+}
+
+/* Word-length distribution bars */
+.build-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 480px;
+}
+
+.build-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9em;
+}
+
+.build-bar-label {
+    width: 6.5rem;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.85em;
+    text-align: right;
+}
+
+.build-bar-wrap {
+    flex: 1;
+    background: var(--rule);
+    height: 1rem;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.build-bar {
+    display: block;
+    height: 100%;
+    background: var(--text);
+    border-radius: 2px;
+    transition: width 0.2s ease;
+    min-width: 2px;
+}
+
+.build-bar-count {
+    width: 2.5rem;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+/* Build info dl */
+.build-meta {
+    display: grid;
+    grid-template-columns: 12rem 1fr;
+    gap: 0.25rem 1rem;
+    font-size: 0.95em;
+}
+
+.build-meta dt {
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.85em;
+}
+
+.build-meta dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Writing statistics page (/stats/)
+   ============================================================ */
+
+/* Heatmap figure */
+.stats-heatmap {
+    margin: 1.5rem 0 1rem;
+    overflow-x: auto;
+}
+
+.heatmap-svg {
+    display: block;
+    max-width: 100%;
+}
+
+/* Heatmap intensity classes (driven by CSS vars in base.css) */
+.heatmap-svg .hm0,
+.heatmap-legend .hm0 { fill: var(--hm-0); }
+.heatmap-svg .hm1,
+.heatmap-legend .hm1 { fill: var(--hm-1); }
+.heatmap-svg .hm2,
+.heatmap-legend .hm2 { fill: var(--hm-2); }
+.heatmap-svg .hm3,
+.heatmap-legend .hm3 { fill: var(--hm-3); }
+.heatmap-svg .hm4,
+.heatmap-legend .hm4 { fill: var(--hm-4); }
+
+.heatmap-svg .hm-lbl {
+    font-size: 9px;
+    fill: var(--text-faint);
+    font-family: sans-serif;
+}
+
+/* Legend row below heatmap */
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    font-size: 0.75em;
+    font-family: var(--font-ui, var(--font-sans));
+    color: var(--text-faint);
+}
+
+/* Ordered lists on the Notable section */
+.build-page-list {
+    font-size: 0.95em;
+    padding-left: 1.5rem;
+    margin: 0.25rem 0 1rem;
+}
+
+.build-page-list li {
+    margin: 0.3rem 0;
+    font-variant-numeric: tabular-nums;
+}

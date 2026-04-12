@@ -1,0 +1,86 @@
+/* viz.css — Styles for inline data visualizations (.viz-figure, .viz-interactive) */
+
+/* ============================================================
+   Static figures (Matplotlib SVG)
+   ============================================================ */
+
+.viz-figure {
+    margin: 2rem 0;
+    break-inside: avoid;
+}
+
+.viz-figure svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Force labels and text glyphs to use currentColor instead of default/hardcoded black */
+.viz-figure svg g[id^="text_"] path,
+.viz-figure svg g[id^="text_"] use {
+    fill: currentColor !important;
+}
+
+/* Ensure axis lines and ticks also follow currentColor */
+.viz-figure svg g[id^="axes_"] path,
+.viz-figure svg g[id^="xtick_"] line,
+.viz-figure svg g[id^="ytick_"] line,
+.viz-figure svg g[id^="xtick_"] use,
+.viz-figure svg g[id^="ytick_"] use {
+    stroke: currentColor !important;
+}
+
+/* Catch explicit styles on axes paths */
+.viz-figure svg g[id^="patch_"] path[style*="stroke: #000000"] {
+    stroke: currentColor !important;
+}
+
+/* ============================================================
+   Interactive figures (Vega-Lite via vega-embed)
+   ============================================================ */
+
+.viz-interactive {
+    margin: 2rem 0;
+    break-inside: avoid;
+}
+
+.vega-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+/* vega-embed injects a <div> containing a <canvas> or <svg> */
+.vega-container > div {
+    width: 100% !important;
+}
+
+.vega-container canvas,
+.vega-container svg {
+    max-width: 100%;
+    display: block;
+}
+
+/* ============================================================
+   Captions (shared)
+   ============================================================ */
+
+.viz-caption {
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* ============================================================
+   Error display (build-time script failures)
+   ============================================================ */
+
+.viz-error {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    margin: 1.5rem 0;
+}

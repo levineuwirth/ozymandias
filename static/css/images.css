@@ -1,0 +1,115 @@
+/* images.css — Figure layout, captions, and lightbox overlay */
+
+/* ============================================================
+   FIGURE BASE (supplements typography.css figure rules)
+   ============================================================ */
+
+figure {
+    margin: 2rem 0;
+    max-width: 100%;
+    text-align: center;
+}
+
+figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 3px;
+}
+
+figcaption {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 0.6rem;
+}
+
+/* Zoom cursor for lightbox-enabled images */
+img[data-lightbox] {
+    cursor: zoom-in;
+}
+
+
+/* ============================================================
+   LIGHTBOX OVERLAY
+   ============================================================ */
+
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    background: rgba(0, 0, 0, 0.88);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition:
+        opacity var(--transition-fast),
+        visibility var(--transition-fast);
+}
+
+.lightbox-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 3px;
+    display: block;
+}
+
+.lightbox-caption {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: rgba(255, 255, 255, 0.65);
+    text-align: center;
+    max-width: 60ch;
+    line-height: 1.5;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 2em;
+    padding: 0.25em 0.75em;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
+[data-reduce-motion] .lightbox-overlay {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lightbox-overlay {
+        transition: none;
+    }
+}

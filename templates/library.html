@@ -1,0 +1,89 @@
+<div id="markdownBody">
+<h1 class="page-title">Library</h1>
+<p class="library-intro">Everything on this site, organized by portal.</p>
+
+<div class="library-controls">
+    <span class="library-controls-label">Sort by</span>
+    <div class="library-controls-options" role="group" aria-label="Sort order">
+        <button class="library-sort-btn" data-sort="date">date</button>
+        <button class="library-sort-btn" data-sort="title">title</button>
+        <button class="library-sort-btn" data-sort="score">trust</button>
+    </div>
+</div>
+
+$for(portals)$
+$if(entries)$
+<section class="library-section">
+<h2 id="$portal-slug$"><a href="/$portal-slug$/">$portal-name$</a></h2>
+<ul class="library-list">$for(entries)$
+<li class="library-entry" data-date="$date-iso$"$if(overall-score)$ data-score="$overall-score$"$endif$>
+  <div class="library-entry-header">
+    <a class="library-entry-title" href="$url$">$title$</a>
+    <span class="library-entry-date">$date-created$</span>
+  </div>
+  $if(abstract)$<p class="library-entry-abstract">$abstract$</p>$endif$
+</li>$endfor$</ul>
+</section>
+$endif$
+$endfor$
+
+</div>
+<script>
+(function () {
+    var STORAGE_KEY = 'library-sort';
+    var DEFAULT     = 'date';
+    var MODES       = { date: 1, title: 1, score: 1 };
+
+    function titleOf(entry) {
+        var el = entry.querySelector('.library-entry-title');
+        return el ? el.textContent.trim().toLowerCase() : '';
+    }
+
+    function compare(a, b, mode) {
+        if (mode === 'title') {
+            return titleOf(a).localeCompare(titleOf(b));
+        }
+        if (mode === 'score') {
+            // Entries without a score sink to the bottom; ties broken by date desc.
+            var hasA = a.dataset.score !== undefined;
+            var hasB = b.dataset.score !== undefined;
+            if (hasA && !hasB) return -1;
+            if (!hasA && hasB) return  1;
+            if (hasA && hasB) {
+                var diff = Number(b.dataset.score) - Number(a.dataset.score);
+                if (diff !== 0) return diff;
+            }
+            // fall through to date-desc tiebreak
+        }
+        // date desc (ISO strings sort lexicographically)
+        var da = a.dataset.date || '';
+        var db = b.dataset.date || '';
+        if (da < db) return  1;
+        if (da > db) return -1;
+        return 0;
+    }
+
+    function applySort(mode) {
+        if (!MODES[mode]) mode = DEFAULT;
+        document.querySelectorAll('.library-list').forEach(function (list) {
+            var entries = Array.prototype.slice.call(list.querySelectorAll('.library-entry'));
+            entries.sort(function (a, b) { return compare(a, b, mode); });
+            entries.forEach(function (el) { list.appendChild(el); });
+        });
+        document.querySelectorAll('.library-sort-btn').forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.dataset.sort === mode);
+        });
+        try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var saved;
+        try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applySort(saved || DEFAULT);
+
+        document.querySelectorAll('.library-sort-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { applySort(btn.dataset.sort); });
+        });
+    });
+}());
+</script>

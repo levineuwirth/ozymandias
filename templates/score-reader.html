@@ -1,0 +1,35 @@
+<header class="score-reader-bar" id="score-reader-bar">
+    <div class="score-reader-bar-left">
+        <a class="score-reader-back" href="/music/$slug$/">&#8592; $title$</a>
+    </div>
+    <nav class="score-reader-movements" aria-label="Movements">
+        $for(movements)$
+        <button class="score-reader-mvt" data-page="$movement-page$">$movement-name$</button>
+        $endfor$
+    </nav>
+    <div class="score-reader-bar-right">
+        <span class="score-reader-counter" id="score-page-counter">p. 1 / $score-page-count$</span>
+        $if(pdf)$<a class="score-reader-pdf" href="/music/$slug$/$pdf$" download>PDF</a>$endif$
+        <div class="settings-wrap">
+            <button class="settings-toggle" aria-label="Open settings" aria-expanded="false">&#9881;</button>
+            <div class="settings-panel" aria-hidden="true">
+                <div class="settings-section">
+                    <div class="settings-label">Theme</div>
+                    <div class="settings-row">
+                        <button class="settings-btn" data-action="theme-light">Light</button>
+                        <button class="settings-btn" data-action="theme-dark">Dark</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<main class="score-reader-stage" id="score-reader-stage"
+      data-page-count="$score-page-count$"
+      data-pages="$for(score-pages)$$score-page-url$$sep$,$endfor$">
+    <div class="score-reader-viewport" id="score-reader-viewport">
+        <button class="score-reader-prev" id="score-prev" aria-label="Previous page" disabled>&#8592;</button>
+        <img id="score-page-img" class="score-page" src="" alt="Score page 1">
+        <button class="score-reader-next" id="score-next" aria-label="Next page">&#8594;</button>
+    </div>
+</main>

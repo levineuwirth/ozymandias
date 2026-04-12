@@ -1,0 +1,20 @@
+<main id="markdownBody" data-pagefind-body>
+    <h1 class="page-title">$title$</h1>
+    $if(abstract)$
+    <p class="catalog-abstract">$abstract$</p>
+    $endif$
+    $if(body)$
+    <div class="catalog-prose">
+        $body$
+    </div>
+    $endif$
+    $if(has-featured)$
+    <section class="catalog-featured">
+        <h2 class="catalog-section-title catalog-featured-title">Featured</h2>
+        $featured-works$
+    </section>
+    $endif$
+    <div class="catalog-page">
+        $catalog-by-category$
+    </div>
+</main>

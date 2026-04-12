@@ -1,0 +1,64 @@
+dist-newstyle/
+_site/
+_cache/
+.DS_Store
+.env
+
+# Editor backup/swap files
+*~
+*.swp
+*.swo
+
+# Python bytecode caches
+**/__pycache__/
+*.pyc
+*.pyo
+
+# LaTeX build artifacts (sitewide — covers paper/, any future TeX sources)
+*.aux
+*.bbl
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.glo
+*.gls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+# PGF/TikZ scratch outputs
+pgftest*.pdf
+pgftest*.log
+pgftest*.aux
+# LaTeX run logs (scoped to paper/ — bare *.log would be too broad sitewide)
+paper/*.log
+
+# Data files that are generated at build time (not version-controlled)
+data/embeddings.json
+data/similar-links.json
+data/backlinks.json
+data/build-stats.json
+data/build-start.txt
+data/last-build-seconds.txt
+data/semantic-index.bin
+data/semantic-meta.json
+
+# IGNORE.txt is for the local build and need not be synced.
+IGNORE.txt
+
+# Model files for client-side semantic search (~22 MB binary artifacts).
+# Download with: make download-model
+static/models/
+
+# Generated WebP companions (produced by tools/convert-images.sh at build time).
+# To intentionally commit a WebP, use: git add -f path/to/file.webp
+static/**/*.webp
+content/**/*.webp

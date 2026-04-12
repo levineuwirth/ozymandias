@@ -1,0 +1,39 @@
+<div class="metadata">
+    $if(essay-tags)$
+    <div class="meta-row meta-tags">
+        $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+    </div>
+    $endif$
+    $if(abstract)$
+    <div class="meta-row meta-description">
+        $abstract$
+    </div>
+    $endif$
+    <div class="meta-row meta-authors">
+        <span class="meta-label">by</span>$if(poet)$$poet$$else$$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$$endif$
+    </div>
+    $if(affiliation-links)$
+    <div class="meta-row meta-affiliation">
+        $for(affiliation-links)$$if(affiliation-url)$<a href="$affiliation-url$">$affiliation-name$</a>$else$$affiliation-name$$endif$$sep$ · $endfor$
+    </div>
+    $endif$
+    $if(status)$
+    <div class="meta-row meta-epistemic-strip" data-pagefind-ignore="all">
+        $if(overall-score)$<span class="ep-trust" title="Trust score: $overall-score$/100 (confidence × 0.6 + evidence × 0.4)"><span class="ep-score">$overall-score$%</span> trust</span>$endif$
+        <span class="ep-status">$status$</span>
+        $if(confidence)$<span class="ep-row" title="Confidence">$confidence$% confidence</span>$endif$
+        $if(importance-dots)$<span class="ep-row" title="Importance: $importance$/5"><span class="ep-dots">$importance-dots$</span> importance</span>$endif$
+        $if(evidence-dots)$<span class="ep-row" title="Evidence quality: $evidence$/5"><span class="ep-dots">$evidence-dots$</span> evidence quality</span>$endif$
+        $if(scope)$<span class="ep-row" title="Scope">$scope$ scope</span>$endif$
+        $if(novelty)$<span class="ep-row" title="Novelty">$novelty$ novelty</span>$endif$
+        $if(practicality)$<span class="ep-row" title="Practicality">$practicality$ practicality</span>$endif$
+    </div>
+    $endif$
+    <nav class="meta-row meta-pagelinks" aria-label="Page sections">
+        <a href="#version-history">History</a>
+        $if(status)$<a href="#epistemic">Epistemic</a>$endif$
+        $if(bibliography)$<a href="#bibliography">Bibliography</a>$endif$
+        $if(backlinks)$<a href="#backlinks">Backlinks</a>$endif$
+        $if(repository)$<a href="$repository$">Repository</a>$endif$
+    </nav>
+</div>

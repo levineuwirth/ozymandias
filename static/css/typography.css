@@ -1,0 +1,715 @@
+/* typography.css — Spectral body text, Fira Sans headings, OT features, and editorial flourishes */
+
+/* ============================================================
+   BODY TEXT
+   ============================================================ */
+
+#markdownBody {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    line-height: var(--line-height);
+
+    /* OT features: ligatures, old-style figures, kerning */
+    font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
+    font-variant-ligatures: common-ligatures;
+    font-variant-numeric: oldstyle-nums;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    hyphens: auto;
+    hanging-punctuation: first last;
+}
+
+
+/* ============================================================
+   LITERARY FLOURISHES
+   ============================================================ */
+
+/* 1. Automated Dropcap for the opening paragraph */
+#markdownBody > p:first-of-type::first-letter {
+    float: left;
+    font-size: 3.8em;
+    line-height: 0.8;
+    padding-top: 0.05em;
+    padding-right: 0.1em;
+    color: var(--text);
+    font-variant-caps: normal; /* Prevent smcp collision */
+}
+
+/* 2. Magazine-style Lead-in (Small caps for the rest of the first line) */
+#markdownBody > p:first-of-type::first-line {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text);
+}
+
+/* 3. Explicit dropcap — wrap any paragraph in a ::: dropcap ::: fenced div */
+#markdownBody .dropcap p::first-letter {
+    float: left;
+    font-size: 3.8em;
+    line-height: 0.8;
+    padding-top: 0.05em;
+    padding-right: 0.1em;
+    color: var(--text);
+    font-variant-caps: normal;
+}
+
+#markdownBody .dropcap p::first-line {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text);
+}
+
+/* 3. Epigraphs: Whispered preludes */
+.epigraph {
+    font-style: italic;
+    font-size: 0.95em;
+    margin: 0 0 3.3rem 0; /* 2x baseline grid */
+    padding-left: 1.5em;
+    border-left: 1px solid var(--border-muted);
+    color: var(--text-muted);
+}
+
+/* 4. Pull Quotes */
+.pull-quote {
+    font-size: 1.25em;
+    font-style: italic;
+    text-align: center;
+    margin: 3.3rem 0; /* 2x baseline grid */
+    padding: 1.65rem 2rem; /* 1x baseline grid padding */
+    border-top: 1px solid var(--border-muted);
+    border-bottom: 1px solid var(--border-muted);
+    color: var(--text);
+}
+
+/* 5. The Typographic Asterism (Replaces standard <hr>) */
+#markdownBody hr {
+    border: none;
+    text-align: center;
+    margin: 3.3rem 0; /* 2x baseline grid */
+    color: var(--text-muted);
+}
+#markdownBody hr::after {
+    content: "⁂";
+    font-size: 1.5em;
+    letter-spacing: 0.5em;
+    padding-left: 0.5em; /* Optically center the letter-spacing */
+    font-family: var(--font-serif);
+}
+
+
+/* ============================================================
+   PARAGRAPHS & SPACING
+   Anchored strictly to the 1.65rem baseline grid.
+   ============================================================ */
+
+#markdownBody p {
+    margin: 0;
+}
+
+#markdownBody p + p,
+#markdownBody .dropcap + p {
+    text-indent: 1.5em;
+}
+
+/* Reset indent after any block-level element */
+#markdownBody :is(blockquote, pre, ul, ol, figure, table, h1, h2, h3, h4, h5, h6, hr) + p {
+    text-indent: 0;
+}
+
+/* Space between block-level elements: Exactly 1 line-height */
+#markdownBody :is(blockquote, pre, ul, ol, figure, table) {
+    margin: 1.65rem 0;
+}
+
+
+/* ============================================================
+   HEADINGS
+   Fira Sans Semibold. Margins tied to the 1.65rem rhythm.
+   ============================================================ */
+
+#markdownBody :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--text);
+
+    /* Disable Spectral OT features for Sans */
+    font-feature-settings: normal;
+    font-variant-numeric: normal;
+    font-variant-ligatures: normal;
+    text-rendering: optimizeLegibility;
+}
+
+/* Top margin: 3.3rem (2 lines). Bottom margin: 0.825rem (half line). */
+#markdownBody h1 { font-size: 2.6rem;  margin: 0 0 1.65rem 0; }
+#markdownBody h2 { font-size: 1.85rem; margin: 3.3rem 0 0.825rem 0; }
+#markdownBody h3 { font-size: 1.45rem; margin: 2.475rem 0 0.825rem 0; }
+#markdownBody h4 { font-size: 1.15rem; margin: 1.65rem 0 0.825rem 0; }
+#markdownBody h5 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; }
+#markdownBody h6 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; font-weight: 400; font-style: italic; }
+
+/* Section heading self-links (¶ pilcrow) */
+#markdownBody .heading { position: relative; }
+#markdownBody .heading a::after {
+    content: "\00B6";
+    font-size: 0.75em;
+    position: absolute;
+    bottom: 0.15em;
+    right: -1.25em;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+#markdownBody .heading:hover a::after {
+    visibility: visible;
+    opacity: 0.4;
+}
+
+
+/* ============================================================
+   LINKS
+   Thick, descender-clearing strokes.
+   ============================================================ */
+
+a {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-decoration-thickness: 0.15em;
+    text-underline-offset: 0.15em;
+    text-decoration-skip-ink: auto; /* Clears descenders */
+    transition: text-decoration-color var(--transition-fast), color var(--transition-fast);
+}
+
+a:hover {
+    text-decoration-color: var(--link-hover);
+}
+
+a:visited {
+    color: var(--link-visited);
+}
+
+
+/* (external link icons moved to bottom of file — see data-link-icon section) */
+
+
+/* ============================================================
+   INLINE ELEMENTS & HIGHLIGHTING
+   ============================================================ */
+
+strong { font-weight: 700; }
+strong.semibold { font-weight: 600; }
+em { font-style: italic; }
+
+/* Abbreviations: force uppercase acronyms to x-height */
+abbr {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    cursor: help;
+}
+
+/* True superscripts & subscripts */
+sup { font-variant-position: super; line-height: 1; }
+sub { font-variant-position: sub; line-height: 1; }
+
+/* Realistic Ink Highlighting — excludes user annotation marks */
+#markdownBody mark:not(.user-annotation) {
+    background-color: transparent;
+    background-image: linear-gradient(
+        104deg,
+        rgba(250, 235, 120, 0) 0%,
+        rgba(250, 235, 120, 0.8) 2%,
+        rgba(250, 220, 100, 0.9) 98%,
+        rgba(250, 220, 100, 0) 100%
+    );
+    background-size: 100% 0.7em;
+    background-position: 0 88%;
+    background-repeat: no-repeat;
+    padding: 0 0.2em;
+    color: inherit;
+}
+[data-theme="dark"] #markdownBody mark:not(.user-annotation) {
+    background-image: linear-gradient(
+        104deg,
+        rgba(100, 130, 180, 0) 0%,
+        rgba(100, 130, 180, 0.4) 2%,
+        rgba(80, 110, 160, 0.5) 98%,
+        rgba(80, 110, 160, 0) 100%
+    );
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #markdownBody mark:not(.user-annotation) {
+        background-image: linear-gradient(
+            104deg,
+            rgba(100, 130, 180, 0) 0%,
+            rgba(100, 130, 180, 0.4) 2%,
+            rgba(80, 110, 160, 0.5) 98%,
+            rgba(80, 110, 160, 0) 100%
+        );
+    }
+}
+
+
+/* ============================================================
+   CODE
+   ============================================================ */
+
+code, kbd, samp {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    background-color: var(--bg-offset);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.1em 0.3em;
+}
+
+pre {
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    background-color: var(--bg-offset);
+    border: 1px solid var(--border-muted);
+    border-radius: 4px;
+    padding: 1.65rem 1.5rem; /* Anchored to baseline grid */
+    overflow-x: auto;
+    line-height: 1.65;
+}
+
+pre code {
+    font-size: 1em;
+    background: none;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+
+/* ============================================================
+   BLOCKQUOTES
+   Woven/stitched edge instead of a solid line.
+   ============================================================ */
+
+#markdownBody blockquote {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 1.5em;
+    border-left: none; 
+    
+    /* Woven/stitched border using background gradients */
+    background-image: linear-gradient(to bottom, var(--border-muted) 50%, transparent 50%);
+    background-position: left top;
+    background-repeat: repeat-y;
+    background-size: 2px 8px; /* 2px wide, 8px repeating pattern */
+    
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+#markdownBody blockquote em {
+    font-style: normal;
+}
+
+/* ── Poem excerpt ──────────────────────────────────────────────────────────── */
+/* Usage: <figure class="poem-excerpt"><blockquote>…</blockquote>
+          <figcaption><a href="…">Title</a> — Author</figcaption></figure>
+   The blockquote inherits the default #markdownBody blockquote styles entirely
+   (dashed left line, muted italic). The figure cancels the image-figure box
+   styling (bg / border / padding / shadow) and uses the inherited centering
+   (max-width: fit-content + margin: auto from #markdownBody figure).
+   When a source link is present, a stretched ::after covers the whole figure
+   so the entire excerpt is clickable.                                           */
+
+#markdownBody figure.poem-excerpt {
+    background: none;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    position: relative;
+}
+
+/* blockquote — no overrides; inherits default dashed-left-line treatment */
+
+/* Figcaption: overrides the right-aligned italic image-caption default.
+   Raised above the stretched-link overlay via z-index: 2.                      */
+#markdownBody figure.poem-excerpt figcaption {
+    text-align: left;
+    padding-left: 1.5em; /* aligns with blockquote text */
+    font-family: var(--font-ui);
+    font-size: 0.73rem;
+    font-style: normal;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+#markdownBody figure.poem-excerpt figcaption a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+/* Stretched link: clicking anywhere on the figure navigates to the poem page. */
+#markdownBody figure.poem-excerpt figcaption a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: pointer;
+}
+
+#markdownBody figure.poem-excerpt figcaption a:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+/* ── Prose excerpt (inline pull-quote from an article or book) ─────────────── */
+/* Usage: <figure class="prose-excerpt"><blockquote>…</blockquote>
+          <figcaption><a href="…">Source</a> — Author</figcaption></figure>
+   Left-aligned (overrides figure centering). Same stretched-link pattern.      */
+
+#markdownBody figure.prose-excerpt {
+    background: none;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    width: auto;
+    max-width: 100%;
+    margin: 2.5rem 0;
+    position: relative;
+}
+
+/* blockquote — no overrides; inherits default dashed-left-line treatment */
+
+#markdownBody figure.prose-excerpt figcaption {
+    text-align: left;
+    padding-left: 1.5em;
+    font-family: var(--font-ui);
+    font-size: 0.73rem;
+    font-style: normal;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+#markdownBody figure.prose-excerpt figcaption a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+#markdownBody figure.prose-excerpt figcaption a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: pointer;
+}
+
+#markdownBody figure.prose-excerpt figcaption a:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+
+/* ============================================================
+   LISTS
+   ============================================================ */
+
+#markdownBody ul,
+#markdownBody ol {
+    padding-left: 1.75em;
+}
+
+#markdownBody li + li {
+    margin-top: 0.4125rem; /* Quarter line-height */
+}
+
+#markdownBody li > p {
+    margin: 0;
+    text-indent: 0;
+}
+
+
+/* ============================================================
+   FIGURES & CAPTIONS
+   Archival Photo Plates format.
+   ============================================================ */
+
+#markdownBody figure {
+    margin: 3.3rem auto;
+    background: var(--bg-offset);
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03); /* Extremely subtle depth */
+    max-width: fit-content;
+}
+
+#markdownBody figure img {
+    display: block;
+    border: 1px solid var(--border-muted); /* Inner bounding box for the image */
+}
+
+/* Image figures: size the box to the image and constrain the caption to the
+   same width. `display: table` + `caption-side: bottom` makes the figure's
+   intrinsic width depend only on its table-cell content (the image), so long
+   captions wrap to the image width instead of stretching the figure off-screen. */
+#markdownBody figure:has(> img) {
+    display: table;
+}
+
+#markdownBody figure:has(> img) > figcaption {
+    display: table-caption;
+    caption-side: bottom;
+}
+
+#markdownBody figcaption {
+    font-family: var(--font-sans);
+    font-size: 0.92em;
+    color: var(--text-muted);
+    text-align: right; /* Editorial, museum-placard feel */
+    margin-top: 1rem;
+    font-style: italic;
+    letter-spacing: 0.02em;
+}
+
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+
+#markdownBody table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9em;
+    font-feature-settings: 'lnum' 1, 'tnum' 1;
+    font-variant-numeric: lining-nums tabular-nums;
+}
+
+#markdownBody th,
+#markdownBody td {
+    border: 1px solid var(--border);
+    padding: 0.4em 0.75em;
+    text-align: left;
+}
+
+#markdownBody th {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    background-color: var(--bg-offset);
+}
+
+
+/* ============================================================
+   ABSTRACT BLOCK
+   ============================================================ */
+
+.abstract {
+    font-size: 0.95em;
+    margin: 1.65rem 0 3.3rem 0; /* Baseline grid */
+    padding-left: 1.5em;
+    border-left: 2px solid var(--border);
+    color: var(--text-muted);
+}
+
+.abstract p + p {
+    text-indent: 0;
+    margin-top: 0.825rem; /* Half line-height */
+}
+
+
+/* ============================================================
+   MATHEMATICS (KaTeX)
+   Display math is scaled slightly below body size so long equations
+   fit within the 680px column. KaTeX uses em units throughout its
+   output, so font-size here cascades and scales all rendered glyphs.
+   Inline math (.katex without .katex-display) is unaffected.
+   overflow-x: auto is a safety net for anything still too wide.
+   ============================================================ */
+
+.katex-display {
+    font-size: 0.85em;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+
+/* ============================================================
+   PROOF ENVIRONMENT
+   Traditional mathematical proof styling.
+   ============================================================ */
+
+.proof {
+    margin: 1.65rem 0;
+}
+
+/* "Proof." label — italic bold, matching LaTeX convention */
+.proof-label {
+    font-style: italic;
+    font-weight: 600;
+}
+
+/* Paragraphs inside proof: no extra indent after first */
+.proof p + p {
+    text-indent: 0;
+    margin-top: 0.825rem;
+}
+
+/* QED tombstone — floated right so it sits at the end of the last line */
+.proof-qed {
+    float: right;
+    margin-left: 1em;
+    font-style: normal;
+}
+
+
+/* ============================================================
+   SMALLCAPS UTILITY
+   ============================================================ */
+
+.smallcaps {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.03em;
+}
+
+
+/* ============================================================
+   EXTERNAL LINK ICONS
+   Uses data-link-icon attribute set at build time by Filters/Links.hs.
+   mask-image renders the SVG in currentColor so icons adapt to dark/light mode.
+   ============================================================ */
+
+a[data-link-icon-type="svg"]::after {
+    content: '';
+    display: inline-block;
+    width:  0.75em;
+    height: 0.75em;
+    margin-left: 0.2em;
+    vertical-align: 0.05em;
+    background-color: currentColor;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    opacity: 0.5;
+    transition: opacity var(--transition-fast);
+}
+
+a[data-link-icon-type="svg"]:hover::after {
+    opacity: 0.8;
+}
+
+a[data-link-icon="external"]::after {
+    mask-image: url('/images/link-icons/external.svg');
+    -webkit-mask-image: url('/images/link-icons/external.svg');
+}
+
+a[data-link-icon="wikipedia"]::after {
+    mask-image: url('/images/link-icons/wikipedia.svg');
+    -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
+}
+
+a[data-link-icon="arxiv"]::after {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+
+a[data-link-icon="doi"]::after {
+    mask-image: url('/images/link-icons/doi.svg');
+    -webkit-mask-image: url('/images/link-icons/doi.svg');
+}
+
+a[data-link-icon="github"]::after {
+    mask-image: url('/images/link-icons/github.svg');
+    -webkit-mask-image: url('/images/link-icons/github.svg');
+}
+
+a[data-link-icon="worldcat"]::after {
+    mask-image: url('/images/link-icons/worldcat.svg');
+    -webkit-mask-image: url('/images/link-icons/worldcat.svg');
+}
+
+a[data-link-icon="orcid"]::after {
+    mask-image: url('/images/link-icons/orcid.svg');
+    -webkit-mask-image: url('/images/link-icons/orcid.svg');
+}
+
+a[data-link-icon="internet-archive"]::after {
+    mask-image: url('/images/link-icons/internet-archive.svg');
+    -webkit-mask-image: url('/images/link-icons/internet-archive.svg');
+}
+
+a[data-link-icon="tensorflow"]::after {
+    mask-image: url('/images/link-icons/tensorflow.svg');
+    -webkit-mask-image: url('/images/link-icons/tensorflow.svg');
+}
+
+a[data-link-icon="anthropic"]::after {
+    mask-image: url('/images/link-icons/anthropic.svg');
+    -webkit-mask-image: url('/images/link-icons/anthropic.svg');
+}
+
+a[data-link-icon="openai"]::after {
+    mask-image: url('/images/link-icons/openai.svg');
+    -webkit-mask-image: url('/images/link-icons/openai.svg');
+}
+
+a[data-link-icon="twitter"]::after {
+    mask-image: url('/images/link-icons/twitter.svg');
+    -webkit-mask-image: url('/images/link-icons/twitter.svg');
+}
+
+a[data-link-icon="reddit"]::after {
+    mask-image: url('/images/link-icons/reddit.svg');
+    -webkit-mask-image: url('/images/link-icons/reddit.svg');
+}
+
+a[data-link-icon="youtube"]::after {
+    mask-image: url('/images/link-icons/youtube.svg');
+    -webkit-mask-image: url('/images/link-icons/youtube.svg');
+}
+
+a[data-link-icon="tiktok"]::after {
+    mask-image: url('/images/link-icons/tiktok.svg');
+    -webkit-mask-image: url('/images/link-icons/tiktok.svg');
+}
+
+a[data-link-icon="substack"]::after {
+    mask-image: url('/images/link-icons/substack.svg');
+    -webkit-mask-image: url('/images/link-icons/substack.svg');
+}
+
+a[data-link-icon="hacker-news"]::after {
+    mask-image: url('/images/link-icons/hacker-news.svg');
+    -webkit-mask-image: url('/images/link-icons/hacker-news.svg');
+}
+
+a[data-link-icon="new-york-times"]::after {
+    mask-image: url('/images/link-icons/new-york-times.svg');
+    -webkit-mask-image: url('/images/link-icons/new-york-times.svg');
+}
+
+a[data-link-icon="nasa"]::after {
+    mask-image: url('/images/link-icons/nasa.svg');
+    -webkit-mask-image: url('/images/link-icons/nasa.svg');
+}
+
+a[data-link-icon="apple"]::after {
+    mask-image: url('/images/link-icons/apple.svg');
+    -webkit-mask-image: url('/images/link-icons/apple.svg');
+}

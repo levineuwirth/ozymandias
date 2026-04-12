@@ -1,0 +1,16 @@
+<main id="markdownBody">
+    <h1 class="page-title">$title$</h1>
+    <ul class="essay-list">
+        $for(essays)$
+        <li class="essay-list-item">
+            <a href="$url$">$title$</a>
+            $if(date-created)$
+            <span class="essay-list-date">$date-created$</span>
+            $endif$
+            $if(abstract)$
+            <p class="essay-list-abstract">$abstract$</p>
+            $endif$
+        </li>
+        $endfor$
+    </ul>
+</main>

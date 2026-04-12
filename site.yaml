@@ -1,0 +1,81 @@
+# site.yaml — Ozymandias site configuration
+#
+# Single source of truth for site identity, navigation, and the library
+# portal taxonomy. Edit this file before your first build.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Site identity
+# ──────────────────────────────────────────────────────────────────────────────
+
+site-name:        "My Site"
+site-url:         "https://example.com"
+site-description: "A personal site built with Ozymandias"
+site-language:    "en"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Author identity
+#
+# `author-name` is the default author for any content with no `authors`
+# frontmatter key. `author-email` appears in the Atom feed.
+# ──────────────────────────────────────────────────────────────────────────────
+
+author-name:  "Your Name"
+author-email: "you@example.com"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Atom feed
+# ──────────────────────────────────────────────────────────────────────────────
+
+feed-title:       "My Site"
+feed-description: "Essays, notes, and creative work"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Footer
+#
+# `license` is the content license shown in the footer. (Ozymandias itself
+# is MIT-licensed — see LICENSE.) `source-url` is an optional link to your
+# source repository; leave empty to omit the link.
+# ──────────────────────────────────────────────────────────────────────────────
+
+license:    "CC BY-SA 4.0"
+source-url: ""
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GPG signing (optional)
+#
+# If `gpg-fingerprint` is set, the footer shows a "sig" link next to each
+# page pointing to its detached signature (`<page>.sig`). Use
+# `tools/sign-site.sh` during deployment to actually sign pages. Leave
+# `gpg-fingerprint` empty to hide the sig link entirely.
+#
+# `gpg-pubkey-url` is the public path to your armored pubkey; the default
+# assumes you've placed it at `static/gpg/pubkey.asc`.
+# ──────────────────────────────────────────────────────────────────────────────
+
+gpg-fingerprint: ""
+gpg-pubkey-url:  "/gpg/pubkey.asc"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Navigation — primary header links
+#
+# The order here is the order shown in the header.
+# ──────────────────────────────────────────────────────────────────────────────
+
+nav:
+  - { href: "/",             label: "Home"    }
+  - { href: "/library.html", label: "Library" }
+  - { href: "/new.html",     label: "New"     }
+  - { href: "/search.html",  label: "Search"  }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Library portal taxonomy
+#
+# Each portal becomes a section on /library.html. Posts whose tags include
+# the portal's `slug` (or any tag starting with `<slug>/`) appear in that
+# section. The `name` is the human-readable label.
+# ──────────────────────────────────────────────────────────────────────────────
+
+portals:
+  - { slug: "writing", name: "Writing" }
+  - { slug: "code",    name: "Code"    }
+  - { slug: "notes",   name: "Notes"   }

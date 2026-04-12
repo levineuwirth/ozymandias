@@ -1,0 +1,62 @@
+<div class="page-meta-footer" data-pagefind-ignore="all">
+
+    $if(further-reading-refs)$
+    <div class="meta-footer-full" id="further-reading">
+        <h3>Further Reading</h3>
+        $further-reading-refs$
+    </div>
+    $endif$
+
+    $if(bibliography)$
+    <div class="meta-footer-full" id="bibliography">
+        <h3>Bibliography</h3>
+        $bibliography$
+    </div>
+    $endif$
+
+    <div class="meta-footer-grid">
+
+        <div class="meta-footer-section" id="version-history">
+            <h3>Version history</h3>
+            $if(version-history)$
+            <ul>
+                $for(version-history)$
+                <li>$vh-date$$if(vh-message)$ &middot; $vh-message$$endif$</li>
+                $endfor$
+            </ul>
+            $else$
+            <ul>
+                $if(date-created)$<li>$date-created$ &middot; Created</li>$endif$
+                $if(date-modified)$<li>$date-modified$ &middot; Last modified</li>$endif$
+            </ul>
+            $endif$
+        </div>
+
+        $if(status)$
+        <div class="meta-footer-section meta-footer-epistemic" id="epistemic">
+            <h3><a href="/colophon.html#living-documents">Epistemic</a></h3>
+            <dl class="ep-expanded">
+                <dt>Stability</dt><dd>$stability$</dd>
+                $if(last-reviewed)$<dt>Last reviewed</dt><dd>$last-reviewed$</dd>$endif$
+                $if(confidence-trend)$<dt>Confidence trend</dt><dd>$confidence-trend$</dd>$endif$
+            </dl>
+        </div>
+        $endif$
+
+        $if(backlinks)$
+        <div class="meta-footer-section" id="backlinks">
+            <h3>Backlinks</h3>
+            $backlinks$
+        </div>
+        $endif$
+
+        $if(similar-links)$
+        <div class="meta-footer-section" id="similar-links">
+            <h3>Related</h3>
+            $similar-links$
+        </div>
+        $endif$
+
+    </div>
+
+</div>

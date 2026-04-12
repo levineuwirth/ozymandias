@@ -1,0 +1,149 @@
+/* print.css — Clean paper output.
+   Loaded on every page via <link media="print">.
+   Hides chrome, expands body full-width, renders in black on white. */
+
+@media print {
+
+    /* ----------------------------------------------------------------
+       Force light on paper. The custom-property overrides drive the
+       rest of the cascade — use them consistently below instead of
+       reaching for hardcoded #fff/#000 again.
+    ---------------------------------------------------------------- */
+    :root,
+    [data-theme="dark"] {
+        --bg:           #ffffff;
+        --bg-offset:    #f5f5f5;
+        --bg-subtle:    #f9f9f9;
+        --text:         #000000;
+        --text-muted:   #333333;
+        --text-faint:   #555555;
+        --border:       #cccccc;
+        --border-muted: #aaaaaa;
+        --rule:         #cccccc;
+    }
+
+    /* ----------------------------------------------------------------
+       Hide chrome entirely
+    ---------------------------------------------------------------- */
+    header,
+    footer,
+    #toc,
+    .settings-wrap,
+    .selection-popup,
+    .link-popup,
+    .toc-toggle,
+    .section-toggle,
+    .metadata .meta-pagelinks,
+    .page-meta-footer .meta-footer-section#backlinks,
+    .nav-portals {
+        display: none !important;
+    }
+
+    /* ----------------------------------------------------------------
+       Layout — single full-width column
+    ---------------------------------------------------------------- */
+    body {
+        font-size: 11pt;
+        line-height: 1.6;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+    }
+
+    #content {
+        display: block !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    #markdownBody {
+        width: 100% !important;
+        max-width: 100% !important;
+        grid-column: unset !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Sidenotes: pull inline as footnote-like blocks */
+    .sidenote-ref {
+        display: none;
+    }
+    .sidenote {
+        display: block;
+        position: static !important;
+        width: auto !important;
+        margin: 0.5em 2em;
+        padding: 0.4em 0.8em;
+        border-left: 2px solid var(--border);
+        font-size: 9pt;
+        color: var(--text-faint);
+    }
+
+    /* ----------------------------------------------------------------
+       Page setup
+    ---------------------------------------------------------------- */
+    @page {
+        margin: 2cm 2.5cm;
+    }
+    @page :first {
+        margin-top: 3cm;
+    }
+
+    /* ----------------------------------------------------------------
+       Typography adjustments
+    ---------------------------------------------------------------- */
+    h1, h2, h3, h4 {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    p, li, blockquote {
+        orphans: 3;
+        widows: 3;
+    }
+
+    pre, figure, .exhibit {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Show href after external links */
+    a[href^="http"]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: var(--text-faint);
+        word-break: break-all;
+    }
+    /* But not for nav or obvious UI links */
+    .cite-link::after,
+    .meta-tag::after,
+    a[href^="#"]::after {
+        content: none !important;
+    }
+
+    /* ----------------------------------------------------------------
+       Code blocks — strip background, border only
+    ---------------------------------------------------------------- */
+    pre, code {
+        background: var(--bg-subtle) !important;
+        border: 1px solid var(--border-muted) !important;
+        box-shadow: none !important;
+    }
+
+    /* ----------------------------------------------------------------
+       Bibliography / footer — keep but compact
+    ---------------------------------------------------------------- */
+    .page-meta-footer {
+        margin-top: 1.5em;
+        padding-top: 1em;
+        border-top: 1px solid var(--border);
+    }
+
+    .meta-footer-full,
+    .meta-footer-grid {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}

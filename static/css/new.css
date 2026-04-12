@@ -1,0 +1,149 @@
+/* new.css — Recently published content page */
+
+.new-intro {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+}
+
+/* ============================================================
+   COUNT CONTROL
+   ============================================================ */
+
+.new-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.75rem;
+}
+
+.new-controls-label {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.new-controls-options {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.new-count-btn {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.15em 0.55em;
+    cursor: pointer;
+    transition: border-color 0.1s, color 0.1s;
+}
+
+.new-count-btn:hover {
+    border-color: var(--border-muted);
+    color: var(--text);
+}
+
+.new-count-btn.is-active {
+    border-color: var(--text-muted);
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* ============================================================
+   ENTRY LIST
+   ============================================================ */
+
+.new-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.new-entry {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.new-entry:first-child {
+    border-top: 1px solid var(--border);
+}
+
+/* ============================================================
+   KIND BADGE
+   ============================================================ */
+
+.new-entry-kind {
+    font-family: var(--font-sans);
+    font-size: 0.63rem;
+    font-variant: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    background: var(--bg-offset);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.15em 0.5em;
+    flex-shrink: 0;
+    margin-top: 0.25em;
+    min-width: 5.5rem;
+    text-align: center;
+    line-height: 1.6;
+}
+
+/* ============================================================
+   ENTRY CONTENT
+   ============================================================ */
+
+.new-entry-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.new-entry-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.new-entry-title {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--text);
+    text-decoration: none;
+    line-height: 1.35;
+}
+
+.new-entry-title:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+.new-entry-date {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.new-entry-abstract {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    margin: 0.3rem 0 0;
+    line-height: 1.55;
+    /* Clamp to two lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

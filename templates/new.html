@@ -1,0 +1,54 @@
+<main id="markdownBody">
+    <h1 class="page-title">New</h1>
+    <div class="new-controls">
+        <span class="new-controls-label">Show</span>
+        <div class="new-controls-options" role="group" aria-label="Number of entries to show">
+            <button class="new-count-btn" data-count="25">25</button>
+            <button class="new-count-btn" data-count="50">50</button>
+            <button class="new-count-btn" data-count="100">100</button>
+            <button class="new-count-btn" data-count="all">All</button>
+        </div>
+    </div>
+    <ul class="new-list">
+        $for(recent-items)$
+        <li class="new-entry">
+            <span class="new-entry-kind">$item-kind$</span>
+            <div class="new-entry-main">
+                <div class="new-entry-header">
+                    <a class="new-entry-title" href="$url$">$title$</a>
+                    <time class="new-entry-date" datetime="$date-iso$">$date-created$</time>
+                </div>
+                $if(abstract)$<p class="new-entry-abstract">$abstract$</p>$endif$
+            </div>
+        </li>
+        $endfor$
+    </ul>
+</main>
+<script>
+(function () {
+    var STORAGE_KEY = 'new-page-count';
+    var DEFAULT     = 25;
+
+    function applyCount(n) {
+        var entries = document.querySelectorAll('.new-entry');
+        var limit   = (n === 'all') ? Infinity : parseInt(n, 10);
+        entries.forEach(function (el, i) {
+            el.hidden = i >= limit;
+        });
+        document.querySelectorAll('.new-count-btn').forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.dataset.count === String(n));
+        });
+        try { localStorage.setItem(STORAGE_KEY, n); } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var saved;
+        try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+        applyCount(saved || DEFAULT);
+
+        document.querySelectorAll('.new-count-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { applyCount(btn.dataset.count); });
+        });
+    });
+}());
+</script>
