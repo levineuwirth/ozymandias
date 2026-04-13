@@ -55,6 +55,7 @@ deploy: clean build sign
 	@test -n "$(VPS_USER)" || (echo "deploy: VPS_USER not set in .env" >&2; exit 1)
 	@test -n "$(VPS_HOST)" || (echo "deploy: VPS_HOST not set in .env" >&2; exit 1)
 	@test -n "$(VPS_PATH)" || (echo "deploy: VPS_PATH not set in .env" >&2; exit 1)
+	@command -v notify-send >/dev/null 2>&1 && notify-send "make deploy" "Ready to rsync — waiting for SSH auth" || true
 	rsync -avz --delete _site/ $(VPS_USER)@$(VPS_HOST):$(VPS_PATH)/
 	git push -u origin main
 
