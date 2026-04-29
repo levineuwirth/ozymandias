@@ -79,3 +79,8 @@ portals:
   - { slug: "writing", name: "Writing" }
   - { slug: "code",    name: "Code"    }
   - { slug: "notes",   name: "Notes"   }
+  # Uncomment when you start a photography section. The framework's
+  # photography rules activate automatically as soon as
+  # `content/photography/` exists; adding the portal here makes
+  # photos appear on /library.html grouped under their own shelf.
+  # - { slug: "photography", name: "Photography" }

@@ -1,0 +1,29 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header">
+            <h1 class="page-title">$title$</h1>
+            $if(photos)$
+            <div class="photography-controls" role="toolbar" aria-label="Browsing mode">
+                <div class="photography-mode-toggle" role="tablist" aria-label="Photography view mode">
+                    <a class="mode-btn is-active" role="tab" data-mode="masonry"        href="/photography/"     aria-pressed="true"  aria-label="Masonry view">Masonry</a>
+                    <a class="mode-btn"           role="tab" data-mode="grid"           href="/photography/"     aria-pressed="false" aria-label="Uniform grid view">Grid</a>
+                    <a class="mode-btn"           role="tab" data-mode="chronological"  href="/photography/"     aria-pressed="false" aria-label="Chronological view">Chronological</a>
+                    <a class="mode-btn"           role="tab" data-mode="map"            href="/photography/map/" aria-pressed="false" aria-label="Map view">Map</a>
+                </div>
+            </div>
+            $endif$
+        </header>
+
+        $if(body)$<div class="photography-intro">$body$</div>$endif$
+
+        $if(photos)$
+        <ul class="photography-grid" data-photography-mode="masonry">
+            $for(photos)$
+            $partial("templates/partials/photo-card.html")$
+            $endfor$
+        </ul>
+        $else$
+        <p class="photography-empty">No photographs published yet.</p>
+        $endif$
+    </main>
+</div>

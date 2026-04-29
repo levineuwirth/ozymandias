@@ -42,9 +42,33 @@ expandTag t =
     let segs = wordsBy (== '/') t
     in  [ intercalate "/" (take n segs) | n <- [1 .. length segs] ]
 
+-- | Top-level tags that own a section URL outside the tag system, and
+--   therefore must NOT be created as tag pages — doing so would
+--   collide with a section landing route. The literal @"photography"@
+--   is the only one currently affected: every photo's @tags:@ list
+--   begins with the bare @"photography"@ portal tag (per the section's
+--   convention), and 'tagIdentifier' would route that to
+--   @"photography/index.html"@ — already owned by
+--   @photographyLandingRules@.
+--
+--   Sub-tags (@photography/landscape@, @photography/film@, …) are
+--   unaffected; they keep their tag pages because no section landing
+--   claims those URLs.
+--
+--   Other portal tags (@music@, @poetry@, @fiction@, …) don't appear
+--   here because their content types don't currently feed
+--   'tagIndexable', so the top-level tag never enters the tag system.
+--   Add to this set if that ever changes.
+sectionOwnedTopLevelTags :: [String]
+sectionOwnedTopLevelTags = ["photography"]
+
 -- | All expanded tags for an item (reads the "tags" metadata field).
+--   Filters out any 'sectionOwnedTopLevelTags' to prevent route
+--   collisions with section landings.
 getExpandedTags :: MonadMetadata m => Identifier -> m [String]
-getExpandedTags ident = nub . concatMap expandTag <$> getTags ident
+getExpandedTags ident =
+    filter (`notElem` sectionOwnedTopLevelTags) . nub . concatMap expandTag
+        <$> getTags ident
 
 
 -- ---------------------------------------------------------------------------

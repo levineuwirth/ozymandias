@@ -18,6 +18,14 @@ dependencies = [
     "beautifulsoup4>=4.12,<5",
     # CPU-only torch — avoids pulling ~3 GB of CUDA libraries
     "torch>=2.5,<3",
+
+    # Photography pipeline (only used when content/photography/ exists)
+    # Pillow handles EXIF reading when exiftool is not installed (the
+    # preferred path); colorthief computes the 5-color palette strip.
+    # PyYAML is used to write the sidecar files alongside each photo.
+    "pillow>=10.0,<12",
+    "colorthief>=0.2,<1",
+    "pyyaml>=6.0,<7",
 ]
 
 [[tool.uv.index]]

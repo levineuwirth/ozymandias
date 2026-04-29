@@ -1,0 +1,34 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header">
+            <h1 class="page-title">Photography</h1>
+            <div class="photography-controls" role="toolbar" aria-label="Browsing mode">
+                <div class="photography-mode-toggle" role="tablist" aria-label="Photography view mode">
+                    <a class="mode-btn" role="tab" data-mode="masonry"        href="/photography/" aria-pressed="false">Masonry</a>
+                    <a class="mode-btn" role="tab" data-mode="grid"           href="/photography/" aria-pressed="false">Grid</a>
+                    <a class="mode-btn" role="tab" data-mode="chronological"  href="/photography/" aria-pressed="false">Chronological</a>
+                    <a class="mode-btn is-active" role="tab" aria-current="page" data-mode="map" href="/photography/map/" aria-pressed="true">Map</a>
+                </div>
+            </div>
+        </header>
+
+        <div id="photography-map" class="photography-map" aria-label="Map of geo-tagged photographs">
+            <noscript>
+                <p class="photography-map-fallback">
+                    The map view requires JavaScript. Browse the
+                    <a href="/photography/">photography portfolio</a>
+                    or jump to a specific photo from the
+                    <a href="/photography/">grid view</a>.
+                </p>
+            </noscript>
+        </div>
+
+        <p class="photography-map-note">
+            Pin coordinates are rounded to the precision each photograph's
+            <code>geo-precision</code> field declares — typically the
+            nearest ten kilometres. Photos with no <code>geo:</code>
+            frontmatter (or with <code>geo-precision: hidden</code>) are
+            omitted from this map by design.
+        </p>
+    </main>
+</div>

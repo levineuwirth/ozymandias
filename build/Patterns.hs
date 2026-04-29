@@ -16,6 +16,8 @@ module Patterns
     , poetryPattern
     , fictionPattern
     , musicPattern
+    , photographyPattern
+    , allPhotoEntries
     , standalonePagesPattern
       -- * Aggregated patterns
     , allWritings        -- essays + blog + poetry + fiction
@@ -66,6 +68,44 @@ fictionPattern = "content/fiction/*.md"
 musicPattern :: Pattern
 musicPattern = "content/music/*/index.md"
 
+-- | All photo entries — flat singles plus directory-form entries.
+--
+--   Two shapes:
+--     * flat:      @content/photography/<slug>.md@
+--     * directory: @content/photography/<slug>/index.md@
+--
+--   The section landing page at @content/photography/index.md@ is
+--   excluded; it routes via 'Photography.photographyLandingRules' as the
+--   section landing, not as a photo entry.
+--
+--   Directory-form @index.md@ files are treated as either single-photo
+--   entries (when the directory has no @.md@ siblings) or series landings
+--   (when it does). 'Photography.photographyEntryRules' branches on that
+--   structurally — no @series: true@ frontmatter flag is needed.
+photographyPattern :: Pattern
+photographyPattern =
+       ("content/photography/*.md" .&&. complement "content/photography/index.md")
+  .||. "content/photography/*/index.md"
+
+-- | Every photographic entry, including children of series. Distinct
+--   from 'photographyPattern' (which enumerates only top-level entries
+--   and series landings) for surfaces that should enumerate every
+--   photograph individually:
+--
+--     * @/photography/by-year/<year>/@        — one frame per file
+--     * @/photography/contact-sheet/@         — every frame in the roll
+--     * @/photography/map.json@               — one pin per geotagged photo
+--     * @/photography/feed.xml@               — one entry per shot
+--     * Tag indexes                           — siblings have their own tags
+--
+--   The main @/photography/@ landing and the library shelf use
+--   'photographyPattern' instead, so a series shows up as a single
+--   aggregate card rather than once for the landing plus once per child.
+allPhotoEntries :: Pattern
+allPhotoEntries =
+       photographyPattern
+  .||. ("content/photography/*/*.md" .&&. complement "content/photography/*/index.md")
+
 -- | Top-level standalone pages (about, colophon, current, gpg, …).
 standalonePagesPattern :: Pattern
 standalonePagesPattern = "content/*.md"
@@ -95,6 +135,14 @@ allContent =
 authorIndexable :: Pattern
 authorIndexable = (essayPattern .||. blogPattern) .&&. hasNoVersion
 
--- | Content shown on tag index pages — essays + blog posts.
+-- | Content shown on tag index pages — essays + blog posts + every
+--   photographic entry (including sibling photos in series).
+--   Photography sub-tags (@photography/landscape@, @photography/film@,
+--   …) generate proper @/<sub-tag>/@ pages from this pattern; the
+--   bare @photography@ top-level tag is filtered out in
+--   'Tags.getExpandedTags' to avoid colliding with the section
+--   landing's route at @/photography/@.
 tagIndexable :: Pattern
-tagIndexable = (essayPattern .||. blogPattern) .&&. hasNoVersion
+tagIndexable =
+    (essayPattern .||. blogPattern .||. allPhotoEntries)
+    .&&. hasNoVersion

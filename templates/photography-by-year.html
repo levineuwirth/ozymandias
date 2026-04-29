@@ -1,0 +1,22 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header photography-header--narrow">
+            <h1 class="page-title">$title$</h1>
+            <p class="photography-by-year-back">
+                <a href="/photography/">← all photographs</a>
+                ·
+                <a href="/photography/by-year/">other years</a>
+            </p>
+        </header>
+
+        $if(photos)$
+        <ul class="photography-grid" data-photography-mode="masonry">
+            $for(photos)$
+            $partial("templates/partials/photo-card.html")$
+            $endfor$
+        </ul>
+        $else$
+        <p class="photography-empty">No photographs in $year$.</p>
+        $endif$
+    </main>
+</div>

@@ -8,23 +8,30 @@ module Contexts
     , poetryCtx
     , fictionCtx
     , compositionCtx
+    , photographyCtx
     , contentKindField
     , abstractField
     , tagLinksField
     , authorLinksField
+    , affiliationField
     ) where
 
 import Data.Aeson              (Value (..))
+import qualified Data.Aeson         as Aeson
+import qualified Data.Aeson.Key     as AK
 import qualified Data.Aeson.KeyMap  as KM
 import qualified Data.Vector        as V
 import Data.List               (intercalate, isPrefixOf)
 import Data.Maybe              (fromMaybe)
+import qualified Data.Scientific    as Sci
 import Data.Time.Calendar      (toGregorian)
-import Data.Time.Clock         (getCurrentTime, utctDay)
-import Data.Time.Format        (formatTime, defaultTimeLocale)
-import System.FilePath         (takeDirectory, takeFileName)
+import Data.Time.Clock         (UTCTime, getCurrentTime, utctDay)
+import Data.Time.Format        (formatTime, defaultTimeLocale, parseTimeM)
+import System.Directory        (doesFileExist)
+import System.FilePath         (takeDirectory, takeFileName, (</>))
 import Text.Read               (readMaybe)
 import qualified Data.Text     as T
+import qualified Data.Yaml     as Y
 import qualified Config
 import Text.Pandoc             (runPure, readMarkdown, writeHtml5String, Pandoc(..), Block(..), Inline(..))
 import Text.Pandoc.Options     (WriterOptions(..), HTMLMathMethod(..))
@@ -99,12 +106,13 @@ contentKindField = field "item-kind" $ \item -> do
     return $ case r of
         Nothing -> "Page"
         Just r'
-            | "essays/"  `isPrefixOf` r' -> "Essay"
-            | "blog/"    `isPrefixOf` r' -> "Post"
-            | "poetry/"  `isPrefixOf` r' -> "Poem"
-            | "fiction/" `isPrefixOf` r' -> "Fiction"
-            | "music/"   `isPrefixOf` r' -> "Composition"
-            | otherwise                   -> "Page"
+            | "essays/"      `isPrefixOf` r' -> "Essay"
+            | "blog/"        `isPrefixOf` r' -> "Post"
+            | "poetry/"      `isPrefixOf` r' -> "Poem"
+            | "fiction/"     `isPrefixOf` r' -> "Fiction"
+            | "music/"       `isPrefixOf` r' -> "Composition"
+            | "photography/" `isPrefixOf` r' -> "Photo"
+            | otherwise                       -> "Page"
 
 -- ---------------------------------------------------------------------------
 -- Site-wide context
@@ -570,3 +578,394 @@ compositionCtx =
             <> field "has-audio"
                 (\i -> maybe (fail "no audio") (const (return "true"))
                              (movAudio (itemBody i)))
+
+-- ---------------------------------------------------------------------------
+-- Photography context
+-- ---------------------------------------------------------------------------
+
+-- | Extract the photo entry's slug from its identifier.
+--
+--   * Flat single   @content/photography/<slug>.md@      → @<slug>@
+--   * Directory     @content/photography/<slug>/index.md@ → @<slug>@
+--
+--   The slug is the URL segment under @/photography/@ and the directory
+--   name into which co-located assets (the photo, EXIF + palette
+--   sidecars) are copied by the asset rule.
+photoSlug :: Item a -> String
+photoSlug item =
+    let fp     = toFilePath (itemIdentifier item)
+        fname  = takeFileName fp
+    in  if fname == "index.md"
+        then takeFileName (takeDirectory fp)
+        else takeWhile (/= '.') fname
+
+-- ---------------------------------------------------------------------------
+-- Sidecar reader
+-- ---------------------------------------------------------------------------
+--
+-- @{photo}.exif.yaml@ and @{photo}.palette.yaml@ are produced by the
+-- Python tools at @make build@ time (see @tools/extract-exif.py@ and
+-- @tools/extract-palette.py@). They live alongside the photo file
+-- under @content/photography/<slug>/@ and back-fill metadata that the
+-- author chose not to write in frontmatter.
+--
+-- Read strategy: 'unsafeCompiler' + 'doesFileExist'. Sidecars are NOT
+-- registered as Hakyll items, so this read bypasses the dependency
+-- tracker. That is acceptable because:
+--
+--   * The Python tools always run before @cabal run site -- build@
+--     (the Makefile orders them that way).
+--   * Re-running the EXIF / palette extractor invalidates only those
+--     fields' rendered output; rebuilding @make build@ from scratch
+--     covers the dependency-edge case for free.
+--
+-- Resolution rule for every sidecar-backed field: frontmatter wins;
+-- if frontmatter is absent OR empty, fall back to sidecar; if neither
+-- supplies a value, return 'noResult' so the consuming template's
+-- @$if(...)$@ guard suppresses the row.
+
+-- | Compute the sidecar path for a photo entry.
+--
+--   @suffix@ is @".exif.yaml"@ or @".palette.yaml"@.
+--   Returns @Nothing@ when the entry has no @photo:@ frontmatter or
+--   when the entry is flat-form (no co-located asset directory).
+photoSidecarPath :: String -> Item a -> Compiler (Maybe FilePath)
+photoSidecarPath suffix item = do
+    meta <- getMetadata (itemIdentifier item)
+    let fp      = toFilePath (itemIdentifier item)
+        isDir   = takeFileName fp == "index.md"
+    case (isDir, lookupString "photo" meta) of
+        (True, Just photo) | not (null photo) ->
+            return $ Just $ takeDirectory fp </> photo ++ suffix
+        _ -> return Nothing
+
+-- | Load a sidecar YAML file as an Aeson Object (same shape Hakyll
+--   uses for frontmatter). Returns 'KM.empty' when the file is
+--   missing or fails to parse — sidecars are advisory, never fatal.
+loadSidecar :: FilePath -> IO Aeson.Object
+loadSidecar path = do
+    exists <- doesFileExist path
+    if not exists
+        then return KM.empty
+        else do
+            decoded <- Y.decodeFileEither path
+            case decoded of
+                Right (Object obj) -> return obj
+                _                  -> return KM.empty
+
+-- | Read a sidecar object for a given suffix. Returns the empty object
+--   when the entry has no resolvable sidecar path or when the file is
+--   absent / malformed.
+readPhotoSidecar :: String -> Item a -> Compiler Aeson.Object
+readPhotoSidecar suffix item = do
+    mPath <- photoSidecarPath suffix item
+    case mPath of
+        Nothing   -> return KM.empty
+        Just path -> unsafeCompiler (loadSidecar path)
+
+-- | Coerce a YAML scalar value to a plain String for template
+--   interpolation. Integers render without a trailing @.0@; structures
+--   and arrays return 'Nothing' (callers needing those should branch
+--   on 'Value' directly).
+yamlAsString :: Value -> Maybe String
+yamlAsString (String t) =
+    let s = T.unpack t
+    in  if null (trim s) then Nothing else Just (trim s)
+yamlAsString (Number n) =
+    case Sci.floatingOrInteger n :: Either Double Integer of
+        Right i -> Just (show i)
+        Left  d -> Just (show d)
+yamlAsString _ = Nothing
+
+-- | Look up a key in a sidecar object, coercing scalar values to
+--   String. Returns 'Nothing' for missing keys, empty strings, and
+--   structural values (arrays / nested objects).
+sidecarLookupString :: String -> Aeson.Object -> Maybe String
+sidecarLookupString key obj = yamlAsString =<< KM.lookup (AK.fromString key) obj
+
+-- | Generic frontmatter > EXIF-sidecar fallback field.
+--
+--   @key@ is the YAML key — same name on both sides. Frontmatter
+--   wins when present and non-empty; otherwise the matching key in
+--   @{photo}.exif.yaml@. 'noResult' fires when neither supplies a
+--   value, so the consuming template's @$if(key)$@ guard suppresses
+--   the row.
+exifBackedField :: String -> Context String
+exifBackedField key = field key $ \item -> do
+    meta <- getMetadata (itemIdentifier item)
+    case lookupString key meta of
+        Just v | not (null (trim v)) -> return (trim v)
+        _ -> do
+            obj <- readPhotoSidecar ".exif.yaml" item
+            case sidecarLookupString key obj of
+                Just v  -> return v
+                Nothing -> noResult ("no " ++ key ++ " in frontmatter or EXIF sidecar")
+
+-- | Canonical URL for a known license name.
+--
+--   The frontmatter @license:@ string is normalized — lowercased, with
+--   internal whitespace collapsed — before lookup, so any of these all
+--   resolve identically:
+--
+--     * @"CC BY-SA 4.0"@
+--     * @"cc by-sa 4.0"@
+--     * @"  CC  BY-SA   4.0  "@
+--
+--   For licenses not in this table (e.g. a custom license, or "All
+--   Rights Reserved" which has no URL), the author can supply their
+--   own @license-url:@ frontmatter field; the field-level resolver
+--   (@licenseUrlField@) prefers explicit @license-url@ and falls back
+--   to this lookup only when the author hasn't provided one.
+canonicalLicenseUrl :: String -> Maybe String
+canonicalLicenseUrl raw =
+    case unwords (words (map (\c -> if c == '_' then ' ' else toLowerC c) raw)) of
+        "cc by 4.0"        -> Just "https://creativecommons.org/licenses/by/4.0/"
+        "cc by-sa 4.0"     -> Just "https://creativecommons.org/licenses/by-sa/4.0/"
+        "cc by-nc 4.0"     -> Just "https://creativecommons.org/licenses/by-nc/4.0/"
+        "cc by-nc-sa 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+        "cc by-nd 4.0"     -> Just "https://creativecommons.org/licenses/by-nd/4.0/"
+        "cc by-nc-nd 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+        "cc0"              -> Just "https://creativecommons.org/publicdomain/zero/1.0/"
+        "cc0 1.0"          -> Just "https://creativecommons.org/publicdomain/zero/1.0/"
+        "public domain"    -> Just "https://creativecommons.org/publicdomain/mark/1.0/"
+        _                  -> Nothing
+  where
+    toLowerC c
+        | c >= 'A' && c <= 'Z' = toEnum (fromEnum c + 32)
+        | otherwise            = c
+
+-- | Context for photography pages and photo cards.
+--
+--   Frontmatter fields win when present; auto-extracted EXIF + palette
+--   sidecars produced by @tools/extract-exif.py@ /
+--   @tools/extract-palette.py@ fill in the gaps.
+--
+--   Photography pages do not include the essay context's epistemic,
+--   bibliography, backlinks, similar-links, TOC, word-count, or
+--   reading-time fields — none of those apply to visual content.
+--
+--   Exposed template variables:
+--     @$photography$@   — flag, gates @photography.css@ in head.html
+--                         and the @data-page-type@ body attribute used
+--                         by the darkroom-mode lightbox
+--     @$slug$@          — URL slug under @/photography/@
+--     @$photo-url$@     — absolute URL of the photo file. Built as
+--                         @/photography/<slug>/<photo>@ when the entry
+--                         is directory-form; @noResult@ for flat
+--                         singles (templates use the @photo@
+--                         frontmatter directly there).
+--     @$captured-display$@, @$captured-iso$@ — capture date in
+--                         human-readable and ISO forms; @noResult@
+--                         when @captured:@ is absent. Distinct from
+--                         the publication @date:@ shown in card lists.
+--     @$photography-tags$@ — listField of @{tag-name, tag-url}@.
+--     @$palette-swatches$@ — listField of @{swatch}@ (hex string).
+--                         @noResult@ when the @palette:@ frontmatter
+--                         is absent or empty so the template's
+--                         @$if(palette-swatches)$@ gate suppresses an
+--                         empty strip.
+photographyCtx :: Context String
+photographyCtx =
+    constField "photography" "true"
+    <> slugField
+    <> photoUrlField
+    <> photoWebpUrlField
+    -- EXIF-backed fields. Each prefers frontmatter and falls back to
+    -- @{photo}.exif.yaml@ produced by @tools/extract-exif.py@. Sidecars
+    -- absent on film scans (no EXIF on a film negative) is fine —
+    -- noResult propagates and the template's @$if(...)$@ gate hides
+    -- the row.
+    <> exifBackedField "camera"
+    <> exifBackedField "lens"
+    <> exifBackedField "exposure"
+    <> exifBackedField "shutter"
+    <> exifBackedField "aperture"
+    <> exifBackedField "iso"
+    <> exifBackedField "focal-length"
+    -- Pixel dimensions for CLS-prevention width/height attrs on every
+    -- <img>. Read from the EXIF sidecar produced by extract-exif.py;
+    -- frontmatter wins if the author wants to override (e.g., to
+    -- declare a different rendered size).
+    <> exifBackedField "width"
+    <> exifBackedField "height"
+    <> capturedDisplayField
+    <> capturedIsoField
+    <> paletteSwatchesField
+    <> licenseUrlField
+    <> photoLinksField
+    <> tagLinksField "photography-tags"
+    <> authorLinksField
+    <> affiliationField
+    <> dateField "date"     "%-d %B %Y"
+    <> dateField "date-iso" "%Y-%m-%d"
+    <> siteCtx
+  where
+    slugField :: Context String
+    slugField = field "slug" (return . photoSlug)
+
+    -- Build @/photography/<slug>/<photo>@ when both the directory-form
+    -- entry and a @photo:@ frontmatter key are present. Flat singles
+    -- have no co-located asset directory, so @noResult@ there — the
+    -- template falls back to interpreting the @photo:@ frontmatter
+    -- as a literal URL.
+    photoUrlField :: Context String
+    photoUrlField = field "photo-url" $ \item -> do
+        meta <- getMetadata (itemIdentifier item)
+        let fp      = toFilePath (itemIdentifier item)
+            isDir   = takeFileName fp == "index.md"
+        case (isDir, lookupString "photo" meta) of
+            (True, Just photo) ->
+                return $ "/photography/" ++ photoSlug item ++ "/" ++ photo
+            _ -> noResult "no co-located photo (flat single, or photo: key absent)"
+
+    -- WebP companion URL, mirroring 'photoUrlField'. Returns 'noResult'
+    -- when the @.webp@ companion doesn't exist on disk at compile time
+    -- (cwebp not installed, conversion not yet run, or this image
+    -- failed to convert) so the template's @$if(photo-webp-url)$@
+    -- guard suppresses the @<source>@ — the @<picture>@ then degrades
+    -- to a plain @<img>@ on the original-format src. Browsers do NOT
+    -- fall back from a 404'd @<source>@ to the nested @<img>@; the
+    -- file-existence check at build time is load-bearing.
+    photoWebpUrlField :: Context String
+    photoWebpUrlField = field "photo-webp-url" $ \item -> do
+        meta <- getMetadata (itemIdentifier item)
+        let fp      = toFilePath (itemIdentifier item)
+            isDir   = takeFileName fp == "index.md"
+        case (isDir, lookupString "photo" meta) of
+            (True, Just photo) | not (null photo) -> do
+                let entryDir    = takeDirectory fp
+                    webpDisk    = entryDir </> photoToWebp photo
+                exists <- unsafeCompiler (doesFileExist webpDisk)
+                if exists
+                    then return $ "/photography/" ++ photoSlug item
+                                  ++ "/" ++ photoToWebp photo
+                    else noResult "no webp companion on disk"
+            _ -> noResult "no co-located photo (flat single, or photo: key absent)"
+      where
+        photoToWebp :: String -> String
+        photoToWebp p =
+            let dotIdx = lastDotIndex p
+            in  case dotIdx of
+                    Just i  -> take i p ++ ".webp"
+                    Nothing -> p ++ ".webp"
+
+        lastDotIndex :: String -> Maybe Int
+        lastDotIndex s = go (length s - 1)
+          where
+            go i
+                | i < 0          = Nothing
+                | s !! i == '/'  = Nothing  -- crossed a path boundary
+                | s !! i == '.'  = Just i
+                | otherwise      = go (i - 1)
+
+    -- Resolve the @captured:@ ISO date with frontmatter > sidecar
+    -- precedence. Centralised so the display and ISO fields stay in
+    -- agreement on which source they read from.
+    resolveCapturedIso :: Item a -> Compiler (Maybe String)
+    resolveCapturedIso item = do
+        meta <- getMetadata (itemIdentifier item)
+        case lookupString "captured" meta of
+            Just v | not (null (trim v)) -> return (Just (trim v))
+            _ -> do
+                obj <- readPhotoSidecar ".exif.yaml" item
+                return (sidecarLookupString "captured" obj)
+
+    -- @captured:@ as "15 March 2026". Reads frontmatter, falls back to
+    -- the EXIF sidecar's @captured:@ key. Returns @noResult@ when
+    -- absent so @$if(captured-display)$@ gates the metadata row.
+    capturedDisplayField :: Context String
+    capturedDisplayField = field "captured-display" $ \item -> do
+        mIso <- resolveCapturedIso item
+        case mIso of
+            Nothing -> noResult "no captured date in frontmatter or EXIF sidecar"
+            Just iso ->
+                case parseTimeM True defaultTimeLocale "%Y-%m-%d" iso
+                       :: Maybe UTCTime of
+                    Just t  -> return (formatTime defaultTimeLocale "%-d %B %Y" t)
+                    Nothing -> noResult "captured date does not parse as YYYY-MM-DD"
+
+    -- ISO form passed through unchanged (after a parse-validate round-trip
+    -- so a malformed value in either source doesn't reach the template).
+    capturedIsoField :: Context String
+    capturedIsoField = field "captured-iso" $ \item -> do
+        mIso <- resolveCapturedIso item
+        case mIso of
+            Nothing -> noResult "no captured date in frontmatter or EXIF sidecar"
+            Just iso ->
+                case parseTimeM True defaultTimeLocale "%Y-%m-%d" iso
+                       :: Maybe UTCTime of
+                    Just t  -> return (formatTime defaultTimeLocale "%Y-%m-%d" t)
+                    Nothing -> noResult "captured date does not parse as YYYY-MM-DD"
+
+    -- @palette:@ list field. Frontmatter wins; otherwise pull the
+    -- list from @{photo}.palette.yaml@ (the @palette:@ key, an array
+    -- of hex strings produced by @tools/extract-palette.py@). Each
+    -- swatch exposes @$swatch$@.
+    paletteSwatchesField :: Context String
+    paletteSwatchesField = listFieldWith "palette-swatches" swCtx $ \item -> do
+        meta <- getMetadata (itemIdentifier item)
+        let fmEntries = fromMaybe [] (lookupStringList "palette" meta)
+            fmVisible = filter (not . null . trim) fmEntries
+        swatches <- if null fmVisible
+            then do
+                obj <- readPhotoSidecar ".palette.yaml" item
+                case KM.lookup "palette" obj of
+                    Just (Array vec) ->
+                        return [ trim s
+                               | val <- V.toList vec
+                               , Just s <- [yamlAsString val]
+                               , not (null (trim s)) ]
+                    _ -> return []
+            else return fmVisible
+        if null swatches
+            then noResult "no palette swatches in frontmatter or palette sidecar"
+            else return $ zipWith
+                (\i s -> Item (fromFilePath ("palette-" ++ show i)) s)
+                ([0 ..] :: [Int])
+                swatches
+      where
+        swCtx = field "swatch" (return . itemBody)
+
+    -- @$license-url-resolved$@: an explicit @license-url:@ frontmatter
+    -- value when present, otherwise a canonical URL looked up from the
+    -- @license:@ string for known licenses (CC variants, CC0, public
+    -- domain). Returns @noResult@ when neither is set, so
+    -- @$if(license-url-resolved)$@ gates the link wrapper.
+    --
+    -- Frontmatter @license:@ itself flows through @defaultContext@ as
+    -- @$license$@; the template renders the license name as link text
+    -- and uses @$license-url-resolved$@ as @href@.
+    licenseUrlField :: Context String
+    licenseUrlField = field "license-url-resolved" $ \item -> do
+        meta <- getMetadata (itemIdentifier item)
+        case lookupString "license-url" meta of
+            Just u | not (null (trim u)) -> return (trim u)
+            _ -> case lookupString "license" meta of
+                Nothing -> noResult "no license"
+                Just l  -> case canonicalLicenseUrl l of
+                    Just u  -> return u
+                    Nothing -> noResult "license not in canonical lookup"
+
+    -- @links:@ frontmatter — outbound links to other surfaces where
+    -- the photograph appears or can be acquired (Wikimedia Commons,
+    -- Flickr, exhibition catalog, print-sale page, etc.). Each entry
+    -- uses the same @"Name | URL"@ pipe syntax as @authors:@ /
+    -- @affiliation:@ — the existing site convention.
+    --
+    -- Each item exposes @$link-name$@ and @$link-url$@. Entries
+    -- without a URL are dropped (no point linking to nothing). Returns
+    -- @noResult@ on empty so @$if(photo-links)$@ guards the wrapper.
+    photoLinksField :: Context String
+    photoLinksField = listFieldWith "photo-links" lkCtx $ \item -> do
+        meta <- getMetadata (itemIdentifier item)
+        let entries = fromMaybe [] (lookupStringList "links" meta)
+            parsed  = filter (not . null . snd) (map parseEntry entries)
+        if null parsed
+            then noResult "no outbound links"
+            else return $ map (Item (fromFilePath "")) parsed
+      where
+        lkCtx = field "link-name" (return . fst . itemBody)
+             <> field "link-url"  (return . snd . itemBody)
+        parseEntry s = case break (== '|') s of
+            (name, '|' : url) -> (trim name, trim url)
+            (name, _)         -> (trim name, "")

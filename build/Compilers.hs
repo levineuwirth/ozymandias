@@ -7,6 +7,7 @@ module Compilers
     , poetryCompiler
     , fictionCompiler
     , compositionCompiler
+    , photographyCompiler
     , readerOpts
     , writerOpts
     ) where
@@ -199,6 +200,25 @@ fictionCompiler = essayCompiler
 --   (TOC, sidenotes, score fragments, citations, smallcaps, etc.).
 compositionCompiler :: Compiler (Item String)
 compositionCompiler = essayCompiler
+
+-- | Compiler for photography pages: body prose runs through the same
+--   source preprocessors and AST filters as other content (so wikilinks,
+--   smallcaps, sidenotes, image @<picture>@ wrapping, etc. all work in
+--   caption / process-note prose), but skips TOC, word-count,
+--   reading-time, citations, and further-reading. Visual content has no
+--   meaningful word count, and the epistemic / bibliography surfaces in
+--   'essayCtx' don't apply here.
+photographyCompiler :: Compiler (Item String)
+photographyCompiler = do
+    body <- getResourceBody
+    let src   = itemBody body
+        body' = itemSetBody (preprocessSource src) body
+    filePath   <- getResourceFilePath
+    let srcDir  = takeDirectory filePath
+    pandocItem <- readPandocWith readerOpts body'
+    pandocFiltered <- unsafeCompiler $ applyAll srcDir (itemBody pandocItem)
+    let pandocItem' = itemSetBody pandocFiltered pandocItem
+    return (writePandocWith writerOpts pandocItem')
 
 -- | Compiler for simple pages: filters applied, no TOC snapshot.
 pageCompiler :: Compiler (Item String)

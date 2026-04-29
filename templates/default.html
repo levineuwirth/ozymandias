@@ -3,7 +3,7 @@
 <head>
 $partial("templates/partials/head.html")$
 </head>
-<body$if(reading)$ class="reading-mode$if(poetry)$ poetry$endif$$if(fiction)$ fiction$endif$"$endif$>
+<body$if(reading)$ class="reading-mode$if(poetry)$ poetry$endif$$if(fiction)$ fiction$endif$"$endif$$if(photography)$ data-page-type="photography"$endif$>
 <a class="skip-link" href="#markdownBody">Skip to content</a>
 $partial("templates/partials/nav.html")$
 $if(search)$
@@ -26,6 +26,10 @@ $partial("templates/partials/footer.html")$
 <script src="/js/lightbox.js" defer></script>
 $if(home)$<script src="/js/random.js" defer></script>$endif$
 $if(reading)$<script src="/js/reading.js" defer></script>$endif$
+$if(photography)$<script src="/js/photography-modes.js" defer></script>$endif$
+$if(photography-map)$<script src="/leaflet/leaflet.js" defer></script>$endif$
+$if(photography-map)$<script src="/leaflet/leaflet.markercluster.js" defer></script>$endif$
+$if(photography-map)$<script src="/js/photography-map.js" defer></script>$endif$
 $for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
 $if(math)$
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

@@ -1,4 +1,4 @@
-.PHONY: build deploy sign download-model convert-images pdf-thumbs watch clean dev
+.PHONY: build deploy sign download-model download-leaflet convert-images pdf-thumbs watch clean dev
 
 # Source .env for GITHUB_TOKEN and GITHUB_REPO if it exists.
 # .env format: KEY=value (one per line, no `export` prefix, no quotes needed).
@@ -9,6 +9,18 @@ build:
 	@date +%s > data/build-start.txt
 	@./tools/convert-images.sh
 	@$(MAKE) -s pdf-thumbs
+	@if [ -d content/photography ]; then ./tools/download-leaflet.sh; fi
+	# Photography pipeline: when content/photography/ exists, generate
+	# per-photo EXIF + palette sidecars and per-image dimension sidecars
+	# (the latter site-wide for CLS prevention). Gated on .venv presence,
+	# matching the embed.py pattern — failures are non-fatal.
+	@if [ -d .venv ]; then \
+	  uv run python tools/extract-exif.py       || echo "Warning: EXIF extraction failed (build continues with frontmatter only)"; \
+	  uv run python tools/extract-palette.py    || echo "Warning: palette extraction failed (build continues with frontmatter only)"; \
+	  uv run python tools/extract-dimensions.py || echo "Warning: dimension extraction failed (build continues without width/height attrs)"; \
+	else \
+	  echo "Photography sidecars skipped: run 'uv sync' to enable EXIF + palette + dimension extraction (build continues with frontmatter only)"; \
+	fi
 	cabal run site -- build
 	pagefind --site _site
 	@if [ -d .venv ]; then \
@@ -28,6 +40,13 @@ sign:
 # Run once; files are gitignored. Safe to re-run (skips existing files).
 download-model:
 	@./tools/download-model.sh
+
+# Vendor Leaflet + leaflet.markercluster into static/leaflet/.
+# Used only by /photography/map/. Runs automatically as part of `build`
+# when content/photography/ exists (skips when files already present).
+# Files are gitignored; sha256-verified against tools/leaflet-checksums.sha256.
+download-leaflet:
+	@./tools/download-leaflet.sh
 
 # Convert JPEG/PNG images to WebP companions (also runs automatically in build).
 # Requires cwebp: pacman -S libwebp  /  apt install webp

@@ -1,0 +1,29 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header photography-header--narrow">
+            <h1 class="page-title">Contact sheet</h1>
+            <p class="photography-by-year-back">
+                <a href="/photography/">← all photographs</a>
+            </p>
+        </header>
+
+        $if(photos)$
+        <ol class="photography-contact-sheet">
+            $for(photos)$
+            <li class="contact-frame">
+                <a class="contact-frame-link" href="$url$">
+                    $if(photo-url)$
+                    <picture>$if(photo-webp-url)$<source srcset="$photo-webp-url$" type="image/webp">$endif$<img class="contact-frame-img" src="$photo-url$" alt="$title$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$></picture>
+                    $else$$if(photo)$
+                    <img class="contact-frame-img" src="$photo$" alt="$title$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$>
+                    $endif$$endif$
+                    <span class="contact-frame-label">$title$</span>
+                </a>
+            </li>
+            $endfor$
+        </ol>
+        $else$
+        <p class="photography-empty">No photographs to print.</p>
+        $endif$
+    </main>
+</div>

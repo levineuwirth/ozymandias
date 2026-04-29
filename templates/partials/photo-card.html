@@ -1,0 +1,13 @@
+<li class="photo-card"$if(orientation)$ data-orientation="$orientation$"$endif$>
+    <a class="photo-card-link" href="$url$">
+        $if(photo-url)$
+        <picture>$if(photo-webp-url)$<source srcset="$photo-webp-url$" type="image/webp">$endif$<img class="photo-card-img" src="$photo-url$" alt="$title$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$></picture>
+        $else$$if(photo)$
+        <img class="photo-card-img" src="$photo$" alt="$title$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$>
+        $endif$$endif$
+        <div class="photo-card-meta">
+            <span class="photo-card-title">$title$</span>
+            $if(captured-iso)$<time class="photo-card-date" datetime="$captured-iso$">$captured-display$</time>$endif$
+        </div>
+    </a>
+</li>

@@ -1,0 +1,37 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <article class="photo-series">
+            <header class="photo-header">
+                <h1 class="page-title">$title$</h1>
+                $if(photography-tags)$
+                <div class="meta-row meta-tags">
+                    $for(photography-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                </div>
+                $endif$
+                <div class="meta-row meta-authors">
+                    <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+                </div>
+                $if(captured-display)$
+                <div class="meta-row photo-captured">
+                    <span class="meta-label">captured</span>
+                    <time datetime="$captured-iso$">$captured-display$</time>
+                    $if(location)$ · <span class="photo-location">$location$</span>$endif$
+                </div>
+                $endif$
+                $if(abstract)$<p class="photo-series-abstract">$abstract$</p>$endif$
+            </header>
+
+            $if(body)$<div class="photo-series-prose">$body$</div>$endif$
+
+            $if(series-photos)$
+            <ul class="photography-grid" data-photography-mode="masonry">
+                $for(series-photos)$
+                $partial("templates/partials/photo-card.html")$
+                $endfor$
+            </ul>
+            $else$
+            <p class="photography-empty">This series has no photographs yet.</p>
+            $endif$
+        </article>
+    </main>
+</div>

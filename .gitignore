@@ -58,7 +58,41 @@ IGNORE.txt
 # Download with: make download-model
 static/models/
 
+# Vendored Leaflet + leaflet.markercluster (~150 KB total, pinned in
+# tools/download-leaflet.sh). Used by the /photography/map/ page only.
+# Downloaded by `make build` when content/photography/ exists.
+static/leaflet/
+
 # Generated WebP companions (produced by tools/convert-images.sh at build time).
 # To intentionally commit a WebP, use: git add -f path/to/file.webp
 static/**/*.webp
 content/**/*.webp
+
+# Photography sidecars (produced by tools/extract-exif.py and
+# tools/extract-palette.py at build time; consumed by Hakyll). Recreated
+# from the photo file on every `make build`, so they don't belong in
+# version control — committing them would just produce churn.
+content/photography/**/*.exif.yaml
+content/photography/**/*.palette.yaml
+
+# Image-dimension sidecars (produced by tools/extract-dimensions.py at
+# build time; consumed by build/Filters/Images.hs to emit width / height
+# attrs on every <img> for CLS prevention). Same churn-avoidance reasons
+# as the photography sidecars above; recreated on every `make build`.
+**/*.dims.yaml
+
+# Photography: defense-in-depth — refuse to commit RAW or oversize
+# originals. Per the photography section's design, only ≤2400px
+# web-optimized JPEGs are committed; originals stay outside the repo.
+# To intentionally commit one of these formats (rare), use
+# `git add -f path/to/file`.
+content/photography/**/*.cr2
+content/photography/**/*.cr3
+content/photography/**/*.nef
+content/photography/**/*.arw
+content/photography/**/*.dng
+content/photography/**/*.raf
+content/photography/**/*.orf
+content/photography/**/*.tif
+content/photography/**/*.tiff
+content/photography/**/*.psd

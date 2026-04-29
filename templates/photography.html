@@ -1,0 +1,65 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <article class="photo-entry">
+            <header class="photo-header">
+                <h1 class="page-title">$title$</h1>
+                $if(essay-tags)$
+                <div class="meta-row meta-tags">
+                    $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                </div>
+                $endif$
+                $if(photography-tags)$
+                <div class="meta-row meta-tags">
+                    $for(photography-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                </div>
+                $endif$
+                <div class="meta-row meta-authors">
+                    <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+                </div>
+                $if(captured-display)$
+                <div class="meta-row photo-captured">
+                    <span class="meta-label">captured</span>
+                    <time datetime="$captured-iso$">$captured-display$</time>
+                    $if(location)$ · <span class="photo-location">$location$</span>$endif$
+                </div>
+                $endif$
+            </header>
+
+            <figure class="photo-figure">
+                $if(photo-url)$
+                <picture>$if(photo-webp-url)$<source srcset="$photo-webp-url$" type="image/webp">$endif$<img src="$photo-url$" alt="$title$" loading="lazy" decoding="async" data-lightbox="true"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$$if(camera)$ data-photo-camera="$camera$"$endif$$if(lens)$ data-photo-lens="$lens$"$endif$$if(film)$ data-photo-film="$film$"$endif$$if(exposure)$ data-photo-exposure="$exposure$"$endif$$if(captured-display)$ data-photo-captured="$captured-display$"$endif$$if(location)$ data-photo-location="$location$"$endif$></picture>
+                $else$$if(photo)$
+                <img src="$photo$" alt="$title$" loading="lazy" decoding="async" data-lightbox="true"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$$if(camera)$ data-photo-camera="$camera$"$endif$$if(lens)$ data-photo-lens="$lens$"$endif$$if(film)$ data-photo-film="$film$"$endif$$if(exposure)$ data-photo-exposure="$exposure$"$endif$$if(captured-display)$ data-photo-captured="$captured-display$"$endif$$if(location)$ data-photo-location="$location$"$endif$>
+                $endif$$endif$
+                $if(abstract)$<figcaption class="photo-caption">$abstract$</figcaption>$endif$
+            </figure>
+
+            $if(palette-swatches)$
+            <div class="photo-palette" aria-label="Color palette">
+                $for(palette-swatches)$<span class="photo-swatch" style="background:$swatch$" title="$swatch$"></span>$endfor$
+            </div>
+            $endif$
+
+            <dl class="photo-meta">
+                $if(camera)$<dt>Camera</dt><dd>$camera$</dd>$endif$
+                $if(lens)$<dt>Lens</dt><dd>$lens$</dd>$endif$
+                $if(film)$<dt>Film</dt><dd>$film$</dd>$endif$
+                $if(exposure)$<dt>Exposure</dt><dd>$exposure$</dd>$endif$
+                $if(process)$<dt>Process</dt><dd>$process$</dd>$endif$
+                $if(license)$
+                <dt>License</dt>
+                <dd>$if(license-url-resolved)$<a class="photo-license" href="$license-url-resolved$" rel="license noopener">$license$</a>$else$<span class="photo-license">$license$</span>$endif$</dd>
+                $endif$
+            </dl>
+
+            $if(photo-links)$
+            <div class="photo-external-links">
+                <span class="meta-label">also at</span>
+                $for(photo-links)$<a class="photo-external-link" href="$link-url$" rel="noopener">$link-name$</a>$sep$ · $endfor$
+            </div>
+            $endif$
+
+            $body$
+        </article>
+    </main>
+</div>

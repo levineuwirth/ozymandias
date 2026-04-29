@@ -5,6 +5,7 @@ module Site (rules) where
 import Control.Monad (filterM, when)
 import Data.List     (isPrefixOf)
 import Data.Maybe    (fromMaybe)
+import System.Directory (doesDirectoryExist)
 import System.Environment (lookupEnv)
 import System.FilePath (takeDirectory, takeFileName, replaceExtension)
 import qualified Data.Aeson as Aeson
@@ -21,6 +22,7 @@ import Commonplace  (commonplaceCtx)
 import Contexts   (siteCtx, essayCtx, postCtx, pageCtx, poetryCtx, fictionCtx, compositionCtx,
                    contentKindField)
 import qualified Patterns as P
+import Photography (photographyRules)
 import Tags       (buildAllTags, applyTagRules)
 import Pagination (blogPaginateRules)
 import Stats      (statsRules)
@@ -99,8 +101,16 @@ rules = do
         route   $ gsubRoute "static/" (const "")
         compile compressCssCompiler
 
-    -- All other static files (fonts, JS, images, …)
-    match ("static/**" .&&. complement "static/css/*") $ do
+    -- All other static files (fonts, JS, images, …). Build-time
+    -- sidecars produced by the Python tooling (.dims.yaml, .exif.yaml,
+    -- .palette.yaml) are excluded — they're consumed by Hakyll at
+    -- compile time and have no role in the deployed site.
+    match (   "static/**"
+        .&&. complement "static/css/*"
+        .&&. complement "static/**/*.dims.yaml"
+        .&&. complement "static/**/*.exif.yaml"
+        .&&. complement "static/**/*.palette.yaml"
+        ) $ do
         route   $ gsubRoute "static/" (const "")
         compile copyFileCompiler
 
@@ -192,17 +202,21 @@ rules = do
             >>= loadAndApplyTemplate "templates/default.html" essayCtx
             >>= relativizeUrls
 
-    -- Static assets co-located with directory-based essays (figures, data, PDFs, …)
+    -- Static assets co-located with directory-based essays (figures, data, PDFs, …).
+    -- Build-time dimension sidecars are excluded; they're consumed by
+    -- Filters/Images.hs at compile time, not shipped.
     match ("content/essays/**"
            .&&. complement "content/essays/*.md"
-           .&&. complement "content/essays/*/index.md") $ do
+           .&&. complement "content/essays/*/index.md"
+           .&&. complement "content/essays/**/*.dims.yaml") $ do
         route $ gsubRoute "content/" (const "")
         compile copyFileCompiler
 
     -- Static assets co-located with draft essays (dev-only).
     when isDev $ match ("content/drafts/essays/**"
                         .&&. complement "content/drafts/essays/*.md"
-                        .&&. complement "content/drafts/essays/*/index.md") $ do
+                        .&&. complement "content/drafts/essays/*/index.md"
+                        .&&. complement "content/drafts/essays/**/*.dims.yaml") $ do
         route $ gsubRoute "content/" (const "")
         compile copyFileCompiler
 
@@ -313,6 +327,15 @@ rules = do
                 >>= relativizeUrls
 
     -- ---------------------------------------------------------------------------
+    -- Photography — opt-in. Activates only when `content/photography/`
+    -- exists at the project root. Photographers who don't want a photo
+    -- section pay zero cost: no rules registered, no pages generated,
+    -- no feed. See build/Photography.hs.
+    -- ---------------------------------------------------------------------------
+    hasPhotos <- preprocess $ doesDirectoryExist "content/photography"
+    when hasPhotos photographyRules
+
+    -- ---------------------------------------------------------------------------
     -- Blog index (paginated)
     -- ---------------------------------------------------------------------------
     blogPaginateRules postCtx siteCtx
@@ -388,7 +411,10 @@ rules = do
                     posts   <- loadAll ("content/blog/*.md"    .&&. hasNoVersion)
                     fiction <- loadAll ("content/fiction/*.md" .&&. hasNoVersion)
                     poetry  <- loadAll (allPoetry              .&&. hasNoVersion)
-                    let allItems = essays ++ posts ++ fiction ++ poetry
+                    photos  <- if hasPhotos
+                                 then loadAll (P.photographyPattern .&&. hasNoVersion)
+                                 else return []
+                    let allItems = essays ++ posts ++ fiction ++ poetry ++ photos
                     mapM (buildPortal allItems) (Config.portals Config.siteConfig)
 
                 ctx = portalsField

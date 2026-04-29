@@ -1,0 +1,25 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header photography-header--narrow">
+            <h1 class="page-title">$title$</h1>
+            <p class="photography-by-year-back">
+                <a href="/photography/">← all photographs</a>
+            </p>
+        </header>
+
+        $if(years)$
+        <ul class="photography-by-year-list">
+            $for(years)$
+            <li class="photography-by-year-item">
+                <a class="photography-by-year-link" href="$year-url$">
+                    <span class="photography-by-year-year">$year$</span>
+                    <span class="photography-by-year-count">$year-count$</span>
+                </a>
+            </li>
+            $endfor$
+        </ul>
+        $else$
+        <p class="photography-empty">No years yet — photographs need a <code>captured:</code> or <code>date:</code> frontmatter field to be grouped by year.</p>
+        $endif$
+    </main>
+</div>

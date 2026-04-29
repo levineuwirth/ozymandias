@@ -8,6 +8,7 @@ A full-featured static site framework built with [Hakyll](https://jaspervdj.be/h
 - **Epistemic profiles** — tag essays with confidence, evidence quality, importance, and stability; readers see a compact credibility signal before committing to read.
 - **Backlinks** — two-pass wikilink resolution with automatic backlink sections.
 - **Score reader** — swipeable SVG score viewer for music compositions.
+- **Photography** — opt-in section with masonry / grid / chronological / map / contact-sheet views, EXIF + palette auto-extraction, geo-precision-aware Leaflet map, and a darkroom-mode lightbox. Activates automatically when `content/photography/` exists.
 - **Typography** — dropcaps, smallcaps auto-detection, abbreviation tooltips, old-style figures.
 - **Math** — KaTeX rendering for inline and display equations.
 - **Citations** — Pandoc citeproc with Chicago Notes; bibliography and further-reading sections.
@@ -15,7 +16,7 @@ A full-featured static site framework built with [Hakyll](https://jaspervdj.be/h
 - **Semantic search** — optional embedding pipeline (sentence-transformers + FAISS) for "similar links."
 - **Settings** — dark mode, text size, focus mode, reduce motion.
 - **Wikilinks** — `[[Page Name]]` and `[[Page Name|display text]]` syntax.
-- **Atom feeds** — site-wide and per-section (e.g., music-only).
+- **Atom feeds** — site-wide and per-section (e.g., music-only, photography-only).
 - **Library** — configurable portal taxonomy that groups content by tag hierarchy.
 - **Version history** — git-derived stability heuristic with manual history annotations.
 - **Reading mode** — dedicated layout for poetry and fiction.
@@ -79,14 +80,17 @@ Makefile        Build, deploy, dev targets
 
 ## Content types
 
-| Type        | Path                             | Template        |
-|:------------|:---------------------------------|:----------------|
-| Essay       | `content/essays/*.md`            | essay.html      |
-| Blog post   | `content/blog/*.md`              | blog-post.html  |
-| Poetry      | `content/poetry/*.md`            | reading.html    |
-| Fiction     | `content/fiction/*.md`            | reading.html    |
-| Composition | `content/music/<slug>/index.md`  | composition.html|
-| Page        | `content/*.md`                   | page.html       |
+| Type        | Path                                       | Template          |
+|:------------|:-------------------------------------------|:------------------|
+| Essay       | `content/essays/*.md`                      | essay.html        |
+| Blog post   | `content/blog/*.md`                        | blog-post.html    |
+| Poetry      | `content/poetry/*.md`                      | reading.html      |
+| Fiction     | `content/fiction/*.md`                     | reading.html      |
+| Composition | `content/music/<slug>/index.md`            | composition.html  |
+| Photo       | `content/photography/<slug>/index.md`      | photography.html  |
+| Page        | `content/*.md`                             | page.html         |
+
+The photography section is opt-in: leave `content/photography/` absent and zero photo rules run, no leaflet is downloaded, no sidecars are generated. To turn it on, create the directory with an `index.md` (the section landing) and a first photo entry. Add `{ slug: "photography", name: "Photography" }` to `site.yaml`'s `portals` to surface a library shelf. Each photo entry can specify a JPEG file, EXIF and palette sidecars are auto-generated at build time (Pillow + colorthief), and a geo-precision-rounded `map.json` feeds the Leaflet view at `/photography/map/`.
 
 ## Deployment
 
