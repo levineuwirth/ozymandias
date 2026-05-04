@@ -35,8 +35,13 @@ body.reading-mode {
     background-color: var(--bg);
 }
 
+[data-theme="cappuccino"] body.reading-mode {
+    --bg: #634432;
+    background-color: var(--bg);
+}
+
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) body.reading-mode {
+    :root:not([data-theme]) body.reading-mode {
         --bg: #1c1917;
         background-color: var(--bg);
     }

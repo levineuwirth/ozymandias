@@ -10,7 +10,8 @@
        reaching for hardcoded #fff/#000 again.
     ---------------------------------------------------------------- */
     :root,
-    [data-theme="dark"] {
+    [data-theme="dark"],
+    [data-theme="cappuccino"] {
         --bg:           #ffffff;
         --bg-offset:    #f5f5f5;
         --bg-subtle:    #f9f9f9;

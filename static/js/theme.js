@@ -14,7 +14,7 @@
 
     /* Theme */
     var storedTheme = safeGet('theme');
-    if (storedTheme === 'dark' || storedTheme === 'light') {
+    if (storedTheme === 'dark' || storedTheme === 'light' || storedTheme === 'cappuccino') {
         document.documentElement.setAttribute('data-theme', storedTheme);
     }
 

@@ -90,8 +90,9 @@
     ------------------------------------------------------------------ */
 
     function handle(action) {
-        if      (action === 'theme-light')   setTheme('light');
-        else if (action === 'theme-dark')    setTheme('dark');
+        if      (action === 'theme-light')      setTheme('light');
+        else if (action === 'theme-dark')       setTheme('dark');
+        else if (action === 'theme-cappuccino') setTheme('cappuccino');
         else if (action === 'text-smaller')  shiftSize(-1);
         else if (action === 'text-larger')   shiftSize(+1);
         else if (action === 'focus-mode')    toggleDataAttr('focus-mode',    'data-focus-mode');

@@ -193,9 +193,41 @@
     --hm-4: #d4d0c8;
 }
 
+/* ============================================================
+   CAPPUCCINO (warm milky-coffee — opt-in only, no system trigger)
+   ============================================================ */
+
+[data-theme="cappuccino"] {
+    --bg:              #553a28;
+    --bg-nav:          #503626;
+    --bg-offset:       #4a3324;
+    --text:            #ead0a0;   /* warm microfoam — golden cream */
+    --text-muted:      #d0b888;
+    --text-faint:      #b09575;
+    --border:          #7a5d44;
+    --border-muted:    #6a4f38;
+
+    --link:            #ead0a0;
+    --link-underline:  #b09575;
+    --link-hover:      #f5e6c0;
+    --link-hover-underline: #f5e6c0;
+    --link-visited:    #d0b888;
+
+    --selection-bg:    #ead0a0;
+    --selection-text:  #3a2418;
+
+    --bg-subtle:       var(--bg-offset);
+
+    --hm-0: #4a3324;
+    --hm-1: #6a4f38;
+    --hm-2: #8d6c4e;
+    --hm-3: #b09575;
+    --hm-4: #ead0a0;
+}
+
 /* System dark mode fallback */
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
+    :root:not([data-theme]) {
         --bg:              #121212;
         --bg-nav:          #181818;
         --bg-offset:       #1a1a1a;

@@ -30,12 +30,18 @@ mark.user-annotation:hover { filter: brightness(0.80); }
 [data-theme="dark"] mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.42); }
 [data-theme="dark"] mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.42); }
 
+/* Cappuccino — dark warm bg, so highlights need dark-mode-level opacity */
+[data-theme="cappuccino"] mark.user-annotation.user-annotation--amber { background-color: rgba(245, 180,  70, 0.42); }
+[data-theme="cappuccino"] mark.user-annotation.user-annotation--sage  { background-color: rgba(130, 175, 140, 0.42); }
+[data-theme="cappuccino"] mark.user-annotation.user-annotation--steel { background-color: rgba(140, 170, 200, 0.42); }
+[data-theme="cappuccino"] mark.user-annotation.user-annotation--rose  { background-color: rgba(220, 140, 140, 0.42); }
+
 /* System dark mode fallback (for prefers-color-scheme without explicit data-theme) */
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) mark.user-annotation.user-annotation--amber { background-color: rgba(245, 158,  11, 0.40); }
-    :root:not([data-theme="light"]) mark.user-annotation.user-annotation--sage  { background-color: rgba(107, 158, 120, 0.42); }
-    :root:not([data-theme="light"]) mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.42); }
-    :root:not([data-theme="light"]) mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.42); }
+    :root:not([data-theme]) mark.user-annotation.user-annotation--amber { background-color: rgba(245, 158,  11, 0.40); }
+    :root:not([data-theme]) mark.user-annotation.user-annotation--sage  { background-color: rgba(107, 158, 120, 0.42); }
+    :root:not([data-theme]) mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.42); }
+    :root:not([data-theme]) mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.42); }
 }
 
 /* ============================================================
