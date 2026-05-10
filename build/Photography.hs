@@ -20,8 +20,25 @@
 --     * Contact sheet at @/photography/contact-sheet/@.
 --     * Atom feed at @/photography/feed.xml@.
 --
---   See @PHOTOGRAPHY.md@ in the upstream levineuwirth.org repo for the
---   full design rationale.
+--   Design rationale (recorded in this module's comments rather than a
+--   separate design doc):
+--
+--     * Content model — hybrid: flat singles + directory entries +
+--       series directories. Series detection is structural ('siblingIds'
+--       in 'photographyRules'); no @series: true@ frontmatter flag.
+--     * Metadata — frontmatter wins; auto-extracted EXIF + palette
+--       sidecars (from @tools/extract-exif.py@ /
+--       @tools/extract-palette.py@) fill in any gaps. See
+--       'Contexts.photographyCtx'.
+--     * Privacy — every coordinate is rounded to the precision the
+--       author declares in @geo-precision:@ (default @city@) BEFORE it
+--       leaves this build step; @hidden@ omits the entry entirely.
+--       See 'roundCoord' / 'buildPin'.
+--     * Vendoring — Leaflet ships with the site (gated on the
+--       photography directory existing) so the map page makes no
+--       third-party requests at view time.
+--     * Originals — only ≤2400px web-optimized JPEGs are committed;
+--       RAWs / TIFFs / PSDs are refused via @.gitignore@ globs.
 module Photography
     ( photographyRules
     ) where

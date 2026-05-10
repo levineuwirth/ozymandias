@@ -9,9 +9,37 @@
 
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SITE_YAML="$REPO_ROOT/site.yaml"
+
 GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg-signing}"
 SITE_DIR="${1:-_site}"
-SIGNING_KEY="C9A42A6FAD444FBE566FD738531BDC1CC2707066"
+
+# Read the master signing-key fingerprint from site.yaml's `gpg-fingerprint`
+# field. Single source of truth — same value the templates render in the
+# footer's "sig" tooltip. Empty fingerprint means signing isn't configured;
+# bail with a helpful message rather than calling gpg with an empty key.
+if [ ! -f "$SITE_YAML" ]; then
+    echo "Error: $SITE_YAML not found." >&2
+    exit 1
+fi
+
+SIGNING_KEY="$(awk -F: '
+    /^[[:space:]]*gpg-fingerprint[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/^["'"'"' ]+|["'"'"' ]+$/, "")
+        print
+        exit
+    }
+' "$SITE_YAML")"
+
+if [ -z "$SIGNING_KEY" ]; then
+    echo "Error: gpg-fingerprint is empty in $SITE_YAML." >&2
+    echo "  Set it to your master signing-key fingerprint, then retry 'make sign'." >&2
+    echo "  (Leave it empty to skip signing entirely — and remove 'sign' from your" >&2
+    echo "   deploy pipeline accordingly.)" >&2
+    exit 1
+fi
 
 if [ ! -d "$SITE_DIR" ]; then
     echo "Error: site directory '$SITE_DIR' not found. Run 'make build' first." >&2

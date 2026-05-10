@@ -23,6 +23,7 @@ a palette extraction error.
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -35,8 +36,8 @@ CONTENT_DIR = REPO_ROOT / "content" / "photography"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 
-# Number of swatches in the rendered strip. Five matches the design in
-# PHOTOGRAPHY.md and the existing `photo-palette` CSS, which sets
+# Number of swatches in the rendered strip. Five matches the existing
+# `photo-palette` CSS in static/css/photography.css, which sets
 # `display: flex; height: 0.75rem;` and divides the bar evenly. Bumping
 # this requires a CSS revisit — the bar reads as a unified strip up to
 # about 7 swatches; beyond that the bands become too narrow to perceive.
@@ -77,41 +78,65 @@ def _extract_palette(image: Path) -> list[str]:
     return [_hex(rgb) for rgb in palette[:N_SWATCHES]]
 
 
+def _process_one(image: Path, counters: dict[str, int]) -> None:
+    """Extract a palette for one image, updating counters."""
+    if image.name.startswith(".") or image.name.endswith(".tmp"):
+        return
+    sidecar = _sidecar_path(image)
+    if not _is_stale(image, sidecar):
+        counters["skipped"] += 1
+        return
+    try:
+        palette = _extract_palette(image)
+    except Exception as e:  # noqa: BLE001 — keep walking
+        print(f"extract-palette: {image}: {e}", file=sys.stderr)
+        counters["failed"] += 1
+        return
+    _atomic_write_yaml(sidecar, {"palette": palette})
+    counters["written"] += 1
+
+
 def main() -> int:
-    if not CONTENT_DIR.exists():
-        print(
-            f"extract-palette: {CONTENT_DIR} does not exist — skipping.",
-            file=sys.stderr,
-        )
-        return 0
+    parser = argparse.ArgumentParser(
+        description="Write 5-color palette sidecars for photography images.",
+    )
+    parser.add_argument(
+        "--file",
+        type=Path,
+        help="Process a single image instead of walking content/photography/. "
+             "Used by tools/import-photo.sh to avoid a full re-walk per import.",
+    )
+    args = parser.parse_args()
 
-    written = 0
-    skipped = 0
-    failed = 0
+    counters = {"written": 0, "skipped": 0, "failed": 0}
 
-    for image in sorted(CONTENT_DIR.rglob("*")):
-        if image.suffix.lower() not in IMAGE_EXTS:
-            continue
-        if image.name.startswith(".") or image.name.endswith(".tmp"):
-            continue
-
-        sidecar = _sidecar_path(image)
-        if not _is_stale(image, sidecar):
-            skipped += 1
-            continue
-
-        try:
-            palette = _extract_palette(image)
-        except Exception as e:  # noqa: BLE001 — keep walking
-            print(f"extract-palette: {image}: {e}", file=sys.stderr)
-            failed += 1
-            continue
-
-        _atomic_write_yaml(sidecar, {"palette": palette})
-        written += 1
+    if args.file is not None:
+        if not args.file.exists():
+            print(f"extract-palette: --file {args.file} does not exist", file=sys.stderr)
+            return 1
+        if args.file.suffix.lower() not in IMAGE_EXTS:
+            print(
+                f"extract-palette: --file {args.file}: unsupported extension"
+                f" (expected one of {sorted(IMAGE_EXTS)})",
+                file=sys.stderr,
+            )
+            return 1
+        _process_one(args.file, counters)
+    else:
+        if not CONTENT_DIR.exists():
+            print(
+                f"extract-palette: {CONTENT_DIR} does not exist — skipping.",
+                file=sys.stderr,
+            )
+            return 0
+        for image in sorted(CONTENT_DIR.rglob("*")):
+            if image.suffix.lower() not in IMAGE_EXTS:
+                continue
+            _process_one(image, counters)
 
     print(
-        f"extract-palette: {written} written, {skipped} skipped, {failed} failed",
+        f"extract-palette: {counters['written']} written, "
+        f"{counters['skipped']} skipped, {counters['failed']} failed",
         file=sys.stderr,
     )
     return 0

@@ -63,6 +63,16 @@ static/models/
 # Downloaded by `make build` when content/photography/ exists.
 static/leaflet/
 
+# Vendored Mozilla PDF.js viewer (~7 MB extracted, pinned in
+# tools/download-pdfjs.sh). Used by Filters/Links.hs (rewrites .pdf links)
+# and Filters/EmbedPdf.hs ({{pdf:...}} directives).
+# Downloaded by `make build` when static/papers/ exists.
+static/pdfjs/
+
+# Auto-generated PDF first-page thumbnails (foo.thumb.png alongside foo.pdf).
+# Produced by the pdf-thumbs Make target via pdftoppm.
+static/papers/*.thumb.png
+
 # Generated WebP companions (produced by tools/convert-images.sh at build time).
 # To intentionally commit a WebP, use: git add -f path/to/file.webp
 static/**/*.webp

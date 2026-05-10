@@ -5,7 +5,7 @@ module Site (rules) where
 import Control.Monad (filterM, when)
 import Data.List     (isPrefixOf)
 import Data.Maybe    (fromMaybe)
-import System.Directory (doesDirectoryExist)
+import System.Directory (doesDirectoryExist, doesFileExist)
 import System.Environment (lookupEnv)
 import System.FilePath (takeDirectory, takeFileName, replaceExtension)
 import qualified Data.Aeson as Aeson
@@ -134,8 +134,13 @@ rules = do
     match "data/similar-links.json" $ compile getResourceBody
 
     -- Commonplace YAML — compiled as a raw string so it can be loaded
-    -- with dependency tracking by the commonplace page compiler.
-    match "data/commonplace.yaml" $ compile getResourceBody
+    -- with dependency tracking by the commonplace page compiler. The
+    -- page rule below is gated on this file existing; without that
+    -- gate, a content/commonplace.md created without its data/ yaml
+    -- companion would crash the build with an unhelpful "no item" error.
+    hasCommonplace <- preprocess $ doesFileExist "data/commonplace.yaml"
+    when hasCommonplace $
+        match "data/commonplace.yaml" $ compile getResourceBody
 
     -- ---------------------------------------------------------------------------
     -- Homepage
@@ -148,9 +153,13 @@ rules = do
             >>= relativizeUrls
 
     -- ---------------------------------------------------------------------------
-    -- Commonplace book
+    -- Commonplace book — opt-in. Active only when BOTH the page source
+    -- (content/commonplace.md) AND the data file (data/commonplace.yaml)
+    -- exist. Either alone is treated as "not enabled" — without the yaml,
+    -- 'Commonplace.loadCommonplace' would 'load' a nonexistent item and
+    -- crash the build; without the page, the data is unused.
     -- ---------------------------------------------------------------------------
-    match "content/commonplace.md" $ do
+    when hasCommonplace $ match "content/commonplace.md" $ do
         route   $ constRoute "commonplace.html"
         compile $ pageCompiler
             >>= loadAndApplyTemplate "templates/commonplace.html" commonplaceCtx
@@ -164,10 +173,19 @@ rules = do
             >>= loadAndApplyTemplate "templates/default.html" essayCtx
             >>= relativizeUrls
 
-    match ("content/*.md"
-            .&&. complement "content/index.md"
-            .&&. complement "content/commonplace.md"
-            .&&. complement "content/colophon.md") $ do
+    -- All other top-level standalone pages. The commonplace complement is
+    -- conditional: when the commonplace book is enabled, the dedicated
+    -- rule above owns commonplace.md and we exclude it here; when the
+    -- yaml is missing, we drop the complement so a user-authored
+    -- commonplace.md still renders as a regular page rather than being
+    -- silently dropped.
+    let standalonePagesBase = "content/*.md"
+                            .&&. complement "content/index.md"
+                            .&&. complement "content/colophon.md"
+        standalonePagesPattern = if hasCommonplace
+            then standalonePagesBase .&&. complement "content/commonplace.md"
+            else standalonePagesBase
+    match standalonePagesPattern $ do
         route   $ gsubRoute "content/" (const "")
                   `composeRoutes` setExtension "html"
         compile $ pageCompiler

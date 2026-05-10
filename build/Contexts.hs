@@ -21,6 +21,7 @@ import qualified Data.Aeson         as Aeson
 import qualified Data.Aeson.Key     as AK
 import qualified Data.Aeson.KeyMap  as KM
 import qualified Data.Vector        as V
+import Data.Char                (toLower)
 import Data.List               (intercalate, isPrefixOf)
 import Data.Maybe              (fromMaybe)
 import qualified Data.Scientific    as Sci
@@ -718,7 +719,7 @@ exifBackedField key = field key $ \item -> do
 --   to this lookup only when the author hasn't provided one.
 canonicalLicenseUrl :: String -> Maybe String
 canonicalLicenseUrl raw =
-    case unwords (words (map (\c -> if c == '_' then ' ' else toLowerC c) raw)) of
+    case unwords (words (map (\c -> if c == '_' then ' ' else toLower c) raw)) of
         "cc by 4.0"        -> Just "https://creativecommons.org/licenses/by/4.0/"
         "cc by-sa 4.0"     -> Just "https://creativecommons.org/licenses/by-sa/4.0/"
         "cc by-nc 4.0"     -> Just "https://creativecommons.org/licenses/by-nc/4.0/"
@@ -729,10 +730,6 @@ canonicalLicenseUrl raw =
         "cc0 1.0"          -> Just "https://creativecommons.org/publicdomain/zero/1.0/"
         "public domain"    -> Just "https://creativecommons.org/publicdomain/mark/1.0/"
         _                  -> Nothing
-  where
-    toLowerC c
-        | c >= 'A' && c <= 'Z' = toEnum (fromEnum c + 32)
-        | otherwise            = c
 
 -- | Context for photography pages and photo cards.
 --

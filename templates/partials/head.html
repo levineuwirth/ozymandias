@@ -26,6 +26,12 @@ $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.css">$e
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.Default.css">$endif$
 <link rel="stylesheet" href="/css/print.css" media="print">
 $if(math)$
+<!-- KaTeX CSS+fonts (~280 KB) is loaded from jsDelivr rather than vendored.
+     The framework vendors what is privacy/CSP-critical (Leaflet for the
+     photography map, the ML model for client-side semantic search); KaTeX
+     and Vega below are loaded only on pages that opt into them via
+     frontmatter, so the third-party request is bounded and predictable.
+     Swap the URL for a local /katex/ path if your CSP requires self-only. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 $endif$
 $if(search)$
@@ -34,6 +40,11 @@ $endif$
 <script src="/js/utils.js"></script>
 <script src="/js/theme.js"></script>
 $if(viz)$
+<!-- Vega + Vega-Lite + Vega-Embed (~1.5 MB total) is loaded from jsDelivr
+     rather than vendored. Same rationale as KaTeX above: opt-in per page
+     via `viz: true` frontmatter, so the request only happens on pages that
+     actually render data visualisations. Swap for local /vega/ paths if
+     your CSP requires self-only. -->
 <link rel="stylesheet" href="/css/viz.css">
 <script src="https://cdn.jsdelivr.net/npm/vega@5" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5" defer></script>

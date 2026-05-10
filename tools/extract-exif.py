@@ -35,6 +35,7 @@ images are logged and the rest of the walk continues.
 
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import subprocess
@@ -57,9 +58,15 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 # Mapping from EXIF field names (as exposed by exiftool / Pillow) to the
 # sidecar keys consumed by Hakyll. Hakyll's fields are deliberately
 # lowercase-with-hyphens, matching the photographyCtx convention.
+# Ordered for diff-readability: identification (camera/lens), geometry
+# (width/height of the delivered JPEG — threaded through to <img> CLS
+# attrs), exposure (composite string + components), then capture
+# circumstance (date + GPS).
 SIDECAR_KEYS = [
     "camera",
     "lens",
+    "width",
+    "height",
     "exposure",
     "shutter",
     "aperture",
@@ -67,12 +74,6 @@ SIDECAR_KEYS = [
     "focal-length",
     "captured",
     "geo",
-    # Pixel dimensions of the delivered (resized, EXIF-stripped) JPEG.
-    # Threaded through to the Hakyll photographyCtx and emitted as
-    # width / height attrs on every <img> tag — prevents cumulative
-    # layout shift while photos load.
-    "width",
-    "height",
 ]
 
 
@@ -390,10 +391,42 @@ def _read_one(image: Path) -> dict[str, Any]:
     return _read_exif_via_pillow(image)
 
 
+def _process_one(image: Path, counters: dict[str, int]) -> None:
+    """Extract EXIF for a single image, updating counters.
+
+    Skips when the sidecar is fresher than the image; logs and counts
+    failures so the caller can decide whether they're fatal.
+    """
+    if image.name.startswith(".") or image.name.endswith(".tmp"):
+        return
+    sidecar = _sidecar_path(image)
+    if not _is_stale(image, sidecar):
+        counters["skipped"] += 1
+        return
+    try:
+        data = _read_one(image)
+    except Exception as e:  # noqa: BLE001 — keep walking
+        print(f"extract-exif: {image}: {e}", file=sys.stderr)
+        counters["failed"] += 1
+        return
+    # Always write a sidecar — even if empty — so the consumer doesn't
+    # need to branch on existence. An empty sidecar is the explicit
+    # signal that "we tried; nothing to extract" (typical for film scans).
+    _atomic_write_yaml(sidecar, data)
+    counters["written"] += 1
+
+
 def main() -> int:
-    if not CONTENT_DIR.exists():
-        print(f"extract-exif: {CONTENT_DIR} does not exist — skipping.", file=sys.stderr)
-        return 0
+    parser = argparse.ArgumentParser(
+        description="Write EXIF sidecars for photography images.",
+    )
+    parser.add_argument(
+        "--file",
+        type=Path,
+        help="Process a single image instead of walking content/photography/. "
+             "Used by tools/import-photo.sh to avoid a full re-walk per import.",
+    )
+    args = parser.parse_args()
 
     using_exiftool = _exiftool_available()
     print(
@@ -402,39 +435,35 @@ def main() -> int:
         file=sys.stderr,
     )
 
-    written = 0
-    skipped = 0
-    failed = 0
+    counters = {"written": 0, "skipped": 0, "failed": 0}
 
-    for image in sorted(CONTENT_DIR.rglob("*")):
-        if image.suffix.lower() not in IMAGE_EXTS:
-            continue
-        # Skip the WebP companions (extension wouldn't match anyway, but
-        # be explicit) and any tmp / hidden files.
-        if image.name.startswith(".") or image.name.endswith(".tmp"):
-            continue
-
-        sidecar = _sidecar_path(image)
-        if not _is_stale(image, sidecar):
-            skipped += 1
-            continue
-
-        try:
-            data = _read_one(image)
-        except Exception as e:  # noqa: BLE001 — keep walking
-            print(f"extract-exif: {image}: {e}", file=sys.stderr)
-            failed += 1
-            continue
-
-        # Always write a sidecar — even if it's empty — so the consumer
-        # doesn't need to branch on existence. An empty sidecar is the
-        # explicit signal that "we tried; nothing to extract" (typical
-        # for film scans).
-        _atomic_write_yaml(sidecar, data)
-        written += 1
+    if args.file is not None:
+        if not args.file.exists():
+            print(f"extract-exif: --file {args.file} does not exist", file=sys.stderr)
+            return 1
+        if args.file.suffix.lower() not in IMAGE_EXTS:
+            print(
+                f"extract-exif: --file {args.file}: unsupported extension"
+                f" (expected one of {sorted(IMAGE_EXTS)})",
+                file=sys.stderr,
+            )
+            return 1
+        _process_one(args.file, counters)
+    else:
+        if not CONTENT_DIR.exists():
+            print(
+                f"extract-exif: {CONTENT_DIR} does not exist — skipping.",
+                file=sys.stderr,
+            )
+            return 0
+        for image in sorted(CONTENT_DIR.rglob("*")):
+            if image.suffix.lower() not in IMAGE_EXTS:
+                continue
+            _process_one(image, counters)
 
     print(
-        f"extract-exif: {written} written, {skipped} skipped, {failed} failed",
+        f"extract-exif: {counters['written']} written, "
+        f"{counters['skipped']} skipped, {counters['failed']} failed",
         file=sys.stderr,
     )
     return 0

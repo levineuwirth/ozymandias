@@ -1,6 +1,6 @@
-.PHONY: build deploy sign download-model download-leaflet convert-images pdf-thumbs watch clean dev
+.PHONY: build deploy sign download-model download-leaflet download-pdfjs convert-images pdf-thumbs watch clean dev
 
-# Source .env for GITHUB_TOKEN and GITHUB_REPO if it exists.
+# Source .env for VPS_USER / VPS_HOST / VPS_PATH (consumed by `make deploy`).
 # .env format: KEY=value (one per line, no `export` prefix, no quotes needed).
 -include .env
 export
@@ -9,6 +9,7 @@ build:
 	@date +%s > data/build-start.txt
 	@./tools/convert-images.sh
 	@$(MAKE) -s pdf-thumbs
+	@if [ -d static/papers ];      then ./tools/download-pdfjs.sh;   fi
 	@if [ -d content/photography ]; then ./tools/download-leaflet.sh; fi
 	# Photography pipeline: when content/photography/ exists, generate
 	# per-photo EXIF + palette sidecars and per-image dimension sidecars
@@ -47,6 +48,14 @@ download-model:
 # Files are gitignored; sha256-verified against tools/leaflet-checksums.sha256.
 download-leaflet:
 	@./tools/download-leaflet.sh
+
+# Vendor Mozilla's prebuilt PDF.js viewer into static/pdfjs/.
+# Used by build/Filters/Links.hs (rewrites .pdf links) and build/Filters/EmbedPdf.hs
+# ({{pdf:...}} directives) — both target /pdfjs/web/viewer.html. Runs automatically
+# as part of `build` when static/papers/ exists (skips when already extracted).
+# Files are gitignored; sha256-verified against tools/pdfjs-checksums.sha256.
+download-pdfjs:
+	@./tools/download-pdfjs.sh
 
 # Convert JPEG/PNG images to WebP companions (also runs automatically in build).
 # Requires cwebp: pacman -S libwebp  /  apt install webp

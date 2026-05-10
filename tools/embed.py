@@ -43,7 +43,23 @@ MIN_SCORE      = 0.30   # similar-links: discard weak matches
 MIN_PARA_CHARS = 80     # semantic: skip very short paragraphs
 MAX_PARA_CHARS = 1000   # semantic: truncate before embedding
 
-EXCLUDE_URLS = {"/search/", "/build/", "/404.html", "/feed.xml", "/music/feed.xml"}
+# Pages that should not appear in similar-links suggestions or the semantic
+# index. Search/build/stats are meta-pages with no prose; feeds are XML.
+# Photography listing surfaces (map/contact-sheet/by-year) are index pages,
+# not content. URLs must match exactly what `_url_from_path` produces (i.e.,
+# directory-style URLs end with `/`, file-style URLs include the extension).
+EXCLUDE_URLS = {
+    "/search.html",
+    "/build/",
+    "/stats/",
+    "/library.html",
+    "/new.html",
+    "/feed.xml",
+    "/music/feed.xml",
+    "/photography/feed.xml",
+    "/photography/map/",
+    "/photography/contact-sheet/",
+}
 
 STRIP_SELECTORS = [
     "nav", "footer", "#toc", ".link-popup", "script", "style",
@@ -88,61 +104,66 @@ def _title(soup: BeautifulSoup, url: str) -> str:
     return re.split(r"\s+[—–-]\s+", raw)[0].strip()
 
 # ---------------------------------------------------------------------------
-# Page-level extraction  (for similar-links)
+# Extraction
 # ---------------------------------------------------------------------------
+#
+# A single pass over each HTML file produces both:
+#
+#   * a page-level record (concatenated body text, for similar-links)
+#   * a list of paragraph-level records (for the semantic index)
+#
+# Both surfaces want the same soup; an earlier version of this script
+# parsed each file twice. The combined pass keeps BeautifulSoup work to
+# one allocation per file.
 
-def extract_page(html_path: Path) -> dict | None:
+def extract_one(html_path: Path) -> tuple[dict | None, list[dict]]:
+    """Parse one HTML file and return (page-record-or-None, paragraph-list).
+
+    Returns ``(None, [])`` when the URL is excluded, when the file has no
+    ``#markdownBody`` (so it isn't a content page), or when the body text
+    is too short to be meaningful.
+    """
+    url = _url_from_path(html_path)
+    if url in EXCLUDE_URLS:
+        return None, []
+
     raw  = html_path.read_text(encoding="utf-8", errors="replace")
     soup = BeautifulSoup(raw, "html.parser")
-    url  = _url_from_path(html_path)
-
-    if url in EXCLUDE_URLS:
-        return None
     body = soup.select_one("#markdownBody")
     if body is None:
-        return None
+        return None, []
 
     title = _title(soup, url)
+    # _clean_soup mutates the tree, so it must run AFTER we've captured
+    # the title (selectors like h1 may live inside #markdownBody on some
+    # layouts) and BEFORE we read body text for both surfaces.
     _clean_soup(soup)
 
+    # Page-level record.
     text = re.sub(r"\s+", " ", body.get_text(" ", strip=True)).strip()
-    if len(text) < 100:
-        return None
+    page = None if len(text) < 100 else {
+        "url": url, "title": title, "text": text,
+    }
 
-    return {"url": url, "title": title, "text": text}
-
-# ---------------------------------------------------------------------------
-# Paragraph-level extraction  (for semantic search)
-# ---------------------------------------------------------------------------
-
-def extract_paragraphs(html_path: Path, url: str, title: str) -> list[dict]:
-    raw  = html_path.read_text(encoding="utf-8", errors="replace")
-    soup = BeautifulSoup(raw, "html.parser")
-    body = soup.select_one("#markdownBody")
-    if body is None:
-        return []
-
-    _clean_soup(soup)
-
-    paras    = []
-    heading  = title  # track current section heading
-
+    # Paragraph-level records — re-traverse the same (now-cleaned) body.
+    paras: list[dict] = []
+    heading = title
     for el in body.find_all(["h1", "h2", "h3", "h4", "p", "li", "blockquote"]):
         if el.name in ("h1", "h2", "h3", "h4"):
             heading = el.get_text(" ", strip=True)
             continue
-        text = re.sub(r"\s+", " ", el.get_text(" ", strip=True)).strip()
-        if len(text) < MIN_PARA_CHARS:
+        para_text = re.sub(r"\s+", " ", el.get_text(" ", strip=True)).strip()
+        if len(para_text) < MIN_PARA_CHARS:
             continue
         paras.append({
             "url":     url,
             "title":   title,
             "heading": heading,
-            "excerpt": text[:200] + ("…" if len(text) > 200 else ""),
-            "text":    text[:MAX_PARA_CHARS],
+            "excerpt": para_text[:200] + ("…" if len(para_text) > 200 else ""),
+            "text":    para_text[:MAX_PARA_CHARS],
         })
 
-    return paras
+    return page, paras
 
 # ---------------------------------------------------------------------------
 # Main
@@ -157,17 +178,17 @@ def main() -> int:
         print("embed.py: all outputs up to date — skipping")
         return 0
 
-    # --- Extract pages + paragraphs in one pass ---
+    # --- Extract pages + paragraphs in a single soup-per-file pass ---
     print("embed.py: extracting pages…")
     pages = []
     paragraphs = []
 
     for html in sorted(SITE_DIR.rglob("*.html")):
-        page = extract_page(html)
+        page, paras = extract_one(html)
         if page is None:
             continue
         pages.append(page)
-        paragraphs.extend(extract_paragraphs(html, page["url"], page["title"]))
+        paragraphs.extend(paras)
 
     if not pages:
         print("embed.py: no indexable pages found", file=sys.stderr)

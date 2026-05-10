@@ -32,12 +32,10 @@ import           Data.Ord                   (comparing)
 import           Data.Maybe                 (fromMaybe)
 import qualified Data.Map.Strict            as Map
 import           Data.Map.Strict            (Map)
-import qualified Data.ByteString            as BS
 import qualified Data.Text                  as T
 import qualified Data.Text.Lazy             as TL
 import qualified Data.Text.Lazy.Encoding    as TLE
 import qualified Data.Text.Encoding         as TE
-import qualified Data.Text.Encoding.Error   as TE
 import qualified Data.Aeson                 as Aeson
 import           Data.Aeson                 ((.=))
 import           Text.Pandoc.Class          (runPure)
@@ -50,6 +48,7 @@ import           Hakyll
 import           Compilers                  (readerOpts, writerOpts)
 import           Filters                    (preprocessSource)
 import qualified Patterns                   as P
+import           Utils                      (normaliseUrl)
 
 -- ---------------------------------------------------------------------------
 -- Link-with-context entry (intermediate, saved by the "links" pass)
@@ -181,44 +180,6 @@ linksCompiler = do
     let entries = nubBy (\a b -> leUrl a == leUrl b && leContext a == leContext b)
                         (extractLinksWithContext (itemBody pandocItem))
     makeItem . TL.unpack . TLE.decodeUtf8 . Aeson.encode $ entries
-
--- ---------------------------------------------------------------------------
--- URL normalisation
--- ---------------------------------------------------------------------------
-
--- | Normalise an internal URL as a map key: strip query string, fragment,
--- and trailing @.html@; ensure a leading slash; percent-decode the path
--- so that @\/essays\/caf%C3%A9@ and @\/essays\/café@ collide on the same
--- key.
-normaliseUrl :: String -> String
-normaliseUrl url =
-    let t  = T.pack url
-        t1 = fst (T.breakOn "?" (fst (T.breakOn "#" t)))
-        t2 = if T.isPrefixOf "/" t1 then t1 else "/" `T.append` t1
-        t3 = fromMaybe t2 (T.stripSuffix ".html" t2)
-    in  percentDecode (T.unpack t3)
-
--- | Decode percent-escapes (@%XX@) into raw bytes, then re-interpret the
--- resulting bytestring as UTF-8. Invalid escapes are passed through
--- verbatim so this is safe to call on already-decoded input.
-percentDecode :: String -> String
-percentDecode = T.unpack . TE.decodeUtf8With lenientDecode . pack . go
-  where
-    go []                 = []
-    go ('%':a:b:rest)
-        | Just hi <- hexDigit a
-        , Just lo <- hexDigit b
-        = fromIntegral (hi * 16 + lo) : go rest
-    go (c:rest)           = fromIntegral (fromEnum c) : go rest
-
-    hexDigit c
-        | c >= '0' && c <= '9' = Just (fromEnum c - fromEnum '0')
-        | c >= 'a' && c <= 'f' = Just (fromEnum c - fromEnum 'a' + 10)
-        | c >= 'A' && c <= 'F' = Just (fromEnum c - fromEnum 'A' + 10)
-        | otherwise            = Nothing
-
-    pack = BS.pack
-    lenientDecode = TE.lenientDecode
 
 -- ---------------------------------------------------------------------------
 -- Content patterns (must match the rules in Site.hs — sourced from

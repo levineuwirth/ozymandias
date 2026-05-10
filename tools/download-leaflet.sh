@@ -67,6 +67,9 @@ verify_or_warn() {
         echo "leaflet: sha256 mismatch for $pin_key" >&2
         echo "         expected $want" >&2
         echo "         got      $got" >&2
+        # Remove the bad download so a retry doesn't see a stale file and
+        # think it's already present. Matches download-model.sh's behavior.
+        rm -f "$file"
         return 1
     fi
 }

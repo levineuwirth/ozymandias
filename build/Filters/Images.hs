@@ -41,6 +41,7 @@ import qualified Text.Pandoc          as Pandoc
 import           Text.Pandoc.Walk     (walkM)
 import           System.Directory     (doesFileExist)
 import           System.FilePath      (replaceExtension, takeExtension, (</>))
+import           Inlines              (stringify)
 import qualified Utils                as U
 
 -- | Apply image attribute injection and WebP wrapping to the entire document.
@@ -362,31 +363,6 @@ addAttr :: Text -> Text -> Attr -> Attr
 addAttr k v (i, cs, kvs)
     | any ((== k) . fst) kvs = (i, cs, kvs)
     | otherwise               = (i, cs, (k, v) : kvs)
-
--- | Plain-text content of a list of inlines (for alt text).
-stringify :: [Inline] -> Text
-stringify = T.concat . map go
-  where
-    go (Str t)            = t
-    go Space              = " "
-    go SoftBreak          = " "
-    go LineBreak          = " "
-    go (Emph ils)         = stringify ils
-    go (Strong ils)       = stringify ils
-    go (Strikeout ils)    = stringify ils
-    go (Superscript ils)  = stringify ils
-    go (Subscript ils)    = stringify ils
-    go (SmallCaps ils)    = stringify ils
-    go (Underline ils)    = stringify ils
-    go (Quoted _ ils)     = stringify ils
-    go (Cite _ ils)       = stringify ils
-    go (Code _ t)         = t
-    go (Math _ t)         = t
-    go (RawInline _ _)    = ""
-    go (Link _ ils _)     = stringify ils
-    go (Image _ ils _)    = stringify ils
-    go (Span _ ils)       = stringify ils
-    go (Note _)           = ""
 
 -- | HTML-escape a text value for use in attribute values.
 --   Defers to the canonical 'Utils.escapeHtmlText'.

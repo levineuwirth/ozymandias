@@ -38,7 +38,7 @@ import qualified Text.Blaze.Internal         as BI
 import Hakyll
 import Contexts                   (siteCtx, authorLinksField)
 import qualified Patterns         as P
-import Utils                      (readingTime)
+import Utils                      (readingTime, normaliseUrl)
 
 -- ---------------------------------------------------------------------------
 -- Types
@@ -151,12 +151,6 @@ stripHtmlTags = go
     skipApos ('\'':rs) = rs
     skipApos (_:rs)    = skipApos rs
     skipApos []        = []
-
--- | Normalise a page URL for backlink map lookup (strip trailing .html).
-normUrl :: String -> String
-normUrl u
-    | ".html" `isSuffixOf` u = take (length u - 5) u
-    | otherwise              = u
 
 pad2 :: (Show a, Integral a) => a -> String
 pad2 n = if n < 10 then "0" ++ show n else show n
@@ -814,10 +808,10 @@ statsRules tags = do
                 blSet       = Set.fromList (map fst blPairs)
                 orphanCount = length
                     [ p | p <- allPIs
-                    , not (Set.member (normUrl (piUrl p)) blSet) ]
+                    , not (Set.member (normaliseUrl (piUrl p)) blSet) ]
                 mostLinked  = listToMaybe (sortBy (comparing (Down . snd)) blPairs)
                 mostLinkedInfo = mostLinked >>= \(url, ct) ->
-                    let mTitle = piTitle <$> find (\p -> normUrl (piUrl p) == url) allPIs
+                    let mTitle = piTitle <$> find (\p -> normaliseUrl (piUrl p) == url) allPIs
                     in  Just (url, ct, fromMaybe url mTitle)
 
             -- ----------------------------------------------------------------

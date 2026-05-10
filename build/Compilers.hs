@@ -13,14 +13,14 @@ module Compilers
     ) where
 
 import           Hakyll
-import           Text.Pandoc.Definition     (Pandoc (..), Block (..),
-                                             Inline (..))
+import           Text.Pandoc.Definition     (Pandoc (..), Block (..))
 import           Text.Pandoc.Options        (ReaderOptions (..), WriterOptions (..),
                                              HTMLMathMethod (..))
 import           Text.Pandoc.Extensions     (enableExtension, Extension (..))
 import qualified Data.Text                  as T
 import           Data.Maybe                 (fromMaybe)
 import           System.FilePath            (takeDirectory)
+import           Inlines                    (stringify)
 import           Utils                      (wordCount, readingTime, escapeHtml)
 import           Filters                    (applyAll, preprocessSource)
 import qualified Citations
@@ -48,33 +48,6 @@ writerOpts = defaultHakyllWriterOptions
     , writerNumberSections  = False
     , writerTableOfContents = False
     }
-
--- ---------------------------------------------------------------------------
--- Inline stringification (local, avoids depending on Text.Pandoc.Shared)
--- ---------------------------------------------------------------------------
-
-stringify :: [Inline] -> T.Text
-stringify = T.concat . map inlineToText
-  where
-    inlineToText (Str t)           = t
-    inlineToText Space             = " "
-    inlineToText SoftBreak         = " "
-    inlineToText LineBreak         = " "
-    inlineToText (Emph ils)        = stringify ils
-    inlineToText (Strong ils)      = stringify ils
-    inlineToText (Strikeout ils)   = stringify ils
-    inlineToText (Superscript ils) = stringify ils
-    inlineToText (Subscript ils)   = stringify ils
-    inlineToText (SmallCaps ils)   = stringify ils
-    inlineToText (Quoted _ ils)    = stringify ils
-    inlineToText (Cite _ ils)      = stringify ils
-    inlineToText (Code _ t)        = t
-    inlineToText (RawInline _ t)   = t
-    inlineToText (Link _ ils _)    = stringify ils
-    inlineToText (Image _ ils _)   = stringify ils
-    inlineToText (Note _)          = ""
-    inlineToText (Span _ ils)      = stringify ils
-    inlineToText _                 = ""
 
 -- ---------------------------------------------------------------------------
 -- TOC extraction

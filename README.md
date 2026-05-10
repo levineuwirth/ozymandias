@@ -16,6 +16,7 @@ A full-featured static site framework built with [Hakyll](https://jaspervdj.be/h
 - **Semantic search** — optional embedding pipeline (sentence-transformers + FAISS) for "similar links."
 - **Settings** — dark mode, text size, focus mode, reduce motion.
 - **Wikilinks** — `[[Page Name]]` and `[[Page Name|display text]]` syntax.
+- **PDF embeds** — drop a PDF into `static/papers/`, then `{{pdf:/papers/foo.pdf}}` (or `#5` for a starting page) renders it inline via a vendored PDF.js viewer; `[Foo](/papers/foo.pdf)` links auto-rewrite to the same viewer. First-page thumbnails are auto-generated when `pdftoppm` (poppler) is available.
 - **Atom feeds** — site-wide and per-section (e.g., music-only, photography-only).
 - **Library** — configurable portal taxonomy that groups content by tag hierarchy.
 - **Version history** — git-derived stability heuristic with manual history annotations.
@@ -35,8 +36,16 @@ $EDITOR site.yaml
 make dev
 ```
 
-`make dev` builds with drafts visible and starts a local server on `:8000`.
-For production: `make build` (one-shot build into `_site/`).
+### Build commands
+
+| Command       | What it does                                                                                                   |
+|:--------------|:---------------------------------------------------------------------------------------------------------------|
+| `make dev`    | Fast iteration build with drafts visible (`SITE_ENV=dev`), then `python3 -m http.server :8000`. Skips pagefind, image conversion, EXIF/palette/dimension extraction, embeddings, and signing — search and similar-links are inactive. |
+| `make watch`  | Same draft-visible mode as `dev`, but uses Hakyll's `watch` server with auto-rebuild on source changes. Same skip list as `dev`. |
+| `make build`  | Full production build into `_site/`: WebP conversion, PDF thumbnails, photography sidecars (when `content/photography/` exists), Hakyll, pagefind, embeddings. |
+| `make sign`   | Detach-sign every `.html` in `_site/` with the GPG key configured in `site.yaml`'s `gpg-fingerprint`. Requires `tools/preset-signing-passphrase.sh` to have cached the passphrase. |
+| `make deploy` | `clean` + `build` + `sign` + rsync to `$VPS_USER@$VPS_HOST:$VPS_PATH/` + `git push`. VPS vars come from `.env` (gitignored). |
+| `make clean`  | Hakyll clean (removes `_site/` and `_cache/`).                                                                  |
 
 ## Prerequisites
 

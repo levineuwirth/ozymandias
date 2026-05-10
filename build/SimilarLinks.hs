@@ -18,14 +18,13 @@
 module SimilarLinks (similarLinksField) where
 
 import           Data.Maybe                 (fromMaybe)
-import qualified Data.ByteString            as BS
 import qualified Data.Map.Strict            as Map
 import           Data.Map.Strict            (Map)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
-import qualified Data.Text.Encoding.Error   as TE
 import qualified Data.Aeson                 as Aeson
 import           Hakyll
+import           Utils                      (percentDecode)
 
 -- ---------------------------------------------------------------------------
 -- JSON schema
@@ -73,6 +72,12 @@ similarLinksField = field "similar-links" $ \item -> do
 -- ---------------------------------------------------------------------------
 -- URL normalisation (mirrors embed.py's URL derivation)
 -- ---------------------------------------------------------------------------
+--
+-- Distinct from 'Utils.normaliseUrl' (used by Backlinks/Stats): that one
+-- strips @.html@ unconditionally, producing keys like @"/blog/index"@.
+-- 'embed.py' instead emits @"/blog/"@ for directory-style URLs, so we
+-- strip @"index.html"@ separately first to preserve the trailing slash.
+-- The percent-decoding step is shared (imported from 'Utils').
 
 normaliseUrl :: String -> String
 normaliseUrl url =
@@ -86,28 +91,6 @@ normaliseUrl url =
         -- strip bare .html extension only for non-index pages
         t4 = fromMaybe t3 (T.stripSuffix ".html" t3)
     in  percentDecode (T.unpack t4)
-
--- | Percent-decode @%XX@ escapes (UTF-8) so percent-encoded paths
--- collide with their decoded form on map lookup. Mirrors
--- 'Backlinks.percentDecode'; the two implementations are intentionally
--- duplicated because they apply different normalisations *before*
--- decoding (Backlinks strips @.html@ unconditionally; SimilarLinks
--- preserves the trailing-slash form for index pages).
-percentDecode :: String -> String
-percentDecode = T.unpack . TE.decodeUtf8With TE.lenientDecode . BS.pack . go
-  where
-    go []                 = []
-    go ('%':a:b:rest)
-        | Just hi <- hexDigit a
-        , Just lo <- hexDigit b
-        = fromIntegral (hi * 16 + lo) : go rest
-    go (c:rest)           = fromIntegral (fromEnum c) : go rest
-
-    hexDigit c
-        | c >= '0' && c <= '9' = Just (fromEnum c - fromEnum '0')
-        | c >= 'a' && c <= 'f' = Just (fromEnum c - fromEnum 'a' + 10)
-        | c >= 'A' && c <= 'F' = Just (fromEnum c - fromEnum 'A' + 10)
-        | otherwise            = Nothing
 
 -- ---------------------------------------------------------------------------
 -- HTML rendering

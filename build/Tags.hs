@@ -42,25 +42,43 @@ expandTag t =
     let segs = wordsBy (== '/') t
     in  [ intercalate "/" (take n segs) | n <- [1 .. length segs] ]
 
--- | Top-level tags that own a section URL outside the tag system, and
---   therefore must NOT be created as tag pages — doing so would
---   collide with a section landing route. The literal @"photography"@
---   is the only one currently affected: every photo's @tags:@ list
---   begins with the bare @"photography"@ portal tag (per the section's
---   convention), and 'tagIdentifier' would route that to
---   @"photography/index.html"@ — already owned by
---   @photographyLandingRules@.
+-- | Top-level tags whose @<tag>/index.html@ route would collide with a
+--   section landing page created by another rule. 'tagIdentifier' routes
+--   every tag to @"<tag>/index.html"@, so any directory-style URL owned
+--   elsewhere in the site is reserved.
 --
---   Sub-tags (@photography/landscape@, @photography/film@, …) are
---   unaffected; they keep their tag pages because no section landing
---   claims those URLs.
+--   The reserved set:
 --
---   Other portal tags (@music@, @poetry@, @fiction@, …) don't appear
---   here because their content types don't currently feed
---   'tagIndexable', so the top-level tag never enters the tag system.
---   Add to this set if that ever changes.
+--     * @"photography"@ — owned by 'Photography.photographyLandingRules'.
+--       Every photo's @tags:@ list begins with the bare @"photography"@
+--       portal tag; without this exclusion, the tag system would clobber
+--       the section landing.
+--     * @"blog"@        — owned by 'Pagination.blogPaginateRules'
+--                         (@/blog/index.html@ + @/blog/page/N/@).
+--     * @"essays"@      — owned by the @essays/index.html@ create rule
+--                         in 'Site.rules'.
+--     * @"music"@       — owned by the music catalog at @/music/index.html@.
+--     * @"authors"@     — owned by 'Authors.applyAuthorRules'
+--                         (every author lives at @/authors/<slug>/@).
+--     * @"build"@       — owned by 'Stats.statsRules' (@/build/index.html@).
+--     * @"stats"@       — owned by 'Stats.statsRules' (@/stats/index.html@).
+--
+--   Sub-tags like @photography/landscape@ or @blog/announcements@ are
+--   unaffected; their routes don't collide with any section landing.
+--
+--   If you add a new section that owns a single top-level URL segment,
+--   add the segment here so a content tag of the same name doesn't
+--   silently shadow it.
 sectionOwnedTopLevelTags :: [String]
-sectionOwnedTopLevelTags = ["photography"]
+sectionOwnedTopLevelTags =
+    [ "photography"
+    , "blog"
+    , "essays"
+    , "music"
+    , "authors"
+    , "build"
+    , "stats"
+    ]
 
 -- | All expanded tags for an item (reads the "tags" metadata field).
 --   Filters out any 'sectionOwnedTopLevelTags' to prevent route

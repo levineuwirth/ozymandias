@@ -4,8 +4,8 @@ version:            0.1.0.0
 synopsis:           Static site builder for the Ozymandias template
 license:            MIT
 license-file:       LICENSE
-author:             Your Name
-maintainer:         you@example.com
+author:             Levi Neuwirth
+maintainer:         ln@levineuwirth.org
 build-type:         Simple
 
 executable site
@@ -42,11 +42,12 @@ executable site
         Filters.Images
         Filters.Score
         Filters.Viz
+        Inlines
         Utils
     build-depends:
         base                 >= 4.18  && < 5,
         hakyll               >= 4.16  && < 4.17,
-        pandoc               >= 3.1   && < 3.7,
+        pandoc               >= 3.1   && < 3.8,
         pandoc-types         >= 1.23  && < 1.24,
         text                 >= 2.0   && < 2.2,
         containers           >= 0.6   && < 0.8,

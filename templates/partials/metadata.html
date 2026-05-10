@@ -10,7 +10,7 @@
     </div>
     $endif$
     <div class="meta-row meta-authors">
-        <span class="meta-label">by</span>$if(poet)$$poet$$else$$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$$endif$
+        <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
     </div>
     $if(affiliation-links)$
     <div class="meta-row meta-affiliation">

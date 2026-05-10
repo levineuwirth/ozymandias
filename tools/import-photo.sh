@@ -26,8 +26,8 @@
 #   * uv + .venv (Pillow + colorthief + pyyaml) for sidecar extraction
 #
 # Originals are NEVER copied into the repo verbatim — only the resized
-# delivery JPEG. Per PHOTOGRAPHY.md, originals live outside source
-# control (your local archive, NAS, or backup).
+# delivery JPEG. RAW / TIFF / PSD originals live outside source control
+# (your local archive, NAS, or backup) and are refused by .gitignore.
 
 set -euo pipefail
 
@@ -126,7 +126,7 @@ chmod 644 "$TARGET"
 # ---------------------------------------------------------------------------
 
 echo "import-photo: extracting EXIF sidecar..."
-( cd "$REPO_ROOT" && uv run python tools/extract-exif.py ) || true
+( cd "$REPO_ROOT" && uv run python tools/extract-exif.py --file "$TARGET" ) || true
 
 if [ ! -f "$EXIF_SIDECAR" ]; then
     # Empty sidecar so the consuming Hakyll field has something to read
@@ -144,11 +144,11 @@ echo "import-photo: stripping EXIF from delivered file..."
 magick mogrify -strip "$TARGET"
 
 # ---------------------------------------------------------------------------
-# Step 4: extract palette (does its own walk; idempotent on already-done photos)
+# Step 4: extract palette for the new photo only (no full re-walk)
 # ---------------------------------------------------------------------------
 
 echo "import-photo: extracting palette sidecar..."
-( cd "$REPO_ROOT" && uv run python tools/extract-palette.py ) || true
+( cd "$REPO_ROOT" && uv run python tools/extract-palette.py --file "$TARGET" ) || true
 
 # ---------------------------------------------------------------------------
 # Step 5: scaffold index.md

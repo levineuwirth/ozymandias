@@ -16,10 +16,16 @@ module Utils
     , trim
     , authorSlugify
     , authorNameOf
+    , normaliseUrl
+    , percentDecode
     ) where
 
-import           Data.Char (isAlphaNum, isSpace, toLower)
-import qualified Data.Text as T
+import           Data.Char                  (isAlphaNum, isSpace, toLower)
+import           Data.Maybe                 (fromMaybe)
+import qualified Data.ByteString            as BS
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
+import qualified Data.Text.Encoding.Error   as TE
 
 -- | Count the number of words in a string (split on whitespace).
 wordCount :: String -> Int
@@ -76,3 +82,52 @@ authorSlugify = map (\c -> if c == ' ' then '-' else c)
 -- which routes everything through @/authors/{slug}/@).
 authorNameOf :: String -> String
 authorNameOf s = trim (takeWhile (/= '|') s)
+
+-- ---------------------------------------------------------------------------
+-- URL normalisation
+-- ---------------------------------------------------------------------------
+
+-- | Normalise an internal URL as a stable map key:
+--
+--     * strip everything from a @?@ or @#@ onward,
+--     * ensure a leading @/@,
+--     * strip a trailing @.html@ extension,
+--     * percent-decode the path so @/essays/caf%C3%A9@ and
+--       @/essays/café@ collide on the same key.
+--
+-- This is the canonical normaliser used by 'Backlinks' (writing keys into
+-- @data/backlinks.json@) and 'Stats' (looking up those keys for orphan
+-- counting and most-linked detection). Keeping a single implementation here
+-- prevents the two surfaces from drifting on percent-encoding or fragment
+-- handling.
+--
+-- 'SimilarLinks' uses a slightly different normalisation that preserves
+-- trailing slashes on directory-style URLs (because @embed.py@ produces
+-- keys like @/blog/@ rather than @/blog/index@); see its own
+-- @normaliseUrl@ for that variant.
+normaliseUrl :: String -> String
+normaliseUrl url =
+    let t  = T.pack url
+        t1 = fst (T.breakOn "?" (fst (T.breakOn "#" t)))
+        t2 = if T.isPrefixOf "/" t1 then t1 else "/" `T.append` t1
+        t3 = fromMaybe t2 (T.stripSuffix ".html" t2)
+    in  percentDecode (T.unpack t3)
+
+-- | Decode percent-escapes (@%XX@) into raw bytes, then re-interpret the
+-- resulting bytestring as UTF-8. Invalid escapes are passed through
+-- verbatim so this is safe to call on already-decoded input.
+percentDecode :: String -> String
+percentDecode = T.unpack . TE.decodeUtf8With TE.lenientDecode . BS.pack . go
+  where
+    go []                 = []
+    go ('%':a:b:rest)
+        | Just hi <- hexDigit a
+        , Just lo <- hexDigit b
+        = fromIntegral (hi * 16 + lo) : go rest
+    go (c:rest)           = fromIntegral (fromEnum c) : go rest
+
+    hexDigit c
+        | c >= '0' && c <= '9' = Just (fromEnum c - fromEnum '0')
+        | c >= 'a' && c <= 'f' = Just (fromEnum c - fromEnum 'a' + 10)
+        | c >= 'A' && c <= 'F' = Just (fromEnum c - fromEnum 'A' + 10)
+        | otherwise            = Nothing
