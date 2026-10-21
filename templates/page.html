@@ -1,0 +1,8 @@
+<!-- Pagefind indexes only data-pagefind-body elements once any page has one,
+     so substantive standalone pages (/work.html, /links.html, /gpg.html, …)
+     must carry the marker. Set `search-exclude: true` in frontmatter to keep
+     a pure-navigation page (e.g. /search.html) out of the keyword index. -->
+<main id="markdownBody"$if(search-exclude)$ data-pagefind-ignore="all"$else$ data-pagefind-body$endif$>
+    <h1 class="page-title">$title$</h1>
+    $body$
+</main>

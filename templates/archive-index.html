@@ -1,0 +1,23 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="archive-index-header">
+            <h1 class="page-title">$title$</h1>
+            <p class="archive-index-intro">Local snapshots of works referenced across the site, preserved against link rot. Each is an archived copy; the original is linked prominently from its page.</p>
+        </header>
+
+        $if(has-entries)$
+        <ul class="archive-list">
+            $for(entries)$
+            <li class="archive-list-item">
+                <a class="archive-list-link" href="$entry-url$">$entry-title$</a>
+                <span class="archive-list-meta">$entry-type$ &middot; archived $entry-archived$$if(entry-degraded)$ &middot; <span class="archive-quality-flag">$entry-quality$ capture</span>$endif$$if(entry-private)$ &middot; <span class="archive-quality-flag">private</span>$endif$$if(entry-rotted)$ &middot; <span class="archive-quality-flag archive-quality-flag--rotted">link rotted</span>$endif$</span>
+            </li>
+            $endfor$
+        </ul>
+        $else$
+        <p class="archive-empty">Nothing archived yet.</p>
+        $endif$
+
+        $partial("templates/partials/archive-removal-notice.html")$
+    </main>
+</div>

@@ -1,0 +1,74 @@
+$partial("templates/partials/ornament.html")-$
+<section class="page-meta-footer" aria-label="About this page" data-pagefind-ignore="all">
+
+    $if(further-reading-refs)$
+    <div class="meta-footer-full" id="further-reading">
+        <h3>Further Reading</h3>
+        $further-reading-refs$
+    </div>
+    $endif$
+
+    $if(bibliography)$
+    <div class="meta-footer-full" id="bibliography">
+        <h3>Bibliography</h3>
+        $bibliography$
+    </div>
+    $endif$
+
+    $if(footer-deps)$$endif$
+    $if(backlinks)$
+    <section class="meta-footer-full meta-footer-backlinks" id="backlinks" aria-labelledby="backlinks-heading">
+        <h3 id="backlinks-heading">Backlinks</h3>
+        $backlinks$
+    </section>
+    $endif$
+
+    $if(similar-links)$
+    <div class="meta-footer-full meta-footer-similar" id="similar-links">
+        <h3>Related</h3>
+        $similar-links$
+    </div>
+    $endif$
+
+    <div class="meta-footer-grid">
+
+        $if(status)$
+        <div class="meta-footer-section meta-footer-epistemic" id="epistemic">
+            <h3><a href="/colophon.html#living-documents">Epistemic</a></h3>
+            <dl class="ep-expanded">
+                <dt data-ep-term="stability">Stability</dt><dd>$stability$</dd>
+                $if(last-reviewed)$<dt>Last reviewed</dt><dd class="date-hover"$if(last-reviewed-iso)$ data-date-start="$last-reviewed-iso$"$endif$>$last-reviewed$</dd>$endif$
+                $if(confidence-trend)$<dt data-ep-term="confidence">Confidence trend</dt><dd>$confidence-trend$</dd>$endif$
+            </dl>
+        </div>
+        $endif$
+
+        <div class="meta-footer-section" id="version-history">
+            <h3>Version history</h3>
+            $if(version-history-primary)$
+            <ul class="version-history-list">
+                $for(version-history-primary)$
+                <li class="date-hover" data-date-start="$vh-date-iso$">$vh-date$$if(vh-message)$ &middot; $vh-message$$endif$</li>
+                $endfor$
+            </ul>
+            $if(version-history-rest)$
+            <details class="version-history-more">
+                <summary>More</summary>
+                <ul class="version-history-list">
+                    $for(version-history-rest)$
+                    <li class="date-hover" data-date-start="$vh-date-iso$">$vh-date$$if(vh-message)$ &middot; $vh-message$$endif$</li>
+                    $endfor$
+                </ul>
+            </details>
+            $endif$
+            $else$
+            <ul class="version-history-list">
+                $if(date-created)$<li>$date-created$ &middot; Created</li>$endif$
+                $if(date-modified)$<li>$date-modified$ &middot; Last modified</li>$endif$
+            </ul>
+            $endif$
+        </div>
+
+    </div>
+
+</section>

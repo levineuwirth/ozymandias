@@ -1,0 +1,76 @@
+<!-- A05: neutral element — see templates/essay.html. -->
+<div class="essay-frontmatter photo-series-frontmatter">
+    $if(photo-url)$
+    <div class="frontmatter-mark-slot frontmatter-mark-slot--left">
+        <figure class="photo-series-lead">
+            <!-- P01: the lead mark is 156-266px in the frontmatter slot and
+                 426px once the layout stacks below 900px. Written out rather
+                 than sizes="auto" because this image is not lazy. -->
+            <picture>$if(photo-webp-srcset)$<source srcset="$photo-webp-srcset$" type="image/webp" sizes="(max-width: 900px) 440px, 280px">$endif$<img src="$photo-url$"$if(photo-srcset)$ srcset="$photo-srcset$" sizes="(max-width: 900px) 440px, 280px"$endif$ alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" decoding="async" data-lightbox="true"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$></picture>
+        </figure>
+    </div>
+    $endif$
+
+    <div class="frontmatter-title">
+        <h1 class="page-title">$title$</h1>
+        $if(photography-tags)$
+        <div class="meta-row meta-tags">
+            $for(photography-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+        </div>
+        $endif$
+        <div class="meta-row meta-authors">
+            <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+        </div>
+        $if(captured-display)$
+        <div class="meta-row photo-captured">
+            <span class="meta-label">captured</span>
+            <time datetime="$captured-iso$">$captured-display$</time>
+            $if(location)$ · <span class="photo-location">$location$</span>$endif$
+        </div>
+        $endif$
+        $if(abstract)$<p class="photo-series-abstract">$abstract$</p>$endif$
+    </div>
+
+    $if(series-frame-count)$
+    <div class="frontmatter-mark-slot frontmatter-mark-slot--right">
+        <dl class="photo-series-stats" aria-label="Series statistics">
+            <div class="stat-row"><dt>Frames</dt><dd>$series-frame-count$</dd></div>
+            $if(series-bytes)$<div class="stat-row"><dt>Weight</dt><dd>$series-bytes$</dd></div>$endif$
+            $if(series-captured-span)$<div class="stat-row"><dt>Shot</dt><dd>$series-captured-span$</dd></div>$endif$
+            $if(series-cameras)$<div class="stat-row"><dt>Body</dt><dd>$series-cameras$</dd></div>$endif$
+            $if(series-lenses)$<div class="stat-row"><dt>Glass</dt><dd>$series-lenses$</dd></div>$endif$
+            $if(series-focal-span)$<div class="stat-row"><dt>Focal</dt><dd>$series-focal-span$</dd></div>$endif$
+            $if(series-iso-span)$<div class="stat-row"><dt>ISO</dt><dd>$series-iso-span$</dd></div>$endif$
+            $if(series-locations)$<div class="stat-row"><dt>Where</dt><dd>$series-locations$</dd></div>$endif$
+        </dl>
+    </div>
+    $endif$
+</div>
+
+<!-- A04: the rule and the mark are drawn by CSS (::before/::after and a
+     mask-image on the anchor), so nothing here needs aria-hidden. The
+     anchor is a real destination and stays exposed with an accessible
+     name; hiding it from assistive technology while leaving it in the
+     tab order was the defect. -->
+<div class="content-divider content-divider--frontmatter">
+    <a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>
+</div>
+
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <article class="photo-series">
+            $if(body)$<div class="photo-series-prose">$body$</div>$endif$
+
+            $if(series-photos)$
+            $partial("templates/partials/photography-controls.html")$
+            <ul class="photography-grid" data-photography-mode="grid">
+                $for(series-photos)$
+                $partial("templates/partials/photo-card.html")$
+                $endfor$
+            </ul>
+            $else$
+            <p class="photography-empty">This series has no photographs yet.</p>
+            $endif$
+        </article>
+    </main>
+</div>

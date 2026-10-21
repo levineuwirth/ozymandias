@@ -1,0 +1,40 @@
+<main id="markdownBody">
+    <h1 class="page-title">$title$</h1>
+    $if(has-see-also)$
+    <nav class="see-also" aria-label="See also">
+        <ul class="see-also-list">
+            $for(see-also-parent)$
+            <li class="see-also-item see-also-parent">
+                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
+            </li>
+            $endfor$
+            $for(see-also-siblings)$
+            <li class="see-also-item see-also-sibling">
+                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
+            </li>
+            $endfor$
+            $for(see-also-children)$
+            <li class="see-also-item see-also-child">
+                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
+            </li>
+            $endfor$
+        </ul>
+    </nav>
+    $endif$
+    $if(portal-intro)$
+    <section class="portal-intro">
+        $portal-intro$
+    </section>
+    $endif$
+    $if(items)$
+    $partial("templates/partials/list-controls.html")$
+    <ul class="item-card-list">
+        $for(items)$
+        $partial("templates/partials/item-card.html")$
+        $endfor$
+    </ul>
+    $else$
+    <p class="essay-list-empty">No items yet.</p>
+    $endif$
+    $partial("templates/partials/paginate-nav.html")$
+</main>

@@ -1,0 +1,22 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header">
+            <h1 class="page-title">$title$</h1>
+            $if(photos)$
+            $partial("templates/partials/photography-controls.html")$
+            $endif$
+        </header>
+
+        $if(body)$<div class="photography-intro">$body$</div>$endif$
+
+        $if(photos)$
+        <ul class="photography-grid" data-photography-mode="grid">
+            $for(photos)$
+            $partial("templates/partials/photo-card.html")$
+            $endfor$
+        </ul>
+        $else$
+        <p class="photography-empty">No photographs published yet.</p>
+        $endif$
+    </main>
+</div>

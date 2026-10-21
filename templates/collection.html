@@ -1,0 +1,40 @@
+<!-- Collection landing page — content/poetry/<slug>/index.md and
+     content/fiction/<slug>/index.md.
+
+     Audit C05: both rules used to apply templates/default.html straight to
+     the compiled Markdown, so the page had no h1, no <main> landmark, no
+     #markdownBody (the site-wide skip link's target), and no list of the
+     collection's own children — even though the scaffold prose promised
+     that poems "link from here automatically".
+
+     Children come from the `collection-entries` listField built by
+     Site.rules from the sibling files in the same directory, most recent
+     first. A collection with no entries yet gets a reader-facing empty
+     state rather than a silently missing list. -->
+<main id="markdownBody"$if(search-exclude)$ data-pagefind-ignore="all"$else$ data-pagefind-body$endif$>
+    <h1 class="page-title">$title$</h1>
+    $if(abstract)$
+    <p class="collection-abstract">$abstract$</p>
+    $endif$
+    $body$
+    <section class="collection-contents" aria-labelledby="collection-contents-heading">
+        <h2 id="collection-contents-heading">Contents</h2>
+        $if(has-collection-entries)$
+        <ol class="essay-list collection-list">
+            $for(collection-entries)$
+            <li class="essay-list-item">
+                <a href="$canonical-url$">$title$</a>
+                $if(date-display)$
+                <time class="essay-list-date" datetime="$date-iso$">$date-display$</time>
+                $endif$
+                $if(abstract)$
+                <p class="essay-list-abstract">$abstract$</p>
+                $endif$
+            </li>
+            $endfor$
+        </ol>
+        $else$
+        <p class="collection-empty">Nothing has been added to this collection yet.</p>
+        $endif$
+    </section>
+</main>

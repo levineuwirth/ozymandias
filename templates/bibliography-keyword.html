@@ -1,0 +1,39 @@
+<main id="markdownBody">
+<h1 class="page-title">$title$</h1>
+
+<nav class="see-also" aria-label="See also">
+    <ul class="see-also-list">
+        <li class="see-also-item see-also-parent">
+            <a class="see-also-name" href="/bibliography/">Bibliography</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
+        </li>
+    </ul>
+</nav>
+
+<nav class="library-see-also" aria-label="Site navigation">
+<a href="/library.html">Library</a><span class="library-see-also-sep" aria-hidden="true">·</span><a href="/new.html">New</a><span class="library-see-also-sep" aria-hidden="true">·</span><a href="/commonplace.html">Commonplace</a><span class="library-see-also-sep" aria-hidden="true">·</span><a href="/colophon.html">Colophon</a>
+</nav>
+
+$if(portal-intro)$
+<section class="portal-intro">
+    $portal-intro$
+</section>
+$endif$
+
+$if(has-writings)$
+<section class="library-section">
+<h2 id="writings">Writings</h2>
+<ul class="item-card-list">
+$for(writings)$
+$partial("templates/partials/item-card.html")$
+$endfor$
+</ul>
+</section>
+$endif$
+
+$if(references)$
+<section class="library-section">
+<h2 id="references">References</h2>
+$references$
+</section>
+$endif$
+</main>

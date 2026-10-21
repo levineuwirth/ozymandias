@@ -1,0 +1,9 @@
+<main id="markdownBody">
+    <h1 class="page-title">New</h1>
+    $partial("templates/partials/list-controls.html")$
+    <ul class="item-card-list">
+        $for(recent-items)$
+        $partial("templates/partials/item-card.html")$
+        $endfor$
+    </ul>
+</main>

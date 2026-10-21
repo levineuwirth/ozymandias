@@ -1,0 +1,73 @@
+<header class="score-reader-bar" id="score-reader-bar">
+    <div class="score-reader-bar-left">
+        <a class="score-reader-back" href="/music/$slug$/">&#8592; $title$</a>
+    </div>
+    $if(has-score)$
+    <nav class="score-reader-movements" aria-label="Movements">
+        $for(movements)$
+        $if(movement-status)$$else$<button class="score-reader-mvt" data-page="$movement-page$"$if(movement-time)$ data-time="$movement-time$"$endif$>$movement-name$</button>$endif$
+        $endfor$
+    </nav>
+    $endif$
+    <div class="score-reader-bar-right">
+        $if(has-score)$
+        <div class="score-reader-zoom" role="group" aria-label="Zoom">
+            <button class="score-reader-zoom-btn" data-action="zoom-out" aria-label="Zoom out">&#8722;</button>
+            <button class="score-reader-zoom-btn score-reader-zoom-mode" data-action="zoom-cycle" aria-label="Cycle fit mode">Fit</button>
+            <button class="score-reader-zoom-btn" data-action="zoom-in" aria-label="Zoom in">&#43;</button>
+        </div>
+        $endif$
+        $if(pdf)$<a class="score-reader-pdf" href="/music/$slug$/$pdf$" download>PDF</a>$endif$
+        <div class="settings-wrap">
+            <button class="settings-toggle" aria-label="Open settings" aria-expanded="false">&#9881;</button>
+            <div class="settings-panel" aria-hidden="true">
+                <div class="settings-section">
+                    <div class="settings-label">Theme</div>
+                    <div class="settings-row">
+                        <button class="settings-btn" data-action="theme-light">Light</button>
+                        <button class="settings-btn" data-action="theme-dark">Dark</button>
+                        <button class="settings-btn" data-action="theme-cappuccino">Cappuccino</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<main class="score-reader-stage" id="score-reader-stage"
+      data-page-count="$score-page-count$"$if(realization)$
+      data-timing="$realization$"$endif$
+      data-pages="$for(score-pages)$$score-page-url$$sep$,$endfor$">
+    <div class="score-reader-viewport" id="score-reader-viewport" tabindex="0" role="region" aria-label="Score">
+        <!-- The SVG for the current page is fetched and inlined here, so the
+             notation inherits the theme's `color` (see score-reader.css) and
+             stays vector-crisp at any zoom. With scripting off nothing fetches,
+             so the <noscript> copy of page 1 is the whole fallback: an <img>
+             renders black-on-white regardless of theme, which is a legible
+             degradation rather than a blank page. -->
+        <!-- The pages are not versioned (see .gitignore), so a build from a
+             checkout that has not run `tools/music-import.py refresh` routes
+             this reader with no pages. Every page field is guarded: the build
+             must succeed, and the reader must say plainly that it is empty
+             rather than draw a blank sheet. -->
+        $if(has-score)$
+        <div class="score-page" id="score-page" role="img"
+             aria-label="Score page 1 of $score-page-count$"$if(score-aspect)$
+             style="--score-aspect-num: $score-aspect$"$endif$$if(score-portrait)$
+             data-orient="portrait"$endif$>
+            <noscript>
+                <img class="score-page-fallback" src="$first-score-page$" alt="Score page 1">
+            </noscript>
+        </div>
+        $else$
+        <p class="score-page-missing">The score for this piece is not available at the moment.
+            <a href="/music/$slug$/">Back to $title$</a></p>
+        $endif$
+    </div>
+    $if(has-score)$
+    <button class="score-reader-nav score-reader-prev" id="score-prev"
+            aria-label="Previous page" disabled>&#8592;</button>
+    <button class="score-reader-nav score-reader-next" id="score-next"
+            aria-label="Next page">&#8594;</button>
+    <div class="score-folio" id="score-folio" aria-hidden="true">1 / $score-page-count$</div>
+    $endif$
+</main>

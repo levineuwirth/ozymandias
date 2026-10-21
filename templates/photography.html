@@ -1,0 +1,86 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <article class="photo-entry">
+            <header class="photo-header">
+                <h1 class="page-title">$title$</h1>
+                $if(essay-tags)$
+                <div class="meta-row meta-tags">
+                    $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                </div>
+                $endif$
+                $if(photography-tags)$
+                <div class="meta-row meta-tags">
+                    $for(photography-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                </div>
+                $endif$
+                <div class="meta-row meta-authors">
+                    <span class="meta-label">by</span>$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+                </div>
+                $if(captured-display)$
+                <div class="meta-row photo-captured">
+                    <span class="meta-label">captured</span>
+                    <time datetime="$captured-iso$">$captured-display$</time>
+                    $if(location)$ · <span class="photo-location">$location$</span>$endif$
+                </div>
+                $endif$
+            </header>
+
+            <!-- A11: an authored `alt:` field wins over the title. Place
+                 names repeat across frames and rarely describe what a
+                 reader who cannot see the photograph needs to know.
+                 P04: this is the page's primary photograph and its LCP
+                 candidate — it is discovered eagerly and at high fetch
+                 priority. Every other photograph on the site stays lazy.
+                 P01: and because it is eager, `sizes` has to be written
+                 out: sizes="auto" is defined only for a lazy image, and
+                 the preload scanner needs a width before layout anyway.
+                 The slot is the 800px body column, less the 30px gutters
+                 once the viewport is narrower than the column plus them. -->
+            <figure class="photo-figure">
+                $if(photo-url)$
+                <picture>$if(photo-webp-srcset)$<source srcset="$photo-webp-srcset$" type="image/webp" sizes="(min-width: 860px) 800px, calc(100vw - 60px)">$endif$<img src="$photo-url$"$if(photo-srcset)$ srcset="$photo-srcset$" sizes="(min-width: 860px) 800px, calc(100vw - 60px)"$endif$ alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="eager" fetchpriority="high" decoding="async" data-lightbox="true"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$$if(camera)$ data-photo-camera="$plain(camera)$"$endif$$if(lens)$ data-photo-lens="$plain(lens)$"$endif$$if(film)$ data-photo-film="$plain(film)$"$endif$$if(exposure)$ data-photo-exposure="$plain(exposure)$"$endif$$if(captured-display)$ data-photo-captured="$plain(captured-display)$"$endif$$if(location)$ data-photo-location="$plain(location)$"$endif$></picture>
+                $else$$if(photo)$
+                <img src="$photo$" alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="eager" fetchpriority="high" decoding="async" data-lightbox="true"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$$if(camera)$ data-photo-camera="$plain(camera)$"$endif$$if(lens)$ data-photo-lens="$plain(lens)$"$endif$$if(film)$ data-photo-film="$plain(film)$"$endif$$if(exposure)$ data-photo-exposure="$plain(exposure)$"$endif$$if(captured-display)$ data-photo-captured="$plain(captured-display)$"$endif$$if(location)$ data-photo-location="$plain(location)$"$endif$>
+                $endif$$endif$
+                $if(abstract)$<figcaption class="photo-caption">$abstract$</figcaption>$endif$
+            </figure>
+
+            $if(palette-swatches)$
+            <div class="photo-palette" aria-label="Color palette">
+                $for(palette-swatches)$<span class="photo-swatch" style="background:$swatch$" title="$swatch$"></span>$endfor$
+            </div>
+            $endif$
+
+            <dl class="photo-meta">
+                $if(camera)$<dt>Camera</dt><dd>$camera$</dd>$endif$
+                $if(lens)$<dt>Lens</dt><dd>$lens$</dd>$endif$
+                $if(film)$<dt>Film</dt><dd>$film$</dd>$endif$
+                $if(exposure)$<dt>Exposure</dt><dd>$exposure$</dd>$endif$
+                $if(process)$<dt>Process</dt><dd>$process$</dd>$endif$
+                $if(license)$
+                <dt>License</dt>
+                <dd>$if(license-url-resolved)$<a class="photo-license" href="$license-url-resolved$" rel="license noopener">$license$</a>$else$<span class="photo-license">$license$</span>$endif$</dd>
+                $endif$
+            </dl>
+
+            $if(photo-links)$
+            <div class="photo-external-links">
+                <span class="meta-label">also at</span>
+                $for(photo-links)$<a class="photo-external-link" href="$link-url$" rel="noopener">$link-name$</a>$sep$ · $endfor$
+            </div>
+            $endif$
+
+            $body$
+
+            $if(footer-deps)$$endif$
+            $if(backlinks)$
+            <footer class="page-meta-footer">
+                <section class="meta-footer-full meta-footer-backlinks" id="backlinks" aria-labelledby="backlinks-heading">
+                    <h3 id="backlinks-heading">Backlinks</h3>
+                    $backlinks$
+                </section>
+            </footer>
+            $endif$
+        </article>
+    </main>
+</div>

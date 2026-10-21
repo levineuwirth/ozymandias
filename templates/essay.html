@@ -1,0 +1,50 @@
+<!-- A05: a neutral element, not <header>. As a body-level element a
+     <header> maps to the banner landmark, which duplicated the site
+     banner in templates/partials/nav.html on every essay. -->
+<div class="essay-frontmatter">
+    <div class="frontmatter-mark-slot frontmatter-mark-slot--left">$monogramSvg$</div>
+    <div class="frontmatter-title">
+        <h1 class="page-title">$title$</h1>
+        $if(subtitle)$<p class="essay-subtitle">$subtitle$</p>$endif$
+        $partial("templates/partials/metadata-header.html")$
+    </div>
+    $if(epistemicSvg)$
+    <div class="frontmatter-mark-slot frontmatter-mark-slot--right">
+        <a href="#epistemic">$epistemicSvg$<span class="visually-hidden">, jump to the epistemic profile</span></a>
+    </div>
+    $endif$
+</div>
+<div class="essay-tailmatter">
+    $partial("templates/partials/metadata-tail.html")$
+    $if(summary)$
+    <div class="essay-summary" data-pagefind-ignore="all">
+        $summary$
+    </div>
+    $endif$
+</div>
+<!-- A04: the rule and the mark are drawn by CSS (::before/::after and a
+     mask-image on the anchor), so nothing here needs aria-hidden. The
+     anchor is a real destination and stays exposed with an accessible
+     name; hiding it from assistive technology while leaving it in the
+     tab order was the defect. -->
+<div class="content-divider content-divider--frontmatter">
+    <a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>
+</div>
+<div id="content">
+    <aside id="toc" aria-label="Table of contents" data-pagefind-ignore="all">
+        <div class="toc-header">
+            <span class="toc-active-label">Contents</span>
+            <button class="toc-toggle" aria-label="Toggle table of contents" aria-expanded="true">&#9662;</button>
+        </div>
+        <nav class="toc-nav">
+            $toc$
+        </nav>
+    </aside>
+    <main id="markdownBody" data-pagefind-body$if(no-collapse)$ data-no-collapse$endif$>
+        $body$
+    </main>
+</div>
+<div id="toc-mobile-bar" aria-hidden="true">
+    <span class="toc-mobile-label">Contents</span>
+</div>
+$partial("templates/partials/page-footer.html")$

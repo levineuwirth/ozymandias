@@ -1,0 +1,15 @@
+<div class="list-controls">
+    <span class="list-controls-label">Show</span>
+    <!-- A06: selection was conveyed only by the .is-active class, which
+         assistive technology cannot see. aria-pressed states the choice.
+         The defaults below mirror list-pagination.js's DEFAULT ('25');
+         that script must set aria-pressed alongside the class whenever it
+         applies a count, or a restored preference will disagree with the
+         markup. -->
+    <div class="list-controls-options" role="group" aria-label="Number of entries to show">
+        <button class="list-count-btn" type="button" data-count="25"  aria-pressed="true">25</button>
+        <button class="list-count-btn" type="button" data-count="50"  aria-pressed="false">50</button>
+        <button class="list-count-btn" type="button" data-count="100" aria-pressed="false">100</button>
+        <button class="list-count-btn" type="button" data-count="all" aria-pressed="false">All</button>
+    </div>
+</div>

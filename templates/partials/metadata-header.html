@@ -1,0 +1,23 @@
+<div class="metadata metadata-header">
+    <div class="meta-row meta-authors">
+        <span class="meta-label">by</span>$if(poet)$$poet$$else$$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$$endif$
+    </div>
+    $if(abstract)$
+    <div class="meta-row meta-description">
+        $abstract$
+    </div>
+    $endif$
+    $if(status)$
+    <div class="meta-row meta-epistemic-strip" data-pagefind-ignore="all">
+        $if(overall-score)$<span class="ep-trust" data-ep-term="trust"><span class="ep-score">$overall-score$%</span> trust</span>$endif$
+        <span class="ep-status" data-ep-term="status">$status$</span>
+        $if(peer-status-display)$<span class="ep-peer-status ep-peer-status--$peer-status$" data-ep-term="peer-status">$peer-status-display$</span>$endif$
+        $if(confidence-proved)$<span class="ep-row ep-row--proved" data-ep-term="confidence">proved confidence</span>$else$$if(confidence)$<span class="ep-row" data-ep-term="confidence">$confidence$% confidence$if(confidence-trend)$<span class="ep-trend" aria-hidden="true">$confidence-trend$</span>$endif$</span>$endif$$endif$
+        $if(importance-dots)$<span class="ep-row" data-ep-term="importance"><span class="ep-dots">$importance-dots$</span> importance</span>$endif$
+        $if(evidence-dots)$<span class="ep-row" data-ep-term="evidence"><span class="ep-dots">$evidence-dots$</span> evidence quality</span>$endif$
+        $if(scope)$<span class="ep-row" data-ep-term="scope">$scope$ scope</span>$endif$
+        $if(novelty)$<span class="ep-row" data-ep-term="novelty">$novelty$ novelty</span>$endif$
+        $if(practicality)$<span class="ep-row" data-ep-term="practicality">$practicality$ practicality</span>$endif$
+    </div>
+    $endif$
+</div>

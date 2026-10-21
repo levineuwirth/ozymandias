@@ -1,0 +1,86 @@
+<main id="markdownBody" class="composition" data-pagefind-body>
+    <!-- The title block of a published score, set beside the score's own
+         first page. No table of contents: the movement list below is the
+         work's contents, and programme notes are too short to need one. -->
+    <header class="comp-head$if(has-score)$ comp-head--with-score$endif$">
+        $if(has-score)$
+        <a class="comp-frontispiece" href="$score-url$" data-stack="$score-stack$"
+           aria-label="Read the score, $score-page-count$ pages">
+            <img src="$if(score-thumb)$$score-thumb$$else$$first-score-page$$endif$" alt=""$if(score-aspect)$ style="aspect-ratio: $score-aspect$"$endif$ decoding="async">
+        </a>
+        $endif$
+        <div class="comp-titling">
+            <h1 class="page-title comp-title">$title$</h1>
+            $if(opus)$<p class="comp-opus">op. $opus$</p>$endif$
+            $if(instrumentation)$<p class="comp-forces">for $instrumentation$</p>$endif$
+            <p class="comp-credit">
+                <span class="comp-composer">$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$</span>
+                $if(composed)$<span class="comp-year">$composed$</span>$else$$if(year)$<span class="comp-year">$year$</span>$endif$$endif$
+            </p>
+            $if(abstract)$<div class="comp-abstract">$abstract$</div>$endif$
+            <dl class="comp-facts">
+                $if(duration)$<div><dt>Duration</dt><dd>$duration$</dd></div>$endif$
+                $if(completed)$<div><dt>Completed</dt><dd>$completed$</dd></div>$endif$
+                $if(text)$<div><dt>Text</dt><dd>$text$</dd></div>$endif$
+                $if(dedication)$<div><dt>Dedication</dt><dd>$dedication$</dd></div>$endif$
+                $if(commissioned-by)$<div><dt>Commission</dt><dd>$commissioned-by$</dd></div>$endif$
+                $if(premiere)$<div><dt>Premiere</dt><dd>$premiere$</dd></div>$endif$
+            </dl>
+            $if(has-score)$
+            <p class="comp-actions">
+                <a class="comp-read" href="$score-url$">Read the score</a>
+                $if(pdf)$<a class="comp-pdf" href="/music/$slug$/$pdf$" download>Download PDF</a>$endif$
+            </p>
+            $endif$
+        </div>
+    </header>
+
+    $if(recording)$
+    <div class="comp-recording" data-pagefind-ignore="all">
+        <audio class="comp-recording-audio" controls preload="metadata">
+            <source src="/music/$slug$/$recording$">
+        </audio>
+    </div>
+    $endif$
+
+    $if(has-movements)$
+    <ol class="comp-movements" data-pagefind-ignore="all">
+        $for(movements)$
+        <li class="comp-mvt$if(movement-status)$ comp-mvt--listed$endif$">
+            $if(movement-score-url)$<a class="comp-mvt-row" href="$movement-score-url$" aria-label="$plain(movement-name)$, from page $movement-page$ of the score">$else$<span class="comp-mvt-row">$endif$
+                <span class="comp-mvt-num">$if(movement-numeral)$$movement-numeral$$endif$</span>
+                <span class="comp-mvt-name">$if(movement-title)$<span class="comp-mvt-title">$movement-title$</span>$endif$$if(movement-tempo)$<span class="comp-mvt-tempo">$movement-tempo$</span>$endif$</span>
+                <span class="comp-mvt-leader" aria-hidden="true"></span>
+                $if(movement-status)$<span class="comp-mvt-status">$movement-status$</span>$else$<span class="comp-mvt-dur">$movement-duration$</span>$endif$
+            $if(movement-score-url)$</a>$else$</span>$endif$
+            $if(has-audio)$
+            <audio class="movement-audio" controls preload="metadata">
+                <source src="$movement-audio-url$">
+            </audio>
+            $endif$
+        </li>
+        $endfor$
+    </ol>
+    $endif$
+
+    $if(has-notes)$
+    <!-- A04: see templates/essay.html — the artwork is CSS, the link
+         is real, so neither is hidden from assistive technology. -->
+    <div class="content-divider">
+        <a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>
+    </div>
+    <div class="comp-notes">
+        $body$
+    </div>
+    $endif$
+
+    $if(scoring)$
+    <section class="comp-scoring" aria-labelledby="comp-scoring-heading">
+        <h2 id="comp-scoring-heading" class="comp-scoring-heading">Instrumentation</h2>
+        <ul class="comp-scoring-list">
+            $for(scoring)$<li>$scoring-line$</li>$endfor$
+        </ul>
+    </section>
+    $endif$
+</main>
+$partial("templates/partials/page-footer.html")$

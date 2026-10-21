@@ -1,0 +1,28 @@
+<main id="markdownBody">
+<h1 class="page-title">Library</h1>
+
+$if(library-intro)$
+<div class="library-intro">
+$library-intro$
+</div>
+$endif$
+
+<nav class="library-see-also" aria-label="See also">
+$for(library-see-also)$<a href="$href$">$label$</a>$sep$<span class="library-see-also-sep" aria-hidden="true">·</span>$endfor$
+</nav>
+
+$for(library-shelves)$$if(entries)$
+<section class="library-section">
+<h2 id="$tag$"><span class="library-section-ornament" data-ornament="$tag$" aria-hidden="true"></span><a href="/$tag$/">$name$</a></h2>
+<ul class="item-card-list">
+$for(entries)$
+$partial("templates/partials/item-card.html")$
+$endfor$
+</ul>
+$if(has-more)$
+<p class="library-more"><a href="/$tag$/">More on this shelf &rarr;</a></p>
+$endif$
+</section>
+$endif$
+
+$endfor$</main>

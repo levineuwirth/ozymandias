@@ -1,0 +1,22 @@
+<li class="item-card$if(has-monogram)$ item-card--has-monogram$endif$">
+    <span class="item-card-kind">$item-kind$</span>
+    $if(has-monogram)$
+    <span class="item-card-monogram" aria-hidden="true">$monogramSvg$</span>
+    $endif$
+    <div class="item-card-main">
+        <div class="item-card-header">
+            <a class="item-card-title" href="$canonical-url$">$title$</a>
+            <span class="item-card-dateline">
+                <time class="item-card-date" datetime="$date-iso$">$date-display$</time>
+                $if(has-revision)$<span class="item-card-dateline-sep" aria-hidden="true">·</span><span class="item-card-revised" tabindex="0">Revised$if(date-original)$<span class="item-card-revised-from"> from $date-original$</span>$endif$</span>$endif$
+            </span>
+        </div>
+        $if(abstract)$<p class="item-card-abstract$if(full-abstract)$ is-full$endif$">$abstract$</p>$endif$
+        $if(revision-note)$<p class="item-card-revision-note"><em>$revision-note$</em></p>$endif$
+        $if(item-tags)$
+        <div class="item-card-tags">
+            $for(item-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+        </div>
+        $endif$
+    </div>
+</li>

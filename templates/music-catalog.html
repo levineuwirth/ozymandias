@@ -1,0 +1,12 @@
+<main id="markdownBody" class="music-index" data-pagefind-body>
+    <header class="music-head">
+        <h1 class="page-title music-title">$title$</h1>
+        $if(abstract)$<div class="music-abstract">$abstract$</div>$endif$
+    </header>
+    $if(music-shelf)$$music-shelf$$endif$
+    <div class="music-prose">$body$</div>
+    <div class="cat">
+        $catalog-by-category$
+    </div>
+</main>
+<script src="/js/music-shelf.js" defer></script>

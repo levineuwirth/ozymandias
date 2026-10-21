@@ -1,0 +1,38 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <header class="photography-header">
+            <h1 class="page-title">Photography</h1>
+            <!-- A06: a labelled navigation group, not a tablist — see
+                 templates/partials/photography-controls.html. Here every
+                 entry really does navigate, and Map is the current page,
+                 so it carries aria-current="page". -->
+            <div class="photography-controls">
+                <nav class="photography-mode-toggle" aria-label="Photography view">
+                    <a class="mode-btn" data-mode="masonry"        href="/photography/">Masonry</a>
+                    <a class="mode-btn" data-mode="grid"           href="/photography/">Grid</a>
+                    <a class="mode-btn" data-mode="chronological"  href="/photography/">Chronological</a>
+                    <a class="mode-btn is-active" aria-current="page" data-mode="map" href="/photography/map/">Map</a>
+                </nav>
+            </div>
+        </header>
+
+        <div id="photography-map" class="photography-map" aria-label="Map of geo-tagged photographs">
+            <noscript>
+                <p class="photography-map-fallback">
+                    The map view requires JavaScript. Browse the
+                    <a href="/photography/">photography portfolio</a>
+                    or jump to a specific photo from the
+                    <a href="/photography/">grid view</a>.
+                </p>
+            </noscript>
+        </div>
+
+        <p class="photography-map-note">
+            Pin coordinates are rounded to the precision each photograph's
+            <code>geo-precision</code> field declares — typically the
+            nearest ten kilometers. Photos with no <code>geo:</code>
+            frontmatter (or with <code>geo-precision: hidden</code>) are
+            omitted from this map by design.
+        </p>
+    </main>
+</div>

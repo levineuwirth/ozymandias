@@ -1,0 +1,14 @@
+<main id="markdownBody" data-pagefind-body>
+    <header class="now-header">
+        <h1 class="page-title">$title$</h1>
+        <p class="now-stamp">
+            <span class="now-stamp-label">Last updated</span>
+            <time class="now-stamp-date" datetime="$now-last-updated$">$now-last-updated-display$</time>
+        </p>
+    </header>
+
+    $if(body)$<div class="now-intro">$body$</div>$endif$
+
+    $now-entries-html$
+    $now-shipped-html$
+</main>

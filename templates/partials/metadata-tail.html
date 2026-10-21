@@ -1,0 +1,33 @@
+<div class="metadata metadata-tail">
+    $if(essay-tags)$
+    <div class="meta-row meta-tags">
+        $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+    </div>
+    $endif$
+    $if(essay-keywords)$
+    <div class="meta-row meta-keywords">
+        $for(essay-keywords)$<a class="meta-keyword" href="$kw-url$">$kw-name$</a>$endfor$
+    </div>
+    $endif$
+    $if(affiliation-links)$
+    <div class="meta-row meta-affiliation">
+        $for(affiliation-links)$$if(affiliation-url)$<a href="$affiliation-url$">$affiliation-name$</a>$else$$affiliation-name$$endif$$sep$ · $endfor$
+    </div>
+    $endif$
+    <nav class="meta-row meta-pagelinks" aria-label="Page sections">
+        $if(version-history-range)$
+        <a href="#version-history" class="date-hover"
+           data-date-start="$version-history-range-start$"
+           $if(version-history-range-end)$data-date-end="$version-history-range-end$"$endif$
+           $if(version-history-commits)$data-date-commits="$version-history-commits$"$endif$>$version-history-range$</a>
+        $else$
+        <a href="#version-history">History</a>
+        $endif$
+        $if(status)$<a href="#epistemic">Epistemic</a>$endif$
+        $if(bibliography)$<a href="#bibliography">Bibliography</a>$endif$
+        $if(backlinks)$<a href="#backlinks">Backlinks</a>$endif$
+        $if(similar-links)$<a href="#similar-links">Related</a>$endif$
+        $if(repository)$<a href="$repository$">Repository</a>$endif$
+        $if(preprint)$<a href="$preprint$">Preprint</a>$endif$
+    </nav>
+</div>

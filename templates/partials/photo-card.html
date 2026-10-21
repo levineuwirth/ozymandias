@@ -1,0 +1,17 @@
+<!-- A11: an authored `alt:` field wins over the title.
+     P01/O04: lazy-image auto sizing follows each card's rendered width.
+     The conservative fallback is replaced with the measured pixel width
+     by photography-modes.js as the view, viewport or text size changes. -->
+<li class="photo-card"$if(orientation)$ data-orientation="$orientation$"$endif$>
+    <a class="photo-card-link" href="$canonical-url$">
+        $if(photo-url)$
+        <picture>$if(photo-webp-srcset)$<source srcset="$photo-webp-srcset$" type="image/webp" sizes="auto, (max-width: 50rem) 100vw, 48rem">$endif$<img class="photo-card-img" src="$photo-url$"$if(photo-srcset)$ srcset="$photo-srcset$" sizes="auto, (max-width: 50rem) 100vw, 48rem"$endif$ alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$></picture>
+        $else$$if(photo)$
+        <img class="photo-card-img" src="$photo$" alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$>
+        $endif$$endif$
+        <div class="photo-card-meta">
+            <span class="photo-card-title">$title$</span>
+            $if(captured-iso)$<time class="photo-card-date" datetime="$captured-iso$">$captured-display$</time>$endif$
+        </div>
+    </a>
+</li>

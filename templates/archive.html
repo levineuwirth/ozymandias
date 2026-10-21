@@ -1,0 +1,110 @@
+<div id="content">
+    <main id="markdownBody" data-pagefind-body>
+        <article class="archive-entry">
+            <header class="archive-header">
+                <h1 class="page-title">$title$</h1>
+                $partial("templates/partials/archive-banner.html")$
+                $if(status-note)$
+                <p class="archive-status-note archive-status-note--$status$" role="note">
+                    $status-note$
+                </p>
+                $endif$
+                $if(degraded)$
+                <p class="archive-degraded" role="note">
+                    <span class="archive-degraded-label">Capture: $snapshot-quality$</span>
+                    Some of the original's content (images, scripted elements)
+                    may be missing or incomplete in this snapshot. The original
+                    is linked above.
+                </p>
+                $endif$
+            </header>
+
+            <section class="archive-provenance" aria-label="Provenance">
+                <h2 class="archive-panel-title">Provenance</h2>
+                <dl class="archive-meta">
+                    <dt>Original</dt>
+                    <dd><a href="$original-url$" rel="noopener noreferrer" target="_blank">$original-url$</a></dd>
+                    <dt>Link status</dt>
+                    <dd class="archive-status archive-status--$status$">$status$</dd>
+                    <dt>Archived</dt>
+                    <dd>$archived$</dd>
+                    <dt>Type</dt>
+                    <dd>$archive-type$</dd>
+                    <dt>Snapshot quality</dt>
+                    <dd>$snapshot-quality$</dd>
+                    <dt>Size</dt>
+                    <dd>$size$</dd>
+                    <dt>SHA-256</dt>
+                    <dd><code>$sha-short$&hellip;</code></dd>
+                    $if(wayback)$
+                    <dt>Wayback</dt>
+                    <dd><a href="$wayback$" rel="noopener noreferrer" target="_blank">web.archive.org copy</a></dd>
+                    $endif$
+                    $if(paywalled)$
+                    <dt>Access</dt>
+                    <dd>The original sits behind a paywall.</dd>
+                    $endif$
+                    $if(private)$
+                    <dt>Visibility</dt>
+                    <dd>private &mdash; held offline</dd>
+                    $endif$
+                </dl>
+            </section>
+
+            $if(note)$<p class="archive-note">$note$</p>$endif$
+
+            $if(private)$
+            <p class="archive-private" role="note">
+                This work is archived <strong>privately</strong>: a local
+                preservation copy is kept against link rot, but the artifact
+                is not published here. Use the original link above to read it.
+            </p>
+            $else$
+            <div class="archive-viewer">
+                <div class="archive-viewer-bar">
+                    <span class="archive-viewer-name">$artifact-name$</span>
+                    <a class="archive-viewer-open" href="$artifact-url$" target="_blank" rel="noopener noreferrer">Open raw&nbsp;&#8599;</a>
+                </div>
+                $if(is-pdf)$
+                <iframe class="archive-frame" src="$artifact-url$" title="$plain(title)$ &mdash; archived document" loading="lazy"></iframe>
+                $endif$
+                $if(is-html)$
+                <iframe class="archive-frame" src="$artifact-url$" title="$plain(title)$ &mdash; archived snapshot" sandbox referrerpolicy="no-referrer" loading="lazy"></iframe>
+                $endif$
+            </div>
+            $endif$
+
+            $if(fulltext)$
+            $if(is-pdf)$
+            <details class="archive-fulltext-wrap">
+                <summary class="archive-fulltext-title">Full text (extracted)</summary>
+                $fulltext$
+            </details>
+            $endif$
+            $if(is-html)$
+            <section class="archive-fulltext-wrap">
+                <h2 class="archive-fulltext-title">Readable text (extracted)</h2>
+                $fulltext$
+            </section>
+            $endif$
+            $endif$
+
+            $if(footer-deps)$$endif$
+            $if(referenced-by)$
+            <section class="archive-backlinks">
+                <h2 class="archive-section-title">Referenced by</h2>
+                $referenced-by$
+            </section>
+            $endif$
+
+            $if(similar-links)$
+            <section class="archive-related">
+                <h2 class="archive-section-title">Related</h2>
+                $similar-links$
+            </section>
+            $endif$
+
+            $partial("templates/partials/archive-removal-notice.html")$
+        </article>
+    </main>
+</div>

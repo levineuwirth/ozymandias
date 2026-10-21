@@ -1,0 +1,30 @@
+<!-- A06: these controls change which layout the grid uses; they are not
+     tabs (there is no tabpanel to select, and the previous markup mixed
+     role="tab" with aria-pressed, which that role does not support). A
+     labelled navigation group with aria-current on the active entry is
+     the honest description: each entry is a link to a view, and on the
+     landing page photography-modes.js applies the layout in place.
+
+     The slideshow launch deliberately sits OUTSIDE the group — it is an
+     action, not one of the views, and it belongs to no current-ness. -->
+<div class="photography-controls">
+    <nav class="photography-mode-toggle" aria-label="Photography view">
+        <a class="mode-btn"           data-mode="masonry"       href="/photography/">Masonry</a>
+        <a class="mode-btn is-active" data-mode="grid"          href="/photography/" aria-current="true">Grid</a>
+        <!-- Chronological is retired for now, not removed: with a corpus shot
+             mostly in one orientation it read as a wider masonry, and grid
+             plus masonry already cover scanning and reading. The CSS mode and
+             the JS VALID_MODES entry are both intact, so restoring the control
+             is uncommenting this line.
+        <a class="mode-btn"           data-mode="chronological" href="/photography/">Chronological</a>
+        -->
+        <a class="mode-btn"           data-mode="map"           href="/photography/map/">Map</a>
+    </nav>
+    $if(is-series)$
+    <!-- Series only. On the section landing the grid holds one card per
+         series, so a slideshow there would play a handful of covers
+         rather than photographs — the control implies a sequence the
+         page does not have. -->
+    <button class="mode-btn mode-btn--action" type="button" data-mode="slideshow">Slideshow</button>
+    $endif$
+</div>

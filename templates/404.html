@@ -1,0 +1,14 @@
+<!-- The engine's not-found page, for a site that brings none of its own.
+     It is displayed at URLs other than its own, so it is marked noindex
+     and its links stay absolute (see the rule in build/Site.hs). A site
+     overrides it at templates/404.html. -->
+<main id="markdownBody" data-pagefind-ignore="all">
+    <h1 class="page-title">Page not found</h1>
+
+    <p>There is nothing at this address. The page may have moved, or
+    never existed.</p>
+
+    <p><a href="/">The front page</a> leads to everything on $site-title$.
+    If a link on this site brought you here, please write to
+    <a href="mailto:$site-email$">$site-email$</a>.</p>
+</main>

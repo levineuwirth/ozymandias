@@ -1,0 +1,12 @@
+<!-- The engine's footer, for a site that brings none of its own: the
+     site's host and code license from site.yaml (Config.identityContext).
+     A site overrides it at templates/partials/footer.html. -->
+<footer data-pagefind-ignore="all">
+    <div class="footer-left">
+        <button class="footer-totop" aria-label="Return to top">↑ top</button>
+        <a href="/">$site-host$</a>
+    </div>
+    <div class="footer-center">
+        <span class="footer-license"><a href="$site-source-repo$">$site-code-license$</a></span>
+    </div>
+</footer>
