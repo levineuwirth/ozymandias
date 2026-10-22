@@ -1,0 +1,176 @@
+/* syntax.css — Oneiros paper / charcoal, from the author's foot palette.
+   File syntax follows bat's ANSI theme; shell syntax follows fish's roles.
+   The same tokens style essay blocks, transclusions and source popups.
+   No blue; coral is reserved for errors and removed diff lines.
+   Reference: oneiros-config/dotfiles/.config/{foot/foot.ini,fish/config.fish}.
+*/
+
+:root {
+    --syntax-fg:      #1c1a17;
+    --syntax-param:   #1c1a17;
+    --syntax-comment: var(--text-faint);
+    --syntax-red:     #a3341f;
+    --syntax-sage:    #5f6b38;
+    --syntax-amber:   #8b671d;   /* foot's #97701f, darkened to 4.5:1 on --bg-offset */
+    --syntax-plum:    #7a5c72;
+    --syntax-rose:    #8a4436;
+    --syntax-teal:    #4f6660;
+}
+
+[data-theme="dark"] {
+    --syntax-fg:      #e8e8e8;
+    --syntax-param:   #d8d8d8;
+    --syntax-comment: #828282;
+    --syntax-red:     #e0604a;
+    --syntax-sage:    #8f9a63;
+    --syntax-amber:   #d3a05c;
+    --syntax-plum:    #a2849f;
+    --syntax-rose:    #c2887a;
+    --syntax-teal:    #8fa39e;
+}
+
+/* The website's coffee ground is lighter than the charcoal terminal.
+   Use its bright ANSI slots, lifting sage/plum a little further so they
+   remain distinct on both the page and the raised code background. */
+[data-theme="cappuccino"] {
+    --syntax-fg:      var(--text);
+    --syntax-param:   var(--text);
+    --syntax-comment: var(--text-faint);
+    --syntax-red:     var(--danger);
+    --syntax-sage:    color-mix(in srgb, #a5b077 95%, #f2f2f2);
+    --syntax-amber:   #e5b673;
+    --syntax-plum:    color-mix(in srgb, #b89bb5 80%, #f2f2f2);
+    --syntax-rose:    #d69f90;
+    --syntax-teal:    #a8bcb7;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --syntax-fg:      #e8e8e8;
+        --syntax-param:   #d8d8d8;
+        --syntax-comment: #828282;
+        --syntax-red:     #e0604a;
+        --syntax-sage:    #8f9a63;
+        --syntax-amber:   #d3a05c;
+        --syntax-plum:    #a2849f;
+        --syntax-rose:    #c2887a;
+        --syntax-teal:    #8fa39e;
+    }
+}
+
+/* Explicit code colour also overrides the source popup's inherited prose
+   colour. Unannotated inline code keeps the surrounding essay palette. */
+pre[class*="language-"] > code,
+pre[class*="lang-"] > code {
+    color: var(--syntax-fg);
+}
+
+/* bat --theme=ansi: sage comments/strings, rose control flow, plum
+   definitions, teal parameters/builtins, and amber literal values. */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata,
+.token.shebang,
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.template-string {
+    color: var(--syntax-sage);
+}
+
+.token.keyword,
+.token.rule,
+.token.important,
+.token.atrule,
+.token.operator {
+    color: var(--syntax-rose);
+}
+
+.token.function,
+.token.function-definition,
+.token.class-name,
+.token.maybe-class-name,
+.token.tag,
+.token.selector {
+    color: var(--syntax-plum);
+}
+
+.token.builtin,
+.token.variable,
+.token.parameter,
+.token.attr-name,
+.token.property,
+.token.namespace,
+.token.type-annotation,
+.token.type {
+    color: var(--syntax-teal);
+}
+
+.token.number,
+.token.boolean,
+.token.constant {
+    color: var(--syntax-amber);
+}
+
+.token.punctuation {
+    color: var(--syntax-fg);
+}
+
+.token.url {
+    color: var(--syntax-teal);
+    text-decoration: underline;
+    text-decoration-color: currentColor;
+}
+
+/* fish: commands sage, quotes amber, operators plum, comments neutral.
+   Prism groups shell redirections with operators, so both use plum. */
+:is(.language-bash, .language-shell, .language-sh) :is(.token.function, .token.builtin) {
+    color: var(--syntax-sage);
+}
+
+:is(.language-bash, .language-shell, .language-sh) :is(.token.string, .token.char) {
+    color: var(--syntax-amber);
+}
+
+:is(.language-bash, .language-shell, .language-sh) :is(.token.keyword, .token.operator) {
+    color: var(--syntax-plum);
+}
+
+:is(.language-bash, .language-shell, .language-sh) :is(.token.variable, .token.parameter, .token.number, .token.boolean) {
+    color: var(--syntax-param);
+}
+
+:is(.language-bash, .language-shell, .language-sh) :is(.token.comment, .token.shebang) {
+    color: var(--syntax-comment);
+}
+
+:is(.language-bash, .language-shell, .language-sh) .token.punctuation {
+    color: var(--syntax-teal);
+}
+
+/* Diffs retain the terminal's meaningful positive/negative distinction. */
+.token.inserted,
+.token.inserted-sign,
+.link-popup .popup-code-ref ins {
+    color: var(--syntax-sage);
+}
+
+.token.deleted,
+.token.deleted-sign,
+.link-popup .popup-code-ref del {
+    color: var(--syntax-red);
+}
+
+.token.coord {
+    color: var(--syntax-teal);
+}
+
+@media print {
+    pre[class*="language-"] > code,
+    pre[class*="lang-"] > code,
+    .token {
+        color: var(--text) !important;
+    }
+}

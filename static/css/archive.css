@@ -1,0 +1,463 @@
+/* archive.css — the link archive: /archive/ and /archive/<slug>/.
+ *
+ * Gated in head.html via $if(archive)$ (build/Archive.hs sets the flag on
+ * the index and every entry page). The archive pages are structured
+ * surfaces rather than prose, but they render inside #markdownBody — so
+ * every rule here is scoped under #markdownBody to clear the id-specificity
+ * prose rules in typography.css (heading scales, figure framing, paragraph
+ * indent) that would otherwise win over a bare class.
+ *
+ * Treatment: "framed / structured" — the archival chrome (banner,
+ * provenance panel, the embedded artifact viewer) is given visible borders
+ * so a reader is never in doubt that this is a preservation copy, not the
+ * original. All colour comes from tokens, so dark mode follows for free;
+ * the embedded artifact itself is shown raw and is deliberately not themed.
+ */
+
+/* Structured pages, not essays — no first-line indent on any paragraph. */
+#markdownBody :is(.archive-banner-text, .archive-degraded, .archive-note,
+                  .archive-private, .archive-status-note, .archive-index-intro,
+                  .archive-removal, .archive-empty),
+#markdownBody .archive-fulltext-wrap > p {
+    text-indent: 0;
+}
+
+/* ============================================================
+   ENTRY HEADER + ARCHIVAL BANNER
+   The banner is a bordered callout, stacked: a small-caps label,
+   one plain-language line, and the original link given real
+   weight — the original is the hero, never the archived copy.
+   ============================================================ */
+
+#markdownBody .archive-header {
+    margin-bottom: 0.5rem;
+}
+
+#markdownBody .archive-header .page-title {
+    margin-bottom: 0;
+}
+
+#markdownBody .archive-banner {
+    margin-top: 1.4rem;
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    background: var(--bg-subtle);
+}
+
+#markdownBody .archive-banner-label {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.13em;
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-banner-text {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text);
+}
+
+#markdownBody .archive-banner-original {
+    align-self: flex-start;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Degraded / js-required snapshots: a dashed-border note. Restrained —
+   the monochrome palette has no alarm colour and wants none. */
+#markdownBody .archive-degraded {
+    margin: 1rem 0 0;
+    padding: 0.7rem 1rem;
+    border: 1px dashed var(--border-muted);
+    border-radius: 2px;
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-degraded-label {
+    margin-right: 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.1em;
+    color: var(--text);
+}
+
+/* Private entry: the artifact is held offline, not published — a calm
+   informational panel in place of the artifact viewer. */
+#markdownBody .archive-private {
+    margin: 1.8rem 0;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg-subtle);
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+/* Link-rot status — a header note for non-live states (archive.py check),
+   and the status word in the provenance panel. The palette is monochrome,
+   so a `rotted` entry is marked by weight and a heavier left rule, never
+   colour. */
+#markdownBody .archive-status-note {
+    margin: 1rem 0 0;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--border-muted);
+    border-left-width: 3px;
+    border-radius: 2px;
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+#markdownBody .archive-status-note--rotted {
+    border-left-color: var(--text);
+}
+
+#markdownBody .archive-status-note--moved {
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-status {
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.04em;
+}
+
+#markdownBody .archive-status--live {
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-status--rotted {
+    font-weight: 600;
+}
+
+/* ============================================================
+   PROVENANCE PANEL
+   A bordered box with a small-caps label; the metadata is a
+   two-column key/value grid — labels auto-sized, values take
+   the rest, long URLs and hashes wrap rather than overflow.
+   ============================================================ */
+
+#markdownBody .archive-provenance {
+    margin: 1.8rem 0;
+    padding: 1rem 1.2rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+}
+
+#markdownBody .archive-panel-title {
+    margin: 0 0 0.7rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+}
+
+#markdownBody .archive-meta {
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.34rem 1.1rem;
+}
+
+#markdownBody .archive-meta dt {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+}
+
+#markdownBody .archive-meta dd {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+#markdownBody .archive-meta dd code {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+}
+
+/* The author's reason-for-archiving note, set in the page measure. */
+#markdownBody .archive-note {
+    margin: 1.6rem 0;
+    font-family: var(--font-serif);
+    font-size: 0.97rem;
+    font-style: italic;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+/* ============================================================
+   ARTIFACT VIEWER
+   A <div> (not a <figure> — that carries prose framing) with a
+   mono caption bar that names the raw artifact and links to it,
+   and the artifact embedded raw beneath: the PDF renders in the
+   browser's native viewer, the HTML snapshot loads sandboxed.
+   ============================================================ */
+
+#markdownBody .archive-viewer {
+    margin: 1.8rem 0;
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+#markdownBody .archive-viewer-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--border-muted);
+    background: var(--bg-subtle);
+}
+
+#markdownBody .archive-viewer-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-viewer-open {
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    white-space: nowrap;
+}
+
+#markdownBody .archive-frame {
+    display: block;
+    width: 100%;
+    height: 80vh;
+    border: 0;
+    background: var(--bg);
+}
+
+/* ============================================================
+   EXTRACTED FULL TEXT
+   Always in the DOM, for embed.py / Pagefind. PDF text is
+   collapsed in a <details> and keeps its pdftotext layout in a
+   scrollable mono block; HTML text shows as serif paragraphs.
+   ============================================================ */
+
+#markdownBody .archive-fulltext-wrap {
+    margin: 1.8rem 0 0;
+}
+
+#markdownBody .archive-fulltext-title,
+#markdownBody .archive-section-title {
+    margin: 0 0 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+
+#markdownBody summary.archive-fulltext-title {
+    cursor: pointer;
+}
+
+#markdownBody .archive-fulltext-wrap > p {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+/* The pdftotext block: scroll-capped so it never dominates the page. */
+#markdownBody .archive-fulltext {
+    margin: 0.8rem 0 0;
+    padding: 0.9rem 1rem;
+    max-height: 60vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg-subtle);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   REFERENCED BY / RELATED
+   The site-wide .backlinks-list / .similar-links-list styles
+   (components.css) carry the lists themselves; these rules add
+   only the section framing and the granular fragment groups.
+   ============================================================ */
+
+#markdownBody .archive-backlinks,
+#markdownBody .archive-related {
+    margin: 1.8rem 0 0;
+}
+
+#markdownBody .referenced-by-group {
+    margin-top: 0.9rem;
+}
+
+#markdownBody .referenced-by-fragment {
+    margin: 0 0 0.3rem;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+}
+
+/* ============================================================
+   REMOVAL NOTICE
+   A quiet italic footer line, set off by a top rule — present
+   on every archive page and on the index.
+   ============================================================ */
+
+#markdownBody .archive-removal {
+    margin: 2.4rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--text-faint);
+}
+
+/* ============================================================
+   INDEX PAGE — /archive/
+   A text list in the catalog idiom: one hairline between rows,
+   the title in serif, type + date + any quality flag in quiet
+   sans pushed to the row's end.
+   ============================================================ */
+
+#markdownBody .archive-index-header {
+    margin-bottom: 1.8rem;
+}
+
+#markdownBody .archive-index-intro {
+    margin: 0.6rem 0 0;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+#markdownBody .archive-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#markdownBody .archive-list-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem 1rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+#markdownBody .archive-list-item:last-child {
+    border-bottom: none;
+}
+
+#markdownBody .archive-list-link {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+#markdownBody .archive-list-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+#markdownBody .archive-list-meta {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+/* Non-'ok' capture flag — a dashed chip, echoing the entry-page note. */
+#markdownBody .archive-quality-flag {
+    padding: 0.05em 0.4em;
+    border: 1px dashed var(--border-muted);
+    border-radius: 2px;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+/* A rotted entry is the one health state worth a solid, inked flag. */
+#markdownBody .archive-quality-flag--rotted {
+    border-style: solid;
+    border-color: var(--text);
+    color: var(--text);
+}
+
+#markdownBody .archive-empty {
+    font-family: var(--font-serif);
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ============================================================
+   MOBILE
+   Collapse the provenance grid to stacked rows; trim the frame.
+   ============================================================ */
+
+@media (max-width: 540px) {
+    #markdownBody .archive-meta {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    #markdownBody .archive-meta dt {
+        margin-top: 0.55rem;
+    }
+
+    #markdownBody .archive-meta dt:first-of-type {
+        margin-top: 0;
+    }
+
+    #markdownBody .archive-frame {
+        height: 70vh;
+    }
+}

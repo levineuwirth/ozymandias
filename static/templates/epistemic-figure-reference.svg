@@ -1,0 +1,42 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Epistemic figure reference: skeleton (no field data)">
+    <!-- Reference skeleton for the epistemic figure generator
+         (build/Marks.hs). Renders the parts that are present whether
+         or not frontmatter fields are set: the outer roundel, the
+         four guide circles, the six radial axes, and the stability-
+         tick scale at 12 o'clock (all five ticks at "inactive"
+         opacity 0.4). The polygon, vertex marks, trust label, and
+         result-shape glyph are absent from this skeleton; they
+         appear only when frontmatter supplies values.
+
+         Used as a visual-regression baseline: compare against
+         generator output stripped of data-bearing elements. The
+         coordinate values mirror MARKS.md §3.3 exactly. -->
+
+    <!-- Outer roundel: r=88 inner, r=90 outer, stroke 0.5 -->
+    <circle cx="100.00" cy="100.00" r="88.00" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.7"/>
+    <circle cx="100.00" cy="100.00" r="90.00" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.7"/>
+
+    <!-- Inner guide circles at 0.2, 0.4, 0.6, 0.8 of axis radius (R=80) -->
+    <circle cx="100.00" cy="100.00" r="16.00" fill="none" stroke="currentColor" stroke-width="0.25" opacity="0.4"/>
+    <circle cx="100.00" cy="100.00" r="32.00" fill="none" stroke="currentColor" stroke-width="0.25" opacity="0.4"/>
+    <circle cx="100.00" cy="100.00" r="48.00" fill="none" stroke="currentColor" stroke-width="0.25" opacity="0.4"/>
+    <circle cx="100.00" cy="100.00" r="64.00" fill="none" stroke="currentColor" stroke-width="0.25" opacity="0.4"/>
+
+    <!-- Six radial axes: 0° confidence, 60° novelty, 120° practicality,
+         180° scope, 240° evidence, 300° importance -->
+    <line x1="100.00" y1="100.00" x2="100.00" y2="20.00"  stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+    <line x1="100.00" y1="100.00" x2="169.28" y2="60.00"  stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+    <line x1="100.00" y1="100.00" x2="169.28" y2="140.00" stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+    <line x1="100.00" y1="100.00" x2="100.00" y2="180.00" stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+    <line x1="100.00" y1="100.00" x2="30.72"  y2="140.00" stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+    <line x1="100.00" y1="100.00" x2="30.72"  y2="60.00"  stroke="currentColor" stroke-width="0.3" opacity="0.55"/>
+
+    <!-- Stability tick scale at 12 o'clock; all five at inactive
+         opacity 0.4 in this skeleton (no frontmatter → no live
+         stability label). -->
+    <line x1="100.00" y1="10.00"   x2="100.00" y2="8.50"   stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+    <line x1="76.71"  y1="11.55"  x2="75.32"  y2="10.13"   stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+    <line x1="123.29" y1="11.55"  x2="124.68" y2="10.13"   stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+    <line x1="55.00"  y1="22.06"  x2="53.70"  y2="19.81"   stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+    <line x1="145.00" y1="22.06"  x2="146.30" y2="19.81"   stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+</svg>

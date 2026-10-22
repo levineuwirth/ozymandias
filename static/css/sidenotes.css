@@ -1,0 +1,339 @@
+/* sidenotes.css — Notes: an endnote list, set in the margin when there is room.
+   The Haskell Sidenotes filter converts Pandoc footnotes to:
+     <sup class="sidenote-ref" id="snref-a"><a href="#fn-a">a</a></sup>
+   in the text, and one list at the end of the body:
+     <section class="footnotes"><ol class="footnotes-list">
+       <li id="fn-a" class="footnote-item">…</li>
+     </ol></section>
+
+   Layout strategy
+   ───────────────
+   The list is the default: without JavaScript, where the margin is too
+   narrow, and in print. Where the room right of the text holds a
+   readable measure (in rem, so it follows the reader's text size),
+   sidenotes.js sets data-sidenotes="margin" on #markdownBody and the
+   rules below position each list item absolutely relative to
+   #markdownBody (which is position: relative), in the right margin;
+   the script sets each item's top level with its reference, and
+   passes in the room (--sidenote-room) and how far down the notes
+   reach (--sidenote-extent).
+
+   Without the margin, the script lends an item to a <dialog> sheet
+   when its reference is activated (MOBILE SIDENOTE POPUP below).
+*/
+
+/* ============================================================
+   SIDENOTE REFERENCE (in-text superscript)
+   ============================================================ */
+
+.sidenote-ref {
+    font-size: 0.7em;
+    line-height: 0;
+    position: relative;
+    top: -0.4em;
+    font-family: var(--font-sans);
+    font-feature-settings: normal;
+}
+
+.sidenote-ref a {
+    color: var(--text-faint);
+    text-decoration: none;
+    padding: 0 0.1em;
+    transition: color var(--transition-fast);
+}
+
+.sidenote-ref a:hover,
+.sidenote-ref.is-active a {
+    color: var(--text);
+}
+
+
+/* ============================================================
+   NOTES LIST — every note's one element. A list item in the end
+   matter by default; a margin note on wide screens. Letter labels
+   are rendered explicitly because an <ol>'s automatic numbers would
+   disagree with the in-text letter refs.
+   ============================================================ */
+
+section.footnotes {
+    margin-top: 3.3rem;
+    padding-top: 1.65rem;
+    border-top: 1px solid var(--border-muted);
+}
+
+section.footnotes .footnotes-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.footnote-item {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.footnote-label {
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    font-family: var(--font-sans);
+    font-size: 0.75em;
+    color: var(--text-faint);
+}
+
+/* A note is block content: paragraphs, lists, quotations, code. Its
+   blocks sit closer than the body's, and its paragraphs carry no
+   indent. The first paragraph flows on the label's line. */
+#markdownBody .footnote-item p {
+    margin: 0 0 0.5em;
+    text-indent: 0;
+}
+#markdownBody .footnote-item > .footnote-label + p {
+    display: inline;
+}
+#markdownBody .footnote-item > :is(ul, ol, blockquote, pre, .code-block, figure, table) {
+    margin: 0.5em 0;
+}
+#markdownBody .footnote-item > :last-child {
+    margin-bottom: 0;
+}
+
+.footnote-item:target,
+.footnote-item.is-active {
+    color: var(--text);
+}
+
+.footnote-back {
+    margin-left: 0.35em;
+    text-decoration: none;
+    font-family: var(--font-sans);
+    color: var(--text-faint);
+    transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.footnote-back:hover {
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   MARGIN NOTES
+   Screen only: paper keeps the list. A note is 17em wide (320px at
+   the default text size) or as wide as the room allows, which the
+   script has checked holds at least 14em; left: 100% + gap puts it
+   just past the body column's right edge. The script centres the
+   note's first line on its reference's line.
+
+   The letter hangs in the gutter beside the first line, so the text
+   starts flush and the note takes no extra line. The active note
+   (hovered, pinned, or focused from the keyboard) is drawn in the
+   text color, letter included, with a hairline running down the
+   gutter beneath its letter.
+   ============================================================ */
+
+@media screen {
+    /* The body reaches at least as far down as its notes, so the
+       footer clears the last of them. */
+    #markdownBody[data-sidenotes="margin"] {
+        min-height: var(--sidenote-extent, 0px);
+    }
+
+    /* The list's items leave it for the margin; nothing of it shows. */
+    #markdownBody[data-sidenotes="margin"] section.footnotes {
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    #markdownBody[data-sidenotes="margin"] .footnote-item {
+        position: absolute;
+        left: calc(100% + 1.5rem);
+        width: min(17em, var(--sidenote-room, 17em));
+        margin: 0;
+        padding: 0;
+
+        font-family: var(--font-serif);
+        font-size: 0.82rem;
+        line-height: 1.55;
+
+        text-indent: 0;
+        font-feature-settings: normal;
+        hyphens: none;
+        hanging-punctuation: none;
+    }
+
+    /* An inline box on the first line, as wide as it is pulled back:
+       it shares the line's baseline and takes none of its width. */
+    #markdownBody[data-sidenotes="margin"] .footnote-label {
+        position: static;
+        display: inline-block;
+        width: 1.6em;
+        margin-left: -1.6em;
+        padding-right: 0.45em;
+        text-align: right;
+        transition: color var(--transition-fast);
+    }
+    /* A note that opens with a list or code has no first line of text
+       to share: the letter hangs beside the top. */
+    #markdownBody[data-sidenotes="margin"] .footnote-item:not(:has(> .footnote-label + p)) > .footnote-label {
+        position: absolute;
+        left: -1.6em;
+        top: 0.35em;
+        margin: 0;
+    }
+
+    #markdownBody[data-sidenotes="margin"] .footnote-item::before {
+        content: "";
+        position: absolute;
+        left: -0.55em;
+        top: 1.55em;
+        bottom: 0.3em;
+        border-left: 1px solid var(--text-faint);
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+    }
+    #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible)::before {
+        opacity: 1;
+    }
+    #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible),
+    #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible) .footnote-label {
+        color: var(--text);
+    }
+    /* The hairline and the color mark keyboard focus here. */
+    #markdownBody[data-sidenotes="margin"] .footnote-item:focus-visible {
+        outline: none;
+    }
+
+    /* Its reference is in a closed section. */
+    #markdownBody[data-sidenotes="margin"] .footnote-item.is-unplaced {
+        display: none;
+    }
+
+    /* Pushed far below its reference and now the active note: it sits
+       on the reference's line, over the notes around it. The spread
+       shadows are a margin of page color and a hairline, drawn
+       outside the box so nothing reflows; shifted left to take in the
+       hanging letter. */
+    #markdownBody[data-sidenotes="margin"] .footnote-item.is-raised {
+        z-index: 1;
+        background: var(--bg);
+        box-shadow: -0.25rem 0 0 0.75rem var(--bg),
+                    -0.25rem 0 0 calc(0.75rem + 1px) var(--border-muted);
+    }
+
+    /* The reference is beside the note: the way back shows only to a
+       reader already in the note. */
+    #markdownBody[data-sidenotes="margin"] .footnote-back {
+        opacity: 0;
+    }
+    #markdownBody[data-sidenotes="margin"] .footnote-item:is(:hover, :focus-within) .footnote-back {
+        opacity: 1;
+    }
+}
+
+/* ============================================================
+   MOBILE SIDENOTE POPUP
+   A bottom sheet, opened when a reference is activated where the
+   notes are the list at the end. sidenotes.js builds it as a modal
+   <dialog> and moves the note's list item into it while it is open;
+   the page behind is inert. The bar names the note and keeps the
+   close button in view however long the note. On a phone the sheet
+   is the screen's width; wider, it keeps a reading measure (about
+   65 characters), centered.
+   ============================================================ */
+
+.sidenote-popup {
+    margin: auto auto 0;
+    width: min(100%, 36em);
+    max-width: none;
+    max-height: 65vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 0 1.25rem 2.75rem;
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.sidenote-popup::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.sidenote-popup-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 -0.55rem 0.35rem 0;
+    padding-top: 0.6rem;
+    background: var(--bg);
+}
+
+.sidenote-popup-title {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+}
+
+.sidenote-popup-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 0.1rem 0.35rem;
+}
+
+.sidenote-popup-close:hover {
+    color: var(--text);
+}
+
+.sidenote-popup-body {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* The list item keeps its content; the sheet sets its type. */
+.sidenote-popup .footnote-item {
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+}
+
+.sidenote-popup .footnote-item p {
+    margin: 0 0 0.5em;
+}
+
+/* The bar's title names the note. */
+.sidenote-popup .footnote-label {
+    display: none;
+}
+.sidenote-popup .footnote-item > :is(ul, ol, blockquote, pre, .code-block, figure, table) {
+    margin: 0.5em 0;
+}
+
+.sidenote-popup .footnote-item:focus {
+    outline: none;
+}
+
+/* The close button is the way back. */
+.sidenote-popup .footnote-back {
+    display: none;
+}

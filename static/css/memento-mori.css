@@ -1,0 +1,299 @@
+/* ── Memento Mori ─────────────────────────────────────────────────────────── */
+
+/* ── Grid container ───────────────────────────────────────────────────────── */
+
+#weeks-grid-wrapper {
+    margin: 2.5rem 0 1.5rem;
+}
+
+.weeks-grid {
+    display: grid;
+    grid-template-columns: repeat(52, 1fr);
+    gap: 2px;
+    width: 100%;
+}
+
+/* ── Individual week cells ────────────────────────────────────────────────── */
+
+.week {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    cursor: default;
+}
+
+.week--past {
+    background: var(--text);
+    border-color: var(--text);
+}
+
+.week--current {
+    background: var(--text-muted);
+    border-color: var(--text);
+    box-shadow: 0 0 0 1.5px var(--text);
+    z-index: 1;
+    position: relative;
+}
+
+.week--future {
+    background: transparent;
+}
+
+/* First week of each decade: more prominent border for visual orientation. */
+.week--decade {
+    border-color: var(--text-muted);
+}
+
+.week:hover {
+    opacity: 0.6;
+}
+
+/* ── Legend ───────────────────────────────────────────────────────────────── */
+
+.weeks-legend {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.6rem;
+    margin-bottom: 0;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────────── */
+
+.weeks-tooltip {
+    position: fixed;
+    z-index: 500;
+    pointer-events: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 190px;
+    max-width: 240px;
+}
+
+.weeks-tooltip[hidden] {
+    display: none;
+}
+
+.tt-age {
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tt-week {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.tt-date {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.tt-meta {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+    padding-top: 0.2rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ── Week popup ───────────────────────────────────────────────────────────── */
+
+.week-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.week-popup-backdrop[hidden] {
+    display: none;
+}
+
+.week-popup-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem 1.5rem;
+    width: min(640px, calc(100vw - 2rem));
+}
+
+.week-popup-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    margin-bottom: 1.1rem;
+}
+
+.week-popup-title {
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.week-popup-sub {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0.15rem;
+}
+
+.week-popup-close {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    font-family: var(--font-ui);
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    align-self: start;
+}
+
+.week-popup-close:hover {
+    color: var(--text);
+    border-color: var(--border);
+}
+
+/* ── Days row ─────────────────────────────────────────────────────────────── */
+
+.week-popup-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.75rem;
+}
+
+.wday {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.wday-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+.wday--past .wday-dot {
+    background: var(--text);
+    border-color: var(--text);
+}
+
+.wday--today .wday-dot {
+    background: var(--text-muted);
+    border-color: var(--text);
+    box-shadow: 0 0 0 1.5px var(--text);
+}
+
+.wday--future .wday-dot {
+    background: transparent;
+}
+
+.wday-name {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.wday--today .wday-name {
+    color: var(--text);
+}
+
+.wday-date {
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.wday-daynum {
+    font-family: var(--font-ui);
+    font-size: 0.62rem;
+    color: var(--text-faint);
+    text-align: center;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.wday:hover .wday-daynum {
+    opacity: 1;
+}
+
+/* ── Countdown ────────────────────────────────────────────────────────────── */
+
+#countdown-wrapper {
+    margin: 3rem 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.countdown-label {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+
+.countdown-value {
+    font-family: var(--font-mono);
+    /* A thirteen-figure number cannot wrap: no wider than the screen
+       allows, or at the largest text size it ran 75px off a phone. */
+    font-size: min(clamp(1.6rem, 5vw, 2.8rem), 9vw);
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.countdown-switcher {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.countdown-btn {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.countdown-btn:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+.countdown-btn.is-active {
+    color: var(--text);
+    border-color: var(--text);
+}

@@ -1,0 +1,509 @@
+/* composition.css — the landing page of a single composition.
+   templates/composition.html. The score reader has its own sheet
+   (score-reader.css); nothing here reaches it.
+
+   The page is modelled on the front of a published score and the
+   programme that goes with it: the work's own first page as the
+   frontispiece, a title block set as the title page would set it, and
+   the movements as a concert programme lists them. Everything is in
+   Spectral — the work is the subject, and the interface recedes.
+
+   Selectors lead with #markdownBody.composition where they must beat the
+   essay typography in typography.css (paragraph indents, list margins,
+   heading sizes); elsewhere a class is enough. */
+
+/* Metronome marks. Spectral has no note values, and system fallbacks
+   draw them at mismatched sizes — a dotted half beside a quarter came
+   out looking like a flat. Tempo Notes is a 1 KB font drawn from
+   MuseScore's Leland Text (SIL OFL 1.1) by tools/build-notes-font.py,
+   so a tempo on the page matches the tempo in the score. It covers the
+   SMuFL metronome range MuseScore writes into tempo text, the typed
+   ♩ ♪, the accidentals ♭ ♮ ♯ (Spectral has none: "clarinets in B♭"),
+   and the Unicode note values in the decomposed form Unicode
+   normalisation always leaves them in.
+
+   Declared for italic as well as roman: the tempo is set in italic,
+   and without an italic face the browser would slant the notes. */
+@font-face {
+    font-family: "Tempo Notes";
+    src: url("../fonts/tempo-notes.woff2") format("woff2");
+    font-style: normal;
+    unicode-range: U+2669-266A, U+266D-266F, U+1D157-1D161, U+1D165, U+1D16D-1D16F, U+ECA0-ECBF;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Tempo Notes";
+    src: url("../fonts/tempo-notes.woff2") format("woff2");
+    font-style: italic;
+    unicode-range: U+2669-266A, U+266D-266F, U+1D157-1D161, U+1D165, U+1D16D-1D16F, U+ECA0-ECBF;
+    font-display: swap;
+}
+
+/* ------------------------------------------------------------------
+   Paper
+   The frontispiece's sheet matches the reader's, theme by theme, so
+   the page a reader clicks is the page they land on.
+------------------------------------------------------------------ */
+
+.composition {
+    --comp-paper: #fffdfa;
+    --comp-sheet-edge: var(--border);
+}
+
+/* The id is what typography.css sets the body face on, so the notes
+   font has to be named at the same specificity to reach the text. */
+#markdownBody.composition {
+    font-family: "Tempo Notes", var(--font-serif);
+}
+
+[data-theme="dark"]       .composition { --comp-paper: #1c1c1c; }
+[data-theme="cappuccino"] .composition { --comp-paper: #5e4230; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .composition { --comp-paper: #1c1c1c; }
+}
+
+/* ------------------------------------------------------------------
+   Page frame
+   Wider than an essay: the header sets a page image beside the title
+   block. The reading columns below stay at essay measure.
+------------------------------------------------------------------ */
+
+.page-shell > #markdownBody.composition {
+    width: min(58rem, 100%);
+    padding-top: 3.5rem;
+}
+
+/* ------------------------------------------------------------------
+   Header — frontispiece and title block
+------------------------------------------------------------------ */
+
+.comp-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    margin: 0 auto;
+    max-width: 40rem;
+}
+
+.comp-head--with-score {
+    grid-template-columns: minmax(0, 17.5rem) minmax(0, 1fr);
+    gap: 3.75rem;
+    max-width: none;
+    align-items: center;
+}
+
+/* The score's first page, as an object: a sheet with the rest of the
+   score beneath it. data-stack (0–3, from the page count) sets how many
+   sheets show, so a sonata reads as a thin sheaf and a symphony as a
+   thick one. */
+.comp-frontispiece {
+    position: relative;
+    display: block;
+    background: var(--comp-paper);
+    outline: 1px solid var(--comp-sheet-edge);
+    isolation: isolate;          /* the page image blends with the sheet only */
+    text-decoration: none;
+    transition: transform var(--transition-medium);
+}
+
+.comp-frontispiece[data-stack="1"] {
+    box-shadow:
+        4px 4px 0 -1px var(--comp-paper), 4px 4px 0 0 var(--comp-sheet-edge);
+}
+.comp-frontispiece[data-stack="2"] {
+    box-shadow:
+        4px 4px 0 -1px var(--comp-paper), 4px 4px 0 0 var(--comp-sheet-edge),
+        8px 8px 0 -1px var(--comp-paper), 8px 8px 0 0 var(--comp-sheet-edge);
+}
+.comp-frontispiece[data-stack="3"] {
+    box-shadow:
+        4px 4px 0 -1px var(--comp-paper),  4px 4px 0 0 var(--comp-sheet-edge),
+        8px 8px 0 -1px var(--comp-paper),  8px 8px 0 0 var(--comp-sheet-edge),
+        12px 12px 0 -1px var(--comp-paper), 12px 12px 0 0 var(--comp-sheet-edge);
+}
+
+/* Engraver exports are black on white. Multiply drops the white into
+   the sheet in the light theme; in the dark themes the page is inverted
+   and screened, so the paper vanishes into the sheet and the ink comes
+   up at the theme's text tone. An <img> rather than inlined SVG: the
+   first page of a large score is hundreds of kilobytes of paths, which
+   the reader needs live and a thumbnail does not. */
+.comp-frontispiece img {
+    display: block;
+    width: 100%;
+    height: auto;
+    mix-blend-mode: multiply;
+}
+
+[data-theme="dark"] .comp-frontispiece img {
+    filter: invert(1);
+    mix-blend-mode: screen;
+    opacity: 0.8;
+}
+[data-theme="cappuccino"] .comp-frontispiece img {
+    filter: invert(1) sepia(0.45);
+    mix-blend-mode: screen;
+    opacity: 0.82;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .comp-frontispiece img {
+        filter: invert(1);
+        mix-blend-mode: screen;
+        opacity: 0.8;
+    }
+}
+
+.comp-frontispiece:hover {
+    transform: translate(-2px, -3px);
+}
+
+.comp-frontispiece:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 6px;
+}
+
+/* Title block */
+
+#markdownBody.composition .comp-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: clamp(2.2rem, 1.6rem + 2.6vw, 3.6rem);
+    font-weight: 400;
+    line-height: 1.04;
+    letter-spacing: -0.012em;
+    text-align: left;
+    text-wrap: balance;          /* "Symphony / No. 6", never a lone "6" */
+}
+
+#markdownBody.composition .comp-titling p {
+    text-indent: 0;
+}
+
+/* The opus number sits under the title as a score's title page sets it:
+   roman, quieter than the title, ahead of the scoring line. */
+#markdownBody.composition .comp-opus {
+    margin: 0.45rem 0 0;
+    font-size: 1.3rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+    font-variant-numeric: lining-nums;
+}
+
+#markdownBody.composition .comp-opus + .comp-forces {
+    margin-top: 0.1rem;
+}
+
+#markdownBody.composition .comp-forces {
+    margin: 0.5rem 0 0;
+    font-size: 1.3rem;
+    font-style: italic;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+#markdownBody.composition .comp-credit {
+    margin: 2.25rem 0 0;
+    line-height: 1.45;
+}
+
+.comp-composer {
+    display: block;
+    font-size: 1.2rem;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.045em;
+}
+
+.comp-composer a {
+    color: inherit;
+    text-decoration-color: transparent;
+}
+
+.comp-composer a:hover {
+    text-decoration-color: var(--link-hover);
+}
+
+.comp-year {
+    display: block;
+    color: var(--text-muted);
+    font-variant-numeric: oldstyle-nums;
+}
+
+.comp-abstract {
+    margin-top: 1.75rem;
+    max-width: 30rem;
+    font-size: 1.05rem;
+    line-height: 1.55;
+}
+
+/* Duration, dedication, commission, premiere: a small table of facts,
+   labels in italic rather than set apart by capitals or rules. */
+#markdownBody.composition .comp-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 1.1rem;
+    margin: 1.75rem 0 0;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.comp-facts > div {
+    display: contents;
+}
+
+.comp-facts dt {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Spectral's default figures are old-style, and an old-style 11 is
+   two small-cap Is — beside a column of roman numerals, a duration
+   that reads as a movement number. Durations take lining figures. */
+.comp-facts dd {
+    margin: 0;
+    font-variant-numeric: lining-nums;
+}
+
+#markdownBody.composition .comp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem 1.5rem;
+    margin: 2.25rem 0 0;
+}
+
+.comp-read {
+    display: inline-block;
+    padding: 0.5em 1.25em 0.55em;
+    border: 1px solid var(--text);
+    font-size: 1.05rem;
+    color: var(--text);
+    text-decoration: none;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.comp-read:visited {
+    color: var(--text);
+}
+
+.comp-read:hover,
+.comp-read:focus-visible {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.comp-pdf {
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------
+   Recording
+------------------------------------------------------------------ */
+
+.comp-recording {
+    max-width: 38rem;
+    margin: 3.5rem auto 0;
+}
+
+.comp-recording-audio,
+.movement-audio {
+    display: block;
+    width: 100%;
+    accent-color: var(--text-muted);
+}
+
+.movement-audio {
+    height: 2rem;
+    margin: 0.1rem 0 0.6rem 3rem;
+    width: calc(100% - 3rem);
+}
+
+/* ------------------------------------------------------------------
+   Movements — as a programme lists them
+   Numerals hang in their own column; a dotted leader carries the eye
+   to the duration. Each row opens the reader at that movement.
+------------------------------------------------------------------ */
+
+#markdownBody.composition .comp-movements {
+    max-width: 38rem;
+    margin: 4.5rem auto 0;
+    padding: 0;
+    list-style: none;
+}
+
+.comp-mvt-row {
+    display: grid;
+    grid-template-columns: 2.6rem auto minmax(1.5rem, 1fr) auto;
+    align-items: baseline;
+    column-gap: 0.6rem;
+    padding: 0.55rem 0;
+    color: var(--text);
+    text-decoration: none;
+}
+
+a.comp-mvt-row:visited {
+    color: var(--text);
+}
+
+.comp-mvt-num {
+    text-align: right;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+.comp-mvt-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.7rem;
+    min-width: 0;
+    font-size: 1.1rem;
+}
+
+.comp-mvt-tempo {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Title and tempo together: the tempo is the quieter of the two. */
+.comp-mvt-title + .comp-mvt-tempo {
+    font-size: 0.95em;
+}
+
+.comp-mvt-leader {
+    align-self: end;
+    margin-bottom: 0.5em;
+    border-bottom: 1px dotted var(--border-muted);
+    transition: border-color var(--transition-fast);
+}
+
+/* A movement listed but not published: the row stays, quieter, with its
+   status in the duration's place and no leader running to it. */
+.comp-mvt--listed .comp-mvt-name,
+.comp-mvt--listed .comp-mvt-num {
+    color: var(--text-muted);
+}
+
+.comp-mvt--listed .comp-mvt-leader {
+    border-bottom-color: transparent;
+}
+
+.comp-mvt-status {
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.comp-mvt-dur {
+    font-size: 1.1rem;
+    font-variant-numeric: lining-nums;
+    white-space: nowrap;
+}
+
+a.comp-mvt-row:hover .comp-mvt-name,
+a.comp-mvt-row:focus-visible .comp-mvt-name {
+    text-decoration: underline;
+    text-decoration-color: var(--link-hover);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+}
+
+a.comp-mvt-row:hover .comp-mvt-leader,
+a.comp-mvt-row:focus-visible .comp-mvt-leader {
+    border-bottom-color: var(--text);
+}
+
+/* ------------------------------------------------------------------
+   Programme notes and scoring
+------------------------------------------------------------------ */
+
+.composition .content-divider {
+    margin-top: 4rem;
+}
+
+.comp-notes {
+    max-width: 38rem;
+    margin: 0 auto;
+}
+
+#markdownBody.composition .comp-scoring {
+    max-width: 38rem;
+    margin: 4.5rem auto 0;
+}
+
+#markdownBody.composition .comp-scoring-heading {
+    margin: 0 0 1.25rem;
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-style: italic;
+    font-weight: 400;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* One line per family, as a programme lists the orchestra — woodwinds,
+   brass, percussion, strings — so a section never splits across a
+   column break. Centred, like the verso of a title page. */
+#markdownBody.composition .comp-scoring-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 1.02rem;
+    line-height: 1.6;
+    text-align: center;
+    text-wrap: balance;
+    hyphens: manual;             /* "clar-inet" is not a line break */
+}
+
+.comp-scoring-list li + li {
+    margin-top: 0.5rem;
+}
+
+/* ------------------------------------------------------------------
+   Narrow screens: the title block leads, the page follows at a size
+   that still reads as a score rather than a stamp.
+------------------------------------------------------------------ */
+
+@media (max-width: 680px) {
+    .page-shell > #markdownBody.composition {
+        padding-top: 2rem;
+    }
+
+    .comp-head--with-score {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2.25rem;
+    }
+
+    .comp-head--with-score .comp-frontispiece {
+        order: 2;
+        width: min(15rem, 72%);
+    }
+
+    #markdownBody.composition .comp-movements {
+        margin-top: 3.5rem;
+    }
+
+    .comp-mvt-row {
+        grid-template-columns: 2.2rem auto minmax(1rem, 1fr) auto;
+    }
+
+    .movement-audio {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .comp-frontispiece {
+        transition: none;
+    }
+    .comp-frontispiece:hover {
+        transform: none;
+    }
+}

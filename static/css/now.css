@@ -1,0 +1,208 @@
+/* now.css — /current.html.
+ *
+ * The Now page is a research-first status surface curated like the
+ * Library, with explicit per-item temporality. It composes on top of
+ * item-card.css (gated separately in head.html via $if(now)$) and
+ * library.css's section primitives are deliberately not pulled in —
+ * Now uses its own header treatment without dingbats or shelf
+ * dividers, since sections here are project-states rather than
+ * content shelves.
+ */
+
+/* ============================================================
+   PAGE-LEVEL "LAST UPDATED" MASTHEAD
+   Title leads, date follows in display-weight Spectral italic.
+   Descending visual hierarchy — BIG sans title → medium serif
+   italic date → tiny italic relative. The date carries enough
+   typographic weight to be the page's thesis without competing
+   with the title for the "what page is this" anchor.
+   ============================================================ */
+
+.now-header {
+    margin-bottom: 3rem;
+}
+
+/* The page title remains the primary anchor — sized & weighted
+   by .page-title in components.css. Generous bottom margin gives
+   the masthead-date its own breathing room below. */
+.now-header .page-title {
+    margin-top: 0;
+    margin-bottom: 1.1rem;
+}
+
+.now-stamp {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    line-height: 1.15;
+}
+
+.now-stamp-label {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant: all-small-caps;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+}
+
+/* The masthead datum. Spectral italic at ~1.85rem so it carries
+   presence as the page's thesis without competing with the
+   2.6rem sans title above it. Old-style numerals keep the
+   literary register; tabular-nums stay aligned if the day
+   width changes. */
+.now-stamp-date {
+    font-family: var(--font-serif);
+    font-size: 1.85rem;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.1;
+    margin-top: 0.05rem;
+    font-feature-settings: "onum" 1, "tnum" 1;
+}
+
+/* Small italic footer line under the masthead — qualifies
+   the absolute date with a human-readable "how recent." */
+.now-stamp-relative {
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    font-style: italic;
+    color: var(--text-faint);
+    margin-top: 0.3rem;
+}
+
+/* ============================================================
+   INTRO PROSE
+   Optional body content from current.md, rendered between the
+   stamp and the first section. Sits in normal page measure; no
+   drop cap, no special treatment.
+   ============================================================ */
+
+.now-intro {
+    margin: 0 0 2.5rem;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.now-intro p:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================================
+   SECTION HEADINGS
+   Spectral small-caps in a quieter accent than library shelves.
+   No ornaments — sections are project-states, not content shelves,
+   and shouldn't carry the same identity weight.
+   ============================================================ */
+
+.now-section {
+    margin-bottom: 2.75rem;
+}
+
+.now-section-heading {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    text-transform: none;
+    font-weight: 400;
+    margin: 0 0 0.85rem 0;
+}
+
+/* The recently-shipped section uses a slightly fainter heading +
+   a thin top divider to separate it visually from active work. */
+.now-section--shipped {
+    margin-top: 3.5rem;
+    padding-top: 2.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.now-section--shipped .now-section-heading {
+    color: var(--text-faint);
+    font-style: italic;
+    letter-spacing: 0.11em;
+}
+
+/* ============================================================
+   STATUS CHIP
+   Replaces the kind badge slot in item-card. Same min-width as
+   .item-card-kind so titles align across active and shipped
+   sections. Tabular sans-caps, very low-contrast frame.
+   ============================================================ */
+
+.now-card .now-kind {
+    /* Override item-card-kind text-only treatment with chip layout */
+    display: flex;
+    align-items: flex-start;
+    margin-top: 0.25em;
+}
+
+.now-status {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: 0.66rem;
+    font-variant: all-small-caps;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0.32em 0.55em 0.28em;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+    background: transparent;
+    white-space: nowrap;
+}
+
+/* Per-status accents — each is intentionally restrained. Active
+   states (in-review, drafting, building) get slightly stronger
+   ink; passive states (paused, shipped) recede. "accepted" is the
+   one affirmative state — full ink and a solid, confident border. */
+.now-status--accepted  { color: var(--text); border-color: var(--text); font-weight: 600; }
+.now-status--in-review { color: var(--text); border-color: var(--text-muted); }
+.now-status--revising  { color: var(--text); border-color: var(--text-muted); }
+.now-status--drafting   { color: var(--text); }
+.now-status--building   { color: var(--text); }
+.now-status--early-stage { color: var(--text-muted); border-style: dashed; }
+/* A02: `opacity: 0.75` here (and 0.92 on .now-card--shipped below) was
+   applied to text, which multiplies straight through the contrast
+   calculation: --text-faint at 5.07:1 arrived on the page at 3.07:1.
+   The recession these states want is carried by the dashed border and
+   the faint ink alone — both of which survive a contrast check. */
+.now-status--paused     { color: var(--text-faint); border-style: dashed; }
+.now-status--shipped    { color: var(--text-faint); border-color: var(--text-faint); }
+
+.now-card--shipped {
+    /* See the note on .now-status--paused: text opacity cannot be used to
+       recede a card without taking its contrast down with it. The shipped
+       chip's faint ink and border already read as past-tense. */
+    border-bottom-style: dashed;
+}
+
+/* ============================================================
+   MOBILE
+   Mirror item-card.css's mobile rules for header stacking,
+   then shrink the chip column so titles get real room.
+   ============================================================ */
+
+@media (max-width: 540px) {
+    .now-card .now-kind {
+        margin-top: 0;
+    }
+
+    .now-status {
+        font-size: 0.62rem;
+        padding: 0.28em 0.45em 0.24em;
+    }
+
+    .now-stamp-date {
+        font-size: 1.55rem;
+    }
+
+    .now-stamp-relative {
+        font-size: 0.88rem;
+    }
+}

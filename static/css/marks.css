@@ -1,0 +1,285 @@
+/* ============================================================
+   FRONTMATTER MARKS — monogram + epistemic figure
+   See MARKS.md for the full specification.
+
+   The header is a three-column grid sitting above the
+   cursive-L `content-divider`. Either or both mark columns
+   may be absent; the grid collapses cleanly because empty
+   columns size to zero (the conditional template guards
+   suppress the slot div entirely when its SVG is empty).
+   ============================================================ */
+
+/* Three-column grid spanning the full viewport width:
+     [ monogram ]   [ title block — 1fr ]   [ epistemic figure ]
+   The header lives outside #content so the grid stretches
+   edge-to-edge; the side columns are pinned to the same
+   `clamp()` width as the marks themselves so the middle
+   column stays symmetric in the viewport even when only one
+   slot has content (e.g. essays without status: render only
+   the monogram, but the right column still reserves its
+   width — without this, the title block would centre in an
+   off-axis 1fr cell and visibly slide right). The padding
+   mirrors #content's `2rem var(--page-padding)` so the
+   header aligns with the body below. */
+.essay-frontmatter {
+    display: grid;
+    grid-template-columns:
+        clamp(170px, 17vw, 280px)
+        minmax(0, 1fr)
+        clamp(170px, 17vw, 280px);
+    column-gap: clamp(0.75rem, 2vw, 1.75rem);
+    row-gap: 0.75rem;
+    align-items: center;
+    padding: 2rem var(--page-padding);
+    width: 100%;
+}
+
+/* Reading variant (poetry / fiction) and blog variant share the
+   same grid; declared explicitly so future tweaks can diverge. */
+.essay-frontmatter--reading,
+.essay-frontmatter--blog {
+    grid-template-columns:
+        clamp(170px, 17vw, 280px)
+        minmax(0, 1fr)
+        clamp(170px, 17vw, 280px);
+}
+
+/* Title block: centred in its grid column, capped to roughly
+   the body column's measure so prose lines stay readable on
+   ultrawide viewports. `justify-self: center` is the explicit
+   override of grid items' default `stretch`; without it auto
+   margins do not centre because the item is already filling
+   the cell at max-width. */
+.frontmatter-title {
+    min-width: 0;
+    width: 100%;
+    max-width: var(--body-max-width);
+    justify-self: center;
+    text-align: center;
+}
+
+.frontmatter-title > .page-title {
+    margin-bottom: 0.25rem;
+}
+
+/* Abstract paragraph reads better left-aligned even inside a
+   centred title block — multi-line prose with ragged-right
+   on a centred axis becomes hard to track. */
+.frontmatter-title .meta-description {
+    text-align: left;
+}
+
+/* Compact-strip chips sit comfortably wider than the abstract;
+   centre them so the row balances visually under the title. */
+.frontmatter-title .meta-epistemic-strip {
+    justify-content: center;
+}
+
+/* Tailmatter: the body-level wrapper that hosts the metadata-tail
+   row (tags + keywords + affiliation + pagelinks). Constrained to
+   the body column's measure and centred so its contents read at the
+   same width they did before the layout split, while sitting
+   *above* #content so the TOC sidebar starts right under the
+   frontmatter divider rather than competing with it for the top
+   of the page. */
+.essay-tailmatter {
+    width: min(var(--body-max-width), 100%);
+    margin: 0 auto;
+    padding: 0 var(--page-padding);
+    box-sizing: border-box;
+}
+
+/* The cursive-L frontmatter divider runs edge-to-edge of the
+   viewport — the dashed lines on either side of the L use the
+   existing `flex: 1` rule on `.content-divider::before` and
+   `::after` to fill whatever container they sit inside, so as a
+   body-level child the divider naturally spans the full page
+   width. The page-padding keeps the dashes off the literal edge
+   while still reading as a full-width separator. */
+.content-divider--frontmatter {
+    padding: 0 var(--page-padding);
+    box-sizing: border-box;
+}
+
+/* Monogram placeholder (rendered when no mark.svg exists for the
+   piece — see Marks.monogramPlaceholder). Lower opacity so it reads
+   as a neutral frame, balancing the epistemic-figure column without
+   being mistaken for an authored glyph. */
+.frontmatter-mark--placeholder svg {
+    opacity: 0.35;
+}
+
+/* Subtitle: a short secondary line, lighter than the H1, never
+   competing with it. Kept restrained so existing essays without
+   a subtitle render unchanged. */
+.essay-subtitle {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--text-muted);
+    margin: 0 0 0.75rem 0;
+    line-height: 1.35;
+}
+
+/* Mark slot: a column wrapper that hosts the monogram or the
+   epistemic figure. The slot itself is a plain block; the SVG
+   inside controls its dimensions. line-height: 0 suppresses the
+   baseline descender gap that would otherwise add a few pixels
+   below the figure. */
+.frontmatter-mark-slot {
+    line-height: 0;
+}
+
+/* The mark itself: a <figure> wrapping the inlined SVG. Two
+   inherited styles need to be overridden:
+     – `figure { margin: 2rem 0; max-width: 100% }` in images.css
+       (otherwise vertical margin pushes the mark off-grid).
+     – `#markdownBody figure { background, padding, border,
+       border-radius, box-shadow }` in typography.css (the
+       card-style chrome that wraps inline body figures with
+       a subtle paper-edge effect — not what we want for a
+       frontispiece glyph that should sit seamlessly on the
+       page background).
+   The `#markdownBody` prefix on the second rule has higher
+   specificity than a plain `.frontmatter-mark`, so we match
+   that prefix here too. */
+.frontmatter-mark,
+#markdownBody .frontmatter-mark {
+    margin: 0;
+    padding: 0;
+    max-width: none;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--text);
+}
+
+/* Frontmatter header context: scale with viewport. 170 px floor on
+   narrow desktops, 280 px cap on ultrawide displays (matches the
+   monogram viewBox so the placeholder roundel reaches its native
+   edge). 17vw is the slope between the two — at ~1000 px it equals
+   the floor, at ~1650 px it equals the cap. */
+.essay-frontmatter .frontmatter-mark {
+    width:  clamp(170px, 17vw, 280px);
+    height: clamp(170px, 17vw, 280px);
+}
+
+/* Item-card context: small inline glyph beside the kind badge.
+   Sized to read as a marker, not a competing figure. */
+.item-card-monogram {
+    flex-shrink: 0;
+    line-height: 0;
+    color: var(--text-muted);
+    margin-top: 0.15em;
+}
+
+.item-card-monogram .frontmatter-mark {
+    width: 72px;
+    height: 72px;
+}
+
+/* SVG fills its parent figure exactly. !important defeats the
+   global `img, video, svg { max-width: 100%; height: auto }` in
+   base.css for our specific case (which would otherwise leave the
+   figure as a tall, narrow strip when the column is grid-auto'd). */
+.frontmatter-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: inherit;
+}
+
+/* Epistemic figure inside an anchor: the anchor inherits color
+   from the slot (so currentColor in the SVG resolves to --text)
+   and stays inline-block so it doesn't pick up underline / link
+   chrome from the surrounding prose styles. */
+.frontmatter-mark-slot--right > a {
+    display: inline-block;
+    color: inherit;
+    text-decoration: none;
+    line-height: 0;
+}
+
+/* ============================================================
+   COMPACT-STRIP CHIP ADDITIONS
+   ============================================================ */
+
+/* Inline trend arrow (↑ ↓ →) appended to the confidence percentage.
+   No leading separator — sits flush against the value it modifies. */
+.ep-trend {
+    display: inline-block;
+    margin-left: 0.15em;
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    vertical-align: 0.05em;
+}
+.ep-row .ep-trend::before { content: none; }
+
+/* Peer-status chip — same typography as .ep-status, distinct
+   data-term so future revisions can style it differently. */
+.ep-peer-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.ep-peer-status::before {
+    content: "·\00a0";
+    color: var(--border);
+}
+
+/* Retracted: strikethrough across the chip text — the spec's
+   §4.1 visual marker for a retracted piece. */
+.ep-peer-status--retracted {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+/* Proved-confidence variant: same row typography, italic to
+   differentiate from a numeric XX% confidence chip. */
+.ep-row--proved {
+    font-style: italic;
+}
+
+/* ============================================================
+   MOBILE / NARROW SCREENS
+   Stack the marks above and below the title at the same
+   breakpoint where the TOC sidebar collapses (900px), and
+   shrink the SVGs at the mobile breakpoint (680px) per
+   MARKS.md §3.3 (170px desktop → 130px mobile).
+   ============================================================ */
+
+@media (max-width: 900px) {
+    .essay-frontmatter {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+    }
+    .frontmatter-mark-slot--left  { order: 0; }
+    .frontmatter-title            { order: 1; }
+    .frontmatter-mark-slot--right { order: 2; }
+    .frontmatter-title { text-align: center; }
+}
+
+@media (max-width: 680px) {
+    .frontmatter-mark {
+        width: 130px;
+        height: 130px;
+    }
+}
+
+/* ============================================================
+   FOCUS MODE
+   The Display panel's focus mode (toggled via the
+   data-focus-mode attribute on <html>, see settings.js)
+   suppresses marks alongside the TOC and other chrome.
+   ============================================================ */
+[data-focus-mode] .frontmatter-mark,
+[data-focus-mode] .frontmatter-mark-slot {
+    display: none;
+}
+[data-focus-mode] .essay-frontmatter {
+    grid-template-columns: minmax(0, 1fr);
+}

@@ -1,0 +1,395 @@
+/* work.css — /work.html, the professional front door.
+ *
+ * This page has a different job from every other surface on the site. Vita
+ * and the project index are RECORD pages: generated from the CV data, complete,
+ * and unranked. Work is an ARGUMENT page — hand-written, deliberately partial,
+ * and ordered. Four entries carry it, and a reader must be able to tell within
+ * a screen what the claim is and where the evidence lives.
+ *
+ * SPECIFICITY NOTE. Every selector below is prefixed with #markdownBody for the
+ * same reason vita.css does it: typography.css owns the prose surface through
+ * #markdownBody (1,0,1), including :is(h1..h6) at display sizes and the 1.5em
+ * text-indent on `p + p` that essay prose relies on. A bare .work-entry (0,1,0)
+ * loses to that regardless of load order — entry headings would render at essay
+ * scale and every second paragraph inside a card would sit indented like
+ * running prose. The prefix is load-bearing, not habit.
+ */
+
+/* ============================================================
+   HEADER
+   page.html emits <h1 class="page-title">$title$</h1> from the
+   frontmatter, which is "Work" — correct for the nav label and
+   the <title> tag, but a weak thing to lead with on a page people
+   land on cold from an application link with no context. So the
+   h1 demotes to a small-caps eyebrow and the name below it takes
+   the display slot, which is what every research page worth
+   copying does. The h1 keeps its text and its place in the
+   document outline; only its visual weight changes.
+   ============================================================ */
+
+#markdownBody .page-title {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.12em;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+#markdownBody .work-name {
+    margin: 0 0 0.9rem;
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+#markdownBody .work-name p {
+    margin: 0;
+    text-indent: 0;
+}
+
+/* ============================================================
+   LEDE
+   Identity and availability, above the fold. Serif, slightly
+   larger than body, and never indented — this is the 15-second
+   read and it must not look like the start of an essay.
+   ============================================================ */
+
+#markdownBody .work-lede {
+    margin: 0 0 1.5rem;
+    font-family: var(--font-serif);
+    font-size: 1.02rem;
+    line-height: 1.55;
+}
+
+#markdownBody .work-lede p {
+    margin: 0 0 0.75rem;
+    text-indent: 0;
+}
+
+#markdownBody .work-lede p:last-child {
+    margin-bottom: 0;
+}
+
+/* The availability line is the one piece of this page that a recruiter must
+   not be able to miss, so it gets a rule and the UI face rather than serif. */
+#markdownBody .work-lede p:last-child strong {
+    display: block;
+    margin-top: 1.15rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   LINK ROW
+   Primary destinations. Monospace to read as apparatus rather
+   than prose, and wrapped so it degrades to two lines on phones
+   instead of overflowing.
+   ============================================================ */
+
+#markdownBody .work-links {
+    margin: 0 0 1.9rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.8;
+}
+
+#markdownBody .work-links p {
+    margin: 0;
+    text-indent: 0;
+}
+
+/* ============================================================
+   SECTION HEADINGS
+   Borrowed from library.css's shelf headings: serif small-caps,
+   letterspaced, set at body scale rather than display scale.
+   The library uses this to get a fine-press feel; here it does
+   the same job while staying quieter than typography.css's
+   default h2, which lands at display size with 2.475rem margins
+   and would shout on a page whose whole argument is restraint.
+   The library's warm accent palette is deliberately NOT carried
+   over — a professional front door wants the typographic idiom
+   without the decoration.
+   ============================================================ */
+
+#markdownBody h2 {
+    margin: 0 0 1.1rem;
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* ============================================================
+   THESIS
+   The position statement. Every strong research page consulted
+   (Crichton's "My angle", Shriram's "My Focus") states one
+   before listing artifacts; without it four projects read as
+   four hobbies rather than one direction. Set at lede scale so
+   it carries weight, with the opening question emphasized.
+   ============================================================ */
+
+/* Deliberately NO left rule here, unlike .work-entry. The rule is the
+   device that marks a project card; wearing it would make the page's
+   central claim read as a fifth entry rather than the frame the other
+   four sit inside. */
+#markdownBody .work-thesis {
+    margin: 0 0 2.5rem;
+    font-family: var(--font-serif);
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+
+#markdownBody .work-thesis p {
+    margin: 0 0 0.8rem;
+    text-indent: 0;
+}
+
+/* The section now follows the evidence rather than introducing it, so it reads
+   synthesis-first and lands on the question. Emphasis moves with that: the
+   opening paragraph ties the four entries together in the body voice, and the
+   closing question carries the italic. */
+#markdownBody .work-thesis p:first-child {
+    color: var(--text-muted);
+}
+
+#markdownBody .work-thesis p:last-child {
+    margin-bottom: 0;
+    font-style: italic;
+    color: var(--text);
+}
+
+/* ============================================================
+   ENTRIES
+   One per flagship project. The left rule is the only ornament:
+   it groups the heading, prose, limitation, and links into a
+   single scannable block without drawing a box around them.
+   ============================================================ */
+
+#markdownBody .work-entry {
+    margin: 0 0 1.7rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--border);
+}
+
+#markdownBody .work-entry:hover {
+    border-left-color: var(--border-muted);
+    transition: border-color var(--transition-fast);
+}
+
+#markdownBody .work-entry h3 {
+    margin: 0 0 0.2rem;
+    font-family: var(--font-serif);
+    font-size: 1.14rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+}
+
+#markdownBody .work-entry p {
+    margin: 0 0 0.6rem;
+    text-indent: 0;
+}
+
+/* A title links to its canonical write-up where one exists — the entry-links row
+   sits below the limitation block, so a reader who bounces early never reaches
+   it, and the heading is the one element everyone reads. Styled to stay a
+   heading first: typography.css underlines links site-wide, which at 1.14rem
+   serif reads as a mistake, so the underline is deferred to hover and the color
+   never changes. Entries without a write-up keep a plain heading, which is why
+   this reads as a system rather than one link that got away. */
+#markdownBody .work-entry h3 a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast);
+}
+
+#markdownBody .work-entry h3 a:hover,
+#markdownBody .work-entry h3 a:focus-visible {
+    border-bottom-color: var(--link-underline);
+}
+
+/* The build's link decorator appends a 0.75em icon to every classified link,
+   which is right in prose — it tells a reader where a link goes before they
+   follow it. In a title it is noise: the icon scales with the heading, so it
+   lands near 0.85rem, and no other heading on this page carries one. The
+   destination is already implied by the title itself. */
+#markdownBody .work-entry h3 a[data-link-icon-type="svg"]::after {
+    content: none;
+}
+
+/* Affiliation / status line under the entry title. */
+#markdownBody .work-meta {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+#markdownBody .work-meta p {
+    margin: 0;
+    text-indent: 0;
+}
+
+/* ============================================================
+   LIMITATIONS
+   Every entry carries one. This is a credibility device, not a
+   disclaimer to bury — it is set on the offset ground so a
+   skeptical reader finds it without hunting, but stays quieter
+   than the claim it qualifies.
+   ============================================================ */
+
+#markdownBody .work-limit {
+    margin: 0 0 0.6rem;
+    padding: 0;
+    background: none;
+    border-left: none;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-faint);
+}
+
+#markdownBody .work-limit p {
+    margin: 0;
+    text-indent: 0;
+}
+
+#markdownBody .work-limit strong {
+    color: var(--text);
+}
+
+/* ============================================================
+   ENTRY LINKS
+   Evidence for the entry directly above. Monospace, matching the
+   top link row, so "where the proof is" reads consistently.
+   ============================================================ */
+
+#markdownBody .work-entry-links {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    line-height: 1.8;
+}
+
+#markdownBody .work-entry-links p {
+    margin: 0;
+    text-indent: 0;
+}
+
+/* ============================================================
+   MORE WORK
+   Breadth, below depth. Each bucket is one paragraph with a bold
+   lead-in; no rules and no cards, so it stays visibly subordinate
+   to the four entries above.
+   ============================================================ */
+
+#markdownBody .work-more {
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+/* Bucket labels. Same small-caps idiom as the h2s but a step down,
+   so the four buckets read as subordinate to "More work" itself. */
+#markdownBody .work-more h3 {
+    margin: 1.6rem 0 0.5rem;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.07em;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+#markdownBody .work-more h3:first-child {
+    margin-top: 0;
+}
+
+/* Title — one-phrase description, after Matuschak. The em-dash split
+   does the work a paragraph was doing before, in a fifth of the height. */
+#markdownBody .work-more ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    list-style: none;
+}
+
+#markdownBody .work-more li {
+    margin: 0 0 0.3rem;
+    text-indent: -1.1rem;
+    padding-left: 1.1rem;
+    color: var(--text-muted);
+}
+
+#markdownBody .work-more li::before {
+    content: "·";
+    display: inline-block;
+    width: 1.1rem;
+    margin-left: -1.1rem;
+    color: var(--text-faint);
+}
+
+#markdownBody .work-more li a {
+    color: var(--text);
+}
+
+/* ============================================================
+   NARROW SCREENS
+   Below the tablet breakpoint the left rules cost more in
+   horizontal space than they return in grouping, so they thin
+   out and the indent collapses.
+   ============================================================ */
+
+@media (max-width: 680px) {
+    #markdownBody .work-entry {
+        padding-left: 0.85rem;
+    }
+
+    #markdownBody .work-links,
+    #markdownBody .work-entry-links {
+        font-size: 0.72rem;
+    }
+
+    #markdownBody .work-lede {
+        font-size: 1rem;
+    }
+
+    #markdownBody .work-name {
+        font-size: 1.6rem;
+    }
+}
+
+/* Print: the page is a plausible thing to hand to someone on paper, so drop
+   the interactive ornament and let the offset grounds go white. */
+@media print {
+    #markdownBody .work-entry,
+    #markdownBody .work-limit {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    /* Entry links stay visible on paper — the URLs are the evidence, and a
+       printed copy is worth less without them. */
+    #markdownBody .work-entry-links a::after {
+        content: " (" attr(href) ")";
+        font-size: 0.85em;
+        color: #555;
+    }
+}

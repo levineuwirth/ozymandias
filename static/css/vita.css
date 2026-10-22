@@ -1,0 +1,326 @@
+/* vita.css — /about.html and /cv/projects/.
+ *
+ * The vita is a record surface. Where Now answers "what is moving right
+ * now" with a status chip per item, the vita answers "what is on file" and
+ * carries no temporality beyond the dates themselves — so it borrows
+ * item-card.css's card rhythm and now.css's section headings, but drops the
+ * badge column entirely. Entries here have no state to report.
+ *
+ * SPECIFICITY NOTE. Almost every selector below is prefixed with
+ * #markdownBody, and that is load-bearing rather than habit. typography.css
+ * styles the prose surface through #markdownBody (1,0,1) — including
+ * `:is(h1..h6)` at display sizes with 2.475rem margins, and a 1.5em
+ * text-indent on `p + p` for essay prose. A bare `.vita-entry-title` (0,1,0)
+ * loses to those no matter what order the stylesheets load in, which is
+ * exactly what went wrong the first time: entry titles rendered at 1.45rem
+ * sans with heading margins, and every second paragraph in a card sat
+ * indented like a continuation of running prose.
+ *
+ * Now sidesteps this by never using heading elements inside its cards. The
+ * vita keeps them — a record page wants a real document outline for anyone
+ * navigating by heading — and pays for them with specificity instead.
+ */
+
+/* ============================================================
+   INTRO PROSE
+   Body content from the markdown — pointers and the research
+   threads on /about, the framing note on the project index.
+   Mirrors .now-intro so the data-driven pages open alike.
+   ============================================================ */
+
+#markdownBody .vita-intro {
+    margin: 0 0 2.75rem;
+    font-family: var(--font-serif);
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+#markdownBody .vita-intro h2 {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin: 1.9rem 0 0.5rem;
+}
+
+#markdownBody .vita-intro > p:first-of-type {
+    margin-top: 0;
+}
+
+/* The intro is a framing note, not running prose, so it opts out of the
+   essay indent on consecutive paragraphs too. Two short paragraphs where
+   the second starts 1.5em in reads as a mistake rather than a convention. */
+#markdownBody .vita-intro p {
+    text-indent: 0;
+}
+
+/* ============================================================
+   SECTIONS
+   Identical treatment to .now-section — same size, tracking and
+   ink — because the two pages are siblings and a reader moving
+   between them should not have to re-learn the hierarchy.
+   ============================================================ */
+
+#markdownBody .vita-section {
+    margin: 0 0 2.5rem;
+}
+
+#markdownBody .vita-section-heading {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    text-transform: none;
+    font-weight: 400;
+    margin: 0 0 0.7rem 0;
+    line-height: 1.3;
+}
+
+/* ============================================================
+   ENTRIES
+   .vita-card composes on .item-card, which is a flex row sized
+   for a badge column. The vita emits no badge, so the single
+   .item-card-main child takes the full width.
+   ============================================================ */
+
+#markdownBody .vita-card {
+    padding: 0.8rem 0;
+}
+
+/* Kill the prose indent inside cards outright. Card paragraphs are
+   labelled data — a role, a venue, an author list — not successive
+   paragraphs of an essay, and the 1.5em indent reads as damage. */
+#markdownBody .vita-card p {
+    text-indent: 0;
+    margin: 0;
+}
+
+/* The title. Serif at body size, matching .item-card-title rather than any
+   heading step: these are list entries that happen to be headings for
+   outline purposes, not section openers. */
+#markdownBody .vita-entry-title {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text);
+    margin: 0;
+    font-feature-settings: normal;
+}
+
+#markdownBody .vita-entry-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+#markdownBody .vita-entry-title a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+/* Role, degree, position — and any secondary facts hung off it. Serif and
+   roman: the size step down from the title and the muted ink already
+   separate the two, so italic was doing no work the hierarchy needed and
+   read as emphasis on a line that is only labelling. */
+#markdownBody .vita-role {
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    margin: 0.1rem 0 0;
+    line-height: 1.45;
+}
+
+/* Location and GPA trail the role in a fainter ink so the role still
+   leads the line. */
+#markdownBody .vita-quiet {
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+}
+
+#markdownBody .vita-quiet a.vita-location {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+    transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
+}
+
+#markdownBody .vita-quiet a.vita-location:hover {
+    color: var(--text-muted);
+    text-decoration-color: var(--border-muted);
+}
+
+/* Author lists run long and are reference material rather than reading
+   material — sans, small, muted, tight. */
+#markdownBody .vita-authors {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0.25rem 0 0;
+    line-height: 1.45;
+}
+
+/* Venue: journal, conference, or publication state. Deliberately roman.
+   Citation convention italicizes journal and book titles but not conference
+   names or status words, and publications.yml already marks the journal
+   names it wants italic (\textit{Journal of the American Medical
+   Informatics Association}). Setting the whole line italic flattened that
+   — italic nested in italic reads as nothing — and put "Preprint" in a
+   register reserved for titles. Roman here lets the data carry the emphasis
+   where it belongs. */
+#markdownBody .vita-venue {
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0.1rem 0 0;
+    line-height: 1.45;
+}
+
+#markdownBody .vita-venue em {
+    font-style: italic;
+}
+
+/* Presentation state ("Presented", "Accepted"). Sits at the end of the
+   venue line as small-caps text rather than a bordered chip — a frame
+   here would compete with the link chips below it. */
+#markdownBody .vita-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+}
+
+#markdownBody .vita-status::before {
+    content: " · ";
+}
+
+/* Preamble, notes, project descriptions — the connective prose. Same
+   register as .item-card-abstract.is-full, unclamped. */
+#markdownBody .vita-note {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    margin: 0.4rem 0 0;
+    line-height: 1.55;
+}
+
+#markdownBody .vita-bullets {
+    margin: 0.4rem 0 0;
+    padding-left: 0.85rem;
+    list-style: none;
+}
+
+#markdownBody .vita-bullets li {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin: 0.25rem 0 0;
+    position: relative;
+}
+
+/* Hairline dash rather than a bullet glyph: these are claims, not an
+   enumerated sequence, and a disc would assert more structure than the
+   content has. */
+#markdownBody .vita-bullets li::before {
+    content: "";
+    position: absolute;
+    left: -0.85rem;
+    top: 0.7em;
+    width: 0.4rem;
+    height: 1px;
+    background: var(--border-muted);
+}
+
+/* ============================================================
+   LINK CHIPS
+   The page's one interactive surface, and the reason a vita on
+   the web beats a vita on paper. Geometry is lifted from
+   .now-status so the shape is already familiar from /current;
+   the difference is that these are links, and respond.
+   ============================================================ */
+
+#markdownBody .vita-links {
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+#markdownBody .vita-chip {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: 0.66rem;
+    font-variant: all-small-caps;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: 0.32em 0.55em 0.28em;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+    background: transparent;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+        color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+#markdownBody .vita-chip:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+#markdownBody .vita-chip:focus-visible {
+    outline: 2px solid var(--text-muted);
+    outline-offset: 2px;
+}
+
+/* The equal-contribution legend. Belongs to the section rather than to
+   any one entry, so it sits below the list in the faintest register. */
+#markdownBody .vita-footnote {
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--text-faint);
+    margin: 0.8rem 0 0;
+    text-indent: 0;
+}
+
+/* ============================================================
+   MOBILE (≤540px)
+   item-card.css already stacks .item-card-header and drops the
+   date below the title at this width, so only the type steps.
+   ============================================================ */
+
+@media (max-width: 540px) {
+    #markdownBody .vita-entry-title {
+        font-size: 0.95rem;
+        overflow-wrap: anywhere;
+    }
+
+    #markdownBody .vita-role,
+    #markdownBody .vita-venue {
+        font-size: 0.88rem;
+    }
+
+    #markdownBody .vita-chip {
+        font-size: 0.62rem;
+        padding: 0.28em 0.45em 0.24em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #markdownBody .vita-chip,
+    #markdownBody .vita-quiet a.vita-location {
+        transition: none;
+    }
+}

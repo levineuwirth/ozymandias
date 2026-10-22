@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <style>
+    :root { --ink:#222; --bg:#fff; }
+    @media (prefers-color-scheme: dark) { :root { --ink:#eee; --bg:#111; } }
+  </style>
+  <circle cx="12" cy="12" r="9" fill="var(--ink)"/>
+  <circle cx="12" cy="12" r="4" fill="var(--bg)"/>
+</svg>

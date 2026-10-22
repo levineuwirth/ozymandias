@@ -1,0 +1,2247 @@
+/* components.css — Nav, TOC, metadata block, page footer.
+   Loaded on every page. */
+
+/* ============================================================
+   SKIP LINK
+   ============================================================ */
+
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    z-index: 9999;
+    padding: 0.5em 1em;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* ============================================================
+   NAV
+   Two-row: primary links (always visible) + portal links
+   (collapsed by default, expanded via nav.js + localStorage).
+   ============================================================ */
+
+/* The nav is a size container so its layout can switch on its own width
+   in rem. A media query's rem is the browser default and ignores the
+   Text size setting; a container query's rem follows the root, so the
+   wrap points below scale with the text. */
+nav.site-nav {
+    container: site-nav / inline-size;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    font-family: var(--font-sans);
+}
+
+/* Row 1: centered primary links + right-side controls.
+   The side padding reserves room for the absolutely positioned logo
+   (left) and controls (right): the controls are about 4.9rem wide plus
+   their 1.25rem offset. Equal on both sides, so the links stay centred
+   on the page. */
+.nav-row-primary {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.65rem 6.75rem;
+}
+
+.nav-primary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.06em;
+}
+
+.nav-primary a {
+    text-decoration: none;
+    color: var(--text-muted);
+    padding: 0.15rem 0.85rem;
+    transition: color var(--transition-fast);
+}
+
+.nav-primary a:hover {
+    color: var(--text);
+}
+
+.nav-primary a + a {
+    border-left: 1px solid var(--border);
+}
+
+/* Home logo — square button flush into the top-left corner of the nav bar.
+   The rooted-L mark lives in /logo-sprite.svg and is referenced with
+   <use> (cacheable once, not ~33 KB inlined per page). Its two-tone
+   cutout still renders because CSS custom properties cascade into the
+   use-element shadow tree: the letter is drawn in --logo-ink and the
+   root filament is punched through in --logo-bg. Mapping --logo-bg to
+   --bg-nav (the button's own surface) makes the roots read as the nav
+   background showing through. Both tokens are theme-driven in
+   base.css — override --nav-logo-fg / --bg-nav there to restyle per
+   theme. */
+.nav-logo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    text-decoration: none;
+    background-color: var(--bg-nav);
+    --logo-ink: var(--nav-logo-fg);
+    --logo-bg: var(--bg-nav);
+}
+.nav-logo__mark {
+    width: 76%;
+    height: 76%;
+    display: block;
+}
+
+/* Controls cluster: portals toggle + theme toggle, pinned right */
+.nav-controls {
+    position: absolute;
+    right: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-portal-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+}
+.nav-portal-toggle:hover {
+    color: var(--text-muted);
+}
+
+.nav-portal-arrow {
+    font-size: 0.6rem;
+    display: inline-block;
+    margin-right: 0.2em;
+    vertical-align: middle;
+}
+
+/* Settings button + panel */
+.settings-wrap {
+    position: relative;
+}
+
+.settings-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+.settings-toggle:hover,
+.settings-toggle[aria-expanded="true"] {
+    color: var(--text-muted);
+}
+
+.settings-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 800;
+    min-width: 148px;
+    padding: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+    display: none;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.settings-panel.is-open {
+    display: flex;
+}
+
+.settings-section {
+    padding: 0.3rem 0.2rem;
+}
+.settings-section + .settings-section {
+    border-top: 1px solid var(--border);
+    padding-top: 0.4rem;
+    margin-top: 0.1rem;
+}
+
+.settings-label {
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    line-height: 1;
+}
+
+.settings-row {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.settings-btn {
+    flex: 1;
+    background: var(--bg-offset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+                border-color var(--transition-fast);
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.settings-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--border);
+    color: var(--text);
+}
+.settings-btn.is-active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+}
+.settings-btn:disabled,
+.settings-btn[aria-disabled="true"] {
+    opacity: 0.35;
+    cursor: default;
+}
+/* The text size between A- and A+, as a share of the default; it resets
+   it. Figures of one width, so the row does not shift as it changes. */
+.settings-text-size {
+    font-variant-numeric: tabular-nums;
+    min-width: 3.6em;
+}
+.settings-btn--full {
+    width: 100%;
+    flex: none;
+    text-align: center;
+}
+
+/* --danger clears 4.5:1 on the button's own background in every theme
+   (audit V05; the old translucent red was 2.1–3.5:1). On hover the
+   background stays and the border takes the colour: Cappuccino's hover
+   ground, --border, is too mid-toned for any warning red to read on it.
+   Two classes, so it outranks .settings-btn:hover:not(:disabled), which
+   used to erase the red on hover. */
+.settings-btn.settings-btn--danger {
+    color: var(--danger);
+}
+.settings-btn.settings-btn--danger:hover:not(:disabled) {
+    background: var(--bg-offset);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.settings-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+
+/* ============================================================
+   FOCUS MODE — header hide
+   TOC hide lives in layout.css.
+   Settings gear stays accessible at top-right.
+   ============================================================ */
+
+[data-focus-mode] body > header .site-nav {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+[data-focus-mode] .settings-wrap {
+    visibility: visible;
+    position: fixed;
+    top: 0.75rem;
+    right: 1.25rem;
+    z-index: 1000;
+}
+
+[data-focus-mode] .settings-panel {
+    position: fixed;
+    top: 2.5rem;
+    right: 1.25rem;
+}
+
+
+/* ============================================================
+   REDUCE MOTION
+   Collapses all transitions and animations site-wide.
+
+   There is ONE effective preference, and it is the union of two
+   inputs: the site's own Reduce Motion setting (theme.js stamps
+   [data-reduce-motion] on <html> before first paint, settings.js
+   toggles it) and the operating system's prefers-reduced-motion.
+   Previously only the site setting drove this global override while
+   a handful of components answered the media query on their own,
+   so an OS-level request left most of the site animating.
+
+   The same union is computed in JS — see the reducedMotion() helper
+   duplicated in nav.js and photography-slideshow.js — for the
+   behaviours CSS cannot reach (autoplay, scripted scrolling).
+
+   The selector includes the root element itself, not just its
+   descendants: `scroll-behavior: smooth` is declared on <html> in
+   base.css, and `[data-reduce-motion] *` never matches the element
+   carrying the attribute.
+   ============================================================ */
+
+[data-reduce-motion],
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root,
+    :root *,
+    :root *::before,
+    :root *::after {
+        animation-duration:       0.01ms !important;
+        animation-iteration-count: 1     !important;
+        transition-duration:      0.01ms !important;
+        scroll-behavior:          auto   !important;
+    }
+}
+
+/* Mobile TOC bar — hidden by default; revealed whenever the desktop
+   TOC sidebar is hidden (see layout.css: #toc hides at ≤900px).
+   Declared here (before the media queries) so source-order cascade
+   lets the mobile rules win. */
+#toc-mobile-bar {
+    display: none;
+}
+
+/* ── Mobile TOC bar (≤900px — mirrors #toc hide breakpoint) ──────────
+   Fixed bottom strip: progress line + current section label.
+   toc.js sets --toc-progress and syncs the label. Uses (max-width)
+   rather than (pointer: coarse) so Android's "request desktop site"
+   mode — which fakes a ~980px viewport — correctly shows the desktop
+   sidebar TOC instead of this bar.
+   ──────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    /* Bottom padding so the last content line isn't hidden
+       behind the fixed mobile TOC bar. */
+    body {
+        padding-bottom: 2.5rem;
+    }
+
+    #toc-mobile-bar {
+        display: flex;
+        align-items: center;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 2.25rem;
+        background: var(--bg-nav);
+        border-top: 1px solid var(--border);
+        padding: 0 1rem;
+        z-index: 90;
+        overflow: hidden;
+    }
+
+    /* Progress track (faint full-width line at top of bar) */
+    #toc-mobile-bar::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: var(--border);
+    }
+
+    /* Progress fill — grows with scroll via --toc-progress */
+    #toc-mobile-bar::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        height: 2px;
+        width: calc(var(--toc-progress, 0) * 100%);
+        background: var(--text-muted);
+        transition: width 0.12s ease;
+    }
+
+    .toc-mobile-label {
+        font-family: var(--font-sans);
+        font-size: 0.68rem;
+        font-weight: 600;
+        font-variant-caps: all-small-caps;
+        letter-spacing: 0.07em;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* ── Middle widths: the links wrap between logo and controls ─────────
+   One row of links is about 33.3rem; with the 2 × 6.75rem reserve it
+   needs a 47rem nav. Below that the links wrap into two centred rows.
+   The separators come off, since a wrapped row would start with one,
+   and the logo keeps its one-row size instead of growing with the row.
+   ──────────────────────────────────────────────────────────────────── */
+
+@container site-nav (width < 47.5rem) {
+    .nav-primary {
+        row-gap: 0.2rem;
+    }
+
+    .nav-primary a + a {
+        border-left: none;
+    }
+
+    .nav-logo {
+        max-width: 2.92rem; /* the one-row bar height: 2 × 0.65 + 0.8 × 1.65 + 0.3 */
+    }
+}
+
+/* ── Narrow nav ──────────────────────────────────────────────────────
+   Below 32rem two rows of links no longer fit between the logo and the
+   controls (the first four links are about 18.3rem). Bring the controls
+   into flow, wrap the row, add a separator line. 32rem is 640px at the
+   default text size and grows with the Text size setting.
+   ──────────────────────────────────────────────────────────────────── */
+
+@container site-nav (width <= 32rem) {
+    .nav-logo {
+        display: none;
+    }
+
+    .nav-row-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.4rem 0.75rem;
+        gap: 0.25rem 0;
+    }
+
+    .nav-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 0;
+        font-size: 0.72rem;
+    }
+
+    /* Larger vertical padding → usable tap targets without extra markup */
+    .nav-primary a {
+        padding: 0.35rem 0.55rem;
+    }
+
+    /* border-left separators look broken on wrapped rows (the first link
+       of a new row still gets a left border). Replace with a gap. */
+    .nav-primary a + a {
+        border-left: none;
+        margin-left: 0.1rem;
+    }
+
+    /* Pull controls out of absolute positioning, span full width, center */
+    .nav-controls {
+        position: static;
+        width: 100%;
+        justify-content: center;
+        padding-top: 0.3rem;
+        border-top: 1px solid var(--border);
+        margin-top: 0.15rem;
+    }
+
+    .nav-portal-toggle {
+        padding: 0.3rem 0;
+    }
+
+    /* Portal row: tighter side padding on narrow screens */
+    .nav-portals {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .nav-portals a {
+        padding: 0.3rem 0.55rem;
+    }
+}
+
+/* Row 2: portal links — hidden until opened: nav.js adds .is-open, and
+   theme.js marks <html> before the first paint if it was left open. */
+.nav-portals {
+    display: none;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0.4rem 1.5rem 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.nav-portals.is-open,
+[data-portals-open] .nav-portals {
+    display: flex;
+}
+
+.nav-portals a {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    color: var(--text-faint);
+    padding: 0.1rem 0.7rem;
+    transition: color var(--transition-fast);
+}
+.nav-portals a + a {
+    border-left: 1px solid var(--border);
+}
+.nav-portals a:hover {
+    color: var(--text);
+}
+
+
+/* ============================================================
+   TABLE OF CONTENTS
+   Sticky left sidebar (position: sticky set in layout.css).
+   toc.js manages: .is-active links, .is-collapsed state,
+   and the --toc-progress custom property for the progress bar.
+   ============================================================ */
+
+#toc {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    padding-right: 1.5rem;
+    padding-left: 0.5rem;
+}
+
+/* Header row: current section label + collapse toggle */
+.toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.35rem;
+    position: relative;
+}
+
+/* Progress track — full width, faint */
+.toc-header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 1px;
+    background: var(--border);
+}
+
+/* Progress fill — grows left→right with scroll */
+.toc-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 1px;
+    width: calc(var(--toc-progress, 0) * 100%);
+    background: var(--text-muted);
+    transition: width 0.12s ease;
+}
+
+/* Current section label */
+.toc-active-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+#toc.is-collapsed .toc-active-label {
+    color: var(--text-muted);
+}
+
+/* Collapse toggle button */
+.toc-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--transition-fast), transform 0.28s ease;
+}
+.toc-toggle:hover {
+    color: var(--text-muted);
+}
+#toc.is-collapsed .toc-toggle {
+    transform: rotate(-90deg);
+}
+
+/* Nav: animates open/closed via max-height. The collapsed state hides
+   the nav from the keyboard tab order *and* the accessibility tree
+   using `aria-hidden="true"` (set by toc.js). The transition still
+   works because we keep `max-height: 0` for the visual collapse. */
+.toc-nav {
+    /* Fill the sticky sidebar's remaining height and scroll when the
+       outline is taller than the viewport. The subtracted ~2.6rem
+       mirrors #toc's own max-height budget (layout.css) minus the
+       .toc-header row (label + progress rule + its bottom margin). */
+    max-height: calc(100vh - var(--nav-height, 4rem) - 3rem - 2.6rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    transition: max-height 0.3s ease;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+.toc-nav::-webkit-scrollbar { width: 6px; }
+.toc-nav::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+#toc.is-collapsed .toc-nav {
+    max-height: 0;
+    /* overflow:hidden so the outline is clipped (not scrolled) while
+       the max-height transition runs down to 0. */
+    overflow: hidden;
+}
+#toc.is-collapsed .toc-nav a,
+#toc.is-collapsed .toc-nav button {
+    /* Belt-and-suspenders: even if aria-hidden is somehow stripped,
+       the collapsed nav cannot receive focus. The earlier rule used
+       `visibility: hidden` which already removed elements from the
+       focus order, but `visibility` interacts poorly with the
+       max-height transition; tabindex=-1 set by toc.js is preferred. */
+    pointer-events: none;
+}
+
+/* Nav list */
+.toc-nav ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.toc-nav > ol > li {
+    margin: 0.3rem 0;
+}
+
+.toc-nav > ol > li > ol {
+    margin: 0.1rem 0 0.2rem 0;
+}
+.toc-nav > ol > li > ol > li {
+    margin: 0.15rem 0;
+}
+
+.toc-nav a {
+    text-decoration: none;
+    color: var(--text-faint);
+    display: block;
+    padding: 0.1rem 0;
+    transition: color var(--transition-fast);
+}
+.toc-nav a:hover {
+    color: var(--text);
+}
+
+/* JS adds .is-active to the current heading's link */
+.toc-nav a.is-active {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* h2-level links slightly more prominent */
+.toc-nav > ol > li > a {
+    color: var(--text-muted);
+}
+.toc-nav > ol > li > a:hover,
+.toc-nav > ol > li > a.is-active {
+    color: var(--text);
+}
+
+/* h3-level links indented and smaller */
+.toc-nav > ol > li > ol > li > a {
+    padding-left: 0.75rem;
+    font-size: 0.74rem;
+}
+
+
+/* ============================================================
+   PAGE TITLE
+   ============================================================ */
+
+.page-title {
+    font-family: var(--font-sans);
+    font-size: 2.6rem;
+    font-weight: 600;
+    margin: 0 0 1.65rem 0;
+    line-height: 1.1;
+    color: var(--text);
+    /* Long compound titles ("Post-Quantum", "Micro-Architectural") are
+       wider than a 260px column at 320 CSS pixels. break-word only
+       splits a word that cannot fit on a line of its own, so ordinary
+       titles are untouched. */
+    overflow-wrap: break-word;
+}
+
+
+/* ============================================================
+   METADATA BLOCK
+   Vertical sequence above the body: tags, description,
+   authors (optional), jump links to bottom footer sections.
+   ============================================================ */
+
+.metadata {
+    margin-bottom: 2.475rem;
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.meta-row {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* Tags, authors, jump links: centered */
+.meta-tags,
+.meta-authors,
+.meta-pagelinks {
+    text-align: center;
+}
+
+/* Description: blockquote style, left-aligned */
+.meta-description {
+    font-style: italic;
+    padding-left: 1.25em;
+    border-left: 2px solid var(--border);
+    color: var(--text-muted);
+}
+
+/* Tags: centered row of small-caps links separated by middots */
+.meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    /* WCAG 2.2 SC 2.5.8: adjacent chips previously touched and were only
+       22.4 x 30. The padding + min-height below take each chip past
+       24 x 24 on its own, which is what the criterion asks for; the gap
+       keeps them from reading as one word. */
+    gap: 0.15rem 0.1rem;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    min-width: 0;
+}
+
+.meta-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 0.25rem;
+    color: var(--text-faint);
+    text-decoration: none;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    overflow-wrap: anywhere;
+    transition: color var(--transition-fast);
+}
+
+.meta-tag:hover {
+    color: var(--text-muted);
+}
+
+/* The middot separator moves from a leading ::before to a trailing
+   ::after. As a flex row the chips now wrap, and a leading separator
+   would open a wrapped line with a dangling "·"; a trailing one reads
+   as a continuation, the way a line-ending hyphen does. */
+.meta-tag + .meta-tag::before {
+    content: none;
+}
+
+.meta-tags .meta-tag:not(:last-child)::after,
+.item-card-tags .meta-tag:not(:last-child)::after {
+    content: "·";
+    color: var(--text-faint);
+    margin-left: 0.45em;
+    margin-right: -0.2em;
+    letter-spacing: 0;
+    font-variant-caps: normal;
+}
+
+/* Cancel the first chip's leading padding so the row still aligns with
+   the text block above it. */
+.meta-tags,
+.item-card-tags {
+    margin-left: -0.25rem;
+}
+
+/* Affiliation: institution name below author, in sans to contrast the serif author row */
+.meta-affiliation {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.meta-affiliation a {
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.meta-affiliation a:hover {
+    color: var(--text-muted);
+}
+
+/* Authors: "by" label + name */
+.meta-authors {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+}
+.meta-authors .meta-label {
+    font-variant-caps: all-small-caps;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    margin-right: 0.4rem;
+}
+
+/* Jump links: inline, separated by middots */
+.meta-pagelinks {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+.meta-pagelinks a {
+    color: var(--text-faint);
+    text-decoration: none;
+}
+.meta-pagelinks a:hover {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.meta-pagelinks a + a::before {
+    content: " · ";
+    color: var(--border);
+    display: inline-block;
+    text-decoration: none;
+    white-space: pre;
+}
+
+/* Top-of-page parallel tag strip — surfaces the full epistemic profile
+   inline so a reader sees status, trust score, and every orientation
+   axis at a glance, without scrolling to the footer. The trust chip
+   anchors the left edge; status sits next to it; the labeled rows
+   follow with their leading centerdot separators. Wraps freely. */
+.meta-epistemic-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem 0.55rem;
+}
+
+
+/* ============================================================
+   ESSAY SUMMARY BOX
+   Optional key-points / summary block rendered from the
+   `summary:` frontmatter field, between metadata and content.
+   ============================================================ */
+
+.essay-summary {
+    margin: 1.5rem 0 0;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--border-muted);
+    background: var(--bg-offset, var(--bg));
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.essay-summary p {
+    margin: 0 0 0.5em;
+}
+
+.essay-summary p:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================================
+   CORRESPONDENCE
+   Native disclosures set apart from essay prose, on the summary stock.
+   ============================================================ */
+
+#markdownBody .correspondence {
+    margin: 1.65rem 0;
+    border: 1px solid var(--border-muted);
+    background: var(--bg-offset, var(--bg));
+}
+
+#markdownBody .correspondence > summary {
+    padding: 0.9rem 1.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+#markdownBody .correspondence > summary::marker {
+    color: var(--text-faint);
+}
+
+#markdownBody .correspondence > summary:hover {
+    color: var(--text);
+}
+
+#markdownBody .correspondence > summary:focus-visible {
+    outline: 2px solid var(--text-muted);
+    outline-offset: -4px;
+}
+
+#markdownBody .correspondence[open] > summary {
+    border-bottom: 1px solid var(--border-muted);
+}
+
+#markdownBody .correspondence-body {
+    padding: 1.25rem 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    text-align: left;
+    hyphens: none;
+    overflow-wrap: anywhere;
+}
+
+#markdownBody .correspondence-body p {
+    margin: 0;
+    text-indent: 0;
+}
+
+#markdownBody .correspondence-body p + p {
+    margin-top: 0.9em;
+    text-indent: 0;
+}
+
+#markdownBody .correspondence-body p:last-child {
+    margin-top: 1.4em;
+}
+
+@media (max-width: 540px) {
+    #markdownBody .correspondence > summary {
+        padding: 0.85rem 1rem;
+    }
+
+    #markdownBody .correspondence-body {
+        padding: 1rem;
+    }
+}
+
+/* ============================================================
+   CONTENT DIVIDERS
+   Decorative rule with centered logo. Used both at the top of
+   the body (content-divider, between metadata and prose) and at
+   the aftermatter boundary (aftermatter-divider).
+   ============================================================ */
+
+.content-divider,
+.aftermatter-divider {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.content-divider {
+    margin: 2rem 0 2.5rem;
+}
+
+.aftermatter-divider {
+    margin: 3.5rem 0 2.5rem;
+}
+
+.content-divider::before,
+.content-divider::after,
+.aftermatter-divider::before,
+.aftermatter-divider::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--text-faint);
+    opacity: 0.5;
+}
+
+.content-divider-logo,
+.aftermatter-logo {
+    display: block;
+    width: 1.6rem;
+    height: 1.6rem;
+    flex-shrink: 0;
+    background-color: var(--text-faint);
+    opacity: 0.45;
+    mask-image: url('/images/link-icons/internal.svg');
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-image: url('/images/link-icons/internal.svg');
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    transition: opacity var(--transition-fast);
+}
+
+.content-divider-logo:hover,
+.aftermatter-logo:hover {
+    opacity: 0.7;
+}
+
+/* ============================================================
+   AFTERMATTER HEADINGS
+   Right-aligned, all-small-caps, muted — visually distinct from
+   main-body headings to signal supplementary material.
+   ============================================================ */
+
+.aftermatter :is(h2, h3, h4) {
+    text-align: right;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.aftermatter h2 {
+    font-size: 1.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border-muted);
+}
+
+.aftermatter h3 {
+    font-size: 1.05rem;
+}
+
+/* ============================================================
+   FOOTER ORNAMENT
+   Inline SVG floral ornament separating body from page metadata.
+   Uses currentColor for automatic light/dark theming.
+   ============================================================ */
+
+.footer-ornament {
+    display: block;
+    width: 100%;
+    height: auto;
+    padding: 0.5rem var(--page-padding);
+    color: var(--text-faint);
+    opacity: 0.5;
+}
+
+/* ============================================================
+   BOTTOM METADATA FOOTER
+   Full-width section outside the essay's three-column layout.
+   Structure: [Further Reading row?] [Bibliography row?] [metadata grid].
+   ============================================================ */
+
+.page-meta-footer {
+    padding: 1.5rem var(--page-padding) 2rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+/* Each section is constrained and centered. */
+.page-meta-footer > * {
+    width: 100%;
+    max-width: min(1200px, 100%);
+}
+
+/* Shared heading style for full-width section headings */
+.meta-footer-full > h3,
+.meta-footer-section h3 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin: 0 0 0.75rem 0;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+}
+
+/* Full-width rows: Further Reading and Bibliography */
+.meta-footer-full {
+    width: 100%;
+}
+
+/* Secondary row: RELATED | EPISTEMIC | VERSION HISTORY.
+   auto-fit + minmax lets the grid render 3 columns when all are present,
+   2 when RELATED is absent (zero similar pages), and stack gracefully
+   at narrow viewports without any further media queries. */
+.meta-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    justify-content: center;
+    gap: 1.65rem 2.25rem;
+    padding-top: 0.25rem;
+}
+
+.meta-footer-section p,
+.meta-footer-section ul {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.meta-footer-section ul {
+    padding-left: 1em;
+    list-style: none;
+}
+
+.meta-footer-section ul li::before {
+    content: "–\00a0";
+    color: var(--text-faint);
+}
+
+/* ============================================================
+   BACKLINKS — promoted to a full-width aftermatter section.
+   Each entry: source title in serif body face, then a blockquote of
+   the sentence containing the link. A small "¶" affordance reveals
+   the full paragraph in a hover/focus-activated popup.
+   ============================================================ */
+
+/* The "BACKLINKS" small-caps label is noticeably larger than the
+   secondary-row headings (which stay at 0.78rem) because Backlinks
+   is now a primary aftermatter section. */
+.meta-footer-backlinks > h3 {
+    font-size: 1.05rem;
+    letter-spacing: 0.09em;
+    margin-bottom: 1rem;
+}
+
+.meta-footer-backlinks .backlinks-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.meta-footer-backlinks .backlinks-list li::before {
+    content: none;
+}
+
+.backlink-item {
+    padding: 0;
+}
+
+/* Source title — serif body face, prominent but restrained */
+.backlink-source {
+    display: inline-block;
+    font-family: var(--font-serif);
+    font-size: 1.32rem;
+    font-variant: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 0.05em;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+.backlink-source:hover,
+.backlink-source:focus-visible {
+    color: var(--text);
+    border-color: var(--border);
+}
+
+/* Sentence-level context quoted beneath the title */
+.backlink-quote {
+    margin: 0.55rem 0 0 0;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid var(--border-muted);
+    font-family: var(--font-serif);
+    font-size: 1.12rem;
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--text-muted);
+    quotes: none;
+}
+
+.backlink-quote::before,
+.backlink-quote::after {
+    content: none;
+}
+
+.backlink-quote a {
+    color: var(--text-muted);
+    text-decoration-color: var(--border-muted);
+}
+
+.backlink-quote a:hover {
+    color: var(--text);
+    text-decoration-color: var(--border);
+}
+
+/* Hover/focus popup — full paragraph context */
+.backlink-full {
+    position: relative;
+    display: inline-block;
+    margin-left: 0.35em;
+    vertical-align: baseline;
+}
+
+.backlink-full-trigger {
+    background: none;
+    border: 1px solid var(--border-muted);
+    border-radius: 999px;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    line-height: 1;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    cursor: help;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast),
+                background-color var(--transition-fast);
+}
+
+.backlink-full-trigger:hover,
+.backlink-full:focus-within .backlink-full-trigger {
+    color: var(--text);
+    border-color: var(--border);
+    background-color: var(--bg-offset);
+}
+
+.backlink-full-popup {
+    display: none;
+    position: absolute;
+    z-index: 200;
+    bottom: calc(100% + 0.4rem);
+    left: 0;
+    width: min(34rem, 80vw);
+    padding: 0.75rem 0.95rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+    font-family: var(--font-serif);
+    font-style: normal;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    text-align: left;
+}
+
+.backlink-full:hover .backlink-full-popup,
+.backlink-full:focus-within .backlink-full-popup {
+    display: block;
+}
+
+.backlink-full-popup a {
+    color: var(--text-muted);
+    text-decoration-color: var(--border-muted);
+}
+
+.backlink-full-popup a:hover {
+    color: var(--text);
+}
+
+/* Second and later mentions from the same source page, folded away.
+   Styled as the version-history "More" disclosure below, so the two
+   collapsed lists in this footer read as one affordance. The quotes keep
+   their own margin, so the summary only needs to clear the first one. */
+.backlink-more {
+    margin-top: 0.35rem;
+}
+
+.backlink-more > summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    user-select: none;
+    padding-left: 1em;
+    transition: color var(--transition-fast);
+}
+
+.backlink-more > summary:hover,
+.backlink-more > summary:focus-visible {
+    color: var(--text-muted);
+}
+
+.backlink-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.backlink-more > summary::before {
+    content: "\25B8\00a0";
+    font-size: 0.7em;
+    vertical-align: 0.1em;
+}
+
+.backlink-more[open] > summary::before {
+    content: "\25BE\00a0";
+}
+
+/* ============================================================
+   RELATED (SIMILAR LINKS) — promoted to a full-width aftermatter
+   section, sitting just under Backlinks. Source file:
+   data/similar-links.json (produced by tools/embed.py).
+   ============================================================ */
+
+.meta-footer-similar > h3 {
+    font-size: 1.05rem;
+    letter-spacing: 0.09em;
+    margin-bottom: 1rem;
+}
+
+.meta-footer-similar .similar-links-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.meta-footer-similar .similar-links-list li::before {
+    content: none;
+}
+
+.meta-footer-similar .similar-links-item a {
+    font-family: var(--font-serif);
+    font-size: 1.18rem;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 0.05em;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+.meta-footer-similar .similar-links-item a:hover,
+.meta-footer-similar .similar-links-item a:focus-visible {
+    color: var(--text);
+    border-bottom-color: var(--border);
+}
+
+/* ============================================================
+   VERSION HISTORY — cap at 3 with a <details> "more" affordance.
+   .version-history-list inherits list styling from .meta-footer-section ul.
+   ============================================================ */
+
+.version-history-more {
+    margin-top: 0.35rem;
+}
+
+.version-history-more > summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    user-select: none;
+    padding-left: 1em;
+    transition: color var(--transition-fast);
+}
+
+.version-history-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.version-history-more > summary::before {
+    content: "▸\00a0";
+    font-size: 0.7em;
+    vertical-align: 0.1em;
+}
+
+.version-history-more[open] > summary::before {
+    content: "▾\00a0";
+}
+
+.version-history-more > summary:hover {
+    color: var(--text-muted);
+}
+
+.version-history-more > .version-history-list {
+    margin-top: 0.25rem;
+}
+
+
+/* ============================================================
+   EPISTEMIC METADATA BLOCK
+   Compact display (status chip + confidence % + dot scales)
+   with an expandable <details> for the full profile.
+   ============================================================ */
+
+/* Status chip */
+.ep-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+/* Every labeled row beneath the primary line shares one class so new
+   epistemic fields can be added in the template without touching CSS.
+   Used by confidence, importance, evidence, scope, novelty, practicality. */
+.ep-row {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+}
+.ep-row::before { content: "·\00a0"; color: var(--border); }
+
+/* Dot scale (importance / evidence) — only ever used nested inside an
+   .ep-row wrapper, which already supplies the centerdot separator. */
+.ep-dots {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    line-height: 1;
+    vertical-align: 0.15em;
+}
+.ep-row .ep-dots::before { content: none; }
+
+/* Trust chip on the primary row — bordered numeric chip plus a small-caps
+   "trust" label, mirroring .ep-status typography so the two sit together. */
+.ep-trust {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.ep-score {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: normal;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.5em;
+    margin-right: 0.25em;
+}
+
+/* Definition list for expanded profile */
+.ep-expanded {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 0.75rem;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.ep-expanded dt {
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+.ep-expanded dd {
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+}
+
+
+/* ============================================================
+   PAGINATION NAV
+   ============================================================ */
+
+.paginate-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-muted);
+    font-family: var(--font-sans);
+}
+
+.paginate-btn {
+    color: var(--text-faint);
+    text-decoration: none;
+    font-size: 1rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.paginate-btn:hover {
+    color: var(--text-muted);
+}
+
+.paginate-info {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ============================================================
+   CITATION MARKERS (inline superscripts)
+   ============================================================ */
+
+.cite-marker {
+    font-family: var(--font-sans);
+    font-size: 0.62em;
+    line-height: 1;
+    vertical-align: super;
+    margin: 0 0.08em;
+}
+
+.cite-link {
+    color: var(--text-faint);
+    text-decoration: none;
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.28em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cite-link:hover {
+    color: var(--text-muted);
+    border-color: var(--border);
+    text-decoration: none;
+}
+
+
+
+/* ============================================================
+   BIBLIOGRAPHY (inside .page-meta-footer #bibliography)
+   ============================================================ */
+
+/* Number badge preceding each entry */
+.ref-num {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-right: 0.4em;
+    white-space: nowrap;
+}
+
+/* Each bibliography entry */
+.csl-bib-body .csl-entry {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 0.6rem;
+    padding-left: 1.6em;
+    text-indent: -1.6em;
+}
+
+.csl-bib-body .csl-entry a {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+.csl-bib-body .csl-entry a:hover {
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   COLLAPSIBLE SECTIONS
+   collapse.js wraps h2/h3 content in .section-body divs and
+   injects .section-toggle buttons into the heading elements.
+   ============================================================ */
+
+.section-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.section-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 0 0 0 0.5em;
+    font-size: 0.5em;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.1em;
+    opacity: 0;
+    transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+h2:hover .section-toggle,
+h3:hover .section-toggle,
+.section-toggle:hover,
+.section-toggle:focus {
+    opacity: 1;
+}
+
+.section-toggle:hover {
+    color: var(--text-muted);
+}
+
+.section-toggle::before {
+    content: '▼';
+}
+
+.section-toggle[aria-expanded="false"]::before {
+    content: '▶';
+}
+
+
+/* ============================================================
+   PAGEFIND SEARCH UI
+   CSS custom property overrides so pagefind-ui matches the
+   site's design tokens. Pagefind reads these via var().
+   ============================================================ */
+
+#search {
+    margin-top: 1.65rem;
+    --pagefind-ui-scale: 0.85;
+    --pagefind-ui-primary: var(--text-muted);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-tag: var(--bg-offset);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 2px;
+    --pagefind-ui-font: var(--font-sans);
+}
+
+/* Pagefind renders results as an <ol> of <p>s inside #markdownBody, where
+   typography.css's prose rules reach them: the list margin and indent
+   pushed every result in under the count, and p + p gave each excerpt a
+   paragraph indent. The #markdownBody prefix outranks those rules. */
+#markdownBody #search ol {
+    margin: 0;
+    padding-left: 0;
+}
+
+#markdownBody #search p {
+    text-indent: 0;
+}
+
+/* With the box empty Pagefind "suppresses" its Clear button with opacity
+   alone, which leaves an invisible Tab stop: a keyboard reader landed on a
+   button they could not see. visibility also takes it out of the tab order
+   and the accessibility tree until there is something to clear. */
+#search .pagefind-ui__search-clear.pagefind-ui__suppressed {
+    visibility: hidden;
+}
+
+#search-timing {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em; /* reserve space to prevent layout shift */
+}
+
+/* Search bar: the Keyword / Semantic tabs, with the Filters toggle
+   (shared by both tabs) at the right end of the same rule. */
+.search-bar {
+    display: flex;
+    flex-wrap: wrap;        /* at 320px the tabs and Filters do not fit one row */
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-tabs {
+    display: flex;
+    flex-wrap: wrap;        /* at the largest text size they ran off a phone */
+    gap: 0;
+}
+
+/* The bar's rule already sits directly above the panel. */
+#search-filters {
+    border-top: none;
+}
+
+.search-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.45rem 1rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+}
+
+.search-tab:hover       { color: var(--text-muted); }
+.search-tab.is-active   { color: var(--text); border-bottom-color: var(--text); }
+
+/* Search panels (keyword / semantic) — only active panel visible.
+   The inactive panel now also carries the `hidden` attribute, which the
+   global `[hidden]` rule in base.css enforces; these class rules remain
+   the styling contract. */
+.search-panel           { display: none; }
+.search-panel.is-active { display: block; }
+
+/* ------------------------------------------------------------
+   NO-SCRIPT AND DEGRADED STATES
+   Short explanatory notes rendered beside controls that need
+   JavaScript, and the recovery row a failed semantic load offers.
+   Quiet by default: they are asides, not errors to shout about.
+   ------------------------------------------------------------ */
+
+.search-noscript,
+.filter-note,
+.transclude-error-note,
+.transclude-noscript-note {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin: 0.5rem 0;
+}
+
+.search-noscript,
+.transclude-error-note,
+.transclude-noscript-note {
+    border-left: 2px solid var(--border);
+    padding-left: 0.75em;
+}
+
+/* Filters.Transclusion writes this inside a <noscript>, so it is the
+   whole of a transcluded passage for a reader without scripting: it
+   carries the link to the passage's own page. Same treatment as the
+   error note — a quiet aside offering somewhere to go. */
+.transclude-noscript-note a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+.transclude-noscript-note a:hover {
+    color: var(--text);
+    text-decoration-color: var(--text-muted);
+}
+
+.transclude-error-link {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+.transclude-error-link:hover {
+    color: var(--text);
+    text-decoration-color: var(--text-muted);
+}
+
+/* Recovery actions after a failed semantic load. The buttons inside
+   reuse .filter-btn, so only the row needs describing. */
+.semantic-fallback {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.75rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* Semantic query input — mirrors Pagefind UI style */
+.semantic-query-input {
+    width: 100%;
+    margin-top: 1.65rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.semantic-query-input:focus { border-color: var(--text-muted); }
+
+.semantic-status {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
+
+/* Semantic results list */
+.semantic-results-list {
+    list-style: none;
+    margin: 1.2rem 0 0;
+    padding: 0;
+}
+
+.semantic-result {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.semantic-result:last-child { border-bottom: none; }
+
+.semantic-result-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.semantic-result-title:hover { text-decoration: underline; }
+
+.semantic-result-heading {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+}
+
+.semantic-result-excerpt {
+    margin: 0.3rem 0 0;
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* ============================================================
+   COLLECTION LANDING PAGES
+   templates/collection.html — the index a poetry or fiction
+   collection's index.md renders: an optional standfirst, the
+   scaffold prose, then the collection's own children.
+
+   The list itself is .essay-list, shared with the section
+   indexes, so only the collection-specific parts are described
+   here: the standfirst, the Contents section around the list,
+   and the empty state that stands in for it.
+   ============================================================ */
+
+.collection-abstract {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: 0 0 1.5rem;
+    max-width: 34em;
+}
+
+/* A rule above the heading separates the collection's own prose from
+   the machine-generated list below it, which is the one boundary a
+   reader needs on this page. */
+.collection-contents {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+/* The id selector is deliberate: typography.css sets `#markdownBody h2`
+   to the 1.85rem body heading, and a class-only rule loses to it. This is
+   a label for a generated list, not another section of the author's
+   prose, so it wants the small-caps register the site uses for meta rows
+   rather than the display size. */
+#markdownBody .collection-contents > h2 {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 1rem;
+}
+
+/* Numbered by the <ol>, but the numbers are noise beside titles that
+   already read in order. */
+.collection-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.collection-empty {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    margin: 0;
+}
+
+/* ============================================================
+   TRANSCLUSION
+   States for <div class="transclude"> placeholders injected by
+   Filters.Transclusion and populated by transclude.js.
+   ============================================================ */
+
+/* Loading placeholder — subtle pulse so the page doesn't look broken
+   while the fetch is in flight. */
+.transclude--loading {
+    min-height: 1.65rem;
+    background: var(--bg-offset);
+    border-radius: 2px;
+    animation: transclude-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes transclude-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+}
+
+/* Loaded — transparent wrapper; content reads as native. */
+.transclude--loaded {
+    /* No visual treatment: transcluded content is visually native. */
+}
+
+/* Optional: uncomment to show a subtle left rule on loaded transclusions.
+.transclude--loaded {
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+    margin-left: -1rem;
+}
+*/
+
+/* Error state — faint inline notice. */
+.transclude--error {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    padding: 0.4rem 0;
+}
+
+/* Content wrapper — display:contents so the injected nodes participate
+   in normal document flow without adding a structural block. */
+.transclude--content {
+    display: contents;
+}
+
+/* ============================================================
+   COPY BUTTON
+   Injected by copy.js as a *sibling* of each <pre>, inside a
+   .code-block positioning context — never as a child. Three
+   things follow from that, and they are the reason for it:
+
+     1. The button sits outside the <pre>'s scroll box, so it
+        stays in the corner when long lines are scrolled
+        sideways instead of drifting off with the code.
+     2. It is out of flow, so it cannot shorten or indent the
+        block's first line the way a float does.
+     3. It is not in the copied subtree, so the copied text
+        needs no scrubbing.
+
+   Placement: the <pre> reserves 1.65rem of top padding, so a
+   ~22px control pinned to the top-right overlays empty gutter
+   rather than code — true at every viewport width, which is
+   what makes it safe to leave visible on touch.
+   ============================================================ */
+
+.code-block {
+    position: relative;
+}
+
+/* The wrapper inherits the block's vertical rhythm; the <pre>
+   inside it must not double it. */
+#markdownBody .code-block > pre {
+    margin: 0;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 0.36rem;
+    right: 0.4rem;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    padding: 0;
+
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, color 0.12s ease,
+                border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.copy-btn-glyph {
+    width: 0.82rem;
+    height: 0.82rem;
+    display: block;
+}
+
+/* Idle shows the clipboard; the copied/error state shows the tick. */
+.copy-btn-glyph--done { display: none; }
+.copy-btn[data-state] .copy-btn-glyph--idle { display: none; }
+.copy-btn[data-state] .copy-btn-glyph--done { display: block; }
+
+/* Revealed by intent only: pointing at the block, tabbing to the
+   button, or having just used it. */
+.code-block:hover .copy-btn,
+.copy-btn:focus-visible,
+.copy-btn[data-state] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.copy-btn:hover {
+    color: var(--text-muted);
+    background: var(--bg);
+    border-color: var(--border-muted);
+}
+
+.copy-btn:focus-visible {
+    outline: 1px solid var(--border);
+    outline-offset: 1px;
+}
+
+.copy-btn[data-state="copied"] { color: var(--text-muted); }
+.copy-btn[data-state="error"]  { color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+    .copy-btn { transition: none; }
+}
+
+/* ============================================================
+   TOUCH DEVICES
+   (hover: none) and (pointer: coarse) reliably targets
+   touchscreen-primary devices (phones, tablets) without
+   relying on viewport width or user-agent sniffing.
+
+   Goals:
+     1. Suppress :hover states that "stick" after a tap
+     2. Ensure tap targets meet ~44px minimum
+     3. (popup disable is handled in popups.js)
+   ============================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Nav: ensure adequate vertical tap area even on wider tablets
+       where the ≤540px query doesn't fire */
+    .nav-primary a {
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .nav-portal-toggle {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+    /* Settings gear: expand hit area without visual change */
+    .settings-toggle {
+        padding: 0.5rem;
+        margin: -0.5rem;
+    }
+
+    /* Portal row links */
+    .nav-portals a {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+    /* Suppress stuck hover states — reset to their non-hover values */
+    .nav-primary a:hover           { color: var(--text-muted); }
+    .nav-portals a:hover           { color: var(--text-faint); }
+    .nav-portal-toggle:hover       { color: var(--text-faint); }
+    .settings-toggle:hover         { color: var(--text-faint); }
+    .toc-nav a:hover               { color: var(--text-faint); }
+    .toc-nav > ol > li > a:hover   { color: var(--text-muted); }
+    .hp-pro-row a:hover            { color: var(--text-muted); }
+    .hp-curiosity-row a:hover      { color: var(--text-muted); }
+    .hp-portal-name:hover          { text-decoration-color: var(--border-muted); }
+    .meta-tag:hover                { color: var(--text-faint); }
+    .backlink-source:hover         { color: var(--text-muted); }
+    .section-toggle:hover          { color: var(--text-faint); }
+
+    /* Copy button: no hover to reveal it, so it stays present — but
+       faint, and only as an outline glyph, so it reads as an affordance
+       in the block's empty top gutter rather than a label stuck to the
+       code. It never gains a hover background here (that state sticks
+       after a tap on touch). */
+    .copy-btn {
+        opacity: 0.55;
+        pointer-events: auto;
+    }
+
+    .copy-btn:hover {
+        color: var(--text-faint);
+        background: transparent;
+        border-color: transparent;
+    }
+
+    .copy-btn[data-state] {
+        opacity: 1;
+        color: var(--text-muted);
+    }
+
+    /* Finger-sized hit area without a finger-sized button: ~45x49px of
+       slop around a 23px glyph. It grows up into the block's own top
+       margin and left along its empty top gutter — both dead space —
+       and only ~10px down, so it steals as little of the first code
+       row (where a touch-drag scrolls long lines) as it can. */
+    .copy-btn::after {
+        content: '';
+        position: absolute;
+        top: -0.9rem;
+        right: -0.45rem;
+        bottom: -0.45rem;
+        left: -1.1rem;
+    }
+}
+
+/* ============================================================
+   PDF EMBED
+   Inline PDF.js viewer iframes rendered from {{pdf:...}} directives.
+   ============================================================ */
+
+.pdf-embed-wrapper {
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--bg-subtle);
+}
+
+.pdf-embed {
+    display: block;
+    width: 100%;
+    height: 70vh;
+    min-height: 420px;
+    border: none;
+}
+
+@media (max-width: 600px) {
+    .pdf-embed {
+        height: 60vh;
+        min-height: 300px;
+    }
+}
+
+/* ── Archive affordance ─────────────────────────────────────────────────────
+   The superscript "A" appended after a body link whose target is preserved
+   in the local archive (build/Filters/Archive.hs). Loaded site-wide because
+   the marker appears in essay/prose content, not on archive pages. */
+
+.archive-affordance {
+    font-size: 0.7em;
+    margin-left: 0.15em;
+    line-height: 0;
+}
+
+.archive-affordance a {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-faint);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0 0.25em;
+}
+
+.archive-affordance a:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+    background: var(--bg-subtle);
+}
+
+/* Dead-link flip — a body link whose archived target is `rotted` has its
+   href redirected to the local copy (build/Filters/Archive.hs). A dotted
+   underline marks the link as redirected; its marker becomes a solid chip
+   reading "archived" rather than the quiet bordered "A". */
+.archive-rotted {
+    text-decoration-style: dotted;
+}
+
+.archive-affordance--rotted a {
+    color: var(--bg);
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+
+.archive-affordance--rotted a:hover {
+    color: var(--bg);
+    background: var(--text);
+    border-color: var(--text);
+}

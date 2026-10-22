@@ -1,0 +1,705 @@
+/* popups.css — Hover preview popup styles. */
+
+/* ============================================================
+   POPUP CONTAINER
+   Absolutely positioned, single shared element.
+   ============================================================ */
+
+.link-popup {
+    position: absolute;
+    /* At the page's corner until placed. Appended last in <body> with no
+       position, a hidden popup sat after the footer and made the page
+       13px taller; placed on show, the page shrank, a reader at its foot
+       was pulled up, the pointer left the link, and the popup hid (the
+       footer's signature, in Firefox). positionPopup sets both. */
+    top: 0;
+    left: 0;
+    z-index: 500;
+    max-width: 420px;
+    min-width: 200px;
+    /* Never taller than the viewport: positionPopup clamps the popup
+       into the visible region, which only works if the box itself can
+       fit there. The 10px matches positionPopup's GAP on each side;
+       overflow scrolls the rare popup that still exceeds the cap. */
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.09);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    pointer-events: auto;
+
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.14s ease, visibility 0.14s ease;
+}
+
+/* Rich layout for reference popups (provider-rendered: arXiv,
+   Wikipedia, CrossRef, …) — wider, larger type, image banner. Internal
+   page previews and item-card popups (new/library pages) deliberately
+   keep the compact base layout. Toggled by popups.js per show. */
+.link-popup--rich {
+    max-width: 560px;
+    padding: 0.85rem 1.05rem;
+}
+
+.link-popup--rich .popup-title {
+    font-size: 0.98rem;
+    line-height: 1.3;
+    margin-bottom: 0.35rem;
+}
+
+.link-popup--rich .popup-authors,
+.link-popup--rich .popup-meta {
+    font-size: 0.78rem;
+}
+
+.link-popup--rich .popup-abstract,
+.link-popup--rich .popup-extract {
+    font-size: 0.84rem;
+    line-height: 1.6;
+}
+
+.link-popup.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+/* ============================================================
+   SHARED POPUP CONTENT
+   ============================================================ */
+
+/* Internal-page popups with a monogram render in two columns:
+   the monogram on the left, title + abstract + meta on the right.
+   Without a monogram, the body fills normally (default block flow). */
+.popup-internal.has-monogram {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+}
+
+/* Source label spans both columns when a monogram is present so it
+   reads as the popup's source attribution, not as a column entry. */
+.popup-internal.has-monogram > .popup-source {
+    grid-column: 1 / -1;
+}
+
+.popup-monogram {
+    grid-column: 1;
+    line-height: 0;
+    color: var(--text);
+}
+
+.popup-monogram svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: inherit;
+}
+
+.popup-internal-body {
+    grid-column: 2;
+    min-width: 0;
+}
+
+.popup-title {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 0.82rem;
+    margin-bottom: 0.3rem;
+    line-height: 1.35;
+}
+
+/* Lead image (Wikipedia pageimages thumbnail, arXiv lead figure) — a
+   full-width banner between the source label and the title, sized for
+   the rich provider layout. Photos crop to fill (faces usually sit in
+   the upper portion, hence the 30% focal point); figures — plots,
+   architecture diagrams — must never be cropped, so .is-figure
+   letterboxes with contain on a muted backdrop instead. width/height
+   attrs from the provider reserve the aspect ratio, so the popup is
+   measured and positioned correctly before the image arrives. */
+.popup-image-banner {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 220px;
+    object-fit: cover;
+    object-position: center 30%;
+    border-radius: 5px;
+    border: 1px solid var(--border-muted);
+    margin: 0.4rem 0 0.55rem;
+}
+
+.popup-image-banner.is-figure {
+    object-fit: contain;
+    background: color-mix(in srgb, var(--text-faint) 7%, transparent);
+}
+
+.popup-abstract,
+.popup-extract {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+/* Source label ("Wikipedia", "arXiv") and tag line in internal popups */
+.popup-source,
+.popup-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin-bottom: 0.25rem;
+}
+
+/* Icon preceding the source label — same mask-image technique as inline link icons */
+.popup-source[data-popup-source]::before {
+    content: '';
+    display: inline-block;
+    flex-shrink: 0;
+    width:  0.85em;
+    height: 0.85em;
+    background-color: currentColor;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    opacity: 0.7;
+}
+
+.popup-source[data-popup-source="wikipedia"]::before {
+    mask-image: url('/images/link-icons/wikipedia.svg');
+    -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
+}
+.popup-source[data-popup-source="arxiv"]::before {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+.popup-source[data-popup-source="doi"]::before {
+    mask-image: url('/images/link-icons/doi.svg');
+    -webkit-mask-image: url('/images/link-icons/doi.svg');
+}
+.popup-source[data-popup-source="github"]::before {
+    mask-image: url('/images/link-icons/github.svg');
+    -webkit-mask-image: url('/images/link-icons/github.svg');
+}
+.popup-source[data-popup-source="youtube"]::before {
+    mask-image: url('/images/link-icons/youtube.svg');
+    -webkit-mask-image: url('/images/link-icons/youtube.svg');
+}
+.popup-source[data-popup-source="internet-archive"]::before {
+    mask-image: url('/images/link-icons/internet-archive.svg');
+    -webkit-mask-image: url('/images/link-icons/internet-archive.svg');
+}
+.popup-source[data-popup-source="biorxiv"]::before,
+.popup-source[data-popup-source="medrxiv"]::before {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+.popup-source[data-popup-source="openlibrary"]::before {
+    mask-image: url('/images/link-icons/worldcat.svg');
+    -webkit-mask-image: url('/images/link-icons/worldcat.svg');
+}
+.popup-source[data-popup-source="pubmed"]::before {
+    mask-image: url('/images/link-icons/orcid.svg');
+    -webkit-mask-image: url('/images/link-icons/orcid.svg');
+}
+.popup-source[data-popup-source="internal"]::before {
+    mask-image: url('/images/link-icons/internal.svg');
+    -webkit-mask-image: url('/images/link-icons/internal.svg');
+}
+
+/* Author list (arXiv, DOI, GitHub, etc.) */
+.popup-authors {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    font-style: italic;
+}
+
+/* Journal / year / language / stars line */
+.popup-meta {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ============================================================
+   CITATION POPUP
+   Shows the .csl-entry from the bibliography in-page.
+   ============================================================ */
+
+.popup-citation-entry {
+    display: block;
+}
+
+.popup-citation-entry + .popup-citation-entry {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border);
+}
+
+.popup-citation .csl-entry {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    /* Override the hanging-indent style used in the bibliography list */
+    padding-left: 0;
+    text-indent: 0;
+    margin-bottom: 0;
+}
+
+.popup-citation .csl-entry a {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+.popup-citation .ref-num {
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-right: 0.35em;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+.popup-citation .ref-num:hover {
+    color: var(--text);
+}
+
+/* Epistemic preview popup — content cloned from #epistemic; ep-* styles inherited */
+.popup-epistemic {
+    min-width: 230px;
+}
+
+/* Epistemic term definition popup — shown on hover for filter labels,
+   metadata strip items, and footer DT elements. */
+[data-ep-term] {
+    cursor: help;
+}
+
+.popup-ep-term {
+    max-width: 320px;
+}
+
+.popup-ep-term .popup-source a {
+    color: inherit;
+    text-decoration: none;
+}
+.popup-ep-term .popup-source a:hover {
+    text-decoration: underline;
+}
+
+/* PDF thumbnail popup — first-page image generated by pdftoppm at build time */
+.link-popup:has(.popup-pdf) {
+    padding: 0;
+    overflow: hidden;
+}
+
+.popup-pdf {
+    line-height: 0; /* collapse whitespace gap below <img> */
+}
+
+.popup-pdf-thumb {
+    display: block;
+    width: 320px;
+    max-width: 100%;
+    height: auto;
+    max-height: 420px;
+    object-fit: contain;
+    object-position: top left;
+}
+
+/* ============================================================
+   SOURCE-FILE PREVIEW POPUP
+   Shown on hover for inline `path/to/file` references and for
+   Markdown links to the Forgejo source viewer (see
+   build/Filters/SourceRefs.hs). The body is fetched from
+   /source/<path> and Prism-highlighted client-side.
+   ============================================================ */
+
+.link-popup:has(.popup-source-code) {
+    max-width: 560px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.popup-source-code {
+    display: block;
+}
+
+/* Header strip naming the file. Doubles as a visual seam between the
+   chrome (border, padding) and the code body below. */
+.popup-source-path {
+    padding: 0.45rem 0.65rem 0.4rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-faint);
+    word-break: break-all;
+    background: var(--bg);
+}
+
+/* Range locator after the path ("L40–52", "§ Results"). */
+.popup-source-locator {
+    margin-left: 0.6em;
+    color: var(--text);
+}
+
+/* The scrolling viewport. The gutter, the code, and the range band sit
+   in one row inside it, so they scroll vertically together while the
+   gutter stays put horizontally. */
+.popup-source-scroll {
+    max-height: 360px;
+    overflow: auto;
+    background: var(--bg);
+}
+
+.popup-source-lines {
+    position: relative;
+    display: flex;
+    min-width: max-content;
+    /* One line of code. Fixed rather than a unitless multiple so the
+       range band (below) can be placed by arithmetic on line numbers. */
+    --line: 1.05rem;
+}
+
+.popup-source-gutter,
+.popup-source-pre {
+    margin: 0;
+    padding: 0.55rem 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: var(--line);
+    white-space: pre;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+}
+
+.popup-source-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    padding-right: 0.5rem;
+    text-align: right;
+    color: var(--text-faint);
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    user-select: none;
+}
+
+.popup-source-pre {
+    position: relative;   /* paint above the range band */
+    z-index: 1;
+    flex: 1;
+    color: var(--text);
+}
+
+/* The linked line range: a faint band behind the code, placed from
+   --mark-from (0-based line within the window) and --mark-lines. */
+.popup-source-mark {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(0.55rem + var(--mark-from) * var(--line));
+    height: calc(var(--mark-lines) * var(--line));
+    background: var(--bg-offset);
+    border-left: 2px solid var(--text-faint);
+    pointer-events: none;
+}
+
+
+.popup-source-pre code {
+    background: transparent;
+    padding: 0;
+    border: none;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    white-space: pre;
+}
+
+/* "N more lines · view full file →" — visually parallel to the path
+   header strip; together they bracket the code body. */
+.popup-source-truncated {
+    padding: 0.4rem 0.65rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.65rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    background: var(--bg);
+}
+
+.popup-source-truncated a {
+    color: inherit;
+    text-decoration-color: var(--border-muted);
+}
+
+.popup-source-truncated a:hover {
+    color: var(--text);
+}
+
+/* Markdown rendered as prose (MarkdownSections.hs) — a whole file, or
+   the section a #fragment names. Compact reading type; tables scroll
+   sideways rather than widening the popup. */
+.popup-md {
+    max-height: 420px;
+    overflow: auto;
+    padding: 0.55rem 0.75rem 0.65rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.popup-md > :first-child { margin-top: 0; }
+.popup-md > :last-child  { margin-bottom: 0; }
+
+.popup-md p,
+.popup-md ul,
+.popup-md ol,
+.popup-md pre,
+.popup-md blockquote,
+.popup-md table {
+    margin: 0 0 0.55rem;
+}
+
+.popup-md ul,
+.popup-md ol {
+    padding-left: 1.2rem;
+}
+
+.popup-md-heading {
+    margin: 0.75rem 0 0.3rem;
+    color: var(--text);
+    line-height: 1.3;
+}
+
+.popup-md-heading:first-child { margin-top: 0; }
+.popup-md-h1 { font-size: 0.92rem; }
+.popup-md-h2 { font-size: 0.86rem; }
+.popup-md-h3,
+.popup-md-h4 { font-size: 0.8rem; font-style: italic; }
+
+.popup-md code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+.popup-md pre {
+    padding: 0.4rem 0.5rem;
+    overflow-x: auto;
+    background: var(--bg-offset);
+    font-size: 0.68rem;
+}
+
+.popup-md blockquote {
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--border);
+}
+
+.popup-md table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+.popup-md th,
+.popup-md td {
+    padding: 0.25rem 0.5rem 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.popup-md th {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.popup-md a {
+    color: inherit;
+}
+
+/* Repository and revision under the path — the line that says which
+   commit a GitHub code-reference popup is showing. */
+.popup-source-rev {
+    margin-top: 0.1rem;
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    word-break: normal;
+}
+
+/* GitHub tree and commit snapshots: prose-ish body inside the same
+   header/footer frame as the code popups. */
+.popup-code-body {
+    padding: 0.55rem 0.65rem 0.6rem;
+}
+
+.popup-code-subject {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.35;
+    margin-bottom: 0.35rem;
+}
+
+.popup-code-body .popup-abstract {
+    white-space: pre-line;
+    margin-bottom: 0.45rem;
+}
+
+.popup-code-stat {
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    margin-bottom: 0.25rem;
+}
+
+.popup-code-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.55;
+    columns: 2;
+    column-gap: 1.2rem;
+}
+
+.popup-code-list li {
+    break-inside: avoid;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.popup-code-list .is-dir {
+    color: var(--text);
+}
+
+.popup-code-files {
+    columns: 1;
+}
+
+.popup-code-files li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.popup-code-file {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.popup-code-delta {
+    flex: none;
+}
+
+.popup-code-ref ins,
+.popup-code-ref del {
+    text-decoration: none;
+}
+
+.popup-code-ref ins { color: var(--text); }
+.popup-code-ref del { color: var(--text-faint); }
+
+/* Inline source-ref link styling: keep the inline-code chrome of the
+   wrapped <code> intact and resist the link-classifier's external/
+   internal stamp (Filters.Links explicitly skips us). The hover hint
+   is a faint dotted underline — same convention as date-hover and
+   epistemic-term cues. */
+a.source-ref {
+    color: inherit;
+    text-decoration: none;
+}
+
+a.source-ref:hover {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+a.source-ref code {
+    /* The underlying inline-code styling is inherited from typography.css;
+       this rule exists only to ensure the link wrapper does not fight it. */
+    color: inherit;
+}
+
+/* PGP signature popup */
+.popup-sig pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.45;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-muted);
+}
+
+/* ============================================================
+   DATE POPUP — compact, humanised span + "ago" framing, plus
+   optional cadence line for the frontmatter history link.
+   ============================================================ */
+
+.link-popup:has(.popup-date) {
+    min-width: 0;
+    max-width: 260px;
+    padding: 0.5rem 0.7rem;
+}
+
+.popup-date {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.popup-date-primary {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.popup-date-cadence {
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+}
+
+/* Subtle cue that the date is interactive. Dotted underline is the standard
+   convention for explanatory hover; kept faint so it doesn't shout. */
+.date-hover {
+    cursor: help;
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+/* Don't decorate container elements (li, dd, time) that already fit into
+   a list with their own layout — the text decoration looks noisy on them. */
+li.date-hover,
+dd.date-hover {
+    text-decoration: none;
+    cursor: help;
+}

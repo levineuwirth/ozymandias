@@ -1,0 +1,26 @@
+<svg viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mark-template-title">
+    <title id="mark-template-title">Frontmatter monogram template</title>
+    <desc>A reference monogram demonstrating the §2.2 visual contract: outer roundel, currentColor strokes, no fills except small filled point-marks, round line caps. Authors copy this file to content/{section}/{slug}/mark.svg (or content/{section}/{slug}.mark.svg for flat-form pieces) and replace the inner geometry with a glyph abstracted from their work's central concept.</desc>
+
+    <!-- Outer roundel — required (§2.2 M3). Do not remove. -->
+    <circle cx="140" cy="140" r="128" fill="none" stroke="currentColor" stroke-width="0.6"/>
+
+    <!-- Inner geometry: replace this group with your monogram.
+         Constraints (§2.2):
+           – stroke-width drawn from {0.3, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4}
+           – fill="none" everywhere except small filled point-marks
+           – stroke-linecap="round", stroke-linejoin="round" everywhere
+           – no <text>, <image>, gradients, filters, embedded fonts, rasters
+           – file size ≤ 8 KiB
+           – well-formed XML (round-trips through xmllint --noout) -->
+    <g stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Sample horizon line. -->
+        <line x1="60" y1="180" x2="220" y2="180" stroke-width="0.8"/>
+        <!-- Sample plinth — a low rectangular form on the horizon. -->
+        <rect x="120" y="160" width="40" height="20" stroke-width="0.6"/>
+        <!-- Sample column shaft. -->
+        <line x1="140" y1="160" x2="140" y2="100" stroke-width="1.0"/>
+        <!-- Sample capital. -->
+        <line x1="125" y1="100" x2="155" y2="100" stroke-width="0.8"/>
+    </g>
+</svg>

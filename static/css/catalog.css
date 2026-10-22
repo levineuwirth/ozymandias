@@ -1,0 +1,469 @@
+/* catalog.css — /music/, the catalogue of works (templates/music-catalog.html,
+   build/Catalog.hs).
+
+   Two parts. The shelf is the page's one bold element: every work as the
+   spine of a bound score, oldest to newest, each as thick as its score is
+   long, with one work standing face-out to show its first page. Below it,
+   the catalogue proper — quiet, set like the movement list on each work's
+   own page (composition.css), so the index and the works read as one
+   edition. */
+
+.music-index {
+    --shelf-height: 16rem;
+    --spine-binding: 1.9rem;      /* every spine's minimum thickness */
+    --spine-per-page: 0.021rem;   /* and what each page of score adds */
+    --spine-type: 1rem;
+    --shelf-paper: #fffdfa;
+}
+
+[data-theme="dark"]       .music-index { --shelf-paper: #1c1c1c; }
+[data-theme="cappuccino"] .music-index { --shelf-paper: #5e4230; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .music-index { --shelf-paper: #1c1c1c; }
+}
+
+.page-shell > #markdownBody.music-index {
+    width: min(58rem, 100%);
+    padding-top: 3.5rem;
+}
+
+/* ------------------------------------------------------------------
+   Title
+------------------------------------------------------------------ */
+
+#markdownBody.music-index .music-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.6rem);
+    font-weight: 400;
+    line-height: 1.04;
+    letter-spacing: -0.012em;
+}
+
+.music-abstract {
+    max-width: 34rem;
+    margin-top: 0.6rem;
+    font-size: 1.3rem;
+    font-style: italic;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+#markdownBody.music-index .music-abstract p {
+    margin: 0;
+    text-indent: 0;
+}
+
+/* ------------------------------------------------------------------
+   The shelf
+------------------------------------------------------------------ */
+
+#markdownBody.music-index .shelf {
+    margin: 3.25rem 0 0;
+    padding-bottom: 3.6rem;       /* the two-line label under the face-out score */
+}
+
+/* The board the volumes stand on, running the width of the page like a
+   shelf that is not yet full; the face-out work stands just past the
+   spines. */
+.shelf-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    padding: 0 0.75rem;
+    border-bottom: 3px solid var(--text);
+}
+
+/* The spines scroll sideways inside the row once they outgrow it, so a
+   long catalogue never widens the page; the face-out score stays put.
+   The top padding (paid back by the negative margin) is headroom for a
+   spine drawn up off the shelf, which the scroll box would otherwise clip. */
+#markdownBody.music-index .shelf-spines {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 0;
+    margin: -0.8rem 0 0;
+    padding: 0.8rem 0 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    list-style: none;
+}
+
+/* A spine is 1.9rem of binding plus a little per page, so thickness
+   follows the length of the score: a fourteen-page song is a slim sheaf,
+   a hundred-and-fifty-page symphony a thick volume, and the difference is
+   true to scale. The fixed part keeps the title legible on the slimmest. */
+.shelf-spine {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    width: calc(var(--spine-binding) + var(--pages, 0) * var(--spine-per-page));
+    height: var(--shelf-height);
+    padding: 1.2rem 0 0.7rem;
+    background: var(--text);
+    color: var(--bg);
+    text-decoration: none;
+    box-shadow:
+        inset 1px 0 0 color-mix(in srgb, var(--bg) 16%, transparent),
+        inset -1px 0 0 color-mix(in srgb, var(--bg) 8%, transparent);
+    transition: transform var(--transition-medium);
+}
+
+.shelf-spine:visited {
+    color: var(--bg);
+}
+
+/* Two pairs of rules across the spine, where a bound score's lettering
+   panel would be. */
+.shelf-spine::before,
+.shelf-spine::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    right: 0.3rem;
+    height: 3px;
+    border-top: 1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+}
+.shelf-spine::before { top: 0.5rem; }
+.shelf-spine::after  { bottom: 2rem; }
+
+/* A long title turns a second line down the spine where the volume is
+   thick enough to carry one; only the slimmest spines cut a title short. */
+.shelf-spine-title {
+    max-height: calc(var(--shelf-height) - 4.6rem);
+    max-width: calc(100% - 0.5rem);
+    overflow: hidden;
+    font-family: var(--font-serif);
+    font-size: var(--spine-type);
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-wrap: balance;
+    writing-mode: vertical-rl;
+}
+
+.shelf-spine-title .cat-opus {
+    color: inherit;              /* the spine's own lettering colour */
+    opacity: 0.75;
+}
+
+.shelf-spine-year {
+    font-family: var(--font-serif);
+    font-size: 0.72rem;
+    font-variant-numeric: oldstyle-nums;
+    letter-spacing: 0.03em;
+    opacity: 0.75;
+}
+
+/* Cappuccino's spines are its cream, lettered in its brown; at 0.75 the
+   year and opus fell to 3.9:1 (audit A07). 0.85 is 5.0:1. */
+[data-theme="cappuccino"] .shelf-spine-year,
+[data-theme="cappuccino"] .shelf-spine-title .cat-opus {
+    opacity: 0.85;
+}
+
+/* Pointing at a spine draws it a little way off the shelf. */
+.shelf-spine:hover,
+.shelf-spine:focus-visible {
+    transform: translateY(-0.4rem);
+}
+
+/* The face-out work has been taken down, so its place in the row shows
+   as an empty slot: the spine's outline, lettered, with nothing in it. */
+.shelf-spine.is-faceout {
+    background: transparent;
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.shelf-spine.is-faceout:visited {
+    color: var(--text);
+}
+
+.shelf-spine.is-faceout::before,
+.shelf-spine.is-faceout::after {
+    border-color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+.shelf-spine:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 3px;
+}
+
+/* The face-out score: its first page on a sheet, with the rest of the
+   score beneath it — the same object as a work's frontispiece. */
+.shelf-faceout {
+    position: relative;
+    display: block;
+    flex: 0 0 auto;
+    width: calc(var(--shelf-height) * var(--aspect, 0.7727));
+    height: var(--shelf-height);
+    background: var(--shelf-paper);
+    outline: 1px solid var(--border);
+    isolation: isolate;
+}
+
+.shelf-faceout[data-stack="1"] {
+    box-shadow: 4px -4px 0 -1px var(--shelf-paper), 4px -4px 0 0 var(--border);
+}
+.shelf-faceout[data-stack="2"] {
+    box-shadow:
+        4px -4px 0 -1px var(--shelf-paper), 4px -4px 0 0 var(--border),
+        8px -8px 0 -1px var(--shelf-paper), 8px -8px 0 0 var(--border);
+}
+.shelf-faceout[data-stack="3"] {
+    box-shadow:
+        4px -4px 0 -1px var(--shelf-paper),   4px -4px 0 0 var(--border),
+        8px -8px 0 -1px var(--shelf-paper),   8px -8px 0 0 var(--border),
+        12px -12px 0 -1px var(--shelf-paper), 12px -12px 0 0 var(--border);
+}
+
+/* Engraver exports are black on white; see composition.css for why the
+   page is blended into the sheet rather than recoloured. */
+.shelf-faceout img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+}
+
+[data-theme="dark"] .shelf-faceout img {
+    filter: invert(1);
+    mix-blend-mode: screen;
+    opacity: 0.8;
+}
+[data-theme="cappuccino"] .shelf-faceout img {
+    filter: invert(1) sepia(0.45);
+    mix-blend-mode: screen;
+    opacity: 0.82;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .shelf-faceout img {
+        filter: invert(1);
+        mix-blend-mode: screen;
+        opacity: 0.8;
+    }
+}
+
+/* The label on the board's edge, under the face-out score and no wider
+   than it: title on one line, forces and year on the next. */
+.shelf-caption {
+    position: absolute;
+    top: calc(100% + 0.8rem);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    color: var(--text);
+    line-height: 1.35;
+}
+
+.shelf-caption-title {
+    font-size: 1.05rem;
+}
+
+.shelf-caption-title .cat-opus {
+    color: var(--text-muted);
+}
+
+.shelf-caption-meta {
+    font-size: 0.98rem;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------
+   Introduction (the index page's own prose)
+------------------------------------------------------------------ */
+
+.music-prose {
+    max-width: 38rem;
+    margin: 3.5rem auto 0;
+}
+
+.music-prose:empty {
+    display: none;
+}
+
+/* ------------------------------------------------------------------
+   The catalogue
+------------------------------------------------------------------ */
+
+.cat {
+    margin-top: 4rem;
+}
+
+.cat-section + .cat-section {
+    margin-top: 3.25rem;
+}
+
+#markdownBody.music-index .cat-section-title {
+    margin: 0 0 1rem;
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-style: italic;
+    font-weight: 400;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+#markdownBody.music-index .cat-list {
+    max-width: 38rem;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+}
+
+/* Year | title | leader | duration, and the forces beneath the title. */
+.cat-work-row {
+    display: grid;
+    grid-template-columns: 3.4rem auto minmax(1.5rem, 1fr) auto;
+    align-items: baseline;
+    column-gap: 0.6rem;
+    padding: 0.6rem 0;
+    color: var(--text);
+    text-decoration: none;
+}
+
+a.cat-work-row:visited {
+    color: var(--text);
+}
+
+.cat-work-year {
+    font-size: 1rem;
+    font-variant-numeric: oldstyle-nums;
+    color: var(--text-muted);
+}
+
+.cat-work-title {
+    min-width: 0;
+    font-size: 1.2rem;
+}
+
+.cat-work-title .cat-opus {
+    color: var(--text-muted);
+}
+
+.cat-work-leader {
+    align-self: end;
+    margin-bottom: 0.5em;
+    border-bottom: 1px dotted var(--border-muted);
+    transition: border-color var(--transition-fast);
+}
+
+.cat-work-dur {
+    font-size: 1.1rem;
+    font-variant-numeric: lining-nums;   /* see composition.css */
+    white-space: nowrap;
+}
+
+.cat-work-forces {
+    grid-column: 2 / -1;
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.cat-work-rec,
+.cat-work-note {
+    margin-left: 0.6em;
+    font-size: 0.9em;
+    font-style: normal;
+}
+
+a.cat-work-row:hover .cat-work-title,
+a.cat-work-row:focus-visible .cat-work-title {
+    text-decoration: underline;
+    text-decoration-color: var(--link-hover);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.2em;
+}
+
+a.cat-work-row:hover .cat-work-leader,
+a.cat-work-row:focus-visible .cat-work-leader {
+    border-bottom-color: var(--text);
+}
+
+.cat-empty {
+    text-align: center;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Between phone and desktop: a slightly smaller shelf, so a catalogue of
+   a handful of works still stands whole beside its face-out score and the
+   scroll is kept for when the shelf is genuinely full. */
+@media (max-width: 900px) {
+    .music-index {
+        --shelf-height: 14rem;
+        --spine-binding: 1.7rem;
+        --spine-per-page: 0.016rem;
+        --spine-type: 0.92rem;
+    }
+
+    /* A shorter spine has no room for the opus; the catalogue and the
+       face-out label still carry it. */
+    .shelf-spine-title .cat-opus {
+        display: none;
+    }
+}
+
+/* ------------------------------------------------------------------
+   Narrow screens: a shorter shelf of spines alone — the face-out score
+   would crowd them, and there is no pointer to turn it with anyway.
+------------------------------------------------------------------ */
+
+@media (max-width: 680px) {
+    .page-shell > #markdownBody.music-index {
+        padding-top: 2rem;
+    }
+
+    .music-index {
+        --shelf-height: 13rem;
+        --spine-binding: 1.55rem;
+        --spine-per-page: 0.013rem;
+        --spine-type: 0.85rem;
+    }
+
+    #markdownBody.music-index .shelf {
+        padding-bottom: 0;
+    }
+
+    /* No face-out score here, so no spine shows as its empty slot. */
+    .shelf-faceout {
+        display: none;
+    }
+
+    .shelf-spine.is-faceout,
+    .shelf-spine.is-faceout:visited {
+        background: var(--text);
+        color: var(--bg);
+        box-shadow: none;
+    }
+
+    .shelf-spine.is-faceout::before,
+    .shelf-spine.is-faceout::after {
+        border-color: color-mix(in srgb, var(--bg) 45%, transparent);
+    }
+
+
+    .cat-work-row {
+        grid-template-columns: 2.9rem auto minmax(1rem, 1fr) auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shelf-spine {
+        transition: none;
+    }
+}

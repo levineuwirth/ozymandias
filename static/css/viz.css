@@ -1,0 +1,131 @@
+/* viz.css — Styles for inline data visualizations (.viz-figure, .viz-interactive) */
+
+/* ============================================================
+   Static figures (Matplotlib SVG)
+   ============================================================ */
+
+.viz-figure {
+    margin: 2rem 0;
+    break-inside: avoid;
+}
+
+/* Wide figures pan instead of shrinking.
+   Matplotlib bakes label text at a fixed size in user units, so scaling a
+   figure to fit a narrow column scales its text down with it — fig_decomp
+   is 855 units wide and its 10-unit tick labels rendered near 4px on a
+   375px phone. --viz-natural-width (set per figure by Filters.Viz) is the
+   viewBox width in px, i.e. one user unit per pixel, which puts those
+   labels back at 10px. Below that width the wrapper scrolls; above it the
+   figure fills the column as before, so only genuinely oversized figures
+   ever show a scrollbar. */
+.viz-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+.viz-scroll svg {
+    width: 100%;
+    min-width: var(--viz-natural-width, 0);
+    height: auto;
+    display: block;
+}
+
+/* The wrapper is focusable so the region is scrollable by keyboard, not
+   only by touch or trackpad (WCAG 2.1.1). That costs a tab stop on figures
+   narrow enough never to scroll, which is the cheaper of the two failures. */
+.viz-scroll:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+}
+
+
+/* Theme every default-black fill: text, and any shape with a black face.
+   Matplotlib writes no fill at all when the colour is black — for ordinary
+   text, and equally for a black bar, marker or arrowhead — and leans on
+   SVG's initial `fill: black`. There is then nothing for
+   Filters.Viz.processColors to rewrite, so the colour has to come from CSS.
+   An inherited value is enough: `fill` inherits, and every element that
+   declares none of its own, glyph <use> elements included, picks it up.
+
+   This rule once reached only the text groups (g[id^="text_"]). Black
+   shapes then stayed black, near-invisible on the dark and cappuccino
+   pages: the Proof Broker figure's arrowheads drew hollow. Setting it on
+   the root matches .score-page in score-reader.css, and
+   tests/test_viz.py (ImplicitFillTests) now fails on any shape left
+   without a fill it can inherit.
+
+   Inheriting rather than forcing is the point. These rules used to carry
+   !important, which also overrode fills a script had chosen deliberately:
+   cliffs_delta_heatmap.py labels its dark cells white, and !important
+   repainted those labels currentColor — near-black on near-black, i.e.
+   invisible, in light mode (the default). An explicit fill is an inline
+   style, which outranks an inherited value, so those labels now survive.
+
+   Strokes need no rule here: matplotlib always writes them explicitly
+   (`stroke: #000000`), so processColors rewrites them at build time. An
+   inherited fallback could not help anyway — an inline style would beat it —
+   and an !important one would trample deliberate stroke colours the same way
+   it trampled the fills. tests/test_viz.py asserts nothing black survives. */
+.viz-figure svg {
+    fill: currentColor;
+}
+
+/* ============================================================
+   Interactive figures (Vega-Lite via vega-embed)
+   ============================================================ */
+
+.viz-interactive {
+    margin: 2rem 0;
+    break-inside: avoid;
+}
+
+.vega-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+/* vega-embed injects a <div> containing a <canvas> or <svg> */
+.vega-container > div {
+    width: 100% !important;
+}
+
+.vega-container canvas,
+.vega-container svg {
+    max-width: 100%;
+    display: block;
+}
+
+/* ============================================================
+   Captions (shared)
+   ============================================================ */
+
+/* Figure N. label, injected by Filters.FigureRefs on opted-in pages.
+   Lives here rather than in images.css because both figure producers
+   share it; images.css styles generic <figure> and does not know about
+   numbering. */
+.figure-number {
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+
+.viz-caption {
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* ============================================================
+   Error display (build-time script failures)
+   ============================================================ */
+
+.viz-error {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    margin: 1.5rem 0;
+}
