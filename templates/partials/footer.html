@@ -1,5 +1,6 @@
 <!-- The engine's footer, for a site that brings none of its own: the
      site's host and code license from site.yaml (Config.identityContext).
+     The empty right part balances the left, so the license sits centered.
      A site overrides it at templates/partials/footer.html. -->
 <footer data-pagefind-ignore="all">
     <div class="footer-left">
@@ -9,4 +10,5 @@
     <div class="footer-center">
         <span class="footer-license"><a href="$site-source-repo$">$site-code-license$</a></span>
     </div>
+    <div class="footer-right"></div>
 </footer>
