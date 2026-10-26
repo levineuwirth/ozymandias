@@ -21,7 +21,8 @@ The font answers every way a note value reaches the page:
     still says "half note") and only the drawing changes.
 
 Usage:
-    uv run --with fonttools --with brotli tools/build-notes-font.py LelandText.otf
+    UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv run --frozen --project engine \
+        --with fonttools --with brotli engine/tools/build-notes-font.py LelandText.otf
 
 LelandText.otf is in the MuseScore repository at fonts/leland/.
 """

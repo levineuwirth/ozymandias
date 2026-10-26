@@ -115,7 +115,7 @@ source "$(dirname "$0")/site-paths.sh"
 
 if [ ! -d "$SITE_ROOT/.venv" ]; then
     echo "import-photo: .venv not found at $SITE_ROOT/.venv" >&2
-    echo "  Run: uv sync" >&2
+    echo "  Run: make venv" >&2
     exit 1
 fi
 

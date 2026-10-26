@@ -28,7 +28,7 @@
 --
 -- * Scripts are run from the project root; paths are relative to it.
 -- * Scripts run under @.venv\/bin\/python3@ when that virtualenv exists
---   (@uv sync@ creates it), otherwise under @python3@ from @PATH@.
+--   (@make venv@ creates it), otherwise under @python3@ from @PATH@.
 -- * @script=@ paths are resolved relative to the source file\'s directory.
 -- * For @.figure@ scripts: use pure black (@#000000@) for all drawn
 --   elements and transparent backgrounds so @blackToCurrentColor@ and CSS

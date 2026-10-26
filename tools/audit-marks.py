@@ -20,7 +20,7 @@ Run as::
 
 or directly via::
 
-    uv run python tools/audit-marks.py
+    .venv/bin/python engine/tools/audit-marks.py
 
 Exit code is always 0; this is a report tool, not a gate.
 

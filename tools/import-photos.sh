@@ -63,7 +63,7 @@ fi
 for tool in magick exiftool; do
     command -v "$tool" >/dev/null 2>&1 || { echo "import-photos: $tool is required" >&2; exit 1; }
 done
-[ -x "$SITE_ROOT/.venv/bin/python" ] || { echo "import-photos: .venv missing — run uv sync" >&2; exit 1; }
+[ -x "$SITE_ROOT/.venv/bin/python" ] || { echo "import-photos: .venv missing — run make venv" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Namespace guard.

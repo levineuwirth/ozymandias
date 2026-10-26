@@ -101,7 +101,7 @@ def render(script: Path) -> str:
     return result.stdout
 
 
-@unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `uv sync`")
+@unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `make venv`")
 class FigureOutputTests(unittest.TestCase):
     """The scripts must emit black in a syntax processColors can see."""
 
@@ -331,7 +331,7 @@ class BuiltPageTests(unittest.TestCase):
         return re.findall(r'<figcaption class="viz-caption">(.*?)</figcaption>', html, re.S)
 
 
-@unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `uv sync`")
+@unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `make venv`")
 @unittest.skipUnless(SITE_DIR.is_dir(), "no _site — run `cabal run site -- build`")
 class ColourPreservationTests(unittest.TestCase):
     """The counterpart to "no black survives": everything else must.

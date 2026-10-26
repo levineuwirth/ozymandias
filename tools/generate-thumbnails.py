@@ -395,7 +395,7 @@ PILLOW_HINT = """
 
    Install it:
 
-     uv sync                 # Pillow is already in pyproject.toml
+     make venv               # Pillow is already in pyproject.toml
      .venv/bin/pip install pillow
 
    Then re-run `make thumbnails` (or `make build`).

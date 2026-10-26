@@ -34,7 +34,7 @@ Two subcommands:
 regenerating provenance means the published checksum no longer describes the
 published file.
 
-Usage:  uv run python tools/viz-provenance.py {write,check} [PATH ...]
+Usage:  .venv/bin/python engine/tools/viz-provenance.py {write,check} [PATH ...]
 """
 
 from __future__ import annotations

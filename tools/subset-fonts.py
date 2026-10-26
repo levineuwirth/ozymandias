@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """subset-fonts.py — the site's web fonts, from their upstream releases.
 
-    uv run --with fonttools --with brotli engine/tools/subset-fonts.py
+    UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv run --frozen --project engine \
+        --with fonttools --with brotli engine/tools/subset-fonts.py
 
 The site's tools/fonts.yaml names each family's upstream sources, the
 characters and OpenType features its subsets keep, and the license notice

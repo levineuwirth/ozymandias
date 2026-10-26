@@ -33,7 +33,7 @@ crowding         Text runs whose rendered size falls below the legible floor
 metadata         Missing alt / <title> / <desc>, which tests also check but
                  which belong in a figure report.
 
-Usage:  uv run python tools/audit-viz.py [--strict] [PATH ...]
+Usage:  .venv/bin/python engine/tools/audit-viz.py [--strict] [PATH ...]
 """
 
 from __future__ import annotations

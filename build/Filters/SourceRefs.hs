@@ -191,6 +191,7 @@ sourcePreviewGlobs =
     , "cabal.project"
     , "cabal.project.freeze"
     , "Makefile"
+    , "engine.mk"
     , "pyproject.toml"
     , "uv.lock"
     , "LICENSE"

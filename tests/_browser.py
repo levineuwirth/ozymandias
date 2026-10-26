@@ -95,7 +95,7 @@ def require_playwright() -> None:
     try:
         import playwright.sync_api  # noqa: F401
     except ImportError as e:
-        raise AssertionError("Playwright is not installed: run `uv sync`") from e
+        raise AssertionError("Playwright is not installed: run `make venv`") from e
 
 
 def enforcing_csp() -> str:

@@ -25,7 +25,7 @@ providers, and `csp_run.py` the live model, which the tests do not.
 ## Running
 
 ```sh
-uv sync                                      # Playwright is in pyproject's dev group
+make venv                                    # Playwright is in pyproject's dev group
 .venv/bin/playwright install chromium firefox
 make build                                   # they read _site/
 .venv/bin/python tools/browser/serve.py --root _site --port 48731 --csp "<policy>" \
