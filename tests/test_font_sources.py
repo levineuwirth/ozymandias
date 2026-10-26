@@ -6,10 +6,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from tests._helpers import load_tool
+from tests.target import FONTS
 
-fonts = load_tool("subset-fonts.py")
+# The tool reads the site's fonts.yaml as it loads.
+fonts = load_tool("subset-fonts.py") if FONTS.is_file() else None
 
 
+@unittest.skipIf(fonts is None, "the site has no tools/fonts.yaml")
 class FontSourceTests(unittest.TestCase):
     def test_all_downloads_have_immutable_revisions_and_checksums(self):
         urls = {s[1] for s in fonts.FONTS} | {s[1] for s in fonts.LICENCES.values()}

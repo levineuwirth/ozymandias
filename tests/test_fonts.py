@@ -1,17 +1,17 @@
-"""Web fonts: preloads, fallback faces and the stacks that use them (audit V20, A19)."""
+"""Web fonts: preloads, fallback faces and the stacks that use them (audit V20, A19).
+
+The site's fonts.yaml names the families, the fallback sets, and the
+stylesheet and markers engine/tools/subset-fonts.py writes the faces
+between; a site without one has no web fonts to check.
+"""
 
 import re
 import unittest
 
-from tests._helpers import SITE_ROOT, engine_path
+from tests._helpers import SITE_ROOT
+from tests.target import engine_file, fonts
 
-BASE_CSS = engine_path("static/css/base.css").read_text(encoding="utf-8")
-HEAD = engine_path("templates/partials/head.html").read_text(encoding="utf-8")
-
-
-def stack(token):
-    m = re.search(rf"--{token}:\s*([^;]+);", BASE_CSS)
-    return [f.strip().strip('"') for f in m.group(1).split(",")]
+FONTS = fonts()
 
 
 def faces(css):
@@ -23,29 +23,36 @@ def descriptor(face, name):
     return m.group(1).strip() if m else None
 
 
+@unittest.skipIf(FONTS is None, "the site has no tools/fonts.yaml")
 class FontTests(unittest.TestCase):
     def setUp(self):
-        begin = BASE_CSS.index("/* BEGIN fallback faces")
-        end = BASE_CSS.index("/* END fallback faces */")
-        self.generated = faces(BASE_CSS[begin:end])
+        fallbacks = FONTS["fallbacks"]
+        self.css = engine_file(fallbacks["css"]).read_text(encoding="utf-8")
+        begin, end = self.css.index(fallbacks["begin"]), self.css.index(fallbacks["end"])
+        self.generated = faces(self.css[begin:end])
+        # The web family each set stands in for: "Spectral on Georgia" is Spectral's.
+        self.web = sorted({s["family"].split(" on ")[0] for s in fallbacks["sets"]})
+        self.stacks = {token: [f.strip().strip('"') for f in value.split(",")]
+                       for token, value in re.findall(r"--([\w-]+):\s*([^;{}]+);", self.css)}
 
     def test_the_generated_block_is_not_empty(self):
-        self.assertGreater(len(self.generated), 0, "run tools/subset-fonts.py")
+        self.assertGreater(len(self.generated), 0, "run engine/tools/subset-fonts.py")
 
     def test_every_fallback_face_sits_right_after_its_web_family(self):
-        for token, web in (("font-serif", "Spectral"), ("font-sans", "Fira Sans")):
-            families = stack(token)
+        for web in self.web:
             fallbacks = sorted({descriptor(f, "font-family").strip('"') for f in self.generated
                                 if descriptor(f, "font-family").strip('"').startswith(web + " on ")})
             self.assertTrue(fallbacks, f"no fallback faces for {web}")
-            self.assertEqual(families[0], web)
-            self.assertEqual(sorted(families[1:1 + len(fallbacks)]), fallbacks,
-                             f"--{token} must name {web}'s fallback faces next")
+            stacks = {token: families for token, families in self.stacks.items() if families[0] == web}
+            self.assertTrue(stacks, f"no stack starts with {web}")
+            for token, families in stacks.items():
+                self.assertEqual(sorted(families[1:1 + len(fallbacks)]), fallbacks,
+                                 f"--{token} must name {web}'s fallback faces next")
 
     def test_every_family_a_stack_names_with_on_is_defined(self):
         defined = {descriptor(f, "font-family").strip('"') for f in self.generated}
-        for token in ("font-serif", "font-sans"):
-            for family in stack(token):
+        for families in self.stacks.values():
+            for family in families:
                 if " on " in family:
                     self.assertIn(family, defined)
 
@@ -57,9 +64,10 @@ class FontTests(unittest.TestCase):
                 self.assertRegex(descriptor(face, name) or "", r"^\d+(\.\d+)?%$", f"{name} in {face}")
 
     def test_preloads_name_fonts_the_stylesheet_declares(self):
-        preloads = re.findall(r'<link rel="preload" href="(/fonts/[^"]+)" as="font" type="font/woff2" crossorigin>', HEAD)
+        head = engine_file("templates/partials/head.html").read_text(encoding="utf-8")
+        preloads = re.findall(r'<link rel="preload" href="(/fonts/[^"]+)" as="font" type="font/woff2" crossorigin>', head)
         self.assertTrue(preloads)
-        declared = {"/fonts/" + p for p in re.findall(r'url\("\.\./fonts/([^"]+)"\)', BASE_CSS)}
+        declared = {"/fonts/" + p for p in re.findall(r'url\("\.\./fonts/([^"]+)"\)', self.css)}
         for href in preloads:
             self.assertIn(href, declared, f"{href} is preloaded but no @font-face uses it")
             self.assertTrue((SITE_ROOT / "static" / href.lstrip("/")).is_file(), href)
