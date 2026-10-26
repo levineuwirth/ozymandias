@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Check the designated engine sources against a site's identity.
+"""Check the engine's files against a site's identity.
 
 Configuration comes from `site config`. The site-owned migration policy lists
-legacy names, the ln namespace patterns, and the files and directories staying
-in the site; it is not part of the engine. Every file Git sees has an owner.
-An engine path names a file by its path in the engine, found under engine/
-once A6 moves it there and at the root until then; scans and allowances use
-that name, so a move is not a relocation. A site file that overrides an
-engine file at the same path (overrides.yaml) is the site's, and the engine's
-is the one under engine/. Allowances cover individual
-occurrences. Stable IDs survive reviewed location
+legacy names, the ln namespace patterns, the site's files and directories,
+and the engine's vendored code; it is not part of the engine. Every file Git
+sees has an owner: the engine owns what is under engine/, named by its path
+there, which scans and allowances use; the site owns the rest, as the policy
+names it. A site file that overrides an engine file at the same path
+(overrides.yaml) is the site's, and the engine's is the one under engine/.
+Allowances cover individual occurrences. Stable IDs survive reviewed location
 changes; every recorded revision must be a subset of the previous revision.
 There is deliberately no command to refresh or regenerate allowances.
 """
@@ -28,7 +27,6 @@ from sitelib import SITE_ROOT, site_config
 ENGINE = "engine/"
 ALLOWANCES = "tests/identity-allowances.yaml"
 POLICY = "tests/identity-policy.yaml"
-PATHS = "tests/engine-paths.txt"
 OVERRIDES = "overrides.yaml"
 FONTS = "tools/fonts.yaml"
 
@@ -74,10 +72,8 @@ def scanners(terms: list[str], patterns: list[str]) -> list[re.Pattern]:
 
 
 def located(root: Path, path: str) -> Path:
-    """An engine path where its file is: under engine/ once moved, else at
-    the root."""
-    moved = root / ENGINE / path
-    return moved if moved.exists() else root / path
+    """An engine file by its path in the engine."""
+    return root / ENGINE / path
 
 
 def occurrences(root: Path, paths: list[str], terms: list[str],
@@ -194,61 +190,46 @@ def overridden(root: Path) -> set[str]:
     return {e["site"] for e in document}
 
 
-def visible_files(root: Path) -> set[str]:
-    # What Git sees: tracked files plus untracked ones not ignored, so a new
-    # file needs an owner before it can be committed, while caches, downloads
-    # and build products (ignored) need none. A tracked file deleted in the
-    # working copy is gone.
+def visible_files(directory: Path) -> set[str]:
+    # What Git sees under `directory`, by paths relative to it: tracked files
+    # plus untracked ones not ignored, so a new file needs an owner before it
+    # can be committed, while caches, downloads and build products (ignored)
+    # need none. A tracked file deleted in the working copy is gone. Run in
+    # engine/, this is the engine's repository's view, whether engine/ is in
+    # the site's (Phase A) or a checkout of its own.
     listing = subprocess.check_output(
-        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=root)
-    return {p for p in listing.decode().split("\0") if p and (root / p).is_file()}
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=directory)
+    return {p for p in listing.decode().split("\0") if p and (directory / p).is_file()}
 
 
 def inventory(root: Path, policy: dict) -> list[str]:
-    paths = [s for line in (root / PATHS).read_text().splitlines()
-             if (s := line.strip()) and not s.startswith("#")]
-    if len(set(paths)) != len(paths):
-        raise ValueError("duplicate engine paths")
-    if any(p.endswith("/") for p in paths):
-        raise ValueError("engine paths name files, not directories")
-    # Every file in the repository needs an owner: an engine path, a site or
-    # vendored file, or a site or vendored directory (an entry ending in /).
-    # An engine path inside a site directory is the engine's. Under engine/,
-    # only engine paths and vendored files belong, by their path there, and
-    # each engine path is in one place, unless a site file overrides it: then
-    # it is both an engine path and a site file, and the engine's is under
-    # engine/. Engine and site entries must exist; vendored files are
-    # downloaded and need not.
-    owned = policy["site-files"] + policy["vendored-files"]
-    files = [e for e in owned if not e.endswith("/")]
-    directories = [e for e in owned if e.endswith("/")]
-    listed = paths + files + directories
-    candidates = visible_files(root)
+    """The engine's files to scan, once every file has its one owner.
+
+    The engine owns what Git sees under engine/; its vendored code, by
+    vendored-files, is not scanned. The site owns the rest, each file named
+    in site-files or inside a site directory there (an entry ending in /),
+    and those entries must exist. A site file at an engine file's path
+    overrides it, which overrides.yaml must declare and site-files name
+    exactly; the engine's copy must then exist too.
+    """
+    site, vendored = policy["site-files"], policy["vendored-files"]
+    files = {e for e in site if not e.endswith("/")}
+    directories = [e for e in site if e.endswith("/")]
+    engine = visible_files(root / ENGINE)
+    seen = {p for p in visible_files(root) if not p.startswith(ENGINE)}
     overrides = overridden(root)
-    paired = overrides & set(paths) & set(policy["site-files"])
-    conflicting = sorted({e for e in listed if listed.count(e) > (2 if e in paired else 1)}
-                         | {p for p in paths if p in candidates and ENGINE + p in candidates
-                            and p not in paired}
-                         | (overrides - paired))
-    exact = set(paths) | set(files)
-    vendored = policy["vendored-files"]
-
-    def owner(path: str) -> bool:
-        if path.startswith(ENGINE):
-            rel = path.removeprefix(ENGINE)
-            return rel in paths or any(rel == v or (v.endswith("/") and rel.startswith(v))
-                                       for v in vendored)
-        return path in exact or any(path.startswith(d) for d in directories)
-
-    unclassified = sorted(p for p in candidates if not owner(p))
-    site = policy["site-files"]
-    missing = sorted({p for p in paths if p not in candidates and ENGINE + p not in candidates}
-                     | {ENGINE + p for p in paired if ENGINE + p not in candidates}
-                     | ({e for e in site if not e.endswith("/")} - candidates)
-                     | {d for d in site if d.endswith("/") and not any(p.startswith(d) for p in candidates)})
+    paired = overrides & files & engine
+    unclassified = sorted(p for p in seen if p not in files and not any(p.startswith(d) for d in directories))
+    conflicting = sorted({e for e in site + vendored if (site + vendored).count(e) > 1}
+                         | ((seen & engine) - paired)
+                         | (overrides - files))
+    missing = sorted((files - seen)
+                     | {d for d in directories if not any(p.startswith(d) for p in seen)}
+                     | {ENGINE + p for p in (overrides & files) - engine})
     if unclassified or missing or conflicting:
-        raise ValueError(f"engine inventory: unclassified={unclassified}, missing={missing}, conflicting={conflicting}")
-    return paths
+        raise ValueError(f"inventory: unclassified={unclassified}, missing={missing}, conflicting={conflicting}")
+    return sorted(p for p in engine
+                  if not any(p == v or (v.endswith("/") and p.startswith(v)) for v in vendored))
 
 
 def check(root: Path, config: dict) -> tuple[int, int]:

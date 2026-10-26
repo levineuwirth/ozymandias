@@ -7,7 +7,7 @@ import unittest
 import json
 
 import yaml
-from tests._helpers import ENGINE, SITE_ROOT, load_tool, requires_cabal, site_binary
+from tests._helpers import SITE_ROOT, load_tool, requires_cabal, site_binary
 
 checker = load_tool("check-identity.py")
 
@@ -21,7 +21,8 @@ class IdentityTests(unittest.TestCase):
     def test_each_occurrence_requires_its_own_exact_location(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "file.txt").write_text("Example Author / Example Author\n")
+            (root / "engine").mkdir()
+            (root / "engine/file.txt").write_text("Example Author / Example Author\n")
             found = checker.occurrences(root, ["file.txt"], ["Example Author"])
             self.assertEqual([e["column"] for e in found], [1, 18])
             allowances = manifest(found)
@@ -31,7 +32,7 @@ class IdentityTests(unittest.TestCase):
             allowances["entries"][0]["line"] += 1
             self.assertIn("stale", checker.check_occurrences(found, allowances)[0])
 
-    def test_a_moved_engine_file_is_scanned_under_its_engine_name(self):
+    def test_an_engine_file_is_scanned_under_its_name_in_the_engine(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "engine/tools").mkdir(parents=True)
@@ -42,7 +43,8 @@ class IdentityTests(unittest.TestCase):
     def test_longest_match_and_case_variations_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "file.txt").write_text("AUTHOR@EXAMPLE.ORG example.org example")
+            (root / "engine").mkdir()
+            (root / "engine/file.txt").write_text("AUTHOR@EXAMPLE.ORG example.org example")
             found = checker.occurrences(root, ["file.txt"], checker.denylist(
                 {"host": "example.org", "email": "author@example.org"}, []))
             self.assertEqual([e["string"] for e in found],
@@ -54,7 +56,8 @@ class IdentityTests(unittest.TestCase):
         patterns = [r"\bqz[A-Z]\w*", r"\bqz:[\w-]+", r"\bdata-qz-[\w-]+", r"--qz-[\w-]+"]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "file.js").write_text(
+            (root / "engine").mkdir()
+            (root / "engine/file.js").write_text(
                 "window.qzNew = el.dataset.qzSeen; 'qz:ready'; [data-qz-idx]; --qz-gap\n"
                 "for (const qz of lines) QZOther(qzlower, qz.length);\n"
                 "qzFoo.example.org qzBar\n")
@@ -140,58 +143,53 @@ class IdentityTests(unittest.TestCase):
                 subprocess.run(["git", "-c", "user.email=test@example.org", "-c", "user.name=Test",
                                 *args], cwd=root, check=True, capture_output=True)
             git("init", "-q")
-            for name in ("Makefile", "README.md", "content/a.md", "data/style.csl", "data/refs.bib",
-                         "static/vendor/lib.js", "deleted.txt", checker.PATHS):
+            for name in ("README.md", "content/a.md", "data/refs.bib", "deleted.txt",
+                         "engine/engine.mk", "engine/data/style.csl", "engine/static/vendor/lib.js"):
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_text("")
             (root / ".gitignore").write_text("_cache/\n")
-            (root / checker.PATHS).write_text("# engine\nMakefile\ndata/style.csl\n")
             policy = {"fixed-strings": [], "fixed-patterns": [],
-                      "site-files": [checker.PATHS, ".gitignore", "README.md", "content/", "data/"],
+                      "site-files": [".gitignore", "README.md", "content/", "data/"],
                       "vendored-files": ["static/vendor/", "tools/downloaded"]}
-            # A tracked file deleted in the working copy no longer needs one.
+            # A tracked file deleted in the working copy no longer needs one;
+            # ignored files need none; vendored files are not scanned and need
+            # not be present.
             git("add", "deleted.txt")
             git("commit", "-qm", "start")
             (root / "deleted.txt").unlink()
-            # data/style.csl is the engine's inside a site directory; vendored
-            # files need not be present; ignored files need no owner.
             (root / "_cache").mkdir()
             (root / "_cache/build.o").write_text("")
-            self.assertEqual(checker.inventory(root, policy), ["Makefile", "data/style.csl"])
-            for name in ("NEW.md", "tests/new.py"):
+            self.assertEqual(checker.inventory(root, policy), ["data/style.csl", "engine.mk"])
+            # What is under engine/ is the engine's, named by its path there.
+            (root / "engine/tools").mkdir()
+            (root / "engine/tools/new.py").write_text("")
+            self.assertEqual(checker.inventory(root, policy), ["data/style.csl", "engine.mk", "tools/new.py"])
+            (root / "engine/tools/new.py").unlink()
+            # Anything else is the site's only by name: a file left beside the
+            # site, or a new one, has no owner.
+            for name in ("NEW.md", "tools/left.py"):
+                (root / name).parent.mkdir(exist_ok=True)
                 (root / name).write_text("")
                 with self.assertRaisesRegex(ValueError, rf"unclassified=\['{name}'\]"):
                     checker.inventory(root, policy)
                 (root / name).unlink()
             for extra, message in (("gone.txt", r"missing=\['gone.txt'\]"),
                                    ("empty/", r"missing=\['empty/'\]"),
-                                   ("Makefile", r"conflicting=\['Makefile'\]")):
+                                   ("README.md", r"conflicting=\['README.md'\]")):
                 broken = dict(policy, **{"site-files": policy["site-files"] + [extra]})
                 with self.assertRaisesRegex(ValueError, message):
                     checker.inventory(root, broken)
-            # An engine file moved under engine/ keeps its owner and its name,
-            # as vendored files do; nothing else belongs there, and an engine
-            # file left in both places is a conflict.
-            (root / "engine/data").mkdir(parents=True)
-            (root / "data/style.csl").rename(root / "engine/data/style.csl")
-            (root / "engine/static/vendor").mkdir(parents=True)
-            (root / "engine/static/vendor/lib.js").write_text("")
-            self.assertEqual(checker.inventory(root, policy), ["Makefile", "data/style.csl"])
-            for name, message in (("engine/README.md", r"unclassified=\['engine/README.md'\]"),
-                                  ("data/style.csl", r"conflicting=\['data/style.csl'\]")):
-                (root / name).write_text("")
-                with self.assertRaisesRegex(ValueError, message):
-                    checker.inventory(root, policy)
-                (root / name).unlink()
-            # A site file may override an engine file at the same path when
-            # overrides.yaml says so: it is then the site's, and the engine's
-            # is the one under engine/.
+            # A site file at an engine file's path, even inside a site
+            # directory, is a conflict...
             (root / "data/style.csl").write_text("")
+            with self.assertRaisesRegex(ValueError, r"conflicting=\['data/style.csl'\]"):
+                checker.inventory(root, policy)
+            # ...unless overrides.yaml declares it and site-files names it.
             overriding = dict(policy, **{"site-files": policy["site-files"] + [checker.OVERRIDES,
                                                                                "data/style.csl"]})
             (root / checker.OVERRIDES).write_text(
                 "- site: data/style.csl\n  engine: data/style.csl\n  reviewed: x\n")
-            self.assertEqual(checker.inventory(root, overriding), ["Makefile", "data/style.csl"])
+            self.assertEqual(checker.inventory(root, overriding), ["data/style.csl", "engine.mk"])
             with self.assertRaisesRegex(ValueError, r"conflicting=\['data/style.csl'\]"):
                 checker.inventory(root, dict(overriding, **{"site-files": policy["site-files"]
                                                             + [checker.OVERRIDES]}))
@@ -203,12 +201,13 @@ class IdentityTests(unittest.TestCase):
                 (root / checker.OVERRIDES).write_text(entry)
                 with self.assertRaisesRegex(ValueError, "the same engine path"):
                     checker.inventory(root, overriding)
+            # Undeclared again, the shadowing is a conflict again.
             (root / checker.OVERRIDES).unlink()
+            (root / "engine/data/style.csl").write_text("")
             with self.assertRaisesRegex(ValueError, r"conflicting=\['data/style.csl'\]"):
-                checker.inventory(root, overriding)
-            (root / "data/style.csl").unlink()
-            with self.assertRaisesRegex(ValueError, r"missing=\['data/style.csl'\]"):
-                checker.inventory(root, policy)
+                checker.inventory(root, dict(overriding, **{"site-files": policy["site-files"]
+                                                            + ["data/style.csl"]}))
+            (root / checker.POLICY).parent.mkdir()
             (root / checker.POLICY).write_text(yaml.safe_dump(dict(policy, extra=[])))
             with self.assertRaisesRegex(ValueError, "exactly"):
                 checker.load_policy(root)
@@ -217,13 +216,3 @@ class IdentityTests(unittest.TestCase):
     def test_engine_identity_allowances(self):
         config = json.loads(subprocess.check_output([str(site_binary()), "config"], cwd=SITE_ROOT, text=True))
         checker.check(SITE_ROOT, config)
-
-    def test_every_engine_file_is_in_the_engine(self):
-        # Each file tests/engine-paths.txt names is in the engine, and none
-        # is left beside the site but a site file that overrides it
-        # (overrides.yaml).
-        paths = [s for line in (SITE_ROOT / checker.PATHS).read_text().splitlines()
-                 if (s := line.strip()) and not s.startswith("#")]
-        overrides = checker.overridden(SITE_ROOT)
-        self.assertEqual(sorted(p for p in paths if not (ENGINE / p).is_file()), [])
-        self.assertEqual(sorted(p for p in paths if (SITE_ROOT / p).exists() and p not in overrides), [])
