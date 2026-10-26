@@ -2,8 +2,8 @@
 """What the last finished build was built from: a manifest of its inputs.
 
 `make build` removes data/build-inputs.json when it starts and, as its last
-step, records every file under the build inputs it is given (the Makefile's
-$(DIRTY_PATHS) and content/) with its size and modification time. A build
+step, records every file under the build inputs it is given (engine.mk's
+$(BUILD_INPUTS) and content/) with its size and modification time. A build
 that stops partway therefore leaves no manifest. `check` compares the tree
 with it and lists the files changed, added or removed since; the browser
 tests (tests/_browser.py) refuse to run against a _site whose inputs have

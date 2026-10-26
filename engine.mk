@@ -35,8 +35,11 @@ PY      := $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3)
 # and uv.lock) into the site's own .venv: two sites sharing an engine
 # cannot change packages under each other's build. UV_PROJECT_ENVIRONMENT
 # is absolute because uv resolves a relative one against the project.
+# --locked, not --frozen: a lock that no longer matches pyproject.toml is
+# refused instead of installed as it stands, which would leave a new
+# dependency out without a word. Re-lock with `uv lock --project engine`.
 venv:
-	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv" uv sync --frozen --project engine
+	UV_PROJECT_ENVIRONMENT="$(CURDIR)/.venv" uv sync --locked --project engine
 
 # ---------------------------------------------------------------------------
 # Inter-process lock  (B06)
@@ -73,8 +76,8 @@ tool = engine/tools/$(1)
 # --allow-missing-404 only while bisecting a broken 404 rule.
 #
 # --require-webp makes any missing JPEG/PNG WebP companion fatal. `make build`
-# only warns, so a machine without cwebp can still build; `make deploy`
-# requires it (REQUIRE_WEBP, below).
+# only warns, so a machine without cwebp can still build; a site's deploy
+# requires it by setting REQUIRE_WEBP, which `validate` (below) passes on.
 #
 # `make build CHECK_SITE_FLAGS='--warn-only'` reports
 # every finding and still exits 0. That is for seeing the whole picture
@@ -86,7 +89,8 @@ CHECK_SITE_FLAGS ?=
 # rules read, and what else the site compiles or publishes (SITE_INPUTS).
 # The build records them for the browser tests (tools/build-inputs.py), and
 # a site's deploy can refuse a tree that differs from HEAD in any of them.
-BUILD_INPUTS := $(wildcard engine) templates static data tools site.yaml code-refs archive \
+# Expanded where it is used, so SITE_INPUTS counts wherever the site sets it.
+BUILD_INPUTS = engine templates static data tools site.yaml code-refs archive \
 	cabal.project cabal.project.freeze Makefile $(SITE_INPUTS)
 
 # ---------------------------------------------------------------------------
@@ -437,6 +441,8 @@ test:
 	if [ -d tests ]; then \
 	  echo "== tests/ =="; \
 	  "$$PY" -m unittest discover -s tests -v || exit 1; \
+	else \
+	  echo "tests/ not present — skipping"; \
 	fi; \
 	for dir in $(SITE_TEST_DIRS); do \
 	  if [ -d "$$dir/tests" ]; then \
