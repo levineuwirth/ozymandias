@@ -9,7 +9,7 @@ import re
 import unittest
 
 from tests._helpers import SITE_ROOT
-from tests.target import engine_file, fonts
+from tests.target import NO_FONTS, engine_file, fonts
 
 FONTS = fonts()
 
@@ -23,7 +23,7 @@ def descriptor(face, name):
     return m.group(1).strip() if m else None
 
 
-@unittest.skipIf(FONTS is None, "the site has no tools/fonts.yaml")
+@unittest.skipIf(FONTS is None, NO_FONTS)
 class FontTests(unittest.TestCase):
     def setUp(self):
         fallbacks = FONTS["fallbacks"]

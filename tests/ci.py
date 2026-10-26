@@ -21,8 +21,9 @@ modules need beyond that. The first run showed why such a list matters: a
 test checked for borg with `which('borg')`, a spelling the selection's
 scan did not look for.
 
-A skip a switch explains, "switch off: <name>" (tests/target.py), is
-accepted when the site's config does turn that switch off.
+A skip the site explains (tests/target.py) is accepted: "switch off:
+<name>" when its site.yaml turns that switch off, and its having no web
+fonts when it has no tools/fonts.yaml.
 
     python3 engine/tests/ci.py
 """
@@ -46,7 +47,7 @@ MODULES = [
     "test_build_time", "test_check_site", "test_deploy_guard", "test_dynamic_assets",
     "test_embed_extract", "test_font_sources", "test_fonts", "test_front_matter",
     "test_js_dates", "test_photo_tools", "test_pin_check", "test_popup_providers",
-    "test_prune_site", "test_score_reader", "test_sitelib", "test_thumbnails",
+    "test_prune_site", "test_score_reader", "test_sitelib", "test_target", "test_thumbnails",
     "test_viz_lifecycle", "test_wikilink_routes", "test_with_lock",
 ]
 SITE_CI = "tests/ci.yaml"
@@ -64,13 +65,27 @@ def site_ci(root: Path) -> dict[str, list[str]]:
     return listed
 
 
+def suite_problems(root: Path, suites: list[str]) -> list[str]:
+    """Why the listed suites cannot run here, checked before anything runs.
+    They run in this one process, each discovering its tests/ as top-level
+    modules, so two may not share a module's name."""
+    problems, seen = [], {}
+    for suite in suites:
+        tests = root / suite / "tests"
+        if not tests.is_dir():
+            problems.append(f"{SITE_CI} names {suite}/, which has no tests/")
+            continue
+        for module in sorted(p.stem for p in tests.glob("*.py")):
+            if module in seen:
+                problems.append(f"{suite}/tests/{module}.py has the name of {seen[module]}/tests/{module}.py")
+            seen.setdefault(module, suite)
+    return problems
+
+
 def unexpected_skips(skipped: list, settings: dict | None = None) -> list:
-    """Every skip, but one a switch explains that the site (or `settings`)
-    does turn off."""
-    from tests.target import SWITCH_OFF, switch_on
-    return [(test, reason) for test, reason in skipped
-            if not (reason.startswith(SWITCH_OFF)
-                    and not switch_on(reason.removeprefix(SWITCH_OFF), settings))]
+    """Every skip but those the site (or `settings`) explains."""
+    from tests.target import explained
+    return [(test, reason) for test, reason in skipped if not explained(reason, settings)]
 
 
 def run(suite: unittest.TestSuite) -> unittest.TestResult:
@@ -83,13 +98,14 @@ def main() -> int:
     sys.path[:0] = [str(SITE_ROOT), str(ENGINE)]
     os.chdir(SITE_ROOT)
     site = site_ci(SITE_ROOT)
+    if problems := suite_problems(SITE_ROOT, site["suites"]):
+        for problem in problems:
+            print(f"ci: {problem}", file=sys.stderr)
+        return 1
     results = [run(unittest.defaultTestLoader.loadTestsFromNames(
         [f"tests.{m}" for m in MODULES + site["modules"]]))]
     # As `make test` runs them: from the directory, discovering tests/.
     for suite in site["suites"]:
-        if not (SITE_ROOT / suite / "tests").is_dir():
-            print(f"ci: {SITE_CI} names {suite}/, which has no tests/", file=sys.stderr)
-            return 1
         os.chdir(SITE_ROOT / suite)
         results.append(run(unittest.defaultTestLoader.discover("tests")))
         os.chdir(SITE_ROOT)

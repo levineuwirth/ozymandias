@@ -6,10 +6,16 @@ stand in for the standard library's `site` wherever unittest puts this
 directory on the path.
 
 A test of a feature a site may turn off says so with `requires_switch`: it
-skips with the reason "switch off: <name>", and engine/tests/ci.py, which
-fails on any other skip, accepts that one only when the site's config does
-turn the feature off. Until A8 adds them, a site has no switches and every
-feature is on.
+skips with the reason "switch off: <name>". engine/tests/ci.py fails on any
+skip but those the site explains (`explained`): a switch it turns off, or
+web fonts it has none of.
+
+Switches are read from site.yaml here, not from the generator: they are
+plain booleans, and ci.py runs where there is no generator (the GitHub
+workflow). engine/tests/test_config.py checks the reading against the
+generator's. Until A8 adds them a site has none, and every feature is on;
+A8's switch registry, a data file both read, supplies the engine's
+defaults.
 """
 
 from __future__ import annotations
@@ -25,8 +31,10 @@ from tests._helpers import SITE_ROOT, engine_path, site_binary
 
 SITE = SITE_ROOT / "_site"
 CONTENT = SITE_ROOT / "content"
+SITE_YAML = SITE_ROOT / "site.yaml"
 FONTS = SITE_ROOT / "tools" / "fonts.yaml"
 SWITCH_OFF = "switch off: "
+NO_FONTS = "the site has no tools/fonts.yaml"
 
 
 @functools.cache
@@ -35,10 +43,24 @@ def config() -> dict:
     return json.loads(subprocess.check_output([str(site_binary()), "config"], cwd=SITE_ROOT, text=True))
 
 
+def switches(settings: dict | None = None) -> dict:
+    """The switches the site's site.yaml (or `settings`) sets."""
+    if settings is None:
+        settings = yaml.safe_load(SITE_YAML.read_text(encoding="utf-8")) or {}
+    return dict(settings.get("switches") or {})
+
+
 def switch_on(name: str, settings: dict | None = None) -> bool:
-    """Whether the site (or `settings`, a config) turns feature `name` on."""
-    switches = (config() if settings is None else settings).get("switches") or {}
-    return switches.get(name, True) is not False
+    """Whether the site (or `settings`) turns feature `name` on."""
+    return switches(settings).get(name, True) is not False
+
+
+def explained(reason: str, settings: dict | None = None) -> bool:
+    """Whether the site explains a test's skip: a switch it turns off, or
+    web fonts it has none of."""
+    if reason.startswith(SWITCH_OFF):
+        return not switch_on(reason.removeprefix(SWITCH_OFF), settings)
+    return reason == NO_FONTS and not FONTS.is_file()
 
 
 def requires_switch(name: str):

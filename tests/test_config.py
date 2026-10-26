@@ -10,7 +10,8 @@ import tempfile
 import unittest
 from xml.etree import ElementTree
 
-from tests._helpers import (ENGINE, engine_path, requires_cabal, script_env, site_binary,
+from tests import target
+from tests._helpers import (ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary,
                             write_site_config)
 
 
@@ -38,6 +39,14 @@ class ConfigTests(unittest.TestCase):
     def run_site(self, *args):
         return subprocess.run([str(self.binary), *args], cwd=self.root, env=script_env(),
                               capture_output=True, text=True, timeout=120)
+
+    def test_the_switches_tests_read_are_the_generator_s(self):
+        # tests/target.py reads the site's switches from site.yaml itself,
+        # so that CI, which has no generator, can: they must be what the
+        # generator makes of the same file.
+        resolved = json.loads(subprocess.check_output([str(self.binary), "config"],
+                                                      cwd=SITE_ROOT, env=script_env(), text=True))
+        self.assertEqual(target.switches(), resolved.get("switches", {}))
 
     def test_config_json_uses_this_sites_identity(self):
         done = self.run_site("config")

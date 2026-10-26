@@ -36,18 +36,32 @@ class Switches(unittest.TestCase):
             def test_math(self):
                 pass
 
-        with mock.patch.object(target, "config", return_value={"switches": {"math": False}}):
+        with mock.patch.object(target, "switches", return_value={"math": False}):
             result = unittest.TestResult()
             Probe("test_math").run(result)
         self.assertEqual([reason for _, reason in result.skipped], ["switch off: math"])
-        with mock.patch.object(target, "config", return_value={}):
+        with mock.patch.object(target, "switches", return_value={}):
             result = unittest.TestResult()
             Probe("test_math").run(result)
         self.assertEqual((result.skipped, result.testsRun), ([], 1))
 
-    def test_ci_accepts_only_the_skips_the_config_explains(self):
-        skipped = [("a", "switch off: math"), ("b", "switch off: viz"), ("c", "node not installed")]
-        self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"math": False}}), skipped[1:])
+    def test_switches_come_from_site_yaml_not_the_generator(self):
+        # CI, where ci.py runs, has no generator.
+        with mock.patch.object(target, "site_binary", side_effect=AssertionError("generator asked")):
+            self.assertIsInstance(target.switches(), dict)
+            self.assertTrue(target.switch_on("a-feature-no-site-turns-off"))
+
+    def test_ci_accepts_only_the_skips_the_site_explains(self):
+        skipped = [("a", "switch off: math"), ("b", "switch off: viz"), ("c", "node not installed"),
+                   ("d", target.NO_FONTS)]
+        with tempfile.TemporaryDirectory() as tmp:
+            fonts = Path(tmp) / "fonts.yaml"
+            with mock.patch.object(target, "FONTS", fonts):
+                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"math": False}}),
+                                 skipped[1:3])
+                fonts.write_text("families: {}\n")
+                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"math": False}}),
+                                 skipped[1:])
 
 
 class EngineFile(unittest.TestCase):
@@ -74,6 +88,18 @@ class SiteCi(unittest.TestCase):
                 (root / ci.SITE_CI).write_text(bad)
                 with self.assertRaises(ValueError):
                     ci.site_ci(root)
+
+    def test_suites_are_checked_before_anything_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for suite in ("cv", "notes"):
+                (root / suite / "tests").mkdir(parents=True)
+                (root / suite / "tests/test_own.py").write_text("")
+            (root / "cv/tests/test_cv.py").write_text("")
+            self.assertEqual(ci.suite_problems(root, ["cv"]), [])
+            self.assertEqual(ci.suite_problems(root, ["cv", "notes", "gone"]),
+                             ["notes/tests/test_own.py has the name of cv/tests/test_own.py",
+                              f"{ci.SITE_CI} names gone/, which has no tests/"])
 
     def test_the_engine_lists_none_of_the_site_s(self):
         site = ci.site_ci(target.SITE_ROOT)["modules"]
