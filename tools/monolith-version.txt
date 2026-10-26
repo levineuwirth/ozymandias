@@ -1,0 +1,20 @@
+# Pinned monolith binary — the HTML-snapshot tool for the link archive.
+#
+# Unlike PDF.js / Leaflet (servable assets downloaded at build time and
+# gitignored), monolith is a build-time *executable*: the binary itself is
+# committed at tools/bin/monolith so `git clone` -> `make build` needs no
+# network fetch and stays reproducible from a bare clone. See ARCHIVE.md.
+#
+# To re-vendor (version bump, or a build host on a different architecture):
+#   1. Download the matching asset from
+#      https://github.com/Y2Z/monolith/releases
+#   2. Place it at tools/bin/monolith and `chmod +x`.
+#   3. Update the three values below; verify `tools/bin/monolith --version`.
+#   4. Commit the binary and this file together.
+#   5. Refresh static/licenses/monolith-CC0.txt and
+#      static/licenses/monolith-dependencies.txt from the release's
+#      locked Linux CLI dependency tree; retain dependency notices.
+
+version  = 2.10.1
+asset    = monolith-gnu-linux-x86_64
+sha256   = 663ca914b078e91d5a854b4a07e913c613bbbcfe8fb11a24da1a6ab23c9205df
