@@ -1,5 +1,6 @@
 """Identity allowances are individual, stale-sensitive and frozen in Git."""
 import copy
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -160,6 +161,10 @@ class IdentityTests(unittest.TestCase):
             (root / "_cache").mkdir()
             (root / "_cache/build.o").write_text("")
             self.assertEqual(checker.inventory(root, policy), ["data/style.csl", "engine.mk"])
+            # The engine's own .gitignore is no override of the site's.
+            (root / "engine/.gitignore").write_text("__pycache__/\n")
+            self.assertEqual(checker.inventory(root, policy), [".gitignore", "data/style.csl", "engine.mk"])
+            (root / "engine/.gitignore").unlink()
             # What is under engine/ is the engine's, named by its path there.
             (root / "engine/tools").mkdir()
             (root / "engine/tools/new.py").write_text("")
@@ -201,6 +206,19 @@ class IdentityTests(unittest.TestCase):
                 (root / checker.OVERRIDES).write_text(entry)
                 with self.assertRaisesRegex(ValueError, "the same engine path"):
                     checker.inventory(root, overriding)
+            # The site's list and the vendored list name different kinds of
+            # path, so a site file overriding a vendored one is no duplicate.
+            (root / "static/vendor").mkdir(parents=True)
+            (root / "static/vendor/lib.js").write_text("")
+            (root / checker.OVERRIDES).write_text(
+                "- site: data/style.csl\n  engine: data/style.csl\n  reviewed: x\n"
+                "- site: static/vendor/lib.js\n  engine: static/vendor/lib.js\n  reviewed: x\n")
+            (root / "engine/data/style.csl").write_text("")
+            self.assertEqual(checker.inventory(root, dict(
+                overriding, **{"site-files": overriding["site-files"] + ["static/vendor/lib.js"],
+                               "vendored-files": policy["vendored-files"] + ["static/vendor/lib.js"]})),
+                ["data/style.csl", "engine.mk"])
+            shutil.rmtree(root / "static")
             # Undeclared again, the shadowing is a conflict again.
             (root / checker.OVERRIDES).unlink()
             (root / "engine/data/style.csl").write_text("")

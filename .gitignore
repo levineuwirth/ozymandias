@@ -1,0 +1,30 @@
+# What the engine's tools, tests and builds write inside it. These hold
+# wherever the engine is checked out: the site's engine/ directory, or a
+# repository of its own (A10), where the site's rules no longer apply.
+
+# Python and uv: bytecode, an environment made by a bare `uv` against this
+# project (a site's own is its .venv, `make venv`), tool caches.
+__pycache__/
+*.pyc
+*.pyo
+/.venv/
+.ruff_cache/
+.pytest_cache/
+# cabal, for a build of the engine on its own.
+dist-newstyle/
+
+# Downloaded by tools/download-*.sh and checked against the pins beside
+# them; fetched by tools/browser/fetch_axe.py and checked against
+# axe-version.
+/static/pdfjs/
+/static/leaflet/
+/static/models/
+/tools/browser/axe.min.js
+
+# Written beside static images: WebP companions (tools/convert-images.sh)
+# and dimension sidecars (tools/extract-dimensions.py); the golden
+# fixture's sidecar is test input (the expected width and height of
+# plate.png), and a fresh checkout without it failed the golden test.
+/static/**/*.webp
+**/*.dims.yaml
+!/tests/golden/*.dims.yaml

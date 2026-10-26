@@ -12,11 +12,14 @@ Run with: ``python3 -m unittest tests.test_gitignore``.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
-from tests._helpers import SITE_ROOT, engine_path, load_tool, requires_cabal, site_binary
+from tests._helpers import ENGINE, SITE_ROOT, engine_path, load_tool, requires_cabal, site_binary
 SAMPLE_DIR = "content/essays/sample"
 
 
@@ -112,6 +115,43 @@ class PrivateNamesAreIgnored(unittest.TestCase):
                 ["git", "check-ignore", "--no-index", "-q", f"{SAMPLE_DIR}/{name}"], cwd=SITE_ROOT
             )
             self.assertEqual(done.returncode, 1, f"{name} would be ignored")
+
+
+class TheEngineIgnoresWhatItWrites(unittest.TestCase):
+    """engine/.gitignore holds wherever the engine is checked out. In a
+    repository of its own (A10) the site's rules no longer apply, and the
+    identity check, which scans what Git sees there, would read the engine's
+    bytecode and downloads."""
+
+    WRITTEN = ["tools/__pycache__/sitelib.cpython-314.pyc", "tests/__pycache__/test_a.cpython-314.pyc",
+               ".venv/bin/python", "dist-newstyle/cache/plan.json", ".ruff_cache/0.1/x",
+               "static/pdfjs/web/viewer.html", "static/leaflet/leaflet.js",
+               "static/models/all-MiniLM-L6-v2/config.json", "tools/browser/axe.min.js",
+               "static/favicon-96x96.webp", "static/images/photo.jpg.dims.yaml"]
+
+    def test_in_a_repository_of_its_own(self):
+        # The engine's files (what Git sees in engine/), then what it writes,
+        # in a fresh repository: Git must see exactly the first and ignore
+        # exactly the second, whatever the user's own Git configuration says.
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        tracked = [p for p in subprocess.check_output(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ENGINE)
+            .decode().split("\0") if p and (ENGINE / p).is_file()]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for rel in tracked + self.WRITTEN:
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                source = ENGINE / rel
+                (root / rel).write_bytes(source.read_bytes() if Path(rel).name == ".gitignore" else b"")
+            subprocess.run(["git", "init", "-q"], cwd=root, env=env, check=True)
+
+            def listed(*args: str) -> list[str]:
+                out = subprocess.check_output(["git", "ls-files", "-z", "--others", "--exclude-standard", *args],
+                                              cwd=root, env=env)
+                return sorted(p for p in out.decode().split("\0") if p)
+
+            self.assertEqual(listed(), sorted(tracked))
+            self.assertEqual(listed("--ignored"), sorted(self.WRITTEN))
 
 
 if __name__ == "__main__":
