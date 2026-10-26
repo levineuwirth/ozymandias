@@ -118,28 +118,40 @@ def slugify(text: str) -> str:
     return s.strip("-")
 
 
-@lru_cache(maxsize=1)
-def site_binary() -> str:
+@lru_cache(maxsize=None)
+def site_binary(build: bool = True) -> str:
     """The generator, which the tools ask whatever it alone decides (drafts,
-    shared lists, routes, tags, links), rebuilt first if a source changed.
+    shared lists, routes, tags, links), rebuilt first if a source changed;
+    without `build`, the one last built, built only if there is none.
     SITE_BINARY names one instead: the tests run it over scratch trees that
     have no Haskell project to build."""
     if binary := os.environ.get("SITE_BINARY"):
         return binary
+
     # From the engine, wherever it is: cabal finds the cabal.project above
     # it, which names the engine's package (from A6b, `packages: engine`).
+    def listed() -> str:
+        return subprocess.check_output(
+            ["cabal", "list-bin", "-v0", "exe:site"], cwd=ENGINE, text=True,
+        ).strip()
+
+    if not build and Path(found := listed()).is_file():
+        return found
     subprocess.run(["cabal", "build", "-v0", "exe:site"], cwd=ENGINE, check=True)
-    return subprocess.check_output(
-        ["cabal", "list-bin", "-v0", "exe:site"], cwd=ENGINE, text=True,
-    ).strip()
+    return listed()
 
 
-@lru_cache(maxsize=1)
-def site_config() -> dict:
+@lru_cache(maxsize=None)
+def site_config(build: bool = False) -> dict:
     """The site's site.yaml as the generator reads and checks it (`site
     config`): the identity a tool states (host, url, emails, the signing
-    fingerprint) comes from here, not from the tool."""
-    return json.loads(subprocess.check_output([site_binary(), "config"], cwd=site_root(), text=True))
+    fingerprint) comes from here, not from the tool.
+
+    The generator reads site.yaml as it runs, so the one last built
+    answers, and asking compiles nothing unless `build` is set: the
+    link-rot timer and the passphrase preset run outside the build lock,
+    where a compile could race a build's."""
+    return json.loads(subprocess.check_output([site_binary(build), "config"], cwd=site_root(), text=True))
 
 
 if __name__ == "__main__":

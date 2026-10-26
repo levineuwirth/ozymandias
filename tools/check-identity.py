@@ -266,7 +266,7 @@ def check(root: Path, config: dict) -> tuple[int, int]:
 
 def main() -> int:
     try:
-        paths, count = check(SITE_ROOT, site_config())
+        paths, count = check(SITE_ROOT, site_config(build=True))
         print(f"identity: {paths} engine files; {count} frozen allowances remain")
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

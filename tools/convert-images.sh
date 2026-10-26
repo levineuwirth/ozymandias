@@ -49,7 +49,7 @@ if ! command -v cwebp >/dev/null 2>&1; then
      macOS   brew install webp
 
    Then re-run `make build`. To make this a hard failure in a
-   production build, run:  tools/check-site.py _site --require-webp
+   production build, run:  engine/tools/check-site.py _site --require-webp
    (`make validate REQUIRE_WEBP=1`).
 
 WARN

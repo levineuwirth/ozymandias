@@ -57,7 +57,7 @@ if ! GNUPGHOME="$GNUPGHOME" gpg \
     echo "" >&2
     echo "ERROR: GPG signing pre-flight failed." >&2
     echo "  The signing key passphrase is probably not cached." >&2
-    echo "  Run: ./tools/preset-signing-passphrase.sh" >&2
+    echo "  Run: engine/tools/preset-signing-passphrase.sh" >&2
     echo "  Then retry: make sign  (or  make deploy)" >&2
     exit 1
 fi

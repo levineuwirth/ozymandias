@@ -729,7 +729,7 @@ def check_search_model(site_dir: str, report: Report) -> None:
             "search-model",
             f"semantic search ships without models/{missing[0]}"
             f"{f' (+{len(missing) - 1} more)' if len(missing) > 1 else ''} — "
-            f"run tools/download-model.sh",
+            f"run engine/tools/download-model.sh",
         )
 
 

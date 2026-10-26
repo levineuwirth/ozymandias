@@ -13,7 +13,7 @@
 #                      or, while A6 has moved these tools and not it,
 #                      beside the site
 #   site_config KEY    one value of the site's site.yaml, as the generator
-#                      reads and checks it (tools/sitelib.py)
+#                      last built reads and checks it (tools/sitelib.py)
 #   no_site_copy DIR   fail if the site still holds the engine's static/DIR
 #                      (a download from before the engine took it over):
 #                      the build serves a site file over the engine's, so

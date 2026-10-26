@@ -465,8 +465,8 @@ def fetch_html(url: str, dest: Path) -> str:
     mono = find_monolith()
     if mono is None:
         err(f"{url}: monolith not found — vendor the binary at "
-            f"tools/bin/monolith (see tools/monolith-version.txt) or set "
-            f"$MONOLITH_BIN; HTML snapshot skipped")
+            f"engine/tools/bin/monolith (see engine/tools/monolith-version.txt) "
+            f"or set $MONOLITH_BIN; HTML snapshot skipped")
         return "skip"
     verify_monolith(mono)
 
