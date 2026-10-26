@@ -3,7 +3,7 @@
    See MARKS.md for the full specification.
 
    The header is a three-column grid sitting above the
-   cursive-L `content-divider`. Either or both mark columns
+   `content-divider` and its mark. Either or both mark columns
    may be absent; the grid collapses cleanly because empty
    columns size to zero (the conditional template guards
    suppress the slot div entirely when its SVG is empty).
@@ -89,8 +89,8 @@
     box-sizing: border-box;
 }
 
-/* The cursive-L frontmatter divider runs edge-to-edge of the
-   viewport — the dashed lines on either side of the L use the
+/* The frontmatter divider runs edge-to-edge of the viewport —
+   the dashed lines on either side of the mark use the
    existing `flex: 1` rule on `.content-divider::before` and
    `::after` to fill whatever container they sit inside, so as a
    body-level child the divider naturally spans the full page

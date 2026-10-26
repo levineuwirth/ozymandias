@@ -81,15 +81,15 @@ nav.site-nav {
 }
 
 /* Home logo — square button flush into the top-left corner of the nav bar.
-   The rooted-L mark lives in /logo-sprite.svg and is referenced with
-   <use> (cacheable once, not ~33 KB inlined per page). Its two-tone
-   cutout still renders because CSS custom properties cascade into the
-   use-element shadow tree: the letter is drawn in --logo-ink and the
-   root filament is punched through in --logo-bg. Mapping --logo-bg to
-   --bg-nav (the button's own surface) makes the roots read as the nav
-   background showing through. Both tokens are theme-driven in
-   base.css — override --nav-logo-fg / --bg-nav there to restyle per
-   theme. */
+   The site's mark lives in /logo-sprite.svg (the engine's default is a
+   ring) and is referenced with <use>: a traced mark can run to tens of
+   KB, cached once rather than inlined per page. Its two-tone cutout
+   still renders because CSS custom properties cascade into the
+   use-element shadow tree: the mark is drawn in --logo-ink and its
+   cutouts in --logo-bg. Mapping --logo-bg to --bg-nav (the button's own
+   surface) makes them read as the nav background showing through. Both
+   tokens are theme-driven in base.css — override --nav-logo-fg /
+   --bg-nav there to restyle per theme. */
 .nav-logo {
     position: absolute;
     left: 0;
