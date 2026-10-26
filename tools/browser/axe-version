@@ -1,0 +1,5 @@
+# axe-core for the accessibility tests: version and the SHA-256 of its
+# dist/axe.min.js. tools/browser/fetch_axe.py fetches it (make test-browser).
+# To upgrade: change both, then review what the new rules find and record
+# it (UPDATE_BROWSER_BASELINE=1, tests/test_browser_a11y.py).
+4.14.0 20c09fe157a8a34a30e241aaa1fcdade657734f08ab379ecfbeb7d45cc46e878

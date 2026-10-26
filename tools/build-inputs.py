@@ -39,8 +39,9 @@ EXCLUDE = (
     "data/.site-build.lock",       # truncated by tools/with-lock.sh on every locked target
     "data/sign-manifest.txt",      # written by `make sign`, after the build
     "nginx",                       # served configuration; the browser tests read it as it is
-    "tools/browser",               # the browser harness,
-    "engine/tools/browser",        # wherever it is
+    "tools/browser",               # the site's check of the live site,
+    "engine/tools/browser",        # the browser harness
+    "engine/tests",                # and the engine's tests
     # The résumé's artifacts and private variants (gitignored; see the
     # Makefile's pdfs target). The site reads yaml-source/data/ and the
     # PDFs copied into static/; editing a private variant made the browser

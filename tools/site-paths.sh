@@ -8,10 +8,7 @@
 #
 #   SITE_ROOT          $SITE_ROOT, else the working directory, from which
 #                      the Makefile runs every tool
-#   engine_path REL    an engine file by its path in the engine: under
-#                      engine/ once A6 moves it there, beside these tools,
-#                      or, while A6 has moved these tools and not it,
-#                      beside the site
+#   engine_path REL    an engine file by its path in the engine
 #   site_config KEY    one value of the site's site.yaml, as the generator
 #                      last built reads and checks it (tools/sitelib.py)
 #   no_site_copy DIR   fail if the site still holds the engine's static/DIR
@@ -23,13 +20,6 @@ SITE_ROOT="$(cd "${SITE_ROOT:-.}" && pwd)"
 ENGINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 engine_path() {
-    local found
-    for found in "$ENGINE/engine/$1" "$ENGINE/$1" "$SITE_ROOT/$1"; do
-        if [ -e "$found" ]; then
-            printf '%s\n' "$found"
-            return
-        fi
-    done
     printf '%s\n' "$ENGINE/$1"
 }
 

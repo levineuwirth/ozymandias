@@ -37,12 +37,7 @@ ENGINE = Path(__file__).resolve().parent.parent
 
 
 def engine_path(rel: str | Path) -> Path:
-    """An engine file or directory by its path in the engine: under engine/
-    once A6 has moved it there, beside these tools, or, while A6 has moved
-    these tools and not it, beside the site."""
-    for found in (ENGINE / "engine" / rel, ENGINE / rel, SITE_ROOT / rel):
-        if found.exists():
-            return found
+    """An engine file or directory by its path in the engine."""
     return ENGINE / rel
 
 
