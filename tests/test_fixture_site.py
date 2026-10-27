@@ -7,6 +7,10 @@ site of the engine's has it.
 Its temporary-inputs.yaml lists what it carries only because an engine rule
 is still unconditional, each with the switch that will remove the need; an
 entry fails here once its switch exists while the input is still present.
+
+The gate's test needs the engine's downloads (DOWNLOADS), which a fresh
+checkout lacks, so `make test-clean` and the GitHub workflow never run it:
+only a machine that has them checks that the fixture passes the gate.
 """
 
 import hashlib
@@ -74,7 +78,9 @@ class FixtureBuild(unittest.TestCase):
         cls.site = Path(tmp.name) / "site"
         shutil.copytree(FIXTURE, cls.site)
         (cls.site / "engine").symlink_to(ENGINE)
-        git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture"]
+        # The commit ignores the user's signing and hooks, which could fail it.
+        git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
+               "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
         for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
             subprocess.run(git + args, cwd=cls.site, check=True, capture_output=True)
         binary = str(site_binary())
@@ -98,7 +104,8 @@ class FixtureBuild(unittest.TestCase):
 
     def test_every_page_its_routes_name_is_built(self):
         routes = load_tool("browser/routes.py", "fixture_routes").Routes(self.site)
-        missing = [path for name, path in routes.pages.items() if name != routes.roles.get("not-found")
+        not_found = routes.role("not-found")   # its own document is meant to 404
+        missing = [path for path in routes.pages.values() if path != not_found
                    and not (self.site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else ""))
                    .is_file()]
         self.assertEqual(missing, [])
