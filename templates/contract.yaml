@@ -1,0 +1,67 @@
+# The override contract: the templates a site may override (by a file at
+# the same path, declared in its overrides.yaml), what the engine gives each
+# and what it needs back. tools/override-review.py and the overrides tests
+# read it.
+#
+# contexts: the fields the engine renders a template with, by group, each
+#   with a fixture value: a string; true for a flag; a list of objects for
+#   a loop. A template is rendered with its groups' fields and no others,
+#   so a field it uses that the contract does not give fails the check
+#   (`site render-template`, build/Contract.hs).
+# templates: each override point, by its path under templates/:
+#   context  the groups it is rendered with;
+#   hooks    what the rendered template must contain, each a CSS selector
+#            (a tag, classes, an id, attributes), with the engine files that
+#            bind to it (`by`, under engine/) and why it matters;
+#   optional what the engine binds to when it is there, which a site may
+#            leave out (and lose that behavior).
+# A template a site overrides needs an entry; one with no hooks says so.
+contexts:
+  identity:
+    site-title: Example Site
+    site-url: https://example.org
+    site-host: example.org
+    site-email: author@example.org
+    site-contact-email: contact@example.org
+    site-source-repo: https://git.example.org/author/site
+    site-code-license: MIT
+    site-signing-fingerprint: 0000 1111 2222 3333 4444 5555 6666 7777 8888 9999
+    site-feeds:
+      - {feed-title: Example Site, feed-url: /feed.xml}
+    font-preloads:
+      - {href: /fonts/example-regular.woff2}
+  page:
+    url: /essays/example/
+    title: An Example
+
+templates:
+  templates/404.html:
+    context: [identity, page]
+    hooks: []
+
+  templates/partials/footer.html:
+    context: [identity, page]
+    hooks:
+      - selector: footer
+        by: [static/css/layout.css]
+        why: the page shell lays out its footer element
+      - selector: footer[data-pagefind-ignore]
+        by: [tools/embed.py]
+        why: search's indexes (Pagefind, the semantic embeddings) leave it out
+    optional:
+      - selector: button.footer-totop
+        by: [static/js/nav.js, static/css/layout.css]
+        why: return to top
+      - selector: "[data-build-time]"
+        by: [static/js/nav.js]
+        why: the build time, filled from /build/time.txt
+      - selector: a.footer-sig-link
+        by: [static/js/popups.js]
+        why: the signature's popup
+
+  templates/partials/ornament.html:
+    context: []
+    hooks:
+      - selector: .footer-ornament
+        by: [static/css/components.css, static/css/print.css]
+        why: its width and ink, and hidden in print

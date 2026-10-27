@@ -13,7 +13,6 @@ checkout lacks, so `make test-clean` and the GitHub workflow never run it:
 only a machine that has them checks that the fixture passes the gate.
 """
 
-import hashlib
 import shutil
 import subprocess
 import tempfile
@@ -31,14 +30,11 @@ REGISTRY = engine_path("switches.yaml")
 # gate fails a site without them (the map's Leaflet, search's model).
 DOWNLOADS = ("static/pdfjs/web/viewer.html", "static/leaflet/leaflet.js",
              "static/models/all-MiniLM-L6-v2/config.json")
+review = load_tool("override-review.py", "override_review")
 
 
 def registered_switches() -> set[str]:
     return set(yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}) if REGISTRY.is_file() else set()
-
-
-def blob_id(data: bytes) -> str:
-    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
 
 class FixtureFiles(unittest.TestCase):
@@ -62,10 +58,13 @@ class FixtureFiles(unittest.TestCase):
         self.assertTrue(routes.pages)
 
     def test_its_override_was_reviewed_against_the_engine_file(self):
-        for entry in yaml.safe_load((FIXTURE / "overrides.yaml").read_text(encoding="utf-8")):
-            with self.subTest(override=entry["site"]):
-                self.assertTrue((FIXTURE / entry["site"]).is_file())
-                self.assertEqual(blob_id(engine_path(entry["engine"]).read_bytes()), entry["reviewed"])
+        self.assertTrue(review.manifest(FIXTURE))
+        self.assertTrue(all((FIXTURE / e["site"]).is_file() for e in review.manifest(FIXTURE)))
+        self.assertEqual(review.unreviewed(FIXTURE), [])
+
+    @requires_cabal
+    def test_its_override_keeps_the_contract(self):
+        self.assertEqual(review.hook_problems(FIXTURE, str(site_binary())), [])
 
 
 @requires_cabal

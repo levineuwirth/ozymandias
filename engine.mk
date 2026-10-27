@@ -7,7 +7,7 @@
 #
 # and adds its own targets, its deploy among them.
 
-.PHONY: build build-locked sign download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
+.PHONY: build build-locked sign download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
 .DEFAULT_GOAL := build
 
 # Prerequisite orders (deploy: build -> sign; deploy-clean: clean ->
@@ -459,6 +459,15 @@ test:
 # than `make test`: the generator compiles from scratch. KEEP=1 keeps the clone.
 test-clean:
 	@$(call tool,test-clean.sh)
+
+# The site's overrides of engine files whose engine file changed since their
+# review (overrides.yaml), each with the engine's diff. Bring the override
+# along, then record the review: `engine/tools/override-review.py --accept
+# <path>`. That clears only the review; the contract's hook check
+# (`override-review.py --check`, also in `make test`) and the browser tests
+# still apply (engine/templates/contract.yaml).
+override-review:
+	@$(PY) $(call tool,override-review.py)
 
 # The browser tests (engine/tests/test_browser_*.py): Chromium and Firefox through
 # Playwright over the built site, served as the production vhost serves it

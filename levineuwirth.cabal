@@ -34,6 +34,7 @@ executable site
         FooterData
         Compilers
         Golden
+        Contract
         Contexts
         Marks
         MarkdownSections

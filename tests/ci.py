@@ -46,9 +46,9 @@ MODULES = [
     "test_annotations", "test_archive_fetch", "test_archive_probe", "test_build_inputs",
     "test_build_time", "test_check_site", "test_deploy_guard", "test_dynamic_assets",
     "test_embed_extract", "test_font_sources", "test_fonts", "test_front_matter",
-    "test_js_dates", "test_photo_tools", "test_pin_check", "test_popup_providers",
-    "test_prune_site", "test_score_reader", "test_sitelib", "test_target", "test_thumbnails",
-    "test_viz_lifecycle", "test_wikilink_routes", "test_with_lock",
+    "test_js_dates", "test_override_review", "test_photo_tools", "test_pin_check",
+    "test_popup_providers", "test_prune_site", "test_score_reader", "test_sitelib", "test_target",
+    "test_thumbnails", "test_viz_lifecycle", "test_wikilink_routes", "test_with_lock",
 ]
 SITE_CI = "tests/ci.yaml"
 

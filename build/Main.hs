@@ -9,6 +9,7 @@ import Config                (SiteConfig, readSiteConfig, configMake)
 import SiteThreads           (siteThreads)
 import Hakyll                (hakyllWith, toFilePath)
 import Golden                (renderFixture)
+import Contract              (renderTemplate)
 import Site                  (refusedPath, rules, siteConfigurationFor)
 import Drafts                (currentUnpublished, scanUnpublished, unpublishedSummary,
                               withoutUnpublished)
@@ -56,7 +57,9 @@ writeBuildStamp = do
 -- JSON; @site config --make@ prints an includable make fragment.
 -- @site render-fixture <file.md>@ renders
 -- a test fixture through the essay pipeline and writes nothing
--- (build/Golden.hs); @site footer-data@ splits the backlinks and
+-- (build/Golden.hs); @site render-template TEMPLATE CONTEXT WORKDIR@ prints
+-- a template rendered with a fixture context, for the override contract's
+-- hook check (build/Contract.hs); @site footer-data@ splits the backlinks and
 -- similar-links maps into per-page files between the two compile passes
 -- (build/FooterData.hs); @site list-unpublished@ prints what a production
 -- build withholds for @draft: true@; @site bib-extras FILE@ prints what the
@@ -81,6 +84,7 @@ main = do
         ["config"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode
         ["config", "--make"] -> readSiteConfig >>= putStr . configMake
         ["render-fixture", path] -> renderFixture path
+        ["render-template", template, context, work] -> renderTemplate template context work
         ["list-unpublished"] -> scanUnpublished "content" >>= mapM_ putStrLn . unpublishedSummary
         ["shared-rules"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode . sharedRules
         ["private-paths"] -> getContents >>= mapM_ putStrLn . filter refusedPath . lines

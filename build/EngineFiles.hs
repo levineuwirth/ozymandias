@@ -106,10 +106,11 @@ fromEngine = composeRoutes (customRoute (siteRelative . toFilePath))
 --   and are dropped as each template compiles: a comment in a partial
 --   rendered inside a loop shipped once per item (about 750 copies of
 --   photo-card's across the photography pages), 1.3 MB of comments across
---   the site. Comments in content are untouched.
+--   the site. Comments in content are untouched. The override contract
+--   (contract.yaml) is about the templates, not one of them.
 templateRules :: (String -> Pattern) -> Rules ()
 templateRules twins = do
-    let engineTemplates = twins "templates/**"
+    let engineTemplates = twins "templates/**" .&&. complement (fromGlob (engineDir ++ "/templates/contract.yaml"))
     match ("templates/**" .||. engineTemplates) $ compile $ cached "Site.templateWithoutComments" $ do
         item <- getResourceBody
         tpl  <- compileTemplateItem (fmap stripHtmlComments item)
