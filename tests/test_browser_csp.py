@@ -29,10 +29,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, SITE_ROOT, check_site, enforcing_csp, harness_routes,
                             require_playwright, requires_browser, run_harness, site_server)
-from tests.target import routes
+from tests.target import route, routes
 
 ROUTES = harness_routes()
-NOT_FOUND = routes().roles.get("not-found")   # its own document is meant to 404
+NOT_FOUND = route("not-found")   # its own document is meant to 404
 
 # Each browser's routes are split across csp_run.py processes (SHARDS
 # below), all running at once; the whole sweep gets SWEEP_SECONDS.
@@ -140,7 +140,7 @@ class CspSweep(unittest.TestCase):
                        # serve.py has no upstream for the popup proxy, and the
                        # 404 route's own document is meant to be one.
                        and "/proxy/" not in r["url"]
-                       and not (route == NOT_FOUND and r["url"].endswith(ROUTES[route]))]
+                       and not (ROUTES[route] == NOT_FOUND and r["url"].endswith(NOT_FOUND))]
                 self.assertEqual(bad, [])
 
     def test_images_math_and_transclusions_render(self) -> None:

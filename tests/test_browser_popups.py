@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlsplit
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import route
+from tests.target import built, route
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
@@ -223,7 +223,7 @@ class LinkPopups(unittest.TestCase):
         link, cls.code = code_ref()
         (tmp / "fixtures" / "popups.html").write_text(PAGE.format(code_ref=link, essay=route("essay")), encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
-        essay = (SITE / route("essay").strip("/") / "index.html").read_text(encoding="utf-8")
+        essay = built(route("essay")).read_text(encoding="utf-8")
         title = re.search(r'<h1 class="page-title"[^>]*>(.*?)</h1>', essay, re.S)
         cls.essay_title = " ".join(html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).split())
         playwright = cls.enterClassContext(sync_playwright())

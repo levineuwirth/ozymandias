@@ -99,6 +99,13 @@ def route(role: str) -> str:
     return routes().role(role)
 
 
+def built(path: str) -> Path:
+    """The file the built site serves for a page's URL path: a directory's
+    index.html, or the file itself."""
+    rel = path.lstrip("/")
+    return SITE / rel / "index.html" if path.endswith("/") else SITE / rel
+
+
 def fonts() -> dict | None:
     """The site's web fonts (tools/fonts.yaml, for engine/tools/subset-fonts.py),
     or None for a site without any."""

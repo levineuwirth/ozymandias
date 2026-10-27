@@ -29,7 +29,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, load_tool
-from tests.target import BASELINES, CSP_CONF, route, routes
+from tests.target import BASELINES, CSP_CONF, built, route, routes
 
 HARNESS = engine_path("tools/browser/serve.py").parent
 SITE = SITE_ROOT / "_site"
@@ -87,7 +87,7 @@ def page_styles(path: str | None = None) -> str:
     look as that page does."""
     from urllib.parse import urljoin
     path = path or route("essay")
-    html = (SITE / path.lstrip("/") / "index.html").read_text(encoding="utf-8")
+    html = built(path).read_text(encoding="utf-8")
     links = re.findall(r'<link rel="stylesheet" href="([^"]+)"( media="[^"]+")?>', html)
     if not links:
         raise AssertionError(f"no stylesheets on {path}")

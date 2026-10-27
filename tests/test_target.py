@@ -114,8 +114,6 @@ class Routes(unittest.TestCase):
     def test_the_site_s_routes_hold(self):
         routes = target.routes()
         self.assertTrue(routes.pages)
-        for key in ("keyboard", "motion", "perf", "axe-skip"):
-            self.assertTrue(set(routes.names(key)) <= set(routes.pages), key)
         for role in routes.roles:
             self.assertTrue(target.route(role).startswith("/"), role)
 
@@ -124,19 +122,28 @@ class Routes(unittest.TestCase):
             site = Path(tmp)
             (site / "tests").mkdir()
             routes_yaml = site / "tests/routes.yaml"
-            routes_yaml.write_text("pages: {home: /, '404': /gone}\nkeyboard: [home, /other.html]\n"
-                                   "probes: {math: [home]}\nroles: {not-found: '404', essay: /e/}\n")
+            routes_yaml.write_text("pages: {home: /, '404': /gone}\nkeyboard: [home]\n"
+                                   "footer: [home, /other.html]\nprobes: {math: [home]}\n"
+                                   "roles: {not-found: '404', essay: /e.html, score: /music/w/}\n")
             routes = load_tool("browser/routes.py", "site_routes_probe").Routes(site)
-            self.assertEqual([routes.path(e) for e in routes.names("keyboard")], ["/", "/other.html"])
-            self.assertEqual((routes.role("not-found"), routes.role("essay")), ("/gone", "/e/"))
+            self.assertEqual([routes.path(e) for e in routes.names("footer")], ["/", "/other.html"])
+            self.assertEqual((routes.role("not-found"), routes.role("essay")), ("/gone", "/e.html"))
             self.assertEqual((routes.probe("math"), routes.probe("map")), (["home"], []))
-            for stray in ("pages: {home: /}\nkeyboard: [essay]\n",        # no such page
-                          "pages: {home: /}\nprobes: {math: [/]}\n",      # a probe names pages
-                          "pages: {home: index.html}\n",                   # not a path
-                          "pages: {home: /}\nextra: []\n"):               # no such list
+            for stray, message in (
+                    ("pages: {home: /}\nfooter: [essay]\n", "no such page"),
+                    ("pages: {home: /}\nkeyboard: [/x/]\n", "no such page"),     # a sweep names pages
+                    ("pages: {home: /}\nprobes: {math: [/]}\n", "no such page"), # so does a probe
+                    ("pages: {home: /}\nprobes: {popup: [home]}\n", "no such probe"),
+                    ("pages: {home: /}\nroles: {score: /music/w}\n", "must end in /"),
+                    ("pages: {home: index.html}\n", "not a path"),
+                    ("pages: {home: /}\nextra: []\n", "unknown")):
                 routes_yaml.write_text(stray)
-                with self.assertRaises(ValueError, msg=stray):
+                with self.assertRaisesRegex(ValueError, message, msg=stray):
                     type(routes)(site)
+
+    def test_a_page_s_built_file(self):
+        self.assertEqual(target.built("/essays/e/"), target.SITE / "essays/e/index.html")
+        self.assertEqual(target.built("/essays/e.html"), target.SITE / "essays/e.html")
 
 
 if __name__ == "__main__":
