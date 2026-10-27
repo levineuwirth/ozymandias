@@ -46,6 +46,9 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, page_styles, re
                             requires_browser, site_server)
 from tests.target import route
 
+# A real page whose footnotes the layout sets as sidenotes (routes.yaml).
+FOOTNOTES = route("essay-footnotes")
+
 
 def ref(label: str) -> str:
     return (f'<sup class="sidenote-ref" id="snref-{label}">'
@@ -503,7 +506,7 @@ class Sidenotes(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 held = []
-                page = self.open(browser, path=route("essay-footnotes"), wait="domcontentloaded",
+                page = self.open(browser, path=FOOTNOTES, wait="domcontentloaded",
                                  context_setup=lambda c: c.route("**/*.woff2", lambda route: held.append(route)))
                 self.expect(page.locator("#markdownBody .footnote-item").first).to_be_visible()
                 self.settled(page)

@@ -12,11 +12,11 @@ of it:
   sideways (WCAG 1.4.10 asks for 320px). Known exceptions are recorded in
   tests/browser-baseline/overflow.json, those at a chosen size with it
   ("pdfjs|320|29px").
-- motion_run.py, on 14 pages (its MROUTES), in both browsers, with reduced
+- motion_run.py, on routes.yaml's motion pages, in both browsers, with reduced
   motion asked for by the system or by the site's own setting: no
   animation, no transition, no smooth scrolling, and the slideshow does
   not start by itself.
-- perf_run.py, on 21 pages (its PROUTES), in Chromium at 1440 and 375px:
+- perf_run.py, on routes.yaml's perf pages, in Chromium at 1440 and 375px:
   cumulative layout shift under 0.1; each page's requests and transferred
   bytes within 15% of tests/browser-baseline/budgets.json (a page that
   grows must be recorded; one that shrinks need not be); and the origins

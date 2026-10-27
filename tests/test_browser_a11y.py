@@ -3,10 +3,10 @@
 tools/browser/axe_run.py runs axe-core (the version tools/browser/
 axe-version records; WCAG 2.0-2.2 A and AA rules and best practices) on
 every route but PDF.js's viewer (a vendored application, not the site's
-markup; axe_run.py's SKIP), at two widths in the light and dark themes,
+markup; routes.yaml's axe-skip), at two widths in the light and dark themes,
 and in the light theme with the settings panel's smallest and largest
 text (17 and 29px), in Chromium; tools/browser/kbd_run.py walks the first forty Tab stops of
-the 16 pages a reader moves through by keyboard (its KROUTES), at two
+the pages a reader moves through by keyboard (routes.yaml's keyboard), at two
 widths, in Chromium and Firefox. Both run offline against serve.py, and
 each report must hold a record for every page and variant asked of it.
 
