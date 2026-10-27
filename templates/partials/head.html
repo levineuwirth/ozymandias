@@ -24,11 +24,9 @@ $if(description)$<meta name="twitter:description" content="$description$">$endif
 <link rel="shortcut icon" href="/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<!-- V20: the faces of the first screen, fetched beside the stylesheets rather than after them -->
-<link rel="preload" href="/fonts/spectral-regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/fira-sans-semibold.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/fira-sans-regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/base.css">
+<!-- V20: the faces of the first screen (site.yaml's font-preloads), fetched beside the stylesheets rather than after them -->
+$for(font-preloads)$<link rel="preload" href="$href$" as="font" type="font/woff2" crossorigin>
+$endfor$<link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/layout.css">
 <link rel="stylesheet" href="/css/typography.css">
 $if(has-sidenotes)$<link rel="stylesheet" href="/css/sidenotes.css">$endif$

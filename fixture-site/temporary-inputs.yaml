@@ -1,0 +1,10 @@
+# What the minimal profile carries only because an engine rule is still
+# unconditional. Each names the switch (A8) that removes the need; a test
+# fails once that switch exists while the input is still here.
+- path: archive/manifest.yaml
+  switch: archive
+  why: the /archive/ index loads the manifest whatever the content.
+- path: site.yaml
+  section: music
+  switch: music
+  why: the config must list every section the engine routes.

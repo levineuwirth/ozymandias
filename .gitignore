@@ -28,3 +28,5 @@ dist-newstyle/
 /static/**/*.webp
 **/*.dims.yaml
 !/tests/golden/*.dims.yaml
+# The fixture site's are its content, as a site's own would be.
+!/fixture-site/**/*.dims.yaml

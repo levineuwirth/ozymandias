@@ -15,6 +15,7 @@ import io
 import os
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from tests._helpers import load_tool
@@ -82,6 +83,11 @@ class CheckSiteTestCase(unittest.TestCase):
         self.root = Path(self._tmp.name) / "_site"
         self.root.mkdir()
         self.site = SiteFixture(self.root)
+        # The feeds the site's config lists, which the gate asks the
+        # generator for: the fixture's.
+        feeds = mock.patch.object(check_site, "site_feeds", return_value=["feed.xml", "music/feed.xml"])
+        feeds.start()
+        self.addCleanup(feeds.stop)
 
     def run_gate(self, *extra: str) -> tuple[int, str]:
         """Run the gate over the fixture, returning (exit code, output)."""
@@ -563,6 +569,25 @@ class CheckSiteTestCase(unittest.TestCase):
         code, output = self.run_gate()
         self.assertEqual(code, 1)
         self.assertIn("feed:music/feed.xml", output)
+
+    def test_the_feeds_checked_are_the_config_s(self):
+        # A site with no music feed is not asked for one; a feed the config
+        # lists must be there.
+        os.unlink(self.root / "music" / "feed.xml")
+        with mock.patch.object(check_site, "site_feeds", return_value=["feed.xml"]):
+            code, output = self.run_gate()
+        self.assertEqual(code, 0, output)
+        with mock.patch.object(check_site, "site_feeds", return_value=["feed.xml", "photography/feed.xml"]):
+            code, output = self.run_gate()
+        self.assertEqual(code, 1)
+        self.assertIn("feed:photography/feed.xml", output)
+
+    def test_a_site_without_a_cv_has_no_cv_check(self):
+        # check_cv_pdfs asks the site's own tools/cv-pdfs.py; a site
+        # without one has nothing to check.
+        with mock.patch.dict(os.environ, {"SITE_ROOT": str(self.root.parent)}):
+            code, output = self.run_gate()
+        self.assertEqual(code, 0, output)
 
     def test_malformed_sitemap_fails(self):
         self.site.write("sitemap.xml", "<urlset><url>")

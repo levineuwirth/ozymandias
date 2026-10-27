@@ -1072,6 +1072,7 @@ rules = do
                          ++ "alphabetical by author.")
                    <> mathFld
                    <> constField "bibliography-entries" (T.unpack html)
+                   <> bibliographySeeAlso
                    <> constField "library" "true"  -- reuse flag to load library.css + item-card.css
                    <> constField "portal"  "true"
                    <> siteCtx
@@ -1124,6 +1125,7 @@ rules = do
                        <> writingsCtx
                        <> referencesCtx
                        <> scCtx
+                       <> bibliographySeeAlso
                        <> siteCtx
                 makeItem ""
                     >>= inDefault "templates/bibliography-keyword.html" ctx
@@ -1640,3 +1642,15 @@ portalWritingCtx =
     contentKindField
     <> constField "full-abstract" "true"
     <> essayCtx
+
+
+-- | The bibliography pages' links on: the library, then the library's own
+--   (site.yaml's library see-also), all but the bibliography's.
+bibliographySeeAlso :: Context String
+bibliographySeeAlso = listField "library-see-also" linkCtx $ do
+    library <- siteLibrary <$> loadConfig
+    mapM makeItem (NavLink "Library" "/library.html"
+                   : filter ((/= "/bibliography/") . navHref) (librarySeeAlso library))
+  where
+    linkCtx = field "label" (return . escapeHtml . navLabel . itemBody)
+           <> field "href"  (return . escapeHtml . navHref . itemBody)

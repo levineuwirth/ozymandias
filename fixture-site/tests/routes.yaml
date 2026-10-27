@@ -1,0 +1,37 @@
+# The fixture site's pages for the engine's browser tests and scripts
+# (engine/tools/browser/routes.py).
+pages:
+  home:         /
+  essay:        /essays/long/
+  essay-short:  /essays/short.html
+  short-page:   /short-page.html
+  new:          /new.html
+  notes:        /notes/
+  search:       /search.html
+  photo-index:  /photography/
+  photo-series: /photography/fixture-series/
+  photo-single: /photography/fixture-series/one/
+  photo-map:    /photography/map/
+  bibliography: /bibliography/
+  '404':        /does-not-exist
+keyboard: [home, essay, photo-series, search]
+motion: [home, essay, photo-series, photo-map]
+perf: [home, essay, photo-index, photo-map, new]
+probes:
+  popups: [essay]
+  search: [search]
+  map: [photo-map]
+  slideshow: [photo-series]
+  lightbox: [photo-single]
+  transclusion: [essay]
+roles:
+  not-found: '404'
+  essay: essay
+  essay-footnotes: essay
+  essay-sidenotes: essay
+  essay-figure: essay
+  photo: photo-single
+  photo-series: photo-series
+  photo-series-slideshow: photo-series
+  list: new
+  list-other: notes

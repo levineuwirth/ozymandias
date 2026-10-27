@@ -9,7 +9,7 @@ import re
 import unittest
 
 from tests._helpers import SITE_ROOT
-from tests.target import NO_FONTS, engine_file, fonts
+from tests.target import NO_FONTS, engine_file, fonts, site_yaml
 
 FONTS = fonts()
 
@@ -64,8 +64,8 @@ class FontTests(unittest.TestCase):
                 self.assertRegex(descriptor(face, name) or "", r"^\d+(\.\d+)?%$", f"{name} in {face}")
 
     def test_preloads_name_fonts_the_stylesheet_declares(self):
-        head = engine_file("templates/partials/head.html").read_text(encoding="utf-8")
-        preloads = re.findall(r'<link rel="preload" href="(/fonts/[^"]+)" as="font" type="font/woff2" crossorigin>', head)
+        # site.yaml's font-preloads, which head.html loops over.
+        preloads = site_yaml().get("font-preloads") or []
         self.assertTrue(preloads)
         declared = {"/fonts/" + p for p in re.findall(r'url\("\.\./fonts/([^"]+)"\)', self.css)}
         for href in preloads:

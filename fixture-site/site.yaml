@@ -1,0 +1,50 @@
+# The engine's fixture site: a small site with the minimal profile's
+# features (essays with sidenotes, citations, wikilinks and transclusion; a
+# figure; lists; a photo series and its map; the bibliography; search),
+# built and gated by engine/tests/test_fixture_site.py. Its identity is
+# example.org's. temporary-inputs.yaml lists what it carries only because an
+# engine rule is still unconditional.
+title: Example Site
+author: Example Author
+author-sort: Author, Example
+email: author@example.org
+contact-email: contact@example.org
+url: https://example.org
+host: example.org
+source-repo: https://git.example.org/author/site
+source-branch: main
+forge-host: git.example.org
+content-license: CC-BY-NC-SA-4.0
+code-license: MIT
+manifest:
+  name: Example Site
+  short-name: Example
+  description: The engine's fixture site.
+  theme-color: '#16140f'
+  background-color: '#16140f'
+feeds:
+  - path: feed.xml
+    title: Example Site
+    description: Everything new on the fixture site.
+    sections: [essays, blog, fiction, poetry]
+    advertise: true
+    limit: 30
+sections:
+  - {dir: essays, kind: Essay, dingbat: null}
+  - {dir: blog, kind: Post, dingbat: null}
+  - {dir: poetry, kind: Poem, dingbat: null}
+  - {dir: fiction, kind: Fiction, dingbat: null}
+  - {dir: music, kind: Composition, dingbat: null}
+  - {dir: photography, kind: Photo, dingbat: null}
+standalone: []
+portals:
+  - {name: Notes, tag: notes}
+nav-primary:
+  - {label: Home, href: /}
+  - {label: New, href: /new.html}
+  - {label: Search, href: /search.html}
+library:
+  shelf-cap: 4
+  shelf-max: 5
+  description: Every shelf of the fixture site.
+  see-also: []

@@ -47,11 +47,15 @@ def config() -> dict:
     return json.loads(subprocess.check_output([str(site_binary()), "config"], cwd=SITE_ROOT, text=True))
 
 
+def site_yaml() -> dict:
+    """The site's site.yaml as written, for the plain values a test needs
+    where there is no generator (CI): its switches, its font preloads."""
+    return yaml.safe_load(SITE_YAML.read_text(encoding="utf-8")) or {}
+
+
 def switches(settings: dict | None = None) -> dict:
     """The switches the site's site.yaml (or `settings`) sets."""
-    if settings is None:
-        settings = yaml.safe_load(SITE_YAML.read_text(encoding="utf-8")) or {}
-    return dict(settings.get("switches") or {})
+    return dict((site_yaml() if settings is None else settings).get("switches") or {})
 
 
 def switch_on(name: str, settings: dict | None = None) -> bool:

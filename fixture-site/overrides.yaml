@@ -1,0 +1,5 @@
+# The fixture's overrides of engine files (the engine's contract, §3.6).
+- site: templates/partials/ornament.html
+  engine: templates/partials/ornament.html
+  reviewed: 8bd1bda3354286c1b7580a1924eff061ef1a84be
+  note: a ruled ornament of its own, to exercise the contract

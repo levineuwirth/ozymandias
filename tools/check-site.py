@@ -50,6 +50,9 @@ import sys
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sitelib  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # What must never be published (S01)
 # ---------------------------------------------------------------------------
@@ -550,6 +553,12 @@ def resolve_local(site_dir: str, page_dir: str, url: str) -> str | None:
     return os.path.normpath(target)
 
 
+def site_feeds() -> list[str]:
+    """The feeds the site's config lists (`site config`), by their paths
+    in the built site."""
+    return [feed["path"] for feed in sitelib.site_config()["feeds"]]
+
+
 def check_feed(site_dir: str, rel: str, report: Report) -> None:
     """F10 — an advertised Atom feed must parse and carry an RFC 3339 date."""
     report.check(f"feed:{rel}")
@@ -666,7 +675,10 @@ def check_cv_pdfs(site_dir: str, report: Report) -> None:
     root = os.path.realpath(os.environ.get("SITE_ROOT") or os.getcwd())
     if os.path.realpath(site_dir) not in (os.path.join(root, "_site"), os.path.join(root, "_site-dev")):
         return
-    spec = importlib.util.spec_from_file_location("cv_pdfs", os.path.join(root, "tools", "cv-pdfs.py"))
+    tool = os.path.join(root, "tools", "cv-pdfs.py")
+    if not os.path.isfile(tool):
+        return   # a site without a CV
+    spec = importlib.util.spec_from_file_location("cv_pdfs", tool)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     for problem in module.stale():
@@ -784,8 +796,8 @@ def main(argv: list[str] | None = None) -> int:
     check_private_files(site_dir, report)
     check_no_drafts_dir(site_dir, report)
     check_html_corpus(site_dir, html_files, report)
-    check_feed(site_dir, "feed.xml", report)
-    check_feed(site_dir, os.path.join("music", "feed.xml"), report)
+    for rel in site_feeds():
+        check_feed(site_dir, rel, report)
     check_sitemap(site_dir, report)
     check_404(site_dir, report, as_error=not args.allow_missing_404)
     check_webp(site_dir, report, as_error=args.require_webp)

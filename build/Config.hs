@@ -53,6 +53,7 @@ data SiteConfig = SiteConfig
     , siteNavPrimary :: [NavLink]
     , siteLibrary :: LibraryConfig
     , siteStandalone :: [Standalone]
+    , siteFontPreloads :: [String]
     } deriving (Eq, Show)
 
 data FeedSection = Essays | Blog | Fiction | Poetry | Music | Photos
@@ -348,7 +349,7 @@ instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
-                      "nav-primary", "library", "standalone"]) o
+                      "nav-primary", "library", "standalone", "font-preloads"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -358,8 +359,12 @@ instance FromJSON SiteConfig where
                         <*> o .: "manifest" <*> o .: "feeds"
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .: "library"
-                        <*> o .: "standalone"
+                        <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
         mapM_ (uncurry singleLine) (identityValues c)
+        forM_ (siteFontPreloads c) $ \href ->
+            unless ("/" `isPrefixOf` href && ".woff2" `isSuffixOf` href
+                    && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) href) $
+                fail ("font-preloads must be the site's .woff2 paths: " ++ href)
         when (any isControl (siteSigningFingerprint c)) $
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
@@ -399,7 +404,8 @@ instance ToJSON SiteConfig where
                            "signing-fingerprint" .= siteSigningFingerprint c,
                            "sections" .= siteSections c, "portals" .= sitePortals c,
                            "nav-primary" .= siteNavPrimary c, "library" .= siteLibrary c,
-                           "standalone" .= siteStandalone c])
+                           "standalone" .= siteStandalone c,
+                           "font-preloads" .= siteFontPreloads c])
 
 identityKeys :: [String]
 identityKeys = ["title", "author", "author-sort", "email", "contact-email", "url", "host",
@@ -491,6 +497,8 @@ identityContext = mconcat
                      ("site-code-license", siteCodeLicense),
                      ("site-signing-fingerprint", siteSigningFingerprint)] ]
     <> listField "site-feeds" feedContext advertisedFeeds
+    <> listField "font-preloads" (field "href" (pure . itemBody))
+           (loadConfig >>= mapM makeItem . siteFontPreloads)
   where
     advertisedFeeds = do
         cfg <- loadConfig
