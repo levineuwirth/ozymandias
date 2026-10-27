@@ -23,9 +23,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
-LIST = "/new.html"                     # more cards than the first choice
-OTHER = "/research/graph-theory/"      # another list page, sharing the choice
+LIST = route("list")                   # more cards than the first choice
+OTHER = route("list-other")            # another list page, sharing the choice
 KEY = "list-page-count"
 
 STATE = """() => ({

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests import target
-from tests._helpers import engine_path
+from tests._helpers import engine_path, load_tool
 
 
 def load_ci():
@@ -106,6 +106,37 @@ class SiteCi(unittest.TestCase):
         self.assertEqual(sorted(set(ci.MODULES) & set(site)), [])
         for name in ci.MODULES:
             self.assertTrue(engine_path(f"tests/{name}.py").is_file(), name)
+
+
+class Routes(unittest.TestCase):
+    """The site's tests/routes.yaml, as the harness and the browser tests read it."""
+
+    def test_the_site_s_routes_hold(self):
+        routes = target.routes()
+        self.assertTrue(routes.pages)
+        for key in ("keyboard", "motion", "perf", "axe-skip"):
+            self.assertTrue(set(routes.names(key)) <= set(routes.pages), key)
+        for role in routes.roles:
+            self.assertTrue(target.route(role).startswith("/"), role)
+
+    def test_names_and_paths_resolve_and_strays_are_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            (site / "tests").mkdir()
+            routes_yaml = site / "tests/routes.yaml"
+            routes_yaml.write_text("pages: {home: /, '404': /gone}\nkeyboard: [home, /other.html]\n"
+                                   "probes: {math: [home]}\nroles: {not-found: '404', essay: /e/}\n")
+            routes = load_tool("browser/routes.py", "site_routes_probe").Routes(site)
+            self.assertEqual([routes.path(e) for e in routes.names("keyboard")], ["/", "/other.html"])
+            self.assertEqual((routes.role("not-found"), routes.role("essay")), ("/gone", "/e/"))
+            self.assertEqual((routes.probe("math"), routes.probe("map")), (["home"], []))
+            for stray in ("pages: {home: /}\nkeyboard: [essay]\n",        # no such page
+                          "pages: {home: /}\nprobes: {math: [/]}\n",      # a probe names pages
+                          "pages: {home: index.html}\n",                   # not a path
+                          "pages: {home: /}\nextra: []\n"):               # no such list
+                routes_yaml.write_text(stray)
+                with self.assertRaises(ValueError, msg=stray):
+                    type(routes)(site)
 
 
 if __name__ == "__main__":

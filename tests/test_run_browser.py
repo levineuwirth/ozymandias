@@ -238,7 +238,8 @@ class BrowserImports(unittest.TestCase):
             harness = pins = tools / "browser"
             harness.mkdir(parents=True)
             shutil.copy2(engine_path("tools/sitelib.py"), tools / "sitelib.py")
-            shutil.copy2(engine_path(f"tools/browser/{script}.py"), harness / f"{script}.py")
+            for name in (script, "routes"):
+                shutil.copy2(engine_path(f"tools/browser/{name}.py"), harness / f"{name}.py")
             payload = b"// already verified axe fixture\n"
             (pins / "axe.min.js").write_bytes(payload)
             (pins / "axe-version").write_text(
@@ -248,6 +249,8 @@ class BrowserImports(unittest.TestCase):
             site = Path(tmp) / "site"
             (site / "tools").mkdir(parents=True)
             (site / "tools/sitelib.py").write_text("raise AssertionError('site helper imported')")
+            (site / "tests").mkdir()
+            (site / "tests/routes.yaml").write_text("pages: {home: /}\n")
             env = {**os.environ, "SITE_ROOT": str(site), "BROWSER_OUT": str(site / "out")}
             probe = (
                 "import json, runpy, sys; "

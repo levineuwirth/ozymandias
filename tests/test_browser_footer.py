@@ -18,9 +18,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, SITE, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
 # Three templates, and the 404 page, which nginx serves for any missing path.
-PAGES = ("/", "/essays/proof-broker/", "/photography/denmark/", "/does-not-exist")
+PAGES = ("/", route("essay"), route("photo-series"), route("not-found"))
 TIME_TXT = "**/build/time.txt"
 
 

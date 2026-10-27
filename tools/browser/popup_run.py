@@ -7,9 +7,7 @@ from lib import *
 
 browser_name, port, outname = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 BASE = f'http://127.0.0.1:{port}'
-PAGES = ['/essays/growing-radius-domination.html', '/memento-mori.html', '/essays/where-does-simd-help-post-quantum-cryptography/',
-         '/essays/near-critical-growing-radius-domination.html', '/essays/proof-broker/', '/links.html', '/work.html',
-         '/essays/scaling_outage.html', '/essays/verified-inference/', '/bibliography/']
+PAGES = [SITE_ROUTES.path(e) for e in SITE_ROUTES.names('popup-sweep')]
 PROV = [
     ('wikipedia', r'wikipedia\.org/wiki/'), ('doi', r'doi\.org/'), ('arxiv', r'arxiv\.org/(abs|pdf)/'),
     ('github-code', r'github\.com/[^/]+/[^/]+/(blob|tree|commit)/'), ('github-repo', r'^https://github\.com/[^/]+/[^/]+/?$'),

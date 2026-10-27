@@ -33,7 +33,7 @@ def summarize(viol):
 
 # PDF.js's viewer is a vendored application, not the site's markup; the
 # CSP sweep loads it (tests/test_browser_csp.py).
-SKIP = ['pdfjs']
+SKIP = SITE_ROUTES.names('axe-skip')
 
 def run():
     res = {}

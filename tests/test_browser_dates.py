@@ -21,6 +21,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Dates fixture</title>
@@ -98,7 +99,7 @@ class RelativeDates(unittest.TestCase):
                 context = browser.new_context(java_script_enabled=False)
                 try:
                     page = context.new_page()
-                    page.goto(self.base + "/current.html")
+                    page.goto(self.base + route("now"))
                     stamp = page.locator(".now-stamp-date").get_attribute("datetime")
                     self.assertTrue(stamp)
                     self.expect(page.locator(".now-stamp-relative")).to_have_count(0)
@@ -112,7 +113,7 @@ class RelativeDates(unittest.TestCase):
                             datetime.fromisoformat(stamp + "T12:00:00+02:00")
                             + timedelta(days=days))
                         page = context.new_page()
-                        page.goto(self.base + "/current.html")
+                        page.goto(self.base + route("now"))
                         self.expect(page.locator(".now-stamp-relative")).to_have_text(phrase)
                     finally:
                         context.close()

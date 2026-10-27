@@ -28,9 +28,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
-PAGE = "/essays/proof-broker/"
-READER = "/music/bassoon-concerto/score/"
+PAGE = route("essay")
+READER = route("score") + "score/"
 TOGGLE = ".settings-toggle"
 PANEL = ".settings-panel"
 

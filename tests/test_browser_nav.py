@@ -24,8 +24,9 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
-ESSAY = "/essays/proof-broker/"
+ESSAY = route("essay")
 HEADER = "body > header:not(.essay-frontmatter)"
 
 MEASURE = f"""() => {{

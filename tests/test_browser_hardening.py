@@ -22,9 +22,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
 FILTER_KEY = "search-filter-state-v2"
-ESSAY = "/essays/proof-broker/"   # long enough to have collapsible sections
+ESSAY = route("essay")   # long enough to have collapsible sections
 
 SELECTION_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Selection fixture</title>

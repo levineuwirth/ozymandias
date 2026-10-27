@@ -35,13 +35,17 @@ from pathlib import Path
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import route
 
-SYMPHONY = "symphony-no-5"
-CONCERTO = "bassoon-concerto"
+# Works by their pages: two with score pages, timing and audio, one with
+# score pages alone.
+SYMPHONY = route("score-other")
+CONCERTO = route("score")
+SILENT = route("score-silent")
 
 
 def timing(work: str) -> dict:
-    path = SITE / "music" / work / "scores" / "timing.json"
+    path = SITE / work.strip("/") / "scores" / "timing.json"
     if not path.is_file():
         raise AssertionError(f"{path.relative_to(SITE)} is missing: the score pages come from "
                              f"tools/music-import.py, not git")
@@ -98,9 +102,9 @@ class ScoreReader(unittest.TestCase):
             self.assertEqual(errors, [], "page errors")
             self.assertEqual(net.unexpected, [], "requests leaving serve.py")
         self.addCleanup(clean)
-        page.goto(f"{self.base}/music/{work}/score/{query}", wait_until="load")
+        page.goto(f"{self.base}{work}score/{query}", wait_until="load")
         self.rendered(page)
-        if work != "liebe-ohne-zeit":
+        if work != SILENT:
             self.expect(page.locator(".score-follow-play")).to_be_visible()
         return page, requests
 
@@ -404,7 +408,7 @@ class ScoreReader(unittest.TestCase):
         self.fail(f"never held: {condition}")
 
     def test_escape_goes_back_to_the_work(self) -> None:
-        work = f"/music/{CONCERTO}/"
+        work = CONCERTO
         for browser in BROWSERS:
             with self.subTest(browser=browser, arrived="a shared link, in a new tab"):
                 page, _ = self.reader(browser, CONCERTO, "?p=5")
@@ -413,18 +417,18 @@ class ScoreReader(unittest.TestCase):
                 page.wait_for_url(self.base + work)
             with self.subTest(browser=browser, arrived="from the work's page"):
                 page.locator("a.comp-frontispiece").click()
-                page.wait_for_url(f"{self.base}/music/{CONCERTO}/score/")
+                page.wait_for_url(f"{self.base}{CONCERTO}score/")
                 self.rendered(page)
                 self.unfocus(page)
                 page.keyboard.press("Escape")
                 page.wait_for_url(self.base + work)
                 # By history: the reader is still ahead of us, not behind.
                 page.go_forward()
-                page.wait_for_url(f"{self.base}/music/{CONCERTO}/score/")
+                page.wait_for_url(f"{self.base}{CONCERTO}score/")
             with self.subTest(browser=browser, arrived="from elsewhere on the site"):
-                page.goto(self.base + "/music/", wait_until="load")
-                page.evaluate(f"location.href = '/music/{CONCERTO}/score/'")
-                page.wait_for_url(f"{self.base}/music/{CONCERTO}/score/")
+                page.goto(self.base + "/", wait_until="load")
+                page.evaluate(f"location.href = '{CONCERTO}score/'")
+                page.wait_for_url(f"{self.base}{CONCERTO}score/")
                 self.rendered(page)
                 self.unfocus(page)
                 page.keyboard.press("Escape")
@@ -439,7 +443,7 @@ class ScoreReader(unittest.TestCase):
                    '<use href="#r" x="60"/><g onclick="window.__pwned=4"><text x="1" y="90">ok</text></g></svg>')
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.reader(browser, "liebe-ohne-zeit", routes={"page": r"/music/.+\.svg$"},
+                page, _ = self.reader(browser, SILENT, routes={"page": r"/music/.+\.svg$"},
                                       answers={"page": answer(hostile, "image/svg+xml")})
                 svg = page.locator("#score-page svg")
                 self.expect(svg.locator("script, title")).to_have_count(0)

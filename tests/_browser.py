@@ -29,6 +29,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, load_tool
+from tests.target import BASELINES, CSP_CONF, route, routes
 
 HARNESS = engine_path("tools/browser/serve.py").parent
 SITE = SITE_ROOT / "_site"
@@ -52,8 +53,8 @@ def check_site() -> None:
 
 
 def harness_constant(script: str, name: str):
-    """A literal a tools/browser script assigns to `name` at top level (a
-    route list, its widths), read without running the script: lib makes
+    """A literal a tools/browser script assigns to `name` at top level (its
+    widths, its modes), read without running the script: lib makes
     its output directories on import, and the others launch browsers."""
     for node in ast.parse((HARNESS / script).read_text(encoding="utf-8")).body:
         if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == name
@@ -63,8 +64,9 @@ def harness_constant(script: str, name: str):
 
 
 def harness_routes() -> dict[str, str]:
-    """tools/browser/lib.py's ROUTES, name -> path."""
-    return dict(harness_constant("lib.py", "ROUTES"))
+    """The pages the harness's sweeps load, name -> path, in order (the
+    site's tests/routes.yaml, as tools/browser/lib.py reads it)."""
+    return dict(routes().pages)
 
 
 def assert_complete(case: unittest.TestCase, report: dict, expected, what: str) -> None:
@@ -79,10 +81,12 @@ def assert_complete(case: unittest.TestCase, report: dict, expected, what: str) 
                   f"{len(extra)} unexpected {extra[:12]}")
 
 
-def page_styles(path: str = "/essays/proof-broker/") -> str:
-    """The <link rel="stylesheet"> tags of a built page, as root-relative
-    URLs, for a fixture page to look as that page does."""
+def page_styles(path: str | None = None) -> str:
+    """The <link rel="stylesheet"> tags of a built page (by default the
+    site's essay, routes.yaml), as root-relative URLs, for a fixture page to
+    look as that page does."""
     from urllib.parse import urljoin
+    path = path or route("essay")
     html = (SITE / path.lstrip("/") / "index.html").read_text(encoding="utf-8")
     links = re.findall(r'<link rel="stylesheet" href="([^"]+)"( media="[^"]+")?>', html)
     if not links:
@@ -101,7 +105,7 @@ def require_playwright() -> None:
 def enforcing_csp() -> str:
     """The policy nginx/security-headers.conf enforces (before its
     promotion on 2026-10-09, a commented candidate; either is read)."""
-    text = (SITE_ROOT / "nginx" / "security-headers.conf").read_text(encoding="utf-8")
+    text = CSP_CONF.read_text(encoding="utf-8")
     found = re.findall(r'^(?:#\s+)?add_header Content-Security-Policy "([^"]+)" always;$',
                        text, re.M)
     if len(found) != 1:
@@ -199,7 +203,7 @@ class FakeNetwork:
         route.abort()
 
 
-BASELINE = SITE_ROOT / "tests" / "browser-baseline"
+BASELINE = BASELINES
 UPDATE_BASELINE = os.environ.get("UPDATE_BROWSER_BASELINE") == "1"
 
 

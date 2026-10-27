@@ -1,11 +1,11 @@
 from playwright.sync_api import sync_playwright
-from lib import SHOTS
+from lib import SHOTS, SITE_ROUTES
 INIT = """window.__cls=[];new PerformanceObserver(l=>{for(const e of l.getEntries()){window.__cls.push({v:e.value, src:(e.sources||[]).map(s=>s.node&&s.node.className||s.node&&s.node.nodeName)})}}).observe({type:'layout-shift',buffered:true});"""
 with sync_playwright() as p:
     b = p.chromium.launch()
     for w, h in ((1280, 800), (390, 844)):
         ctx = b.new_context(viewport={'width': w, 'height': h}); pg = ctx.new_page(); pg.add_init_script(INIT)
-        for path in ('/404.html', '/me.html', '/links.html'):
+        for path in map(SITE_ROUTES.path, SITE_ROUTES.names('layout-shift')):
             pg.goto('http://127.0.0.1:48792' + path, wait_until='networkidle'); pg.wait_for_timeout(500)
             shifts = pg.evaluate('window.__cls')
             foot = [s for s in shifts if any('footer' in str(x) for x in s['src'])]

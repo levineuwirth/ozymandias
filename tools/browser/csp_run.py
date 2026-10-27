@@ -32,17 +32,18 @@ def features(page, name):
     out['transclude_unfilled'] = ev("document.querySelectorAll('div.transclude:empty').length")
     out['transclude_total'] = ev("document.querySelectorAll('div.transclude').length")
 
-    if name in ('links', 'essay-grd', 'essay-scaling', 'essay-proofbroker', 'essay-simd', 'essay-r6', 'memento', 'work', 'essay-verified'):
+    probe = lambda kind: name in SITE_ROUTES.probe(kind)
+    if probe('popups'):
         out['popups'] = hover_popups(page)
-    if name == 'search':
+    if probe('search'):
         out['search'] = search_probe(page)
-    if name == 'photo-map':
+    if probe('map'):
         page.wait_for_timeout(3000)
         out['map'] = ev("""({tiles: document.querySelectorAll('.leaflet-tile').length,
             tilesLoaded: document.querySelectorAll('.leaflet-tile-loaded').length,
             markers: document.querySelectorAll('.leaflet-marker-icon').length,
             err: (document.querySelector('.photography-map-error, [class*=error]')||{}).textContent || null})""")
-    if name == 'photo-series':
+    if probe('slideshow'):
         btn = page.query_selector('[data-mode="slideshow"]')
         out['slideshow_btn'] = bool(btn)
         if btn:
@@ -55,7 +56,7 @@ def features(page, name):
                 page.keyboard.press('Escape'); page.wait_for_timeout(500)
             except Exception as e:
                 out['slideshow_err'] = str(e)[:200]
-    if name in ('photo-single', 'essay-simd'):
+    if probe('lightbox'):
         img = page.query_selector('img[data-lightbox]')
         out['lightbox_img'] = bool(img)
         if img:
@@ -66,9 +67,9 @@ def features(page, name):
                 page.keyboard.press('Escape'); page.wait_for_timeout(400)
             except Exception as e:
                 out['lightbox_err'] = str(e)[:200]
-    if name == 'score-reader':
+    if probe('score'):
         out['score'] = score_probe(page)
-    if name == 'pdfjs':
+    if probe('pdf-viewer'):
         try:
             page.wait_for_selector('.page canvas, .canvasWrapper canvas', timeout=15000)
         except Exception:
@@ -78,23 +79,23 @@ def features(page, name):
             text: document.querySelectorAll('.textLayer span').length,
             err: (document.querySelector('#errorWrapper:not([hidden]), .dialog[open]')||{}).textContent || null})""")
         out['pdf'].update(pdf_blob_probe(page, out['pdf']['pages']))
-    if name in ('archive-snapshot', 'archive-pdf'):
+    if probe('archive-snapshot') or probe('archive-pdf'):
         page.wait_for_timeout(1500)
         out['iframe'] = [{'url': f.url, 'title': (f.title() if f != page.main_frame else None)} for f in page.frames if f != page.main_frame]
-    if name in ('cv-about', 'work', 'cv-projects'):
+    if probe('pdf-links'):
         # PDF embed / pdf popup link
         out['pdf_links'] = ev("[...document.querySelectorAll('a[href*=\"pdfjs\"], iframe[src*=\"pdfjs\"]')].map(a => a.outerHTML.slice(0, 160)).slice(0, 4)")
-    if name == 'composition':
+    if probe('composition'):
         # The score's thumbnail, by name: counting images also counts the
         # lightbox's, which has no source until it opens.
         out['composition'] = ev("""({thumb: (i => i && {src: i.currentSrc, loaded: i.complete && i.naturalWidth > 0})
                 (document.querySelector('.comp-frontispiece img')),
             broken: [...document.images].filter(i => i.getAttribute('src') && i.complete && i.naturalWidth === 0).map(i => i.src).slice(0,5),
             audio: document.querySelectorAll('audio').length})""")
-    if name == 'colophon':
+    if probe('transclusion'):
         page.wait_for_timeout(1500)
         out['transclude_after'] = ev("[...document.querySelectorAll('div.transclude')].map(d => ({cls: d.className, len: d.textContent.length, html: d.outerHTML.slice(0,200)}))")
-    if name == 'commonplace':
+    if probe('commonplace'):
         # commonplace.js was an inline script: the toggle is what the CSP could stop.
         try:
             page.click('.cp-toggle-btn[data-target="cp-chrono"]', timeout=3000)

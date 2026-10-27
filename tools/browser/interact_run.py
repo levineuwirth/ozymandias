@@ -35,7 +35,7 @@ def run():
         page.on('pageerror', lambda e: errs.append(str(e)[:200]))
 
         # 1. settings panel
-        page.goto(BASE + '/essays/proof-broker/'); settle(page, 500)
+        page.goto(BASE + SITE_ROUTES.role('essay')); settle(page, 500)
         r = {}
         r['tabs_to_toggle'] = focus_by_tab(page, '.settings-toggle')
         page.keyboard.press('Enter'); page.wait_for_timeout(300)
@@ -55,7 +55,7 @@ def run():
         res['settings'] = r; print('settings', r, flush=True)
 
         # 2. portals toggle
-        page.goto(BASE + '/essays/proof-broker/'); settle(page, 300)
+        page.goto(BASE + SITE_ROUTES.role('essay')); settle(page, 300)
         r = {}
         page.focus('.nav-portal-toggle'); page.keyboard.press('Enter'); page.wait_for_timeout(200)
         r['expanded'] = page.evaluate("document.querySelector('.nav-portal-toggle').getAttribute('aria-expanded')")
@@ -64,7 +64,7 @@ def run():
         res['portals'] = r; print('portals', r, flush=True)
 
         # 3. lightbox (photo single)
-        page.goto(BASE + '/photography/denmark/copenhagen-005/'); settle(page, 500)
+        page.goto(BASE + SITE_ROUTES.role('photo')); settle(page, 500)
         r = {}
         r['tabs_to_img'] = focus_by_tab(page, 'img[data-lightbox], [data-lightbox]')
         r['focused'] = page.evaluate(AE)
@@ -79,7 +79,7 @@ def run():
         res['lightbox'] = r; print('lightbox', r, flush=True)
 
         # 4. slideshow (series)
-        page.goto(BASE + '/photography/denmark/'); settle(page, 500)
+        page.goto(BASE + SITE_ROUTES.role('photo-series')); settle(page, 500)
         r = {}
         r['tabs_to_btn'] = focus_by_tab(page, '[data-mode="slideshow"]')
         page.keyboard.press('Enter'); page.wait_for_timeout(800)
@@ -98,7 +98,7 @@ def run():
         res['slideshow'] = r; print('slideshow', r, flush=True)
 
         # 5. math gallery overlay
-        page.goto(BASE + '/essays/growing-radius-domination.html'); settle(page, 1000)
+        page.goto(BASE + SITE_ROUTES.role('essay-gallery')); settle(page, 1000)
         r = {}
         r['tabs_to_math'] = focus_by_tab(page, '.math-focusable', 300)
         page.keyboard.press('Enter'); page.wait_for_timeout(500)
@@ -109,7 +109,7 @@ def run():
         res['math_gallery'] = r; print('math', r, flush=True)
 
         # 6. link popups on keyboard focus
-        page.goto(BASE + '/essays/proof-broker/'); settle(page, 800)
+        page.goto(BASE + SITE_ROUTES.role('essay')); settle(page, 800)
         r = {}
         r['tabs_to_internal'] = focus_by_tab(page, '#markdownBody a[data-popup-bound]', 200)
         r['focused'] = page.evaluate(AE)
@@ -141,7 +141,7 @@ def run():
         res['search'] = r; print('search', r, flush=True)
 
         # 9. sidenote / footnote keyboard at 1440 (sidenotes visible in margin)
-        page.goto(BASE + '/essays/verified-inference/'); settle(page, 500)
+        page.goto(BASE + SITE_ROUTES.role('essay-sidenotes')); settle(page, 500)
         res['sidenotes'] = page.evaluate("({n: document.querySelectorAll('.footnote-item').length, refs: document.querySelectorAll('.sidenote-ref, a.footnote-ref, sup a').length})")
 
         res['pageerrors'] = errs

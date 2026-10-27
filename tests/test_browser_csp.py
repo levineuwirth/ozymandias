@@ -29,8 +29,10 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, SITE_ROOT, check_site, enforcing_csp, harness_routes,
                             require_playwright, requires_browser, run_harness, site_server)
+from tests.target import routes
 
 ROUTES = harness_routes()
+NOT_FOUND = routes().roles.get("not-found")   # its own document is meant to 404
 
 # Each browser's routes are split across csp_run.py processes (SHARDS
 # below), all running at once; the whole sweep gets SWEEP_SECONDS.
@@ -138,7 +140,7 @@ class CspSweep(unittest.TestCase):
                        # serve.py has no upstream for the popup proxy, and the
                        # 404 route's own document is meant to be one.
                        and "/proxy/" not in r["url"]
-                       and not (route == "404" and r["url"].endswith(ROUTES[route]))]
+                       and not (route == NOT_FOUND and r["url"].endswith(ROUTES[route]))]
                 self.assertEqual(bad, [])
 
     def test_images_math_and_transclusions_render(self) -> None:
@@ -154,72 +156,83 @@ class CspSweep(unittest.TestCase):
 
     def test_features(self) -> None:
         """What the Promotion note in nginx/security-headers.conf says to
-        re-test, in each browser."""
+        re-test, in each browser, on the pages routes.yaml names for each
+        (its probes)."""
+        probe = routes().probe
         for browser in BROWSERS:
             got = {route: rec.get("features", {}) for route, rec in self.results[browser].items()}
 
             def check(feature: str, route: str):
                 return self.subTest(browser=browser, feature=feature, route=route)
 
-            with check("keyword search", "search"):
-                self.assertGreater(got["search"]["search"].get("keyword_results", 0), 0,
-                                   got["search"]["search"])
-            with check("semantic search", "search"):
-                self.assertGreater(got["search"]["search"].get("semantic_results", 0), 0,
-                                   got["search"]["search"])
-            with check("map tiles and markers", "photo-map"):
-                m = got["photo-map"]["map"]
-                self.assertGreater(m["tilesLoaded"], 0, m)
-                self.assertGreater(m["markers"], 0, m)
-                self.assertIsNone(m["err"])
-            with check("PDF.js viewer", "pdfjs"):
-                pdf = got["pdfjs"]["pdf"]
-                self.assertGreater(pdf["canvases"], 0, pdf)
-                self.assertGreater(pdf["text"], 0, pdf)
-                self.assertIsNone(pdf["err"])
-            with check("PDF.js thumbnails (blob: images)", "pdfjs"):
-                self.assertNotIn("thumbs_err", pdf)
-                self.assertGreater(pdf["thumbs_loaded"], 0, pdf)
-            with check("PDF.js print output (blob: images)", "pdfjs"):
-                self.assertNotIn("print_err", pdf)
-                self.assertEqual(pdf["print_loaded"], pdf["pages"], pdf)
-            with check("archive snapshot", "archive-snapshot"):
-                frames = [f["url"] for f in got["archive-snapshot"]["iframe"]]
-                self.assertTrue(any(u.endswith("/archive/djb-aes-speed/snapshot.html")
-                                    for u in frames), frames)
-            with check("score pages", "score-reader"):
-                self.assertGreater(got["score-reader"]["score"]["stage"]["svgs"], 0)
-            for route in ("photo-single", "essay-simd"):
+            for route in probe("search"):
+                with check("keyword search", route):
+                    self.assertGreater(got[route]["search"].get("keyword_results", 0), 0,
+                                       got[route]["search"])
+                with check("semantic search", route):
+                    self.assertGreater(got[route]["search"].get("semantic_results", 0), 0,
+                                       got[route]["search"])
+            for route in probe("map"):
+                with check("map tiles and markers", route):
+                    m = got[route]["map"]
+                    self.assertGreater(m["tilesLoaded"], 0, m)
+                    self.assertGreater(m["markers"], 0, m)
+                    self.assertIsNone(m["err"])
+            for route in probe("pdf-viewer"):
+                pdf = got[route]["pdf"]
+                with check("PDF.js viewer", route):
+                    self.assertGreater(pdf["canvases"], 0, pdf)
+                    self.assertGreater(pdf["text"], 0, pdf)
+                    self.assertIsNone(pdf["err"])
+                with check("PDF.js thumbnails (blob: images)", route):
+                    self.assertNotIn("thumbs_err", pdf)
+                    self.assertGreater(pdf["thumbs_loaded"], 0, pdf)
+                with check("PDF.js print output (blob: images)", route):
+                    self.assertNotIn("print_err", pdf)
+                    self.assertEqual(pdf["print_loaded"], pdf["pages"], pdf)
+            for route in probe("archive-snapshot"):
+                with check("archive snapshot", route):
+                    frames = [f["url"] for f in got[route]["iframe"]]
+                    self.assertTrue(any(u.endswith(ROUTES[route] + "snapshot.html") for u in frames), frames)
+            for route in probe("score"):
+                with check("score pages", route):
+                    self.assertGreater(got[route]["score"]["stage"]["svgs"], 0)
+                with check("score audio and turning", route):
+                    score = got[route]["score"]
+                    self.assertNotIn("audio_err", score)
+                    self.assertEqual(score["audio"]["pressed"], "true", score["audio"])
+                    self.assertNotIn("next_err", score)
+                    before, after = (re.fullmatch(r"(\d+) / (\d+)", score[k] or "")
+                                     for k in ("before_next", "after_next"))
+                    self.assertTrue(before and after, score)
+                    self.assertEqual(int(after[1]), int(before[1]) + 1, score)
+            for route in probe("lightbox"):
                 with check("lightbox", route):
                     self.assertTrue(got[route].get("lightbox_img"), got[route])
                     self.assertTrue(got[route].get("lightbox", {}).get("visible"), got[route])
-            with check("slideshow", "photo-series"):
-                s = got["photo-series"]
-                self.assertTrue(s.get("slideshow_btn"), s)
-                self.assertNotIn("slideshow_err", s)
-                self.assertTrue(s["slideshow"]["open"] and s["slideshow"]["ok"], s["slideshow"])
-            with check("score audio and turning", "score-reader"):
-                score = got["score-reader"]["score"]
-                self.assertNotIn("audio_err", score)
-                self.assertEqual(score["audio"]["pressed"], "true", score["audio"])
-                self.assertNotIn("next_err", score)
-                before, after = (re.fullmatch(r"(\d+) / (\d+)", score[k] or "")
-                                 for k in ("before_next", "after_next"))
-                self.assertTrue(before and after, score)
-                self.assertEqual(int(after[1]), int(before[1]) + 1, score)
-            with check("commonplace view toggle", "commonplace"):
-                self.assertNotIn("cp_err", got["commonplace"])
-                self.assertEqual(got["commonplace"]["cp"], {"chrono": True, "themed": False})
-            with check("composition images", "composition"):
-                c = got["composition"]["composition"]
-                self.assertTrue(c["thumb"] and c["thumb"]["loaded"], c)
-                self.assertTrue(c["thumb"]["src"].endswith("/scores/thumb.webp"), c)
-                self.assertEqual(c["broken"], [])
-            with check("transclusion", "colophon"):
-                loaded = [t["cls"] for t in got["colophon"]["transclude_after"]]
-                self.assertTrue(loaded and all("transclude--loaded" in c for c in loaded), loaded)
-            with check("math", "essay-grd"):
-                self.assertGreater(got["essay-grd"]["katex"], 0)
+            for route in probe("slideshow"):
+                with check("slideshow", route):
+                    s = got[route]
+                    self.assertTrue(s.get("slideshow_btn"), s)
+                    self.assertNotIn("slideshow_err", s)
+                    self.assertTrue(s["slideshow"]["open"] and s["slideshow"]["ok"], s["slideshow"])
+            for route in probe("commonplace"):
+                with check("commonplace view toggle", route):
+                    self.assertNotIn("cp_err", got[route])
+                    self.assertEqual(got[route]["cp"], {"chrono": True, "themed": False})
+            for route in probe("composition"):
+                with check("composition images", route):
+                    c = got[route]["composition"]
+                    self.assertTrue(c["thumb"] and c["thumb"]["loaded"], c)
+                    self.assertTrue(c["thumb"]["src"].endswith("/scores/thumb.webp"), c)
+                    self.assertEqual(c["broken"], [])
+            for route in probe("transclusion"):
+                with check("transclusion", route):
+                    loaded = [t["cls"] for t in got[route]["transclude_after"]]
+                    self.assertTrue(loaded and all("transclude--loaded" in c for c in loaded), loaded)
+            for route in probe("math"):
+                with check("math", route):
+                    self.assertGreater(got[route]["katex"], 0)
 
 
 if __name__ == "__main__":

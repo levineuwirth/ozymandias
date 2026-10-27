@@ -2,10 +2,11 @@ import json, os, re, sys, time
 from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# sitelib, in the engine's tools/ above this harness, whatever SITE_ROOT
-# and the working directory are.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# sitelib, in the engine's tools/ above this harness, and routes beside
+# it, whatever SITE_ROOT and the working directory are.
+sys.path[:0] = [HERE, str(Path(__file__).resolve().parents[1])]
 import sitelib  # noqa: E402
+from routes import Routes  # noqa: E402
 # The site: $SITE_ROOT (tests/_browser.py sets it, running these scripts in
 # their own directory), else the working directory.
 REPO = os.environ.get('SITE_ROOT') or os.getcwd()
@@ -23,51 +24,10 @@ PORT_THUMB = 48732
 # A test runs these scripts against a server of its own and names its port.
 PORT_NONE = int(os.environ.get('BROWSER_PORT', '48733'))
 
-ROUTES = [
-    ('home', '/'),
-    ('essay-r6', '/essays/eighty-witnesses-six-proofs/'),
-    ('essay-verified', '/essays/verified-inference/'),
-    ('essay-proofbroker', '/essays/proof-broker/'),
-    ('essay-simd', '/essays/where-does-simd-help-post-quantum-cryptography/'),
-    ('essay-notes', '/essays/notes-from-underground.html'),
-    ('essay-grd', '/essays/growing-radius-domination.html'),
-    ('essay-scaling', '/essays/scaling_outage.html'),
-    ('essays-index', '/essays/'),
-    ('poetry-index', '/poetry/'),
-    ('poem', '/poetry/sonnet-60.html'),
-    ('fiction', '/fiction/'),
-    ('photo-index', '/photography/'),
-    ('photo-series', '/photography/denmark/'),
-    ('photo-single', '/photography/denmark/copenhagen-005/'),
-    ('photo-map', '/photography/map/'),
-    ('photo-contact', '/photography/contact-sheet/'),
-    ('photo-year', '/photography/by-year/2024/'),
-    ('music-index', '/music/'),
-    ('composition', '/music/bassoon-concerto/'),
-    ('score-reader', '/music/bassoon-concerto/score/'),
-    ('research', '/research/'),
-    ('tag-page', '/research/graph-theory/'),
-    ('pdfjs', '/pdfjs/web/viewer.html?file=/cv.pdf'),
-    ('search', '/search.html'),
-    ('current', '/current.html'),
-    ('cv-about', '/about.html'),
-    ('cv-projects', '/cv/projects/'),
-    ('me', '/me.html'),
-    ('links', '/links.html'),
-    ('colophon', '/colophon.html'),
-    ('bibliography', '/bibliography/'),
-    ('commonplace', '/commonplace.html'),
-    ('archive-index', '/archive/'),
-    ('archive-snapshot', '/archive/djb-aes-speed/'),
-    ('archive-pdf', '/archive/nist-fips-203/'),
-    ('library', '/library.html'),
-    ('work', '/work.html'),
-    ('new', '/new.html'),
-    ('memento', '/memento-mori.html'),
-    ('build', '/build/'),
-    ('stats', '/stats/'),
-    ('404', '/does-not-exist'),
-]
+# The site's pages, by name (its tests/routes.yaml, routes.py), and in the
+# order the sweeps visit them.
+SITE_ROUTES = Routes(REPO)
+ROUTES = list(SITE_ROUTES.pages.items())
 
 CSP_INIT = r"""
 (() => {

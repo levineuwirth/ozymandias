@@ -8,8 +8,7 @@ from lib import *
 
 browser_name, outname = sys.argv[1], sys.argv[2]
 BASE = f'http://127.0.0.1:{PORT_NONE}'
-MROUTES = ['home', 'essay-r6', 'essay-proofbroker', 'photo-index', 'photo-series', 'photo-map', 'music-index',
-           'composition', 'score-reader', 'search', 'colophon', 'library', 'memento', 'cv-about']
+MROUTES = SITE_ROUTES.names('motion')
 MODES = ('os', 'site', 'none')
 
 PROBE = r"""

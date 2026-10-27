@@ -9,8 +9,7 @@ browser_name, outname = sys.argv[1], sys.argv[2]
 BASE = f'http://127.0.0.1:{PORT_NONE}'
 STOPS = 40
 
-KROUTES = ['home', 'essay-proofbroker', 'essay-r6', 'essay-grd', 'photo-index', 'photo-series', 'photo-single',
-           'search', 'composition', 'score-reader', 'links', 'library', 'commonplace', 'music-index', 'me', 'current']
+KROUTES = SITE_ROUTES.names('keyboard')
 VIEWPORTS = [(1440, 1000), (375, 812)]
 
 FOCUS_INFO = r"""

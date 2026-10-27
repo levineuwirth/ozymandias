@@ -11,8 +11,7 @@ from lib import *
 outname, width = sys.argv[1], int(sys.argv[2])
 only = set(sys.argv[3:])
 BASE = f'http://127.0.0.1:{PORT_NONE}'
-PROUTES = ['home', 'essay-r6', 'essay-grd', 'essay-simd', 'photo-index', 'photo-series', 'photo-single', 'photo-contact',
-           'photo-year', 'photo-map', 'music-index', 'composition', 'score-reader', 'search', 'library', 'new', 'current', 'colophon', 'cv-about', 'stats', 'me']
+PROUTES = SITE_ROUTES.names('perf')
 
 OBS = r"""
 window.__lcp = null; window.__cls = 0; window.__lcpEl = null;

@@ -27,12 +27,16 @@ from pathlib import Path
 
 import yaml
 
-from tests._helpers import SITE_ROOT, engine_path, site_binary
+from tests._helpers import SITE_ROOT, engine_path, load_tool, site_binary
 
 SITE = SITE_ROOT / "_site"
 CONTENT = SITE_ROOT / "content"
 SITE_YAML = SITE_ROOT / "site.yaml"
 FONTS = SITE_ROOT / "tools" / "fonts.yaml"
+# What the browser tests compare against, and the policy they serve the site
+# under, as its server does.
+BASELINES = SITE_ROOT / "tests" / "browser-baseline"
+CSP_CONF = SITE_ROOT / "nginx" / "security-headers.conf"
 SWITCH_OFF = "switch off: "
 NO_FONTS = "the site has no tools/fonts.yaml"
 
@@ -81,6 +85,18 @@ def engine_file(rel: str) -> Path:
     the engine's, else the engine's (build/EngineFiles.hs)."""
     own = SITE_ROOT / rel
     return own if own.is_file() else engine_path(rel)
+
+
+@functools.cache
+def routes():
+    """The site's pages for the browser tests and the harness (its
+    tests/routes.yaml, engine/tools/browser/routes.py)."""
+    return load_tool("browser/routes.py", "site_routes").Routes(SITE_ROOT)
+
+
+def route(role: str) -> str:
+    """The path of the site's page for `role` (routes.yaml's roles)."""
+    return routes().role(role)
 
 
 def fonts() -> dict | None:

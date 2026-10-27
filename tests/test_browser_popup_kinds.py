@@ -36,10 +36,11 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import route
 
-ESSAY = "/essays/proof-broker/"
-PEER_REVIEWED = "/essays/beyond-comorbidity-indices/"   # carries a peer-status
-LIST = "/new.html"
+ESSAY = route("essay")
+PEER_REVIEWED = route("essay-peer-reviewed")   # carries a peer-status
+LIST = route("list")
 
 POPUP = ".link-popup.is-visible"
 

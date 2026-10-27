@@ -43,6 +43,7 @@ from urllib.parse import parse_qs, urlsplit
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import route
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
@@ -179,7 +180,7 @@ PAGE = """<!doctype html>
 <p><a id="pubmed" href="https://pubmed.ncbi.nlm.nih.gov/12345678/">PubMed</a></p>
 <p><a id="annotated" href="https://example.org/annotated">annotated</a></p>
 <p><a id="forge" href="https://git.levineuwirth.org/neuwirth/levineuwirth.org">Forgejo</a></p>
-<p><a id="internal" href="/essays/proof-broker/">an essay</a></p>
+<p><a id="internal" href="{essay}">an essay</a></p>
 <p><a id="pdf" class="pdf-link" data-pdf-src="/cv.pdf" href="/pdfjs/web/viewer.html?file=/cv.pdf">CV</a></p>
 <p><a id="source" class="source-ref" data-source-path="data/similar-links.json"
       href="../source/data/similar-links.json">similar-links.json</a></p>
@@ -220,9 +221,9 @@ class LinkPopups(unittest.TestCase):
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-popups-")))
         (tmp / "fixtures").mkdir()
         link, cls.code = code_ref()
-        (tmp / "fixtures" / "popups.html").write_text(PAGE.format(code_ref=link), encoding="utf-8")
+        (tmp / "fixtures" / "popups.html").write_text(PAGE.format(code_ref=link, essay=route("essay")), encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
-        essay = (SITE / "essays" / "proof-broker" / "index.html").read_text(encoding="utf-8")
+        essay = (SITE / route("essay").strip("/") / "index.html").read_text(encoding="utf-8")
         title = re.search(r'<h1 class="page-title"[^>]*>(.*?)</h1>', essay, re.S)
         cls.essay_title = " ".join(html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).split())
         playwright = cls.enterClassContext(sync_playwright())

@@ -44,6 +44,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, page_styles, require_playwright,
                             requires_browser, site_server)
+from tests.target import route
 
 
 def ref(label: str) -> str:
@@ -502,7 +503,7 @@ class Sidenotes(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 held = []
-                page = self.open(browser, path="/essays/notes-from-underground.html", wait="domcontentloaded",
+                page = self.open(browser, path=route("essay-footnotes"), wait="domcontentloaded",
                                  context_setup=lambda c: c.route("**/*.woff2", lambda route: held.append(route)))
                 self.expect(page.locator("#markdownBody .footnote-item").first).to_be_visible()
                 self.settled(page)

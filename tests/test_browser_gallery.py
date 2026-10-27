@@ -22,8 +22,9 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
+from tests.target import route
 
-ESSAY = "/essays/growing-radius-domination.html"
+ESSAY = route("essay-gallery")
 OVERLAY = "#gallery-overlay"
 
 

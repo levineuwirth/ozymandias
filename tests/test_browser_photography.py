@@ -33,12 +33,13 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import route
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
 
-PHOTO = "/photography/denmark/copenhagen-005/"
-ESSAY_WITH_FIGURE = "/essays/where-does-simd-help-post-quantum-cryptography/"
+PHOTO = route("photo")
+ESSAY_WITH_FIGURE = route("essay-figure")
 
 # Four places far apart, so no two cluster at the zoom that frames them.
 PINS = [
@@ -312,7 +313,7 @@ class Photography(unittest.TestCase):
         # (tests/test_browser_slideshow.py).
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.open(browser, "/photography/europa-2024/")
+                page, _ = self.open(browser, route("photo-series-slideshow"))
                 page.click("[data-mode=slideshow]")
                 self.expect(page.locator(".slideshow-overlay.is-open")).to_be_visible()
                 self.expect(page.locator(".slideshow-play")).to_be_focused()

@@ -31,6 +31,7 @@ import unittest
 from collections import defaultdict
 from pathlib import Path
 
+from tests.target import routes
 from tests._browser import (BROWSERS, UPDATE_BASELINE, assert_complete, baseline, check_site,
                             harness_constant, harness_routes, require_axe, require_playwright,
                             requires_browser, run_harness, site_server)
@@ -39,9 +40,9 @@ ROUTES = harness_routes()
 SHARDS = 3
 THEMES = ("light", "dark")
 VIEWPORTS = ("1440x1000", "375x812")
-AXE_ROUTES = [r for r in ROUTES if r not in harness_constant("axe_run.py", "SKIP")]
+AXE_ROUTES = [r for r in ROUTES if r not in routes().names("axe-skip")]
 TEXT_SIZES = (17, 29)       # the settings panel's ends (lnUtils.TEXT_SIZE)
-KBD_ROUTES = harness_constant("kbd_run.py", "KROUTES")
+KBD_ROUTES = routes().names("keyboard")
 KBD_WIDTHS = [w for w, _ in harness_constant("kbd_run.py", "VIEWPORTS")]
 
 

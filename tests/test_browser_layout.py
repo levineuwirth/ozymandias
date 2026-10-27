@@ -35,6 +35,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.target import routes
 from tests._browser import (BROWSERS, UPDATE_BASELINE, assert_complete, baseline, check_site,
                             harness_constant, harness_routes, require_playwright, requires_browser,
                             run_harness, site_server)
@@ -42,9 +43,9 @@ from tests._browser import (BROWSERS, UPDATE_BASELINE, assert_complete, baseline
 ROUTES = harness_routes()
 OVERFLOW_WIDTHS = harness_constant("overflow_run.py", "WIDTHS")
 OVERFLOW_HALVES = (OVERFLOW_WIDTHS[:len(OVERFLOW_WIDTHS) // 2], OVERFLOW_WIDTHS[len(OVERFLOW_WIDTHS) // 2:])
-MOTION_ROUTES = harness_constant("motion_run.py", "MROUTES")
+MOTION_ROUTES = routes().names("motion")
 MOTION_MODES = harness_constant("motion_run.py", "MODES")
-PERF_ROUTES = harness_constant("perf_run.py", "PROUTES")
+PERF_ROUTES = routes().names("perf")
 WIDTHS = (1440, 375)
 TEXT_SIZES = (17, 29)       # the settings panel's ends (lnUtils.TEXT_SIZE)
 TEXT_SIZE_WIDTHS = (320, 1440)
