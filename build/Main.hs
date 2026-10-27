@@ -5,7 +5,7 @@ import Control.Monad         (when)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Directory      (createDirectoryIfMissing)
 import System.Environment    (getArgs)
-import Config                (SiteConfig, readSiteConfig, configMake)
+import Config                (SiteConfig, readSiteConfig, configMake, identityFields)
 import SiteThreads           (siteThreads)
 import Hakyll                (hakyllWith, toFilePath)
 import Golden                (renderFixture)
@@ -59,7 +59,9 @@ writeBuildStamp = do
 -- a test fixture through the essay pipeline and writes nothing
 -- (build/Golden.hs); @site render-template TEMPLATE CONTEXT WORKDIR@ prints
 -- a template rendered with a fixture context, for the override contract's
--- hook check (build/Contract.hs); @site footer-data@ splits the backlinks and
+-- hook check (build/Contract.hs), and @site identity-fields@ the identity
+-- fields it is rendered with, a list's with its items' ('Config.identityFields');
+-- @site footer-data@ splits the backlinks and
 -- similar-links maps into per-page files between the two compile passes
 -- (build/FooterData.hs); @site list-unpublished@ prints what a production
 -- build withholds for @draft: true@; @site bib-extras FILE@ prints what the
@@ -85,6 +87,7 @@ main = do
         ["config", "--make"] -> readSiteConfig >>= putStr . configMake
         ["render-fixture", path] -> renderFixture path
         ["render-template", template, context, work] -> renderTemplate template context work
+        ["identity-fields"] -> mapM_ (\(name, items, _) -> putStrLn (unwords (name : items))) identityFields
         ["list-unpublished"] -> scanUnpublished "content" >>= mapM_ putStrLn . unpublishedSummary
         ["shared-rules"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode . sharedRules
         ["private-paths"] -> getContents >>= mapM_ putStrLn . filter refusedPath . lines

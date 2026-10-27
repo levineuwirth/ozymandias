@@ -12,7 +12,9 @@
 #   context  the groups it is rendered with;
 #   hooks    what the rendered template must contain, each a CSS selector
 #            (a tag, classes, an id, attributes), with the engine files that
-#            bind to it (`by`, under engine/) and why it matters;
+#            bind to it (`by`, under engine/) and why it matters; `root:
+#            true` when the element must be at the template's top level,
+#            where the engine places it as it is;
 #   optional what the engine binds to when it is there, which a site may
 #            leave out (and lose that behavior).
 # A template a site overrides needs an entry; one with no hooks says so.
@@ -43,9 +45,13 @@ templates:
     context: [identity, page]
     hooks:
       - selector: footer
-        by: [static/css/layout.css]
-        why: the page shell lays out its footer element
+        root: true
+        by: [static/css/layout.css, static/css/print.css]
+        why: >-
+          default.html puts the partial in the page shell, whose direct
+          child footer is laid out at every width and hidden in print
       - selector: footer[data-pagefind-ignore]
+        root: true
         by: [tools/embed.py]
         why: search's indexes (Pagefind, the semantic embeddings) leave it out
     optional:

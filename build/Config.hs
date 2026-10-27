@@ -8,7 +8,7 @@ module Config
     , Standalone (..), PageKind (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
-    , siteOwnHosts, identityContext, navigationContext, manifestRules
+    , siteOwnHosts, identityContext, identityFields, navigationContext, manifestRules
     , knownDingbats
     ) where
 
@@ -489,22 +489,28 @@ configField name get = field name $ \_ -> get <$> loadConfig
 -- | HTML-facing identity, escaped once at the output boundary. Keep the
 -- underlying config raw for non-HTML consumers (JSON, filters, tools).
 identityContext :: Context String
-identityContext = mconcat
-    [ configField name (escapeHtml . get)
+identityContext = mconcat [context | (_, _, context) <- identityFields]
+
+-- | 'identityContext''s fields, by name, with a list's items' field names:
+-- @site identity-fields@ prints the names, which the override contract's
+-- identity group (engine/contract.yaml) must match.
+identityFields :: [(String, [String], Context String)]
+identityFields =
+    [ (name, [], configField name (escapeHtml . get))
     | (name, get) <- [("site-title", siteTitle), ("site-url", siteUrl),
                      ("site-host", siteHost), ("site-email", siteEmail),
                      ("site-contact-email", siteContactEmail), ("site-source-repo", siteSourceRepo),
                      ("site-code-license", siteCodeLicense),
                      ("site-signing-fingerprint", siteSigningFingerprint)] ]
-    <> listField "site-feeds" feedContext advertisedFeeds
-    <> listField "font-preloads" (field "href" (pure . itemBody))
-           (loadConfig >>= mapM makeItem . siteFontPreloads)
+    ++ [ list "site-feeds"
+              [ ("feed-title", pure . escapeHtml . feedAdvertiseTitle . itemBody)
+              , ("feed-url", pure . escapeHtml . ("/" ++) . feedPath . itemBody) ]
+              (loadConfig >>= mapM makeItem . filter feedAdvertise . siteFeeds)
+       , list "font-preloads" [("href", pure . itemBody)]
+              (loadConfig >>= mapM makeItem . siteFontPreloads) ]
   where
-    advertisedFeeds = do
-        cfg <- loadConfig
-        mapM makeItem (filter feedAdvertise (siteFeeds cfg))
-    feedContext = field "feed-title" (pure . escapeHtml . feedAdvertiseTitle . itemBody)
-               <> field "feed-url" (pure . escapeHtml . ("/" ++) . feedPath . itemBody)
+    list name fields items =
+        (name, map fst fields, listField name (mconcat [field n f | (n, f) <- fields]) items)
 
 -- | The navigation the templates loop over, escaped like 'identityContext':
 --   @nav-primary@ (@$label$@, @$href$@) and @nav-portals@ (@$portal-name$@,

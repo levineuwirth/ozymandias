@@ -1,6 +1,5 @@
 """The site's overrides of engine files (overrides.yaml), held to the
-engine's contract (engine/templates/contract.yaml) by
-tools/override-review.py.
+engine's contract (engine/contract.yaml) by tools/override-review.py.
 
 tools/check-identity.py already fails when a declared override's site or
 engine file is missing, or a site file shadows an engine file without an

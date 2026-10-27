@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | The override contract's renderer (engine/templates/contract.yaml, §3.6
+-- | The override contract's renderer (engine/contract.yaml, §3.6
 --   of the plan): @site render-template TEMPLATE CONTEXT WORKDIR@ prints
 --   TEMPLATE as this site's build resolves it (its own file over the
 --   engine's, and so for the partials it includes), rendered with the

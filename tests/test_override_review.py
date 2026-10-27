@@ -1,5 +1,5 @@
 """tools/override-review.py without the generator: the contract's own
-soundness (engine/templates/contract.yaml), hook selectors and field scans,
+soundness (engine/contract.yaml), hook selectors and field scans,
 and the review: what changed under an override, and recording it.
 """
 import io
@@ -36,6 +36,13 @@ class ContractTests(unittest.TestCase):
             "templates/partials/footer.html: .footer-orn: static/css/components.css does not name it",
         ])
 
+    def test_a_hook_s_root_is_true_or_false(self):
+        terms = review.contract()
+        terms["templates"]["templates/partials/ornament.html"]["hooks"][0]["root"] = "yes"
+        self.assertEqual(review.contract_problems(terms), [
+            "templates/partials/ornament.html: a hook has a selector, the files that bind it (by), why,"
+            " and perhaps root: true"])
+
     def test_entries_must_name_engine_templates_groups_and_hooks(self):
         terms = review.contract()
         terms["templates"]["templates/no-such.html"] = {"hooks": []}
@@ -62,6 +69,17 @@ class SelectorTests(unittest.TestCase):
                          "button#down", ".footer", "[data-build-time]"):
             with self.subTest(selector=selector):
                 self.assertFalse(review.matches(self.HTML, selector))
+
+    def test_a_root_hook_matches_only_at_the_top_level(self):
+        html = ('<hr class="rule">\n<footer data-pagefind-ignore><svg><line x1="0"/><g class="leaf"/></svg>'
+                '<br class="inner"></footer><p class="after"></p>')
+        for selector in ("hr.rule", "footer", "footer[data-pagefind-ignore]", "p.after"):
+            with self.subTest(selector=selector):
+                self.assertTrue(review.matches(html, selector, root=True))
+        for selector in ("svg", "line", ".leaf", "br.inner"):
+            with self.subTest(selector=selector):
+                self.assertTrue(review.matches(html, selector))
+                self.assertFalse(review.matches(html, selector, root=True))
 
     def test_a_selector_beyond_a_compound_one_is_refused(self):
         for selector in ("", "footer > button", "a:hover", ".a .b"):

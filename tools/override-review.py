@@ -3,7 +3,7 @@
 
 The site's overrides.yaml records, for each file it puts in place of an
 engine file at the same path, the Git blob id of the engine file it was
-last reviewed against. engine/templates/contract.yaml declares the
+last reviewed against. engine/contract.yaml declares the
 templates a site may override, the fixture context each is rendered with,
 and the hooks the engine's scripts and styles need in it.
 
@@ -35,13 +35,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sitelib import ENGINE, SITE_ROOT, site_binary
 
 MANIFEST = "overrides.yaml"
-CONTRACT = ENGINE / "templates" / "contract.yaml"
+CONTRACT = ENGINE / "contract.yaml"
 # A hook: a tag, then classes, an id and attributes (a value optional).
 SELECTOR = re.compile(r"([a-z][a-z0-9-]*)?((?:\.[\w-]+|#[\w-]+|\[[\w-]+(?:=[\w-]+)?\])*)")
 SIMPLE = re.compile(r"\.([\w-]+)|#([\w-]+)|\[([\w-]+)(?:=([\w-]+))?\]")
 # What a template's $...$ uses a field by: name, if(name), for(name).
 FIELD = re.compile(r"(?:if|for)\(([\w-]+)\)|([a-z][\w-]*)")
 KEYWORDS = {"else", "endif", "endfor", "sep"}
+PARTIAL = re.compile(r'partial\("([^"]+)"\)')
+# Elements HTML never closes, so nothing after one is inside it.
+VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
 
 def blob_id(data: bytes) -> str:
@@ -124,18 +127,30 @@ def selector_parts(selector: str) -> tuple[str | None, list[tuple[str, str, str 
 
 
 class _Elements(HTMLParser):
+    """Each element's tag, attributes and depth (0: at the top level)."""
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.found: list[tuple[str, dict[str, str]]] = []
+        self.found: list[tuple[str, dict[str, str], int]] = []
+        self.depth = 0
 
     def handle_starttag(self, tag, attrs):
-        self.found.append((tag, {k: v or "" for k, v in attrs}))
+        self.handle_startendtag(tag, attrs)
+        if tag not in VOID:
+            self.depth += 1
 
-    handle_startendtag = handle_starttag
+    def handle_startendtag(self, tag, attrs):
+        self.found.append((tag, {k: v or "" for k, v in attrs}, self.depth))
+
+    def handle_endtag(self, tag):
+        if tag not in VOID:
+            self.depth = max(self.depth - 1, 0)
 
 
-def matches(html: str, selector: str) -> bool:
-    """Whether some element of `html` matches the hook `selector`."""
+def matches(html: str, selector: str, root: bool = False) -> bool:
+    """Whether some element of `html` matches the hook `selector`; with
+    `root`, one at the top level, which the engine places as it is (the
+    footer, a direct child of the page shell)."""
     tag, parts = selector_parts(selector)
     parser = _Elements()
     parser.feed(html)
@@ -153,7 +168,7 @@ def matches(html: str, selector: str) -> bool:
                 return False
         return True
 
-    return any(element_matches(t, a) for t, a in parser.found)
+    return any(element_matches(t, a) for t, a, depth in parser.found if not root or depth == 0)
 
 
 def context(terms: dict, template: str) -> dict:
@@ -173,12 +188,12 @@ def field_names(value) -> set[str]:
     return set()
 
 
-def template_fields(text: str) -> set[str]:
-    """The fields a template's text uses, read as Hakyll reads it: each
-    $...$ in turn, $$ a literal dollar, trimming dashes aside; its comments
-    are skipped, as the build strips them."""
+def template_uses(text: str) -> tuple[set[str], set[str]]:
+    """The fields a template's text uses and the partials it includes, read
+    as Hakyll reads it: each $...$ in turn, $$ a literal dollar, trimming
+    dashes aside; its comments are skipped, as the build strips them."""
     text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    names, at = set(), 0
+    names, partials, at = set(), set(), 0
     while (start := text.find("$", at)) != -1:
         if text.startswith("$$", start):
             at = start + 2
@@ -186,10 +201,34 @@ def template_fields(text: str) -> set[str]:
         end = text.find("$", start + 1)
         if end == -1:
             break
-        if use := FIELD.fullmatch(text[start + 1:end].strip("-")):
+        token = text[start + 1:end].strip("-")
+        if use := FIELD.fullmatch(token):
             names.add(use.group(1) or use.group(2))
+        elif include := PARTIAL.fullmatch(token):
+            partials.add(include.group(1))
         at = end + 1
-    return names - KEYWORDS
+    return names - KEYWORDS, partials
+
+
+def template_fields(text: str) -> set[str]:
+    """The fields alone ('template_uses')."""
+    return template_uses(text)[0]
+
+
+def site_fields(root: Path, template: str) -> dict[str, set[str]]:
+    """The fields `template` uses, by file: its own (the site's, else the
+    engine's) and those of each partial of the site's it includes, in
+    turn; the engine's partials are the engine's to keep to the contract."""
+    found: dict[str, set[str]] = {}
+    queue = [template]
+    while queue:
+        path = queue.pop(0)
+        source = root / path if (root / path).is_file() else ENGINE / path if path == template else None
+        if path in found or source is None:
+            continue
+        found[path], partials = template_uses(source.read_text(encoding="utf-8"))
+        queue += sorted(partials)
+    return found
 
 
 def render(root: Path, template: str, fields: dict, binary: str) -> subprocess.CompletedProcess:
@@ -211,16 +250,17 @@ def template_problems(root: Path, template: str, terms: dict, binary: str) -> li
     """Why `template`, as `root` has it, breaks the contract: a field the
     contract does not give, a failed render, a hook missing from it."""
     fields = context(terms, template)
-    source = root / template if (root / template).is_file() else ENGINE / template
     problems = []
-    undeclared = sorted(template_fields(source.read_text(encoding="utf-8")) - field_names(fields))
-    if undeclared:
-        problems.append(f"{template}: uses {', '.join(undeclared)}, which the contract does not give it")
+    for path, used in site_fields(root, template).items():
+        if undeclared := sorted(used - field_names(fields)):
+            where = "" if path == template else f" (in {path})"
+            problems.append(f"{template}: uses {', '.join(undeclared)}{where}, which the contract does not give it")
     done = render(root, template, fields, binary)
     if done.returncode != 0:
         return problems + [f"{template}: does not render with its fixture context: {done.stderr.strip()}"]
-    missing = [h["selector"] for h in terms["templates"][template].get("hooks") or []
-               if not matches(done.stdout, h["selector"])]
+    missing = [h["selector"] + (" at its top level" if h.get("root") else "")
+               for h in terms["templates"][template].get("hooks") or []
+               if not matches(done.stdout, h["selector"], root=bool(h.get("root")))]
     if missing:
         problems.append(f"{template}: lacks {', '.join(missing)}")
     return problems
@@ -237,7 +277,7 @@ def hook_problems(root: Path, binary: str) -> list[str]:
         if not path.startswith("templates/"):
             continue
         if path not in terms["templates"]:
-            problems.append(f"{path}: not an override point (engine/templates/contract.yaml)")
+            problems.append(f"{path}: not an override point (engine/contract.yaml)")
             continue
         problems += template_problems(root, path, terms, binary)
     return problems
@@ -258,8 +298,10 @@ def contract_problems(terms: dict) -> list[str]:
         problems += [f"{template}: no context group {g}" for g in entry.get("context") or []
                      if g not in terms["contexts"]]
         for hook in (entry["hooks"] or []) + (entry.get("optional") or []):
-            if set(hook) - {"selector", "by", "why"} or not hook.get("by"):
-                problems.append(f"{template}: a hook has a selector, the files that bind it (by), and why")
+            if set(hook) - {"selector", "by", "why", "root"} or not hook.get("by") or \
+                    not isinstance(hook.get("root", False), bool):
+                problems.append(f"{template}: a hook has a selector, the files that bind it (by), why,"
+                                " and perhaps root: true")
                 continue
             try:
                 tag, parts = selector_parts(hook["selector"])

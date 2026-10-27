@@ -465,7 +465,7 @@ test-clean:
 # along, then record the review: `engine/tools/override-review.py --accept
 # <path>`. That clears only the review; the contract's hook check
 # (`override-review.py --check`, also in `make test`) and the browser tests
-# still apply (engine/templates/contract.yaml).
+# still apply (engine/contract.yaml).
 override-review:
 	@$(PY) $(call tool,override-review.py)
 

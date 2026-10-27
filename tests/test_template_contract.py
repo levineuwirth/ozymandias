@@ -1,4 +1,4 @@
-"""The override contract rendered (engine/templates/contract.yaml): the
+"""The override contract rendered (engine/contract.yaml): the
 engine's own templates keep it, and `site render-template` renders a
 template as the build would, with the fixture context and nothing else,
 so the hook check sees what an override does.
@@ -39,7 +39,15 @@ class TemplateContractTests(unittest.TestCase):
         self.override("templates/partials/footer.html", "<footer><p>$site-host$</p></footer>\n")
         self.override("templates/partials/ornament.html", '<hr class="footer-ornament">\n')
         self.assertEqual(review.hook_problems(self.root, self.binary),
-                         ["templates/partials/footer.html: lacks footer[data-pagefind-ignore]"])
+                         ["templates/partials/footer.html: lacks footer[data-pagefind-ignore] at its top level"])
+
+    def test_a_footer_inside_another_element_is_reported(self):
+        # The page shell's styles reach only its direct child footer.
+        self.override("templates/partials/footer.html",
+                      '<div class="foot"><footer data-pagefind-ignore>$site-host$</footer></div>\n')
+        self.assertEqual(review.hook_problems(self.root, self.binary), [
+            "templates/partials/footer.html: lacks footer at its top level,"
+            " footer[data-pagefind-ignore] at its top level"])
 
     def test_an_override_using_a_field_the_contract_does_not_give_is_reported(self):
         # Outside $if$ the render fails, as the build would; inside, it
@@ -55,10 +63,34 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("site-motto", problems[2])
         self.assertEqual(len(problems), 3)
 
+    def test_the_site_s_partials_an_override_includes_are_scanned_too(self):
+        self.override("templates/partials/footer.html",
+                      '<footer data-pagefind-ignore>$partial("templates/partials/extra.html")$'
+                      '$partial("templates/partials/ornament.html")$</footer>\n')
+        (self.root / "templates/partials/extra.html").write_text(
+            '$if(build-info)$<b>$build-info$</b>$endif$$partial("templates/partials/more.html")$')
+        (self.root / "templates/partials/more.html").write_text("$if(site-motto)$x$endif$")
+        self.assertEqual(review.hook_problems(self.root, self.binary), [
+            "templates/partials/footer.html: uses build-info (in templates/partials/extra.html),"
+            " which the contract does not give it",
+            "templates/partials/footer.html: uses site-motto (in templates/partials/more.html),"
+            " which the contract does not give it"])
+
+    def test_the_identity_group_is_the_engine_s_identity_fields(self):
+        # `site identity-fields` names what Config.identityContext gives; a
+        # field the contract kept after the engine dropped it would let an
+        # override's $if$ on it pass here and read false on the site.
+        printed = subprocess.run([self.binary, "identity-fields"], capture_output=True, text=True, check=True)
+        engine = {line.split()[0]: set(line.split()[1:]) for line in printed.stdout.splitlines()}
+        identity = self.terms["contexts"]["identity"]
+        contract = {name: {key for item in value for key in item} if isinstance(value, list) else set()
+                    for name, value in identity.items()}
+        self.assertEqual(contract, engine)
+
     def test_an_override_of_a_template_the_contract_does_not_name_is_reported(self):
         self.override("templates/partials/toc.html", "<nav></nav>\n")
         self.assertEqual(review.hook_problems(self.root, self.binary),
-                         ["templates/partials/toc.html: not an override point (engine/templates/contract.yaml)"])
+                         ["templates/partials/toc.html: not an override point (engine/contract.yaml)"])
 
     def test_render_template_gives_the_context_s_fields_and_no_others(self):
         (self.root / "templates").mkdir()
