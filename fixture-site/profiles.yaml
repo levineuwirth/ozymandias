@@ -2,7 +2,9 @@
 # site with its switches written into the copy's site.yaml: every switch
 # the engine registers (engine/switches.yaml), named, so that a new switch
 # has to be placed in both. `without` lists the inputs a profile's site
-# would not have, left out of its copy.
+# would not have, left out of its copy; a section a switch owns
+# (switches.yaml's `section`) is left out of the copy's site.yaml with the
+# switch off.
 #
 # full     every switch on.
 # minimal  the partner's site (plan §3.4): her choices, and the engine's
@@ -13,7 +15,9 @@
 full:
   switches:
     archive: true
+    music: true
 minimal:
   switches:
     archive: false
-  without: [archive/]
+    music: false
+  without: [archive/, content/music/, content/essays/capabilities/]

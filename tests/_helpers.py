@@ -139,10 +139,11 @@ def write_site_config(root: Path, **overrides) -> dict:
         "manifest": {"name": "Example Site", "short-name": "Example",
                      "description": "An example site.", "theme-color": "#16140f",
                      "background-color": "#16140f"},
-        # The sections the engine has rules for, until A8's switches.
+        # The sections the engine routes with its default switches; music's
+        # is the music switch's.
         "sections": [{"dir": d, "kind": k, "dingbat": None} for d, k in (
             ("essays", "Essay"), ("blog", "Post"), ("poetry", "Poem"), ("fiction", "Fiction"),
-            ("music", "Composition"), ("photography", "Photo"))],
+            ("photography", "Photo"))],
         "standalone": [],
         "portals": [{"name": "Notes", "tag": "notes"}],
         "nav-primary": [{"label": "Home", "href": "/"}],

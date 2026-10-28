@@ -40,6 +40,14 @@ def profiles() -> dict[str, dict]:
     return yaml.safe_load((FIXTURE / "profiles.yaml").read_text(encoding="utf-8"))
 
 
+def listed_sections(sections: list[dict], switches: dict[str, bool]) -> list[dict]:
+    """`sections` (a site.yaml's) without those a switch owns
+    (switches.yaml's `section`) that `switches` has off: the generator
+    refuses a section the engine does not route."""
+    owners = {spec["section"]: name for name, spec in registry().items() if "section" in spec}
+    return [s for s in sections if s["dir"] not in owners or switches[owners[s["dir"]]]]
+
+
 def settle(switches: dict[str, bool], terms: dict[str, dict]) -> dict[str, bool]:
     """`switches` with every switch that lacks what it needs turned off, until
     none does: what turning one off takes with it."""

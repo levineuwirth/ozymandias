@@ -258,7 +258,8 @@ rules = do
     -- ---------------------------------------------------------------------------
     isDev <- preprocess isDevBuild
     twins <- engineTwins
-    let allEssays = if isDev
+    let musicOn = switchOn cfg "music"
+        allEssays = if isDev
                     then P.essayPattern .||. P.draftEssayPattern
                     else P.essayPattern
 
@@ -271,12 +272,15 @@ rules = do
                                  , standaloneContext page == EssayPage ]
 
         -- Co-located assets copied as they are (rules below). Named because
-        -- the monogram rule must not claim what these already do.
+        -- the monogram rule must not claim what these already do; music's
+        -- are copied only with its switch on, and otherwise are its to claim.
         essayAssets = "content/essays/**"
                       .&&. complement P.essayPattern
                       .&&. complement "content/essays/**/*.dims.yaml"
-        musicAssets = foldr1 (.||.) [ fromGlob ("content/music/**/*." ++ ext)
-                                    | ext <- ["svg", "mp3", "pdf", "webp", "json"] ]
+        musicAssets
+            | musicOn   = foldr1 (.||.) [ fromGlob ("content/music/**/*." ++ ext)
+                                        | ext <- ["svg", "mp3", "pdf", "webp", "json"] ]
+            | otherwise = fromList []
 
     -- ---------------------------------------------------------------------------
     -- Backlinks (pass 1: link extraction; pass 2: JSON generation)
@@ -326,7 +330,7 @@ rules = do
 
     -- Static files and templates, the site's and the engine's that no site
     -- file overrides ("EngineFiles").
-    staticRules twins
+    staticRules twins (siteWithheld cfg)
     templateRules twins
 
     -- The repository and the public site carry the same licence texts.
@@ -652,70 +656,73 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Music — catalog index
     -- ---------------------------------------------------------------------------
-    -- Every rule below whose context reads scores carries this one pattern.
-    -- Same unsafeCompiler blind spot as the standalone pages' score
-    -- fragments (B11): Filters.Score reads content/music/<slug>/scores/*.svg
-    -- relative to the source file. The SVG copy rule claims them, so the
-    -- dependency can fire. The timing map is in the pattern too: the
-    -- reader's 'realization' field only asks whether it exists, so adding or
-    -- removing a realization would otherwise leave the reader stale. It is
-    -- also the only dependency on the score pages that 'scorePageList'
-    -- lists, which records none of its own (audit H06).
-    musicScoreDep <- makePatternDependency $
-                         "content/music/**/*.svg" .||. "content/music/**/*.json"
-                         .||. "content/music/**/*.webp"
+    -- With the music switch on: without it nothing under content/music is a
+    -- composition, the catalog or their assets, so no list finds one.
+    when musicOn $ do
+        -- Every rule below whose context reads scores carries this one pattern.
+        -- Same unsafeCompiler blind spot as the standalone pages' score
+        -- fragments (B11): Filters.Score reads content/music/<slug>/scores/*.svg
+        -- relative to the source file. The SVG copy rule claims them, so the
+        -- dependency can fire. The timing map is in the pattern too: the
+        -- reader's 'realization' field only asks whether it exists, so adding or
+        -- removing a realization would otherwise leave the reader stale. It is
+        -- also the only dependency on the score pages that 'scorePageList'
+        -- lists, which records none of its own (audit H06).
+        musicScoreDep <- makePatternDependency $
+                             "content/music/**/*.svg" .||. "content/music/**/*.json"
+                             .||. "content/music/**/*.webp"
 
-    rulesExtraDependencies [musicScoreDep] $ match "content/music/index.md" $ do
-        route   $ constRoute "music/index.html"
-        compile $ do
-            ctx <- musicCatalogCtx
-            pageCompiler >>= inDefault "templates/music-catalog.html" ctx
-
-    -- ---------------------------------------------------------------------------
-    -- Music — composition landing pages + score reader
-    -- ---------------------------------------------------------------------------
-
-    -- Static assets served unchanged: SVG score pages, audio, PDF; page 1's
-    -- thumbnail (tools/music-import.py), for the frontispiece and the
-    -- /music/ shelf; and a realization's timing map (music-import.py
-    -- --audio): when each bar sounds and where it stands on its page, read
-    -- by score-follow.js.
-    match musicAssets $ do
-        route   $ stripPrefixRoute "content/"
-        compile copyFileCompiler
-
-    -- Landing page — full essay pipeline. Its score dependency is
-    -- 'musicScoreDep', above the catalog.
-
-    rulesExtraDependencies [musicScoreDep] $ match "content/music/*/index.md" $ do
-        route   contentPageRoute
-        compile $ compositionCompiler
-            >>= saveSnapshot "content"
-            >>= inDefault "templates/composition.html" compositionCtx
-
-    -- Score reader — separate URL, minimal chrome.
-    -- Compiled from the same source with version "score-reader".
-    --
-    -- Gated on the composition declaring a score. Ungated, every
-    -- composition got a live /music/<slug>/score/ whose reader had nothing
-    -- to show: an empty <img>, a "p. 1 / 0" counter, and an enabled Next
-    -- button. 'declaresScore' is metadata-only because 'matchMetadata'
-    -- runs before the Compiler monad exists — a 'score-dir' naming an
-    -- empty directory still routes a page, which 'scorePageList' then
-    -- reports honestly as zero pages.
-    rulesExtraDependencies [musicScoreDep] $
-      matchMetadata "content/music/*/index.md" declaresScore $
-        version "score-reader" $ do
-            route $ customRoute $ \ident ->
-                let slug = takeFileName . takeDirectory . toFilePath $ ident
-                in  "music/" ++ slug ++ "/score/index.html"
+        rulesExtraDependencies [musicScoreDep] $ match "content/music/index.md" $ do
+            route   $ constRoute "music/index.html"
             compile $ do
-                makeItem ""
-                    >>= loadAndApplyTemplate "templates/score-reader.html"
-                                             compositionCtx
-                    >>= loadAndApplyTemplate "templates/score-reader-default.html"
-                                             compositionCtx
-                    >>= relativizeUrls
+                ctx <- musicCatalogCtx
+                pageCompiler >>= inDefault "templates/music-catalog.html" ctx
+
+        -- ---------------------------------------------------------------------------
+        -- Music — composition landing pages + score reader
+        -- ---------------------------------------------------------------------------
+
+        -- Static assets served unchanged: SVG score pages, audio, PDF; page 1's
+        -- thumbnail (tools/music-import.py), for the frontispiece and the
+        -- /music/ shelf; and a realization's timing map (music-import.py
+        -- --audio): when each bar sounds and where it stands on its page, read
+        -- by score-follow.js.
+        match musicAssets $ do
+            route   $ stripPrefixRoute "content/"
+            compile copyFileCompiler
+
+        -- Landing page — full essay pipeline. Its score dependency is
+        -- 'musicScoreDep', above the catalog.
+
+        rulesExtraDependencies [musicScoreDep] $ match "content/music/*/index.md" $ do
+            route   contentPageRoute
+            compile $ compositionCompiler
+                >>= saveSnapshot "content"
+                >>= inDefault "templates/composition.html" compositionCtx
+
+        -- Score reader — separate URL, minimal chrome.
+        -- Compiled from the same source with version "score-reader".
+        --
+        -- Gated on the composition declaring a score. Ungated, every
+        -- composition got a live /music/<slug>/score/ whose reader had nothing
+        -- to show: an empty <img>, a "p. 1 / 0" counter, and an enabled Next
+        -- button. 'declaresScore' is metadata-only because 'matchMetadata'
+        -- runs before the Compiler monad exists — a 'score-dir' naming an
+        -- empty directory still routes a page, which 'scorePageList' then
+        -- reports honestly as zero pages.
+        rulesExtraDependencies [musicScoreDep] $
+          matchMetadata "content/music/*/index.md" declaresScore $
+            version "score-reader" $ do
+                route $ customRoute $ \ident ->
+                    let slug = takeFileName . takeDirectory . toFilePath $ ident
+                    in  "music/" ++ slug ++ "/score/index.html"
+                compile $ do
+                    makeItem ""
+                        >>= loadAndApplyTemplate "templates/score-reader.html"
+                                                 compositionCtx
+                        >>= loadAndApplyTemplate "templates/score-reader-default.html"
+                                                 compositionCtx
+                        >>= relativizeUrls
 
     -- ---------------------------------------------------------------------------
     -- Photography — single-photo entries, asset copy, and section landing.

@@ -11,6 +11,10 @@
 #   default    the engine's, for a site that does not set it;
 #   needs      switches that must be on with it;
 #   needs-any  switches of which at least one must be on with it;
+#   section    the content section it owns (site.yaml's sections), which a
+#              site lists, and may feed, only with the switch on;
+#   assets     the engine's static files (globs under engine/static/, as
+#              they are served) that only it uses, published only with it on;
 #   about      what it covers.
 #
 # A switch is registered when every place its feature appears is gated on
@@ -25,3 +29,17 @@ archive:
     Link archiving: /archive/ and a page per entry from archive/manifest.yaml,
     the fetch stage of the build (tools/archive.py), archive annotations on
     links, citations and backlinks, and the build page's archive figures.
+
+music:
+  kind: capability
+  default: false
+  section: music
+  assets: [js/score-reader.js, js/score-follow.js, js/music-shelf.js,
+           css/composition.css, css/catalog.css, css/score-reader.css]
+  about: >-
+    Compositions: /music/ and its catalog, a page and a score reader per work
+    under content/music/, their scores, recordings and timing maps, the
+    music section in the site's lists (New, the library, the sitemap,
+    feeds, keyword pages), score fragments in pages (Filters.Score, and a
+    standalone page's `scores`), and the build's pruning of published score
+    pages (tools/prune-site.py).

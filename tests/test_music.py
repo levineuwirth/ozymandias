@@ -24,6 +24,11 @@ unwired (score-follow.js checks the counts and gives up). So:
   * ``BuiltMusicPageTests`` reads ``_site``: the reader, the composition
     pages, and the shelf and catalogue on /music/.
 
+The last two read the site's music, and skip with "switch off: music" for a
+site without it. A defect in a site's scores it knows of is listed in its
+tests/known-defects.yaml (``score-overflow``), left out of the check it
+fails until it is fixed.
+
 Run with:  .venv/bin/python -m unittest tests.test_music
 """
 
@@ -45,6 +50,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.parse import urljoin, urlsplit
 from tests._helpers import SITE_ROOT, load_tool
+from tests.target import known_defects, requires_switch
 
 try:
     import yaml
@@ -68,10 +74,10 @@ if HAVE_THUMB_TOOLS:
     except ImportError:
         HAVE_THUMB_TOOLS = False
 
-# Pages whose engraving is known to run past the foot of the page. Each is a
-# defect in the score, tracked by its own expected-failure test below; the
-# general box check leaves them out so it still guards every other page.
-KNOWN_OVERFLOW = {("bassoon-concerto", 68)}
+# Pages whose engraving the site knows runs past the foot of the page, each
+# a defect in its score: the general box check leaves them out so that it
+# still guards every other page, and a listed page that now fits fails.
+KNOWN_OVERFLOW = {(d["piece"], d["page"]) for d in known_defects("score-overflow")}
 
 # Keep in step with categoryOrder in build/Catalog.hs.
 CATEGORY_ORDER = ["orchestral", "chamber", "solo", "vocal", "choral", "electronic", "other"]
@@ -649,8 +655,6 @@ def scored_pieces() -> list[Path]:
     return [d for d in published_pieces() if (d / "scores" / "timing.json").is_file()]
 
 
-@unittest.skipUnless(HAVE_YAML and published_pieces(),
-                     "no score pages on disk — run `tools/music-import.py refresh`")
 @unittest.skipUnless(HAVE_YAML, "PyYAML not installed")
 class FrontMatterTests(unittest.TestCase):
     def setUp(self):
@@ -676,6 +680,9 @@ class FrontMatterTests(unittest.TestCase):
         self.assertIn("not valid YAML", str(cm.exception))
 
 
+@requires_switch("music")
+@unittest.skipUnless(HAVE_YAML and published_pieces(),
+                     "no score pages on disk — run `tools/music-import.py refresh`")
 class ScoreDataTests(unittest.TestCase):
     """The files score-reader.js and score-follow.js consume, checked
     against each other and against the manifest and index.md."""
@@ -746,16 +753,15 @@ class ScoreDataTests(unittest.TestCase):
                        if (slug, p) not in KNOWN_OVERFLOW]
                 self.assertEqual(off, [], "(bar, page) drawn off the page")
 
-    @unittest.expectedFailure
-    def test_bassoon_concerto_page_68_fits_its_page(self) -> None:
-        # Known defect: a system on page 68 of the Bassoon Concerto is
-        # engraved below the foot of the page (staff lines to y=13479 on a
-        # 13200 page; the contrabasses are cut off), so five bar boxes run
-        # 2% past it. The fix belongs in the score. When it lands this test
-        # passes unexpectedly: delete it and the KNOWN_OVERFLOW entry.
-        if "bassoon-concerto" not in self.timing:
-            self.skipTest("Bassoon Concerto not exported")
-        self.assertEqual([p for _, p in self.boxes_off_their_page("bassoon-concerto")], [])
+    def test_each_known_overflow_is_still_there(self) -> None:
+        # When the score is fixed, its page fits: delete the entry in the
+        # site's tests/known-defects.yaml.
+        for slug, page in sorted(KNOWN_OVERFLOW):
+            with self.subTest(piece=slug, page=page):
+                if slug not in self.timing:
+                    self.skipTest(f"{slug} not exported")
+                self.assertIn(page, [p for _, p in self.boxes_off_their_page(slug)],
+                              "the page fits now: delete its known-defects.yaml entry")
 
     def test_bar_boxes_end_at_the_barlines(self) -> None:
         """The scale was measured on one page; on every page the rightmost
@@ -842,8 +848,8 @@ def sort_key(fm: dict) -> str:
     return f"{fm.get('year', '0000')}|{completed}|{fm.get('date', '')}"
 
 
-@unittest.skipUnless(HAVE_YAML and (SITE_DIR / "music" / "index.html").is_file(),
-                     "no _site — run `make build`")
+@requires_switch("music")
+@unittest.skipUnless(HAVE_YAML and (SITE_DIR / "index.html").is_file(), "no _site — run `make build`")
 class BuiltMusicPageTests(unittest.TestCase):
     """The composition pages, the score reader and /music/, as built."""
 

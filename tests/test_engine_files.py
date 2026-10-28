@@ -32,7 +32,7 @@ main = getArgs >>= \\args -> case args of
     "files" : dirs -> mapM_ (filesIn >=> mapM_ putStrLn) dirs
     _ -> hakyll $ do
         twins <- engineTwins
-        staticRules twins
+        staticRules twins []
         templateRules twins
         configRules
         dims <- makePatternDependency (staticImageDimensions .&&. hasNoVersion)

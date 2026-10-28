@@ -23,6 +23,7 @@ from __future__ import annotations
 import functools
 import json
 import subprocess
+import unittest
 from pathlib import Path
 
 import yaml
@@ -39,6 +40,8 @@ FONTS = SITE_ROOT / "tools" / "fonts.yaml"
 # under, as its server does.
 BASELINES = SITE_ROOT / "tests" / "browser-baseline"
 CSP_CONF = SITE_ROOT / "nginx" / "security-headers.conf"
+# Defects in the site's content that a test leaves out until they are fixed.
+KNOWN_DEFECTS = SITE_ROOT / "tests" / "known-defects.yaml"
 SWITCH_OFF = "switch off: "
 NO_FONTS = "the site has no tools/fonts.yaml"
 
@@ -83,9 +86,12 @@ def explained(reason: str, settings: dict | None = None) -> bool:
 
 
 def requires_switch(name: str):
-    """A test method that runs only when the site turns `name` on, and
-    otherwise skips with a reason ci.py can check against the config."""
+    """A test method or class that runs only when the site turns `name` on,
+    and otherwise skips with a reason ci.py can check against the config."""
     def decorate(test):
+        if isinstance(test, type):
+            return unittest.skipUnless(switch_on(name), SWITCH_OFF + name)(test)
+
         @functools.wraps(test)
         def run(self, *args, **kwargs):
             if not switch_on(name):
@@ -93,6 +99,14 @@ def requires_switch(name: str):
             return test(self, *args, **kwargs)
         return run
     return decorate
+
+
+def known_defects(kind: str) -> list[dict]:
+    """The site's known defects of one kind (tests/known-defects.yaml), or
+    none for a site without the file."""
+    if not KNOWN_DEFECTS.is_file():
+        return []
+    return (yaml.safe_load(KNOWN_DEFECTS.read_text(encoding="utf-8")) or {}).get(kind) or []
 
 
 def engine_file(rel: str) -> Path:

@@ -119,11 +119,14 @@ templateRules twins = do
         create [fromFilePath (siteRelative (toFilePath engineTemplate))] $
             compile $ (loadBody engineTemplate :: Compiler Template) >>= makeItem
 
--- | Static files, the site's and the engine's, served without @static/@.
-staticRules :: (String -> Pattern) -> Rules ()
-staticRules twins = do
-    let served glob = fromGlob glob .||. twins glob
-        inBoth glob = fromGlob glob .||. fromGlob (engineDir ++ "/" ++ glob)
+-- | Static files, the site's and the engine's, served without @static/@,
+--   but for @withheld@: those of the switches the site has off
+--   ('Config.siteWithheld').
+staticRules :: (String -> Pattern) -> [String] -> Rules ()
+staticRules twins withheld = do
+    let inBoth glob = fromGlob glob .||. fromGlob (engineDir ++ "/" ++ glob)
+        unused      = foldr ((.||.) . inBoth . ("static/" ++)) (fromList []) withheld
+        served glob = (fromGlob glob .||. twins glob) .&&. complement unused
 
     -- CSS — must be matched before the broad static/** rule to avoid
     -- double-matching (compressCssCompiler vs. copyFileCompiler).

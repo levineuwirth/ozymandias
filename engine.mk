@@ -265,7 +265,7 @@ build-locked:
 	# Hakyll never deletes an output whose source is gone, and the score
 	# pages are gitignored, so build-freshness never sees them go: remove
 	# published score files that no longer have a source (audit M02).
-	@python3 $(call tool,prune-site.py) _site
+	@$(call with_switch,music,python3 $(call tool,prune-site.py) _site)
 	# ---- Stage 4: index --------------------------------------------------
 	# Runs after stage 3 so the keyword index covers the Related sections.
 	# Indexed into a scratch directory and copied over by content, so

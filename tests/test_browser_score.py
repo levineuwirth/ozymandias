@@ -5,6 +5,10 @@ realization exists, score-follow.js plays it and turns the pages, marking
 the bar. These run on the built readers of two works with recordings,
 whose timing.json gives every bar's page, box and first sounding, so the
 expected start of any page or movement is computed here, not written in.
+The site's routes.yaml names them by role: `score`, a realization over a
+minute long and ten pages or more, each taller than the window; `score-
+other`, two movements or more, its pages holding several systems; and
+`score-silent`, pages without audio. A site without music skips them.
 
 Checked: the first Play starts at the page on screen, or at a movement
 chosen before it, and the reader stays there (audit M03); the seek slider
@@ -35,13 +39,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import route
-
-# Works by their pages: two with score pages, timing and audio, one with
-# score pages alone.
-SYMPHONY = route("score-other")
-CONCERTO = route("score")
-SILENT = route("score-silent")
+from tests.target import requires_switch, route
 
 
 def timing(work: str) -> dict:
@@ -64,6 +62,13 @@ def page_start(t: dict, page: int) -> float:
                and b in t["first"]) / 1000
 
 
+def deep_page(t: dict) -> int:
+    """A page well into the work on which a bar sounds: the page of the
+    bar that sounds halfway through."""
+    return t["measures"][t["events"][len(t["events"]) // 2][1]][0]
+
+
+@requires_switch("music")
 @requires_browser
 class ScoreReader(unittest.TestCase):
     @classmethod
@@ -72,7 +77,12 @@ class ScoreReader(unittest.TestCase):
         require_playwright()
         from playwright.sync_api import expect, sync_playwright
         cls.expect = staticmethod(expect)
-        cls.symphony, cls.concerto = timing(SYMPHONY), timing(CONCERTO)
+        # Works by their pages: two with score pages, timing and audio, one
+        # with score pages alone.
+        cls.work, cls.other, cls.silent = route("score"), route("score-other"), route("score-silent")
+        cls.work_timing, cls.other_timing = timing(cls.work), timing(cls.other)
+        if len(cls.other_timing["movements"]) < 2:
+            raise AssertionError(f"{cls.other} has one movement: score-other needs two or more")
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-score-")))
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp()))
         playwright = cls.enterClassContext(sync_playwright())
@@ -104,7 +114,7 @@ class ScoreReader(unittest.TestCase):
         self.addCleanup(clean)
         page.goto(f"{self.base}{work}score/{query}", wait_until="load")
         self.rendered(page)
-        if work != SILENT:
+        if work != self.silent:
             self.expect(page.locator(".score-follow-play")).to_be_visible()
         return page, requests
 
@@ -129,25 +139,27 @@ class ScoreReader(unittest.TestCase):
 
     def test_first_play_starts_where_the_reader_is(self) -> None:
         for browser in BROWSERS:
-            with self.subTest(browser=browser, arrived="?p=73"):
-                page, _ = self.reader(browser, SYMPHONY, "?p=73")
-                self.assertEqual(self.folio(page), 73)
+            deep = deep_page(self.other_timing)
+            with self.subTest(browser=browser, arrived=f"?p={deep}"):
+                page, _ = self.reader(browser, self.other, f"?p={deep}")
+                self.assertEqual(self.folio(page), deep)
                 page.click(".score-follow-play")
                 self.playing(page)
                 page.wait_for_timeout(1500)
-                self.assertAlmostEqual(self.position(page), page_start(self.symphony, 73), delta=4)
-                self.assertEqual(self.folio(page), 73)
+                self.assertAlmostEqual(self.position(page), page_start(self.other_timing, deep), delta=4)
+                self.assertEqual(self.folio(page), deep)
                 page.click(".score-follow-play")
                 self.playing(page, False)
-            with self.subTest(browser=browser, arrived="movement III, then Play"):
-                page, _ = self.reader(browser, SYMPHONY)
-                mvt = page.locator(".score-reader-mvt").nth(2)
+            with self.subTest(browser=browser, arrived="the last movement, then Play"):
+                page, _ = self.reader(browser, self.other)
+                last = len(self.other_timing["movements"]) - 1
+                mvt = page.locator(".score-reader-mvt").nth(last)
                 mvt.click()
                 self.assertEqual(self.folio(page), int(mvt.get_attribute("data-page")))
                 page.click(".score-follow-play")
                 self.playing(page)
                 page.wait_for_timeout(1500)
-                start = self.symphony["first"][self.symphony["movements"][2]] / 1000
+                start = self.other_timing["first"][self.other_timing["movements"][last]] / 1000
                 self.assertAlmostEqual(self.position(page), start, delta=4)
                 page.click(".score-follow-play")
 
@@ -156,7 +168,7 @@ class ScoreReader(unittest.TestCase):
     def test_controls_keep_their_keys(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser, control="seek slider"):
-                page, _ = self.reader(browser, CONCERTO)
+                page, _ = self.reader(browser, self.work)
                 seek = page.locator(".score-follow-seek")
                 seek.focus()
                 page.keyboard.press("ArrowRight")
@@ -166,10 +178,10 @@ class ScoreReader(unittest.TestCase):
                 page.keyboard.press("ArrowLeft")
                 self.assertAlmostEqual(self.position(page), 60, delta=0.2)
                 # The page follows the music, not the key.
-                bar = self.concerto["events"][max(i for i, e in enumerate(self.concerto["events"])
+                bar = self.work_timing["events"][max(i for i, e in enumerate(self.work_timing["events"])
                                                   if e[0] <= 60000)][1]
                 self.expect(page.locator("#score-folio")).to_have_text(
-                    re.compile(rf"^{self.concerto['measures'][bar][0]} / "))
+                    re.compile(rf"^{self.work_timing['measures'][bar][0]} / "))
             with self.subTest(browser=browser, control="Play button"):
                 folio = self.folio(page)
                 page.focus(".score-follow-play")
@@ -182,7 +194,7 @@ class ScoreReader(unittest.TestCase):
     def test_paging_keys_read_down_then_turn(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.reader(browser, CONCERTO)
+                page, _ = self.reader(browser, self.work)
                 viewport = page.locator("#score-reader-viewport")
                 tall = viewport.evaluate("v => v.scrollHeight > v.clientHeight + 10")
                 self.assertTrue(tall, "a page fits the window: nothing to read down")
@@ -234,7 +246,7 @@ class ScoreReader(unittest.TestCase):
         })"""
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.reader(browser, CONCERTO, init=count)
+                page, _ = self.reader(browser, self.work, init=count)
                 page.click(".score-follow-play")
                 self.playing(page)
                 # Seeks and turns, each of which used to start another loop.
@@ -258,7 +270,7 @@ class ScoreReader(unittest.TestCase):
     def test_only_nearby_pages_are_kept(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser, how="turning"):
-                page, requests = self.reader(browser, CONCERTO)
+                page, requests = self.reader(browser, self.work)
                 pages = page.evaluate("document.getElementById('score-reader-stage').dataset.pages.split(',')")
                 self.unfocus(page)
                 for n in range(2, 10):
@@ -286,7 +298,7 @@ class ScoreReader(unittest.TestCase):
                 self.rendered(page)
                 page.wait_for_timeout(500)
                 self.assertLessEqual(svgs() - before, 4, "the drag fetched the pages it passed")
-                self.assertGreater(self.folio(page), 50)
+                self.assertGreater(self.folio(page), len(pages) // 2)
 
     # -- M05 ----------------------------------------------------------------
 
@@ -297,10 +309,10 @@ class ScoreReader(unittest.TestCase):
         # there is no bar (the page's side margins are the turn buttons), and
         # the toolbar sleeps. Paused, so no page turns under the taps; the
         # wake-only rule does not depend on playback.
-        t = self.concerto
+        t = self.work_timing
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.reader(browser, CONCERTO, touch=True)
+                page, _ = self.reader(browser, self.work, touch=True)
                 boxes = [(b, m) for b, m in enumerate(t["measures"]) if m and m[0] == 1]
                 top = min(m[2] for _, m in boxes)
                 system = sorted((m[1], b) for b, m in boxes if abs(m[2] - top) < 0.01)
@@ -341,13 +353,13 @@ class ScoreReader(unittest.TestCase):
         idle = "body.is-idle"
         for browser in BROWSERS:
             with self.subTest(browser=browser, reader="touch"):
-                page, _ = self.reader(browser, CONCERTO, touch=True)
+                page, _ = self.reader(browser, self.work, touch=True)
                 page.tap(".score-follow-play")
                 self.playing(page)
                 self.expect(page.locator(idle)).to_have_count(1, timeout=6000)
                 page.keyboard.press("k")
             with self.subTest(browser=browser, reader="mouse"):
-                page, _ = self.reader(browser, CONCERTO)
+                page, _ = self.reader(browser, self.work)
                 page.click(".score-follow-play")
                 self.playing(page)
                 page.wait_for_timeout(4500)       # resting on the toolbar
@@ -357,7 +369,7 @@ class ScoreReader(unittest.TestCase):
                 self.expect(page.locator(idle)).to_have_count(1, timeout=6000)
                 page.keyboard.press("k")
             with self.subTest(browser=browser, reader="keyboard"):
-                page, _ = self.reader(browser, CONCERTO)
+                page, _ = self.reader(browser, self.work)
                 self.unfocus(page)
                 for _ in range(15):
                     page.keyboard.press("Tab")
@@ -374,18 +386,18 @@ class ScoreReader(unittest.TestCase):
     def test_following_honours_the_sites_reduce_motion(self) -> None:
         # Every scrollBy the view makes, by its behavior; then a seek to a
         # bar low on its page, so that following has to bring it into view
-        # (the symphony's pages hold several systems; the concerto's one).
+        # (score-other's pages hold several systems; score's one).
         record = """window.__scrolls = [];
             const by = Element.prototype.scrollBy;
             Element.prototype.scrollBy = function (o) {
                 window.__scrolls.push(o && o.behavior); return by.apply(this, arguments); };"""
         site = "try { localStorage.setItem('reduce-motion', '1'); } catch (e) {}"
-        t = self.symphony
+        t = self.other_timing
         bar = next(b for b, m in enumerate(t["measures"]) if m and m[2] > 0.7 and b in t["first"])
         for browser in BROWSERS:
             for setting, want in (("the site's", "auto"), ("none", "smooth")):
                 with self.subTest(browser=browser, reduce_motion=setting):
-                    page, _ = self.reader(browser, SYMPHONY,
+                    page, _ = self.reader(browser, self.other,
                                           init=record + (site if setting == "the site's" else ""))
                     page.click(".score-follow-play")
                     self.playing(page)
@@ -408,27 +420,27 @@ class ScoreReader(unittest.TestCase):
         self.fail(f"never held: {condition}")
 
     def test_escape_goes_back_to_the_work(self) -> None:
-        work = CONCERTO
+        work = self.work
         for browser in BROWSERS:
             with self.subTest(browser=browser, arrived="a shared link, in a new tab"):
-                page, _ = self.reader(browser, CONCERTO, "?p=5")
+                page, _ = self.reader(browser, self.work, "?p=5")
                 self.unfocus(page)
                 page.keyboard.press("Escape")
                 page.wait_for_url(self.base + work)
             with self.subTest(browser=browser, arrived="from the work's page"):
                 page.locator("a.comp-frontispiece").click()
-                page.wait_for_url(f"{self.base}{CONCERTO}score/")
+                page.wait_for_url(f"{self.base}{self.work}score/")
                 self.rendered(page)
                 self.unfocus(page)
                 page.keyboard.press("Escape")
                 page.wait_for_url(self.base + work)
                 # By history: the reader is still ahead of us, not behind.
                 page.go_forward()
-                page.wait_for_url(f"{self.base}{CONCERTO}score/")
+                page.wait_for_url(f"{self.base}{self.work}score/")
             with self.subTest(browser=browser, arrived="from elsewhere on the site"):
                 page.goto(self.base + "/", wait_until="load")
-                page.evaluate(f"location.href = '{CONCERTO}score/'")
-                page.wait_for_url(f"{self.base}{CONCERTO}score/")
+                page.evaluate(f"location.href = '{self.work}score/'")
+                page.wait_for_url(f"{self.base}{self.work}score/")
                 self.rendered(page)
                 self.unfocus(page)
                 page.keyboard.press("Escape")
@@ -443,7 +455,7 @@ class ScoreReader(unittest.TestCase):
                    '<use href="#r" x="60"/><g onclick="window.__pwned=4"><text x="1" y="90">ok</text></g></svg>')
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.reader(browser, SILENT, routes={"page": r"/music/.+\.svg$"},
+                page, _ = self.reader(browser, self.silent, routes={"page": r"/music/.+\.svg$"},
                                       answers={"page": answer(hostile, "image/svg+xml")})
                 svg = page.locator("#score-page svg")
                 self.expect(svg.locator("script, title")).to_have_count(0)

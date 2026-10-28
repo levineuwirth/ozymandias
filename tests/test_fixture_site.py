@@ -10,10 +10,6 @@ the artifact gate, and every switch's checks (tests/switch_checks.py) run on
 every build, as the build has the switch; the coverage test fails unless
 each switch is built both ways.
 
-Its temporary-inputs.yaml lists what it carries only because an engine rule
-is still unconditional, each with the switch that will remove the need; an
-entry fails here once its switch exists while the input is still present.
-
 The gate's test needs the engine's downloads (DOWNLOADS), which a fresh
 checkout lacks, so `make test-clean` and the GitHub workflow never run it:
 only a machine that has them checks that the fixture passes the gate.
@@ -49,21 +45,6 @@ def registered_switches() -> set[str]:
 
 
 class FixtureFiles(unittest.TestCase):
-    def test_temporary_inputs_are_there_until_their_switch(self):
-        entries = yaml.safe_load((FIXTURE / "temporary-inputs.yaml").read_text(encoding="utf-8"))
-        self.assertTrue(entries)
-        config = yaml.safe_load((FIXTURE / "site.yaml").read_text(encoding="utf-8"))
-        switches = registered_switches()
-        for entry in entries:
-            with self.subTest(entry=entry):
-                self.assertLessEqual(set(entry), {"path", "section", "switch", "why"})
-                self.assertTrue(entry["switch"] and entry["why"])
-                self.assertTrue((FIXTURE / entry["path"]).is_file())
-                if "section" in entry:
-                    self.assertIn(entry["section"], [s["dir"] for s in config["sections"]])
-                self.assertNotIn(entry["switch"], switches,
-                                 f"{entry['switch']} exists: remove {entry['path']} and its entry")
-
     def test_its_pages_and_roles_are_checked(self):
         routes = load_tool("browser/routes.py", "fixture_routes").Routes(FIXTURE)
         self.assertTrue(routes.pages)
@@ -130,6 +111,7 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
         shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
     config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
     config["switches"] = build.switches
+    config["sections"] = fixture_variants.listed_sections(config["sections"], build.switches)
     # JSON, which YAML reads as written: a dumped string "y" would come back
     # as a boolean.
     (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
@@ -212,21 +194,48 @@ class FixtureBuilds(unittest.TestCase):
                     on, off = switch_checks.CHECKS[name]
                     (on if state else off)(self.sites[build.name])
 
-    def test_a_site_that_turns_the_archive_off_keeps_none_of_it(self):
-        # The full build's copy, its archive fetched (data/archive-index.json
-        # left behind), built again with the switch off: the leftover index
-        # must not mark links to /archive/ pages no longer built.
-        site = self.sites["full"].with_name("full-archive-turned-off")
+    def test_a_switch_s_assets_ship_only_with_it(self):
+        for build in self.builds:
+            site = self.sites[build.name] / "_site"
+            for name, spec in sorted(fixture_variants.registry().items()):
+                for glob in spec.get("assets") or []:
+                    with self.subTest(build=build.name, switch=name, asset=glob):
+                        if build.switches[name]:
+                            self.assertTrue(list(site.glob(glob)), f"{glob} was not published")
+                        else:
+                            self.assertEqual(list(site.glob(glob)), [], f"{glob} was published")
+
+    def turned_off(self, name: str) -> Path:
+        """The full build's copy, its inputs and the data its build left
+        (not its _site or cache), built again with switch `name` off and
+        the switches that need it settled: what a site that turns a feature
+        off has."""
+        site = self.sites["full"].with_name(f"full-{name}-turned-off")
         shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
-        self.assertTrue((site / "data/archive-index.json").is_file())
         config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
-        config["switches"]["archive"] = False
+        config["switches"] = fixture_variants.settle(dict(config["switches"], **{name: False}),
+                                                     fixture_variants.registry())
+        config["sections"] = fixture_variants.listed_sections(config["sections"], config["switches"])
         (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
         env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
         done = subprocess.run([binary, "build"], cwd=site, env=env, capture_output=True, text=True, timeout=600)
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
-        switch_checks.archive_off(site)
+        return site
+
+    def test_a_site_that_turns_the_archive_off_keeps_none_of_it(self):
+        # The leftover index (data/archive-index.json, from the full
+        # build's fetch) must not mark links to /archive/ pages no longer
+        # built.
+        self.assertTrue((self.sites["full"] / "data/archive-index.json").is_file())
+        switch_checks.archive_off(self.turned_off("archive"))
+
+    def test_a_site_that_turns_music_off_keeps_none_of_it(self):
+        # Its works still in content/music/: no work, reader or score of
+        # theirs is built, nor listed anywhere.
+        site = self.turned_off("music")
+        self.assertTrue((site / "content/music" / switch_checks.PIECE / "index.md").is_file())
+        switch_checks.music_off(site)
 
     def test_every_page_its_routes_name_is_built(self):
         for name in ("minimal", "full"):

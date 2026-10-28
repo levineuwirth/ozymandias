@@ -14,10 +14,25 @@ from __future__ import annotations
 from pathlib import Path
 
 ARCHIVED = "example-cited-page"   # the fixture's archive entry (archive/manifest.yaml)
+PIECE = "a-piece"                 # the fixture's composition (content/music/a-piece/)
+# What music puts on a page: the score filter's fragment, the composition
+# page's stylesheet, the catalog's shelf script, the reader's page list.
+MUSIC_MARKS = ('data-exhibit-type="score"', "/css/composition.css", "/css/catalog.css", "/js/music-shelf.js",
+               'id="score-reader-stage"')
+
+
+def published(site: Path) -> list[Path]:
+    """Every file the built site serves but /source/'s copies and the
+    search index's fragments."""
+    return sorted(p for p in (site / "_site").rglob("*") if p.is_file()
+                  and p.relative_to(site / "_site").parts[0] not in ("source", "pagefind"))
 
 
 def pages(site: Path) -> list[Path]:
-    return sorted((site / "_site").rglob("*.html"))
+    """The built site's pages, not /source/'s copies of the files that made
+    them (whose templates say what every switch would put on a page)."""
+    return sorted(p for p in (site / "_site").rglob("*.html")
+                  if p.relative_to(site / "_site").parts[0] != "source")
 
 
 def text(site: Path, rel: str) -> str:
@@ -39,7 +54,39 @@ def archive_off(site: Path) -> None:
     assert 'id="archive"' not in text(site, "build/index.html"), "the build page has a link-archive section"
 
 
+def music_on(site: Path) -> None:
+    assert f"/music/{PIECE}/" in text(site, "music/index.html"), "the /music/ catalog lists no work"
+    work = text(site, f"music/{PIECE}/index.html")
+    assert 'data-exhibit-type="score"' in work, "the work's score fragment was not inlined"
+    assert 'data-exhibit-type="score"' in text(site, "essays/capabilities/index.html"), \
+        "the essay's score fragment was not inlined"
+    assert "/css/composition.css" in work, "the work's page has no composition stylesheet"
+    reader = text(site, f"music/{PIECE}/score/index.html")
+    assert f"/music/{PIECE}/scores/page-1.svg,/music/{PIECE}/scores/page-2.svg" in reader, \
+        "the score reader does not list both pages"
+    for rel in ("scores/page-1.svg", "scores/page-2.svg", "scores/timing.json", "scores/realization.mp3"):
+        assert (site / "_site/music" / PIECE / rel).is_file(), f"{rel} was not published"
+    for rel in ("new.html", "sitemap.xml", "data/backlinks.json"):
+        assert f"/music/{PIECE}/" in text(site, rel), f"{rel} does not list the work"
+    assert "Compositions" in text(site, "stats/index.html"), "/stats/ counts no compositions"
+
+
+def music_off(site: Path) -> None:
+    # /music/ may still be built: without the switch content/music/ is an
+    # ordinary page collection. None of it is a work, a reader or a score.
+    assert not list((site / "_site").glob("music/*/score")), "a score reader was built"
+    assert not list((site / "_site").glob("music/*/scores")), "score files were published"
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in MUSIC_MARKS}
+    assert not any(marked.values()), f"music on pages: {marked}"
+    naming = [str(p.relative_to(site / "_site")) for p in published(site)
+              if f"/music/{PIECE}/".encode() in p.read_bytes()]
+    assert not naming, f"the work is named in {naming}"
+    assert "Compositions" not in text(site, "stats/index.html"), "/stats/ counts compositions"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
+    "music": (music_on, music_off),
 }

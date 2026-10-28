@@ -117,6 +117,9 @@ class ConfigTests(unittest.TestCase):
         entry = "{kind: capability, default: false, about: x"
         registry.write_text(f"a: {entry}}}\nb: {entry}}}\nc: {entry}, needs: [a]}}\n"
                             f"d: {entry}, needs-any: [a, b]}}\n")
+        # No switch here owns music's section, so the site lists it.
+        self.config["sections"] = self.config["sections"] + [
+            {"dir": "music", "kind": "Composition", "dingbat": None}]
         for switches, refusal in (({"c": True}, "switches: c needs a"),
                                   ({"d": True}, "switches: d needs one of a, b"),
                                   ({"a": True, "c": True, "d": True}, None),
@@ -138,7 +141,11 @@ class ConfigTests(unittest.TestCase):
                                "engine/switches.yaml: no such switch: a needs z"),
                               ("a: {kind: widget, default: false, about: x}\n", "kind"),
                               ("a: {kind: capability, default: false}\n", "about"),
-                              ("a: {kind: capability, default: false, about: x, colour: red}\n", "colour")):
+                              ("a: {kind: capability, default: false, about: x, colour: red}\n", "colour"),
+                              ("a: {kind: capability, default: false, about: x, section: notes}\n",
+                               "a switch's section is one the engine routes, not notes"),
+                              ("a: {kind: capability, default: false, about: x, assets: [../site.yaml]}\n",
+                               "a switch's assets are paths under static/, not ../site.yaml")):
             with self.subTest(text=text):
                 registry.write_text(text)
                 done = self.run_site("config")
@@ -156,9 +163,42 @@ class ConfigTests(unittest.TestCase):
         path.unlink()
         self.assertNotEqual(self.run_site("config").returncode, 0)
 
+    def test_a_switch_owns_its_section(self):
+        # music owns /music/ (engine/switches.yaml's `section`): listed with
+        # the switch on, as every routed section is; named nowhere without
+        # it, nor a standalone page's score fragments.
+        music = {"dir": "music", "kind": "Composition", "dingbat": None}
+        fed = {"path": "music/feed.xml", "title": "Music", "description": "Works",
+               "sections": ["music"], "advertise": True, "limit": 30}
+        scored = standalone("content/me/index.md", "me.html", template="essay.html",
+                            context="essay", scores=True)
+        sections = self.config["sections"]
+        for switch, changes, refusal in (
+                (False, {}, None),
+                (False, {"sections": sections + [music]}, "music (the music switch is off)"),
+                (False, {"feeds": [fed]}, "music (the music switch is off)"),
+                (False, {"standalone": [scored]}, "standalone scores need the music switch: content/me/index.md"),
+                (True, {}, "sections must include the engine's routed sections: music"),
+                (True, {"sections": sections + [music], "feeds": [fed], "standalone": [scored]}, None)):
+            with self.subTest(music=switch, changes=sorted(changes)):
+                self.config = dict(self.config, sections=sections, feeds=[], standalone=[],
+                                   switches={"music": switch}) | changes
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
     def test_invalid_settings_are_rejected(self):
         feed = {"path": "feed.xml", "title": "Example", "description": "Posts",
                 "sections": ["essays"], "advertise": True, "limit": 30}
+        # With music on, so a standalone page may have scores, and each page
+        # below is refused for its own fault.
+        self.config["switches"] = {"music": True}
+        self.config["sections"] = self.config["sections"] + [
+            {"dir": "music", "kind": "Composition", "dingbat": None}]
         section = self.config["sections"][0]
         portal = self.config["portals"][0]
         link = self.config["nav-primary"][0]

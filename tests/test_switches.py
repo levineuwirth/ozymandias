@@ -59,13 +59,29 @@ class RegistryTests(unittest.TestCase):
         for name, spec in terms.items():
             with self.subTest(switch=name):
                 self.assertRegex(name, r"^[a-z][a-z0-9-]*$")
-                self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "about"})
+                self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "section", "assets",
+                                                 "about"})
                 self.assertIn(spec["kind"], KINDS)
                 self.assertIsInstance(spec["default"], bool)
                 self.assertTrue(isinstance(spec["about"], str) and spec["about"].strip())
                 for other in (spec.get("needs") or []) + (spec.get("needs-any") or []):
                     self.assertIn(other, terms)
                     self.assertNotEqual(other, name)
+        sections = [spec["section"] for spec in terms.values() if "section" in spec]
+        self.assertEqual(len(sections), len(set(sections)), "two switches own one section")
+
+    def test_each_switch_s_assets_are_engine_files_no_other_switch_claims(self):
+        # A misspelt glob would withhold nothing; one file under two
+        # switches would be withheld by either.
+        owner: dict[Path, str] = {}
+        for name, spec in registry().items():
+            for glob in spec.get("assets") or []:
+                with self.subTest(switch=name, asset=glob):
+                    found = sorted(engine_path("static").glob(glob))
+                    self.assertTrue(found, f"no engine/static/{glob}")
+                    for path in found:
+                        self.assertNotIn(path, owner, f"{path.name} is {owner.get(path)}'s too")
+                        owner[path] = name
 
     def test_every_switch_asked_about_is_registered(self):
         terms = registry()

@@ -559,6 +559,11 @@ def site_feeds() -> list[str]:
     return [feed["path"] for feed in sitelib.site_config()["feeds"]]
 
 
+def site_switches() -> dict[str, bool]:
+    """The site's switches as the generator resolves them (`site config`)."""
+    return sitelib.site_config()["switches"]
+
+
 def check_feed(site_dir: str, rel: str, report: Report) -> None:
     """F10 — an advertised Atom feed must parse and carry an RFC 3339 date."""
     report.check(f"feed:{rel}")
@@ -691,7 +696,8 @@ def check_score_pages(site_dir: str, report: Report) -> None:
     movement withheld since); a listed page with no file is a hole."""
     report.check("score-pages")
     music = os.path.join(site_dir, "music")
-    if not os.path.isdir(music):
+    # Without the music switch /music/ is no section of the engine's.
+    if not site_switches()["music"] or not os.path.isdir(music):
         return
     for slug in sorted(os.listdir(music)):
         reader = os.path.join(music, slug, "score", "index.html")

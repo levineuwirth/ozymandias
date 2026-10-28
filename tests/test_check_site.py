@@ -88,6 +88,10 @@ class CheckSiteTestCase(unittest.TestCase):
         feeds = mock.patch.object(check_site, "site_feeds", return_value=["feed.xml", "music/feed.xml"])
         feeds.start()
         self.addCleanup(feeds.stop)
+        # And its switches: music on, as its music feed says.
+        switches = mock.patch.object(check_site, "site_switches", return_value={"music": True})
+        switches.start()
+        self.addCleanup(switches.stop)
 
     def run_gate(self, *extra: str) -> tuple[int, str]:
         """Run the gate over the fixture, returning (exit code, output)."""
@@ -496,6 +500,17 @@ class CheckSiteTestCase(unittest.TestCase):
         for i in (1, 2):
             self.site.write(f"music/w/scores/page-{i}.svg", "<svg/>")
         code, output = self.run_gate()
+        self.assertEqual(code, 0, output)
+
+    def test_a_site_without_music_passes_and_its_music_directory_is_its_own(self):
+        # With the switch off the config has no music feed and /music/ is
+        # an ordinary directory: nothing there is a score reader's.
+        os.unlink(self.root / "music" / "feed.xml")
+        self.score_reader(1, 2)
+        self.site.write("music/w/scores/page-3.svg", "<svg/>")
+        with mock.patch.object(check_site, "site_feeds", return_value=["feed.xml"]), \
+                mock.patch.object(check_site, "site_switches", return_value={"music": False}):
+            code, output = self.run_gate()
         self.assertEqual(code, 0, output)
 
     # -- photo GPS --------------------------------------------------------

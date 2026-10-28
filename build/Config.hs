@@ -14,7 +14,7 @@ module Config
     , knownDingbats
     ) where
 
-import Control.Monad (forM_, unless, when)
+import Control.Monad (forM_, mfilter, unless, when)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
@@ -59,6 +59,9 @@ data SiteConfig = SiteConfig
     , siteStandalone :: [Standalone]
     , siteFontPreloads :: [String]
     , siteSwitches :: Map.Map String Bool
+      -- | The engine's static files (globs as served) of the switches the
+      --   site has off, which it does not publish; set with the switches.
+    , siteWithheld :: [String]
     } deriving (Eq, Show)
 
 data FeedSection = Essays | Blog | Fiction | Poetry | Music | Photos
@@ -164,8 +167,9 @@ data Section = Section
 
 -- The current rules own these section namespaces. This is a routing contract,
 -- not another set of display defaults: names come from the engine's section
--- enumeration, while labels and ornaments remain site-owned. When rules become
--- conditional, their enabled sections must also determine this contract.
+-- enumeration, while labels and ornaments remain site-owned. A section a
+-- switch owns (its registry @section@) is routed only with the switch on
+-- ('switchedSections').
 sectionRoutes :: [String]
 sectionRoutes = [sectionName s | s <- [minBound .. maxBound]]
 
@@ -365,7 +369,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .: "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
-                        <*> o .:? "switches" .!= Map.empty
+                        <*> o .:? "switches" .!= Map.empty <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
         forM_ (siteFontPreloads c) $ \href ->
             unless ("/" `isPrefixOf` href && ".woff2" `isSuffixOf` href
@@ -391,9 +395,6 @@ instance FromJSON SiteConfig where
         let dirs = map sectionDir (siteSections c)
             tags = map portalTag (sitePortals c)
         when (nub dirs /= dirs) $ fail "section dirs must be unique"
-        let missing = filter (`notElem` dirs) sectionRoutes
-        unless (null missing) $
-            fail ("sections must include the engine's routed sections: " ++ intercalate ", " missing)
         when (nub tags /= tags) $ fail "portal tags must be unique"
         let sources = map standaloneSource (siteStandalone c)
             routes  = map standaloneRoute (siteStandalone c)
@@ -477,7 +478,13 @@ decodeConfig registryBytes siteBytes = do
     registry <- decode registryPath registryBytes
     cfg      <- decode "site.yaml" siteBytes
     resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
-    pure cfg { siteSwitches = resolved }
+    first ("site.yaml: " ++) (switchedSections registry resolved cfg)
+    let withheld = [ glob | (name, spec) <- Map.toList registry
+                          , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
+    let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
+    unless (null scored || Map.findWithDefault False "music" resolved) $
+        Left ("site.yaml: standalone scores need the music switch: " ++ intercalate ", " scored)
+    pure cfg { siteSwitches = resolved, siteWithheld = withheld }
   where
     decode :: FromJSON a => FilePath -> BS.ByteString -> Either String a
     decode path = first ((path ++ ": ") ++) . first Yaml.prettyPrintParseException . Yaml.decodeEither'
@@ -507,22 +514,30 @@ loadConfig = do
 registryPath :: FilePath
 registryPath = "engine/switches.yaml"
 
--- | One switch of the registry: its default and what it needs; its kind
---   and description are checked, not kept.
+-- | One switch of the registry: its default, what it needs, and the
+--   section it owns; its kind and description are checked, not kept.
 data SwitchSpec = SwitchSpec
     { switchDefault  :: Bool
     , switchNeeds    :: [String]
     , switchNeedsAny :: [String]
+    , switchSection  :: Maybe String
+    , switchAssets   :: [String]
     }
 
 instance FromJSON SwitchSpec where
     parseJSON = withObject "switch" $ \o -> do
-        onlyKeys ["kind", "default", "needs", "needs-any", "about"] o
+        onlyKeys ["kind", "default", "needs", "needs-any", "section", "assets", "about"] o
         kind <- o .: "kind"
         unless (kind `elem` ["capability", "generated", "interface" :: String]) $
             fail ("a switch's kind is capability, generated or interface, not " ++ kind)
         _ <- o .: "about" :: Parser String
-        SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
+        spec <- SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
+                           <*> o .:? "section" <*> o .:? "assets" .!= []
+        forM_ (switchSection spec) $ \dir -> unless (dir `elem` sectionRoutes) $
+            fail ("a switch's section is one the engine routes, not " ++ dir)
+        forM_ (switchAssets spec) $ \glob -> unless (safePath glob) $
+            fail ("a switch's assets are paths under static/, not " ++ glob)
+        pure spec
 
 -- | The site's switches: those its site.yaml sets, over the registry's
 --   defaults. A switch the registry lacks, or one on without what it
@@ -548,6 +563,25 @@ resolveSwitches registry set = do
         unless (null (switchNeedsAny spec) || any on (switchNeedsAny spec)) $
             Left ("switches: " ++ name ++ " needs one of " ++ intercalate ", " (switchNeedsAny spec))
     pure resolved
+
+-- | The sections the engine routes, as the switches have them: a section a
+--   switch owns is the site's only with that switch on. Then site.yaml
+--   must list it, like any routed section; with it off, neither a section
+--   entry nor a feed may name it.
+switchedSections :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
+switchedSections registry on cfg = do
+    let owners = Map.fromList [ (dir, name) | (name, spec) <- Map.toList registry
+                                            , Just dir <- [switchSection spec] ]
+        offSwitch dir = mfilter (not . flip (Map.findWithDefault False) on) (Map.lookup dir owners)
+        dirs    = map sectionDir (siteSections cfg)
+        missing = [ dir | dir <- sectionRoutes, isNothing (offSwitch dir), dir `notElem` dirs ]
+        named   = nub (dirs ++ [ sectionName s | f <- siteFeeds cfg, s <- feedSections f ])
+        refused = [ dir ++ " (the " ++ name ++ " switch is off)"
+                  | dir <- named, Just name <- [offSwitch dir] ]
+    unless (null missing) $
+        Left ("sections must include the engine's routed sections: " ++ intercalate ", " missing)
+    unless (null refused) $
+        Left ("sections and feeds name a section the engine does not route: " ++ intercalate ", " refused)
 
 -- | Whether the site has switch @name@ on. A name the registry lacks is the
 --   engine's own mistake, which stops the build. The one way to ask: rules

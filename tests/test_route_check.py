@@ -62,16 +62,22 @@ class RouteCheckTests(unittest.TestCase):
             self.assertEqual(claims["essays/a.html"], ["content/essays/a.md"])
 
     def test_expand_tags_is_the_build_expansion(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            # The sections' landings come from site.yaml.
-            write_site_config(Path(directory))
-            done = subprocess.run([str(site_binary()), "expand-tags"], cwd=directory,
-                                  input="photography//denmark/harbor\nmusic\nnotes/a/\n",
-                                  env=script_env(), capture_output=True, text=True, timeout=60)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        # Ancestors added, empty segments dropped, section names left out.
-        self.assertEqual(done.stdout.splitlines(),
-                         ["photography/denmark", "photography/denmark/harbor", "notes", "notes/a"])
+        # Ancestors added, empty segments dropped, section names left out:
+        # the sections' landings come from site.yaml, and music is one only
+        # with its switch on.
+        music = {"dir": "music", "kind": "Composition", "dingbat": None}
+        for on, kept in ((False, ["music"]), (True, [])):
+            with self.subTest(music=on), tempfile.TemporaryDirectory() as directory:
+                config = write_site_config(Path(directory))
+                if on:
+                    write_site_config(Path(directory), switches={"music": True},
+                                      sections=config["sections"] + [music])
+                done = subprocess.run([str(site_binary()), "expand-tags"], cwd=directory,
+                                      input="photography//denmark/harbor\nmusic\nnotes/a/\n",
+                                      env=script_env(), capture_output=True, text=True, timeout=60)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(done.stdout.splitlines(),
+                                 ["photography/denmark", "photography/denmark/harbor", *kept, "notes", "notes/a"])
 
     def test_build_refuses_before_writing_anything(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
