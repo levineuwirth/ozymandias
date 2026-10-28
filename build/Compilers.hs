@@ -220,8 +220,8 @@ essayCompilerWith rOpts = do
 --   tests/test_golden.py) runs the same code a page does.
 --
 --   Citeproc first: it turns citations into numbered markers and pulls the
---   bibliography out. Then score fragments (with the music switch on) and
---   visualizations, which read files relative to @srcDir@. Then the remaining AST filters (sidenotes,
+--   bibliography out. Then score fragments and visualizations (each with
+--   its switch on), which read files relative to @srcDir@. Then the remaining AST filters (sidenotes,
 --   smallcaps, links, …); 'applyAll' probes the filesystem for @.webp@
 --   companions, so it is IO too.
 --
@@ -233,7 +233,9 @@ transformDocument cfg frKeys bibPath numberFigures srcDir doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
-    withViz    <- Viz.inlineViz (withMath (switchOn cfg "math") readerOpts) srcDir withScores
+    withViz    <- if switchOn cfg "viz"
+                      then Viz.inlineViz (withMath (switchOn cfg "math") readerOpts) srcDir withScores
+                      else return withScores
     filtered   <- applyAll cfg numberFigures srcDir withViz
     return (filtered, bibHtml, furtherHtml)
 

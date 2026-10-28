@@ -537,7 +537,7 @@ validate-locked: REQUIRE_VENV = 1
 validate-locked: test
 	@test -d _site || { echo "validate: _site/ does not exist — run 'make build' first" >&2; exit 1; }
 	@python3 $(call tool,check-site.py) _site $(CHECK_SITE_FLAGS) $(if $(REQUIRE_WEBP),--require-webp,)
-	@$(MAKE) --no-print-directory viz-provenance-check
+	@$(call with_switch,viz,$(MAKE) --no-print-directory viz-provenance-check)
 
 # Checksum the CSVs behind each figure into figures/data/PROVENANCE.json, so
 # a reader who downloads the data can tell it is what the chart was drawn
@@ -545,10 +545,10 @@ validate-locked: test
 # author writes there; `check` (viz-provenance-check) verifies the recorded
 # checksums still match and exits non-zero if not.
 viz-provenance:
-	@$(PY) $(call tool,viz-provenance.py) write
+	@$(call with_switch,viz,$(PY) $(call tool,viz-provenance.py) write)
 
 viz-provenance-check:
-	@$(PY) $(call tool,viz-provenance.py) check
+	@$(call with_switch,viz,$(PY) $(call tool,viz-provenance.py) check)
 
 # Render every figure and report what a reader would notice: a mark with no
 # variation in it, text that cannot be read against what sits behind it,
@@ -561,7 +561,7 @@ viz-provenance-check:
 # heatmap drawn from constant data, white labels repainted near-black, 4px
 # tick text, a y-axis reading "(imes)".
 audit-viz:
-	@$(PY) $(call tool,audit-viz.py) $(if $(STRICT),--strict,)
+	@$(call with_switch,viz,$(PY) $(call tool,audit-viz.py) $(if $(STRICT),--strict,))
 
 # Report which content pieces are missing a monogram (mark.svg) and / or
 # the epistemic figure (status: frontmatter). Exits 0 unconditionally;

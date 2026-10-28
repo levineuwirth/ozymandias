@@ -236,6 +236,10 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_math_off_keeps_its_tex_as_text(self):
         switch_checks.math_off(self.turned_off("math"))
 
+    def test_a_site_that_turns_viz_off_runs_no_figure_and_loads_no_vega(self):
+        # The essay still sets `viz: true`.
+        switch_checks.viz_off(self.turned_off("viz"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

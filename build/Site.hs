@@ -524,6 +524,10 @@ rules = do
     -- source-preview copy), and the drafts globs apply only in dev, where a
     -- rule claims drafts. Otherwise the two sets differ on every run and
     -- every essay is out of date on every build (audit H05).
+    -- The figure scripts' theme, with the viz switch on: no figure runs
+    -- without it.
+    let vizTheme | switchOn cfg "viz" = "tools/viz_theme.py" .||. "engine/tools/viz_theme.py"
+                 | otherwise          = fromList []
     figureDep <- makePatternDependency $ hasNoVersion .&&.
                      (     "content/essays/**/figures/**"
                       .||. "content/essays/**/*.dims.yaml"
@@ -531,13 +535,12 @@ rules = do
                       -- dimension sidecars live under either static/ root and are read by
                       -- the same filter (B11).
                       .||. staticImageDimensions
-                      .||. "tools/viz_theme.py"
-                      .||. "engine/tools/viz_theme.py"
+                      .||. vizTheme
                       .||. (if isDev
                               then "content/drafts/essays/**/figures/**"
                                    .||. "content/drafts/essays/**/*.dims.yaml"
                               else fromList []))
-    match ("tools/viz_theme.py" .||. "engine/tools/viz_theme.py") $ compile getResourceLBS
+    match vizTheme $ compile getResourceLBS
 
     rulesExtraDependencies [figureDep] $ match allEssays $ do
         -- content/essays/foo.md → essays/foo.html, a directory essay or

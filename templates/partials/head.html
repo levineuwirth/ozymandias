@@ -37,15 +37,16 @@ $if(has-code)$<link rel="stylesheet" href="/css/syntax.css">$endif$
 <link rel="stylesheet" href="/css/selection-popup.css">
 <link rel="stylesheet" href="/css/annotations.css">
 <link rel="stylesheet" href="/css/images.css">
-<!-- viz.css is deliberately ungated, unlike the Vega scripts further down.
-     Static .figure divs need it and, per WRITING.md, do not set viz: true,
-     so gating it meant the only page with figures never loaded it.
+<!-- viz.css is deliberately ungated by page, unlike the Vega scripts further
+     down: only by the viz switch, whose stylesheet it is. Static .figure
+     divs need it and, per WRITING.md, do not set viz: true, so gating it by
+     page meant the only page with figures never loaded it.
      Matplotlib writes no fill for default-coloured text, so without the
      g[id^="text_"] rule in here every axis label, tick label and legend
      entry rendered black on #121212 in dark mode. A few hundred bytes.
      NB: template syntax is parsed inside HTML comments too - never write a
      conditional here, even as prose, or it opens a real one. -->
-<link rel="stylesheet" href="/css/viz.css">
+$if(switch-viz)$<link rel="stylesheet" href="/css/viz.css">$endif$
 <link rel="stylesheet" href="/css/marks.css">
 $if(home)$<link rel="stylesheet" href="/css/home.css">$endif$
 $if(library)$<link rel="stylesheet" href="/css/library.css">$endif$
@@ -87,7 +88,7 @@ $if(search)$
 $endif$
 <script src="/js/utils.js"></script>
 <script src="/js/theme.js"></script>
-$if(viz)$
+$if(switch-viz)$$if(viz)$
 <!-- Pinned to exact versions with Subresource Integrity (audit S08). The old
      @5 / @5 / @6 major-range URLs let jsDelivr ship new code into every visitor
      without a commit, a rebuild, or any way to notice afterwards. These three
@@ -113,7 +114,7 @@ $if(viz)$
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js" integrity="sha384-D9LYH0esGjcxQJsBuxOuXtCDJGXRWW1+KhluzWPqi0rLJmiR/ygPChefaD+rFFDQ" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js" integrity="sha384-M+Ax7e/WFJpxSOF09HzI+Sj4wg9ottVd/uxmV2ItGGh02fLH28t2FAOJx3TJBap5" crossorigin="anonymous" defer></script>
 <script src="/js/viz.js" defer></script>
-$endif$
+$endif$$endif$
 $if(list-page)$<script src="/js/list-pagination.js" defer></script>$endif$
 <script src="/js/collapse.js" defer></script>
 <script src="/js/transclude.js" defer></script>

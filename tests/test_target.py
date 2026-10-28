@@ -57,7 +57,7 @@ class Switches(unittest.TestCase):
 
     def test_ci_accepts_only_the_skips_the_site_explains(self):
         # A switch the registry lacks explains nothing (b).
-        skipped = [("a", "switch off: archive"), ("b", "switch off: viz"), ("c", "node not installed"),
+        skipped = [("a", "switch off: archive"), ("b", "switch off: no-such-switch"), ("c", "node not installed"),
                    ("d", target.NO_FONTS)]
         with tempfile.TemporaryDirectory() as tmp:
             fonts = Path(tmp) / "fonts.yaml"

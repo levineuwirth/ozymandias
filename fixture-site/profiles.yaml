@@ -18,10 +18,12 @@ full:
     code: true
     math: true
     music: true
+    viz: true
 minimal:
   switches:
     archive: false
     code: false
     math: false
     music: false
+    viz: false
   without: [archive/, content/music/, content/essays/capabilities/]

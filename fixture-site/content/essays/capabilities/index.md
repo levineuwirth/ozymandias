@@ -5,6 +5,7 @@ abstract: >-
   The full profile's essay: what a site has only with its switches on, each
   in a section of its own, from $\pi$ on.
 tags: [notes]
+viz: true
 ---
 
 ## Math
@@ -21,6 +22,18 @@ A block in a named language:
 def double(n):
     return 2 * n
 ```
+
+## Figures
+
+A static figure, whose caption has math:
+
+::: {.figure script="figures/line.py" caption="A line drawn in black, and $y = x$."}
+:::
+
+An interactive one, which loads Vega:
+
+::: {.visualization script="figures/chart.py" caption="Three points, joined."}
+:::
 
 ## A score fragment
 

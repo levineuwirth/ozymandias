@@ -25,6 +25,9 @@ So the tests below check the two ends rather than the middle:
   * ``ColourPreservationTests`` closes the loop from the other side — every
     non-black colour a script emits has to arrive in the page unaltered.
 
+These three read the site's figures and skip with "switch off: viz" for a
+site without them.
+
 Run with:  .venv/bin/python -m unittest discover -s tests
 """
 
@@ -40,6 +43,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, script_env
+from tests.target import requires_switch
 
 SITE_DIR = SITE_ROOT / "_site"
 VENV_PYTHON = SITE_ROOT / ".venv" / "bin" / "python3"
@@ -101,6 +105,7 @@ def render(script: Path) -> str:
     return result.stdout
 
 
+@requires_switch("viz")
 @unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `make venv`")
 class FigureOutputTests(unittest.TestCase):
     """The scripts must emit black in a syntax processColors can see."""
@@ -166,6 +171,7 @@ class FigureOutputTests(unittest.TestCase):
         return value in BLACK_VALUES or value in {"rgb(0,0,0)", "#000000ff"}
 
 
+@requires_switch("viz")
 @unittest.skipUnless(SITE_DIR.is_dir(), "no _site — run `cabal run site -- build`")
 class BuiltPageTests(unittest.TestCase):
     """End-to-end: what actually reaches a reader's browser."""
@@ -331,6 +337,7 @@ class BuiltPageTests(unittest.TestCase):
         return re.findall(r'<figcaption class="viz-caption">(.*?)</figcaption>', html, re.S)
 
 
+@requires_switch("viz")
 @unittest.skipUnless(VENV_PYTHON.is_file(), "no .venv — run `make venv`")
 @unittest.skipUnless(SITE_DIR.is_dir(), "no _site — run `cabal run site -- build`")
 class ColourPreservationTests(unittest.TestCase):

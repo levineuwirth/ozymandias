@@ -61,3 +61,14 @@ code:
     Code blocks highlighted by Prism (Filters.Code names each block's
     language as Prism reads it, and pages with one load prism.min.js and
     syntax.css) and given a copy button (copy.js, on every page).
+
+viz:
+  kind: capability
+  default: false
+  assets: [js/viz.js, css/viz.css]
+  about: >-
+    Figures drawn by Python scripts (Filters.Viz): a .figure's SVG and a
+    .visualization's Vega-Lite spec, which a page with `viz: true` loads
+    Vega and viz.js to render; viz.css, which every page loads; the figure
+    theme (tools/viz_theme.py) as a build dependency; and make's
+    viz-provenance, viz-provenance-check (in validate) and audit-viz.
