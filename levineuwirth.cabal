@@ -5,7 +5,6 @@ synopsis:           Build system for levineuwirth.org
 license:            MIT
 license-file:       LICENSE
 author:             Levi Neuwirth
-maintainer:         levi@levineuwirth.org
 build-type:         Simple
 
 executable site
