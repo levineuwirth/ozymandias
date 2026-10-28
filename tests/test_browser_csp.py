@@ -16,6 +16,12 @@ transformers.js come from their real origins, as in production. Popups are
 hovered so that their requests meet the policy; whether each provider
 shows its popup is for a popup test, not this sweep.
 
+Each feature checked on the pages routes.yaml probes for it is checked as
+the site has it (PROBE_SWITCHES, plan §7.3): with its switch on there must
+be a page to probe, so the check cannot pass on none; with it off there must
+be none, and math, which every page's record counts, must be on no page.
+Probes runs without a browser.
+
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_csp -v
 """
 
@@ -29,7 +35,8 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, SITE_ROOT, check_site, enforcing_csp, harness_routes,
                             require_playwright, requires_browser, run_harness, site_server)
-from tests.target import route, routes
+from tests._helpers import load_tool
+from tests.target import route, routes, switch_on
 
 ROUTES = harness_routes()
 NOT_FOUND = route("not-found")   # its own document is meant to 404
@@ -56,6 +63,31 @@ def shards(browser: str, names: list[str]) -> list[list[str]]:
         load[i] += cost.get(name, 10.0)
     return dealt
 SWEEP_SECONDS = 1800
+
+# The switch each probe's feature is under (engine/switches.yaml), or None
+# for a feature every site has until its switch is registered.
+PROBE_SWITCHES = {
+    "popups": None, "search": None, "map": None, "slideshow": None, "lightbox": None,
+    "score": "music", "pdf-viewer": "pdf-viewer", "archive-snapshot": "archive",
+    "archive-pdf": "archive", "pdf-links": None, "composition": "music",
+    "transclusion": None, "commonplace": None, "math": "math",
+}
+
+
+class Probes(unittest.TestCase):
+    def test_each_kind_of_probe_is_under_its_switch(self):
+        kinds = load_tool("browser/routes.py", "csp_routes").PROBES
+        self.assertEqual(set(PROBE_SWITCHES), set(kinds))
+
+    def test_a_feature_on_is_probed_and_one_off_is_not(self):
+        probe = routes().probe
+        for kind, switch in PROBE_SWITCHES.items():
+            with self.subTest(kind=kind, switch=switch):
+                if switch is None or switch_on(switch):
+                    self.assertTrue(probe(kind), f"routes.yaml's probes name no page for {kind}")
+                else:
+                    self.assertEqual(probe(kind), [], f"routes.yaml probes {kind}, but {switch} is off")
+
 
 # The 404 route is the only one whose document is not a 200.
 STATUS = {"404": 404}
@@ -144,6 +176,7 @@ class CspSweep(unittest.TestCase):
                 self.assertEqual(bad, [])
 
     def test_images_math_and_transclusions_render(self) -> None:
+        math = switch_on("math")
         for browser, route, rec in self.visited():
             f = rec.get("features")
             if f is None:
@@ -151,13 +184,17 @@ class CspSweep(unittest.TestCase):
             with self.subTest(browser=browser, route=route):
                 self.assertEqual(f["imgs_broken"], [])
                 self.assertEqual(f["katex_err"], 0)
-                self.assertGreaterEqual(f["katex"], f["math_raw"], "math left unrendered")
+                if math:
+                    self.assertGreaterEqual(f["katex"], f["math_raw"], "math left unrendered")
+                else:
+                    self.assertEqual((f["katex"], f["math_raw"], f["katex_css"]), (0, 0, False),
+                                     "math on a site without the switch")
                 self.assertEqual(f["transclude_unfilled"], 0)
 
     def test_features(self) -> None:
         """What the Promotion note in nginx/security-headers.conf says to
         re-test, in each browser, on the pages routes.yaml names for each
-        (its probes)."""
+        (its probes; Probes holds them to the site's switches)."""
         probe = routes().probe
         for browser in BROWSERS:
             got = {route: rec.get("features", {}) for route, rec in self.results[browser].items()}
