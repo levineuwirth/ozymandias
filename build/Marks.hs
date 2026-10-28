@@ -21,6 +21,7 @@ module Marks
     , hasMonogramFieldFor
     , epistemicSvgField
     , hasMonogram
+    , monogramPattern
     , peerStatusValues
     , epistemicVocabulary
     ) where
@@ -39,6 +40,7 @@ import           System.IO              (hPutStrLn, stderr)
 import           Text.Read              (readMaybe)
 
 import           Hakyll hiding (trim)
+import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import Utils (isProvedConfidence, confidencePercent, trustScore, trim)
 import           Stability              (resolveStability, stabilityLabels)
 import           SvgColor               (blackToCurrentColor)
@@ -61,6 +63,22 @@ monogramCandidates fp =
             then [dir </> "mark.svg"]
             else [dir </> takeBaseName fp ++ ".mark.svg"]
 
+-- | Every path 'monogramCandidates' can name under @content/@. Site.hs
+--   claims the ones no asset rule does, so that 'trackMonogram' can fire.
+monogramPattern :: Pattern
+monogramPattern = "content/mark.svg" .||. "content/**/mark.svg" .||. "content/**.mark.svg"
+
+-- | Record that the page depends on a monogram path, whether or not the
+--   file exists yet. The mark is read inside 'unsafeCompiler', which
+--   Hakyll cannot see: adding or editing one left the page's old
+--   rendering in place until a full rebuild. An identifier dependency
+--   fires when its file appears or changes, provided a rule claims it;
+--   recorded directly, as in FooterData, because 'load' refuses an
+--   identifier that does not exist yet. 'monogramSvgField' never fails,
+--   so what it records is kept.
+trackMonogram :: FilePath -> Compiler ()
+trackMonogram path = compilerTellDependencies [IdentifierDependency (fromFilePath path)]
+
 -- | Predicate form of 'resolveMonogramPath' — used by Stats.hs to
 --   compute monogram coverage on @/build/@. Returns 'True' when at
 --   least one of the dual-form candidate paths exists on disk.
@@ -81,9 +99,11 @@ hasMonogramField = field "has-monogram" $ \item -> do
 
 -- | Return the first candidate path that exists on disk, or 'Nothing'.
 resolveMonogramPath :: Item a -> Compiler (Maybe FilePath)
-resolveMonogramPath item =
-    unsafeCompiler $ firstExisting (monogramCandidates fp)
+resolveMonogramPath item = do
+    mapM_ trackMonogram candidates
+    unsafeCompiler $ firstExisting candidates
   where
+    candidates = monogramCandidates fp
     fp = toFilePath (itemIdentifier item)
     firstExisting []     = return Nothing
     firstExisting (p:ps) = do
@@ -152,6 +172,7 @@ wrapMonogram svg = T.concat
 --   when the file is absent or unreadable.
 monogramSvgFieldFor :: FilePath -> Context a
 monogramSvgFieldFor path = field "monogramSvg" $ \_ -> do
+    trackMonogram path
     exists <- unsafeCompiler $ doesFileExist path
     monogramHtml (if exists then Just path else Nothing)
 

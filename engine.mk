@@ -424,8 +424,27 @@ clean:
 # REQUIRE_VENV=1 turns a missing .venv into a failure instead of a
 # degraded run. `validate` sets it, because a deploy gated on a suite that
 # silently skipped most of itself is not a gate.
+#
+# SKIP_TESTS=1 skips both suites entirely, for a deploy whose change the
+# suites cannot exercise — a typo fixed in content/, say. It prints a
+# banner instead of passing quietly, because this is the gate that keeps a
+# published private file or a broken feed off the VPS. Everything else in
+# `validate` (engine/tools/check-site.py over _site/, viz-provenance-check)
+# and in `deploy` (clean-tree checks, build, signature, recheck) still runs,
+# so a content-only typo is still checked as an artifact.
+#
+#     make deploy SKIP_TESTS=1
+#
+# Command-line variables reach the sub-makes, so this works through
+# deploy-locked -> validate-locked -> test.
+SKIP_TESTS ?=
+
 test:
-	@if [ -d .venv ]; then \
+	@if [ "$(strip $(SKIP_TESTS))" = "1" ]; then \
+	  echo "test: SKIP_TESTS=1 — both suites skipped (check-site still gates _site/)."; \
+	  exit 0; \
+	fi; \
+	if [ -d .venv ]; then \
 	  PY="$(CURDIR)/.venv/bin/python3"; \
 	elif [ "$(REQUIRE_VENV)" = "1" ]; then \
 	  echo "test: REQUIRE_VENV=1 but .venv/ is absent — run 'make venv'." >&2; \

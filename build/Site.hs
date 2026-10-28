@@ -43,6 +43,7 @@ import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCt
                    canonicalUrlPath, feedMetaFields, identifierDisplayUTC)
 import qualified Filters.SourceRefs as SR
 import MarkdownSections (markdownSectionsCompiler)
+import Marks      (monogramPattern)
 import qualified Patterns as P
 import Photography (photographyRules)
 import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
@@ -268,6 +269,14 @@ rules = do
                    .||. fromList [ fromFilePath (standaloneSource page)
                                  | page <- siteStandalone cfg
                                  , standaloneContext page == EssayPage ]
+
+        -- Co-located assets copied as they are (rules below). Named because
+        -- the monogram rule must not claim what these already do.
+        essayAssets = "content/essays/**"
+                      .&&. complement P.essayPattern
+                      .&&. complement "content/essays/**/*.dims.yaml"
+        musicAssets = foldr1 (.||.) [ fromGlob ("content/music/**/*." ++ ext)
+                                    | ext <- ["svg", "mp3", "pdf", "webp", "json"] ]
 
     -- ---------------------------------------------------------------------------
     -- Backlinks (pass 1: link extraction; pass 2: JSON generation)
@@ -555,12 +564,21 @@ rules = do
     when isDev $
         match "content/drafts/essays/**/*.dims.yaml" $ compile getResourceLBS
 
+    -- Monograms: the same blind spot. Marks.hs inlines them inside
+    -- 'unsafeCompiler' and records a dependency on each candidate path,
+    -- which fires only for a path some rule claims. The essay, music and
+    -- photography asset rules claim (and copy) theirs; this claims the rest
+    -- (standalone pages, /me/, /music/, poetry), with no route. Drafts' are
+    -- claimed by the dev asset rule, or not built.
+    match (monogramPattern
+           .&&. complement (essayAssets .||. musicAssets
+                            .||. "content/photography/**" .||. "content/drafts/**")) $
+        compile getResourceLBS
+
     -- Static assets co-located with directory-based essays (figures, data, PDFs, …).
     -- Build-time dimension sidecars are excluded; they're consumed by
     -- Filters/Images.hs at compile time, not shipped.
-    match ("content/essays/**"
-           .&&. complement P.essayPattern
-           .&&. complement "content/essays/**/*.dims.yaml") $ do
+    match essayAssets $ do
         route $ stripPrefixRoute "content/"
         compile copyFileCompiler
 
@@ -662,8 +680,7 @@ rules = do
     -- /music/ shelf; and a realization's timing map (music-import.py
     -- --audio): when each bar sounds and where it stands on its page, read
     -- by score-follow.js.
-    match (foldr1 (.||.) [ fromGlob ("content/music/**/*." ++ ext)
-                         | ext <- ["svg", "mp3", "pdf", "webp", "json"] ]) $ do
+    match musicAssets $ do
         route   $ stripPrefixRoute "content/"
         compile copyFileCompiler
 

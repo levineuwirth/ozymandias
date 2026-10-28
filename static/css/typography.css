@@ -574,6 +574,14 @@ pre code {
     max-width: fit-content;
 }
 
+/* The block-rhythm rule above outranks `margin: 3.3rem auto` (its :is()
+   takes the specificity of .code-block), so a figure narrower than the
+   column sits flush left. `centered` centers one, such as a pair of
+   inline SVG marks. */
+#markdownBody figure.centered {
+    margin-inline: auto;
+}
+
 #markdownBody figure img {
     display: block;
     border: 1px solid var(--border-muted); /* Inner bounding box for the image */
