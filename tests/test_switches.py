@@ -71,13 +71,18 @@ class RegistryTests(unittest.TestCase):
 
     def test_each_switch_s_assets_are_engine_files_no_other_switch_claims(self):
         # A misspelt glob would withhold nothing; one file under two
-        # switches would be withheld by either.
+        # switches would be withheld by either. A download (PDF.js) is
+        # absent from a fresh checkout, where Git ignores its directory.
         owner: dict[Path, str] = {}
         for name, spec in registry().items():
             for glob in spec.get("assets") or []:
                 with self.subTest(switch=name, asset=glob):
                     found = sorted(engine_path("static").glob(glob))
-                    self.assertTrue(found, f"no engine/static/{glob}")
+                    # The trailing slash: an ignore rule for a directory
+                    # matches a path Git cannot see only as one.
+                    top = f'{engine_path("static") / glob.split("/")[0]}/'
+                    downloaded = subprocess.run(["git", "check-ignore", "-q", top], cwd=ENGINE).returncode == 0
+                    self.assertTrue(found or downloaded, f"no engine/static/{glob}")
                     for path in found:
                         self.assertNotIn(path, owner, f"{path.name} is {owner.get(path)}'s too")
                         owner[path] = name

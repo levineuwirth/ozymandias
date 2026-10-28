@@ -15,7 +15,7 @@ import qualified Data.Text            as T
 import           Text.Pandoc.Definition
 import           Text.Pandoc.Shared   (stringify)
 import           Text.Pandoc.Walk     (walk)
-import           Config               (SiteConfig (..), siteOwnHosts)
+import           Config               (SiteConfig (..), siteOwnHosts, switchOn)
 import           Utils                (isPdfUrl, pdfViewerUrl)
 
 -- | Apply link classification to the entire document.
@@ -26,7 +26,8 @@ import           Utils                (isPdfUrl, pdfViewerUrl)
 --   an internal page link and get double chrome. Finally, author-marked
 --   spans collect the classified icons at the end of their passage.
 apply :: SiteConfig -> Pandoc -> Pandoc
-apply cfg = walk deferIcons . walk (classifyLink cfg) . walk classifyPdfLink
+apply cfg = walk deferIcons . walk (classifyLink cfg)
+          . walk (classifyPdfLink (switchOn cfg "pdf-viewer"))
 
 -- | An author-marked span owns the trailing icons for its inline links.
 -- Keep the original anchors (and their popup metadata) in the prose, and
@@ -77,24 +78,30 @@ collectIcons ils = let (body, icons) = unzip (map collect ils)
 --
 --   Handles fragment identifiers (e.g. @/papers/foo.pdf#page=5@): the
 --   fragment is stripped before the @.pdf@ suffix check and re-attached
---   after the viewer URL so PDF.js's anchor handling works.
-classifyPdfLink :: Inline -> Inline
-classifyPdfLink (Link (ident, classes, kvs) ils (url, title))
+--   after the viewer URL so PDF.js's anchor handling works. @viewer@ is
+--   the pdf-viewer switch: without it the link keeps its class and source
+--   (its popup) and goes to the PDF itself.
+classifyPdfLink :: Bool -> Inline -> Inline
+classifyPdfLink viewer (Link (ident, classes, kvs) ils (url, title))
     | "pdf-link" `notElem` classes
-    , Just (viewerUrl, path) <- pdfViewerTarget url =
+    , Just (viewerUrl, path) <- pdfViewerTarget viewer url =
         let classes'  = classes ++ ["pdf-link"]
             kvs'      = kvs ++ [("data-pdf-src", path)]
         in  Link (ident, classes', kvs') ils (viewerUrl, title)
-classifyPdfLink x = x
+classifyPdfLink _ x = x
 
--- | For a root-relative PDF URL, the viewer URL to link to (fragment kept)
---   and the bare path for @data-pdf-src@; Nothing for anything else. Body
---   links and the bibliography's titles ('Citations') both open this way.
-pdfViewerTarget :: Text -> Maybe (Text, Text)
-pdfViewerTarget url
+-- | For a root-relative PDF URL, the URL to link to (fragment kept) and
+--   the bare path for @data-pdf-src@; Nothing for anything else. With
+--   @viewer@ (the pdf-viewer switch) the link opens the PDF.js viewer, and
+--   otherwise the PDF itself. Body links and the bibliography's titles
+--   ('Citations') both open this way.
+pdfViewerTarget :: Bool -> Text -> Maybe (Text, Text)
+pdfViewerTarget viewer url
     | "/" `T.isPrefixOf` url, isPdfUrl (T.unpack url) =
         let (path, fragment) = T.break (== '#') url
-        in  Just (T.pack (pdfViewerUrl (T.unpack path)) <> fragment, path)
+            target | viewer    = T.pack (pdfViewerUrl (T.unpack path))
+                   | otherwise = path
+        in  Just (target <> fragment, path)
     | otherwise = Nothing
 
 classifyLink :: SiteConfig -> Inline -> Inline

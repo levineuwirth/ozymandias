@@ -165,7 +165,7 @@ build-locked:
 	@$(MAKE) -s thumbnails
 	@$(call tool,convert-images.sh)
 	@$(MAKE) -s pdf-thumbs
-	@$(call tool,download-pdfjs.sh)
+	@$(call with_switch,pdf-viewer,$(call tool,download-pdfjs.sh))
 	@$(call tool,download-leaflet.sh)
 	# The semantic-search model (engine/static/models/, gitignored), like the two
 	# above: without it the deploy's rsync --delete would remove the
@@ -313,7 +313,7 @@ download-model:
 # Runs automatically as part of `build` (skips when already present).
 # Files are gitignored; sha256-verified against engine/tools/pdfjs-checksums.sha256.
 download-pdfjs:
-	@$(call tool,download-pdfjs.sh)
+	@$(call with_switch,pdf-viewer,$(call tool,download-pdfjs.sh))
 
 # Vendor Leaflet + leaflet.markercluster into engine/static/leaflet/.
 # Used only by /photography/map/. Runs automatically as part of `build`

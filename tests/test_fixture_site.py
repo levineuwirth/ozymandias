@@ -195,12 +195,13 @@ class FixtureBuilds(unittest.TestCase):
                     (on if state else off)(self.sites[build.name])
 
     def test_a_switch_s_assets_ship_only_with_it(self):
+        # A download a fresh checkout lacks (PDF.js) has nothing to ship.
         for build in self.builds:
             site = self.sites[build.name] / "_site"
             for name, spec in sorted(fixture_variants.registry().items()):
                 for glob in spec.get("assets") or []:
                     with self.subTest(build=build.name, switch=name, asset=glob):
-                        if build.switches[name]:
+                        if build.switches[name] and list(engine_path("static").glob(glob)):
                             self.assertTrue(list(site.glob(glob)), f"{glob} was not published")
                         else:
                             self.assertEqual(list(site.glob(glob)), [], f"{glob} was published")
@@ -239,6 +240,9 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_viz_off_runs_no_figure_and_loads_no_vega(self):
         # The essay still sets `viz: true`.
         switch_checks.viz_off(self.turned_off("viz"))
+
+    def test_a_site_that_turns_the_pdf_viewer_off_links_to_its_pdfs(self):
+        switch_checks.pdf_viewer_off(self.turned_off("pdf-viewer"))
 
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of

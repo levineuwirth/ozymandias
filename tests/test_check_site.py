@@ -408,6 +408,15 @@ class CheckSiteTestCase(unittest.TestCase):
         code, output = self.run_gate()
         self.assertEqual(code, 0, output)
 
+    def test_the_pdf_viewer_s_fragment_is_its_own(self):
+        # An embed's {{pdf:…#3}} opens the viewer at #page=3, which PDF.js
+        # reads; the viewer page has no element by that id.
+        self.site.write("pdfjs/web/viewer.html", "<html><body></body></html>")
+        self.site.write("papers/p.pdf", "pdf")
+        self.link_page('<iframe src="/pdfjs/web/viewer.html?file=/papers/p.pdf#page=3"></iframe>')
+        code, output = self.run_gate()
+        self.assertEqual(code, 0, output)
+
     def test_source_mirror_templates_are_not_link_checked(self):
         self.site.write(
             "source/templates/essay.html",

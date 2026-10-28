@@ -65,8 +65,9 @@ import qualified Filters.Links       (pdfViewerTarget)
 --   replaced with numbered superscripts and no bibliography div,
 --   @citedHtml@ is the inline-cited references HTML, and @furtherHtml@ is
 --   the further-reading-only references HTML (each empty when absent).
-applyCitations :: [Text] -> Text -> Pandoc -> IO (Pandoc, Text, Text)
-applyCitations frKeys bibPath doc
+--   @viewer@: the site has the pdf-viewer switch on ('asPdfLink').
+applyCitations :: Bool -> [Text] -> Text -> Pandoc -> IO (Pandoc, Text, Text)
+applyCitations viewer frKeys bibPath doc
     | not (hasCitations frKeys doc) = return (doc, "", "")
     | otherwise = do
         -- Read custom fields (@file:@, @keywords:@) from the .bib file
@@ -76,7 +77,8 @@ applyCitations frKeys bibPath doc
         csl          <- cslStyle
         let doc1      = injectMeta csl frKeys bibPath doc
         processed    <- runIOorExplode $ processCitations doc1
-        let (body, citedHtml, furtherHtml) = transformAndExtract extras frKeys processed
+        let enhance = annotateArchive . enhanceEntry viewer extras
+            (body, citedHtml, furtherHtml) = transformAndExtract enhance frKeys processed
         return (body, citedHtml, furtherHtml)
 
 -- | Render a standalone bibliography section from a list of citekeys and
@@ -95,18 +97,19 @@ applyCitations frKeys bibPath doc
 --   @extras@ is the combined 'BibExtra' map for the same @.bib@ files;
 --   passed in so that 'enhanceEntry' can consult @file:@ and
 --   @keywords:@ without each entry re-parsing the files.
-renderBibliographyHtml :: [FilePath]            -- ^ .bib paths
+renderBibliographyHtml :: Bool                  -- ^ the pdf-viewer switch ('asPdfLink')
+                      -> [FilePath]             -- ^ .bib paths
                       -> Map String BibExtra    -- ^ enhancement map
                       -> [String]               -- ^ citekeys, in desired order
                       -> IO Text
-renderBibliographyHtml _ _ [] = return ""
-renderBibliographyHtml bibPaths extras keys = do
+renderBibliographyHtml _ _ _ [] = return ""
+renderBibliographyHtml viewer bibPaths extras keys = do
     csl <- cslStyle
     let doc = synthesizeNociteDoc csl bibPaths keys
     processed <- runIOorExplode $ processCitations doc
     let refsDivs = concatMap unwrapRefs (pandocBlocks processed)
         ordered  = reorderByKeys keys refsDivs
-        enhanced = map (annotateArchive . enhanceEntry extras) ordered
+        enhanced = map (annotateArchive . enhanceEntry viewer extras) ordered
     return (renderEntries "csl-bib-body" enhanced)
   where
     pandocBlocks (Pandoc _ bs) = bs
@@ -209,8 +212,8 @@ insertMeta k v (Meta m) = Meta (Map.insert k v m)
 -- ---------------------------------------------------------------------------
 
 -- | Number citation Cite nodes and extract the bibliography div.
-transformAndExtract :: Map String BibExtra -> [Text] -> Pandoc -> (Pandoc, Text, Text)
-transformAndExtract extras frKeys doc@(Pandoc meta _) =
+transformAndExtract :: (Block -> Block) -> [Text] -> Pandoc -> (Pandoc, Text, Text)
+transformAndExtract enhance frKeys doc@(Pandoc meta _) =
     let citeOrder = collectCiteOrder doc     -- keys, first-appearance order
         keyNums   = Map.fromList (zip citeOrder [1 :: Int ..])
         -- Replace Cite nodes with numbered superscript markers. The walk
@@ -227,7 +230,7 @@ transformAndExtract extras frKeys doc@(Pandoc meta _) =
                                  emptyMarkerState
         backMap    = msFirstOccurrence st
         -- Pull bibliography div out of body and render to HTML
-        (bodyBlocks, citedHtml, furtherHtml) = extractBibliography extras backMap citeOrder frKeys
+        (bodyBlocks, citedHtml, furtherHtml) = extractBibliography enhance backMap citeOrder frKeys
                                                  blocks'
     in (Pandoc meta bodyBlocks, citedHtml, furtherHtml)
   where
@@ -316,13 +319,13 @@ markerHtml keys markerId firstKey nums =
 
 -- | Separate the @refs@ div from body blocks and render it to HTML.
 --   Returns @(bodyBlocks, citedHtml, furtherHtml)@.
-extractBibliography :: Map String BibExtra -> Map Text Text -> [Text] -> [Text] -> [Block]
+extractBibliography :: (Block -> Block) -> Map Text Text -> [Text] -> [Text] -> [Block]
                     -> ([Block], Text, Text)
-extractBibliography extras backMap citeOrder frKeys blocks =
+extractBibliography enhance backMap citeOrder frKeys blocks =
     let (bodyBlocks, refDivs) = partition (not . isRefsDiv) blocks
         (citedHtml, furtherHtml) = case refDivs of
             []    -> ("", "")
-            (d:_) -> renderBibDiv extras backMap citeOrder frKeys d
+            (d:_) -> renderBibDiv enhance backMap citeOrder frKeys d
     in (bodyBlocks, citedHtml, furtherHtml)
   where
     isRefsDiv (Div ("refs", _, _) _) = True
@@ -336,9 +339,9 @@ extractBibliography extras backMap citeOrder frKeys blocks =
 --   @.pdf-link[data-pdf-src]@ when the .bib @file:@ field is set (so
 --   popups.js's PDF hover preview fires), and a trailing
 --   @\<div class="bib-keywords"\>@ appended when @keywords:@ is set.
-renderBibDiv :: Map String BibExtra -> Map Text Text -> [Text] -> [Text] -> Block -> (Text, Text)
-renderBibDiv extras backMap citeOrder _frKeys (Div _ children) =
-    let enhanced = map (annotateArchive . enhanceEntry extras) children
+renderBibDiv :: (Block -> Block) -> Map Text Text -> [Text] -> [Text] -> Block -> (Text, Text)
+renderBibDiv enhance backMap citeOrder _frKeys (Div _ children) =
+    let enhanced = map enhance children
         keyIndex = Map.fromList (zip citeOrder [0 :: Int ..])
         (citedEntries, furtherEntries) =
             partition (isCited keyIndex) enhanced
@@ -368,18 +371,18 @@ annotateArchive = Filters.Archive.annotateBlock
 
 -- | Augment a single @csl-entry@ Div with the custom fields we parsed
 --   from the .bib file. Other Blocks pass through unchanged.
-enhanceEntry :: Map String BibExtra -> Block -> Block
-enhanceEntry extras b@(Div attrs@(divId, _, _) blocks) =
+enhanceEntry :: Bool -> Map String BibExtra -> Block -> Block
+enhanceEntry viewer extras b@(Div attrs@(divId, _, _) blocks) =
     let key    = T.unpack (stripRefPrefix divId)
         extra  = fromMaybe emptyBibExtra (Map.lookup key extras)
         withLink = case bibFile extra of
             Nothing -> blocks
-            Just fp -> map (wrapFirstTitleBlock (T.pack fp)) blocks
+            Just fp -> map (wrapFirstTitleBlock (asPdfLink viewer (T.pack fp))) blocks
         withKw   = withLink ++ keywordsBlocks (bibKeywords extra)
     in case (bibFile extra, bibKeywords extra) of
         (Nothing, []) -> b
         _             -> Div attrs withKw
-enhanceEntry _ b = b
+enhanceEntry _ _ b = b
 
 -- | In one block of an entry, wrap the first title-bearing inline
 --   with a @.pdf-link@ anchor. Pandoc's CSL-formatted references
@@ -388,10 +391,10 @@ enhanceEntry _ b = b
 --   /Book Title/), and those are the first such inline in each
 --   entry. We wrap at the block level and fall back to passing the
 --   block through if no matching inline appears.
-wrapFirstTitleBlock :: Text -> Block -> Block
-wrapFirstTitleBlock href = \case
-    Para  ils -> Para  (wrapFirstTitle href ils)
-    Plain ils -> Plain (wrapFirstTitle href ils)
+wrapFirstTitleBlock :: ([Inline] -> Inline) -> Block -> Block
+wrapFirstTitleBlock link = \case
+    Para  ils -> Para  (wrapFirstTitle link ils)
+    Plain ils -> Plain (wrapFirstTitle link ils)
     other     -> other
 
 -- | Left-to-right scan: wrap the first title-bearing inline in a link
@@ -402,22 +405,23 @@ wrapFirstTitleBlock href = \case
 --   title; subsequent ones pass through — journal names are also
 --   @Emph@ on @\@article@ entries but come after the @Span@ title, so
 --   the article case picks the right target.
-wrapFirstTitle :: Text -> [Inline] -> [Inline]
-wrapFirstTitle href inls = reverse . fst $ foldl step ([], False) inls
+wrapFirstTitle :: ([Inline] -> Inline) -> [Inline] -> [Inline]
+wrapFirstTitle link inls = reverse . fst $ foldl step ([], False) inls
   where
     step (acc, True)  inl = (inl:acc, True)
     step (acc, False) inl = case inl of
-        Span _ _   -> (asPdfLink href [inl] : acc, True)
-        Quoted _ _ -> (asPdfLink href [inl] : acc, True)
-        Emph   _   -> (asPdfLink href [inl] : acc, True)
+        Span _ _   -> (link [inl] : acc, True)
+        Quoted _ _ -> (link [inl] : acc, True)
+        Emph   _   -> (link [inl] : acc, True)
         _          -> (inl:acc, False)
 
 -- | Build the @.pdf-link[data-pdf-src]@ anchor that popups.js binds to.
 --   A hosted PDF opens in the PDF.js viewer, as a body link to one does
---   ('Filters.Links.pdfViewerTarget'); any other @file:@ is linked as is.
-asPdfLink :: Text -> [Inline] -> Inline
-asPdfLink href content =
-    let (url, src) = fromMaybe (href, href) (Filters.Links.pdfViewerTarget href)
+--   ('Filters.Links.pdfViewerTarget', with the pdf-viewer switch on); any
+--   other @file:@ is linked as is.
+asPdfLink :: Bool -> Text -> [Inline] -> Inline
+asPdfLink viewer href content =
+    let (url, src) = fromMaybe (href, href) (Filters.Links.pdfViewerTarget viewer href)
     in  Link ("", ["pdf-link"], [("data-pdf-src", src)]) content (url, "")
 
 -- | Trailing keyword strip, linking each keyword to the future

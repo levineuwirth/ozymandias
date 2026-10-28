@@ -35,6 +35,13 @@ An interactive one, which loads Vega:
 ::: {.visualization script="figures/chart.py" caption="Three points, joined."}
 :::
 
+## A paper
+
+[The fixture paper](/essays/capabilities/paper.pdf) is cited too [@delta2026],
+and embedded from its first page:
+
+{{pdf:/essays/capabilities/paper.pdf#1}}
+
 ## A score fragment
 
 The motif the [[Short Page]] mentions, as the music switch inlines it.

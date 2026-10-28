@@ -492,10 +492,13 @@ def check_links(
                 continue
 
             fragment = unquote(parts.fragment)
+            # The PDF.js viewer reads its fragment (#page=3) as its own
+            # parameters, not as an element's id.
             if (
                 fragment in IMPLICIT_FRAGMENTS
                 or fragment.startswith(":~:")
                 or not target.endswith(".html")
+                or target.startswith("pdfjs/")
             ):
                 continue
             if not anchors.has(target, fragment):

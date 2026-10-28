@@ -2,7 +2,9 @@
 -- | Source-level preprocessor for inline PDF embeds.
 --
 --   Rewrites block-level @{{pdf:...}}@ directives to raw HTML that renders the
---   named file inside a vendored PDF.js viewer iframe.
+--   named file inside a vendored PDF.js viewer iframe, with the pdf-viewer
+--   switch on; without it, to a link to the file, which "Filters.Links"
+--   then marks as a PDF's.
 --
 --   Syntax (must be the sole content of a line after trimming):
 --
@@ -22,19 +24,22 @@ module Filters.EmbedPdf (preprocess) where
 
 import Data.Char (isDigit)
 import Data.List (isPrefixOf, isSuffixOf)
+import System.FilePath (takeFileName)
 import Filters.Wikilinks (mapOutsideFences)
 import qualified Utils as U
 
 -- | Apply PDF-embed substitution to the raw Markdown source string,
---   skipping lines inside fenced code blocks.
-preprocess :: String -> String
-preprocess = mapOutsideFences processLine
-
-processLine :: String -> String
-processLine line =
-    case parseDirective (U.trim line) of
-        Nothing                    -> line
-        Just (filePath, pageHash)  -> renderEmbed filePath pageHash
+--   skipping lines inside fenced code blocks. @viewer@: the pdf-viewer
+--   switch.
+preprocess :: Bool -> String -> String
+preprocess viewer = mapOutsideFences processLine
+  where
+    processLine line =
+        case parseDirective (U.trim line) of
+            Nothing                    -> line
+            Just (filePath, pageHash)
+                | viewer               -> renderEmbed filePath pageHash
+                | otherwise            -> renderLink filePath pageHash
 
 -- | Parse a @{{pdf:/path/to/file.pdf}}@ or @{{pdf:/path.pdf#N}}@ directive.
 --   Returns @(filePath, pageHash)@ where @pageHash@ is either @""@ or @"#page=N"@.
@@ -62,6 +67,15 @@ parsePageHash ('#' : rest)
         in  if null n then "" else "#page=" ++ n
     | all isDigit rest && not (null rest) = "#page=" ++ rest
 parsePageHash _ = ""
+
+-- | A Markdown link to the file, named by its file name, for a site without
+--   the viewer: the page a reader is sent to is the PDF's own.
+renderLink :: String -> String -> String
+renderLink filePath pageHash =
+    "[" ++ concatMap escape (takeFileName filePath) ++ "](<" ++ filePath ++ pageHash ++ ">)"
+  where
+    escape c | c `elem` ("\\[]*_`<>" :: String) = ['\\', c]
+             | otherwise                         = [c]
 
 -- | Render the HTML for a PDF embed.
 renderEmbed :: String -> String -> String

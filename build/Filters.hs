@@ -65,5 +65,6 @@ applyAll cfg numberFigures srcDir doc = do
 --   Order matters: EmbedPdf must run before Transclusion, because the
 --   transclusion parser would otherwise treat {{pdf:...}} as a broken slug.
 preprocessSource :: SiteConfig -> String -> String
-preprocessSource cfg = Transclusion.preprocess slugs . EmbedPdf.preprocess . Wikilinks.preprocess slugs
+preprocessSource cfg = Transclusion.preprocess slugs . EmbedPdf.preprocess (switchOn cfg "pdf-viewer")
+                      . Wikilinks.preprocess slugs
   where slugs = directoryRouteSlugs cfg

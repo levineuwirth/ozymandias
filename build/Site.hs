@@ -1087,9 +1087,10 @@ rules = do
             let sortedKeys = filter (`Set.member` cited) (bibliographyIndexOrder bibExtrasAll)
                 grouped    = groupByLetter bibExtrasAll sortedKeys
                 present    = map fst grouped
+            viewer <- (`switchOn` "pdf-viewer") <$> loadConfig
             html <- unsafeCompiler $ do
                 parts <- forM grouped $ \(letter, keys) -> do
-                    body <- renderBibliographyHtml bibFilePaths bibExtrasAll keys
+                    body <- renderBibliographyHtml viewer bibFilePaths bibExtrasAll keys
                     return (renderLetterHeader letter <> body)
                 return (renderBibliographyAlphabet present <> T.concat parts)
             let mathFld = katexFallbackField html
@@ -1127,8 +1128,9 @@ rules = do
 
                 -- References section
                 let refKeys = keywordReferencesOrder bibExtrasAll kw
+                viewer <- (`switchOn` "pdf-viewer") <$> loadConfig
                 refsHtml <- unsafeCompiler $
-                    renderBibliographyHtml bibFilePaths bibExtrasAll refKeys
+                    renderBibliographyHtml viewer bibFilePaths bibExtrasAll refKeys
                 let mathFld = katexFallbackField refsHtml
                 let referencesCtx
                         | null refKeys = mempty

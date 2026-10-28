@@ -230,7 +230,7 @@ essayCompilerWith rOpts = do
 transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
 transformDocument cfg frKeys bibPath numberFigures srcDir doc = do
-    (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc
+    (withCites, bibHtml, furtherHtml) <- Citations.applyCitations (switchOn cfg "pdf-viewer") frKeys bibPath doc
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
     withViz    <- if switchOn cfg "viz"

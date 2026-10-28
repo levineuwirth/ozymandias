@@ -154,11 +154,32 @@ def viz_off(site: Path) -> None:
     assert not any(marked.values()), f"viz on pages: {marked}"
 
 
+PAPER = "/essays/capabilities/paper.pdf"   # the essay's PDF: a link, a citation's file, an embed
+
+
+def pdf_viewer_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    opened = essay.count(f"pdfjs/web/viewer.html?file={PAPER}")
+    assert opened >= 3, f"{opened} of the link, the citation and the embed open the viewer"
+    assert '<iframe class="pdf-embed"' in essay, "the embed is not the viewer's"
+
+
+def pdf_viewer_off(site: Path) -> None:
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in ("pdfjs/", "pdf-embed")}
+    assert not any(marked.values()), f"the viewer on pages: {marked}"
+    if (site / "_site" / CAPABILITIES).is_file():
+        essay = text(site, CAPABILITIES)
+        links = re.findall(rf'<a href="[./]*{PAPER[1:]}(?:#page=1)?" class="pdf-link" data-pdf-src="{PAPER}">', essay)
+        assert len(links) >= 3, f"{len(links)} of the link, the citation and the embed go to the PDF as one"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
     "code": (code_on, code_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
+    "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "viz": (viz_on, viz_off),
 }

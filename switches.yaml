@@ -72,3 +72,14 @@ viz:
     Vega and viz.js to render; viz.css, which every page loads; the figure
     theme (tools/viz_theme.py) as a build dependency; and make's
     viz-provenance, viz-provenance-check (in validate) and audit-viz.
+
+pdf-viewer:
+  kind: capability
+  default: false
+  assets: [pdfjs/**]
+  about: >-
+    The vendored PDF.js viewer (static/pdfjs/, which the build downloads):
+    a site's own PDFs, linked from a page or a .bib entry's `file:`, open
+    in it, and {{pdf:…}} embeds it. Without it those links go to the PDF
+    itself and an embed is a link to it; a PDF link keeps its class and
+    preview either way.
