@@ -1,0 +1,19 @@
+# The fixture's two profiles (plan §7.4), each built from a copy of this
+# site with its switches written into the copy's site.yaml: every switch
+# the engine registers (engine/switches.yaml), named, so that a new switch
+# has to be placed in both. `without` lists the inputs a profile's site
+# would not have, left out of its copy.
+#
+# full     every switch on.
+# minimal  the partner's site (plan §3.4): her choices, and the engine's
+#          default where she has not chosen yet (Q4, Q5).
+#
+# tests/fixture_variants.py derives the builds that turn each remaining
+# switch the other way.
+full:
+  switches:
+    archive: true
+minimal:
+  switches:
+    archive: false
+  without: [archive/]

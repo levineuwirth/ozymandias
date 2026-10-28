@@ -81,6 +81,7 @@ class BuildFreshnessTestCase(unittest.TestCase):
         self.write("site.yaml", "title: Example\n")
         self.write("build/Site.hs", "main = pure ()\n")
         self.write("levineuwirth.cabal", "name: site\n")
+        self.write("switches.yaml", "archive: {default: false}\n")
         self.write("cabal.project", "packages: .\n")
         self.write("cabal.project.freeze", "constraints: base\n")
 
@@ -299,13 +300,19 @@ class BuildFreshnessTestCase(unittest.TestCase):
         self.assertIn("build rules changed", self.check())
         self.assertTrue(self.cleaned())
 
+    def test_a_switch_registry_change_forces_a_clean(self):
+        # The registry's defaults decide, with site.yaml, which rules exist.
+        self.write("switches.yaml", "archive: {default: true}\n")
+        self.assertIn("build rules changed", self.check())
+        self.assertTrue(self.cleaned())
+
     def test_rules_moved_under_engine_are_the_same_rules(self):
         # A6 moves the generator and the tools under engine/: the rules are
         # the same until one changes there, and the script works on the site
         # it is run from, wherever it sits.
         (self.root / "engine").mkdir()
         cabal = next(self.root.glob("*.cabal")).name
-        for name in ("build", cabal, "tools"):
+        for name in ("build", cabal, "switches.yaml", "tools"):
             self.git("mv", name, f"engine/{name}")
         self.git("commit", "-q", "-m", "move the engine")
         self.assertIn("incremental build OK", self.check("engine/tools"))

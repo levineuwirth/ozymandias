@@ -1,0 +1,27 @@
+# The engine's switches: the features a site turns on or off in its
+# site.yaml (`switches:`, a name and true or false each), resolved over the
+# defaults here. The generator reads this file (build/Config.hs) and so do
+# the tools and tests (tools/sitelib.py), which `make test` holds to the
+# generator's resolution.
+#
+# Each switch:
+#   kind       capability (how content is processed: filters, data, assets),
+#              generated (pages built without a source file), or interface
+#              (client-side behavior and page furniture);
+#   default    the engine's, for a site that does not set it;
+#   needs      switches that must be on with it;
+#   needs-any  switches of which at least one must be on with it;
+#   about      what it covers.
+#
+# A switch is registered when every place its feature appears is gated on
+# it, and the engine's fixture site builds it both ways
+# (tests/test_fixture_site.py); the generator refuses a site that names a
+# switch not here, or turns one on without what it needs.
+
+archive:
+  kind: capability
+  default: false
+  about: >-
+    Link archiving: /archive/ and a page per entry from archive/manifest.yaml,
+    the fetch stage of the build (tools/archive.py), archive annotations on
+    links, citations and backlinks, and the build page's archive figures.

@@ -149,11 +149,54 @@ def site_config(build: bool = False) -> dict:
     return json.loads(subprocess.check_output([site_binary(build), "config"], cwd=site_root(), text=True))
 
 
+# The engine's switches (switches.yaml): each one's kind, default and what
+# it needs. The generator reads the same file (build/Config.hs).
+REGISTRY = ENGINE / "switches.yaml"
+
+
+def switches(settings: dict | None = None) -> dict[str, bool]:
+    """The site's switches as the generator resolves them
+    (Config.resolveSwitches), without it: those its site.yaml sets (or
+    `settings`, a site.yaml's contents), over the registry's defaults. A
+    name the registry lacks is refused; what each needs is the generator's
+    to refuse, so make and the tools need no compiled generator."""
+    import yaml
+
+    if settings is None:
+        settings = yaml.safe_load((site_root() / "site.yaml").read_text(encoding="utf-8")) or {}
+    registry = yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
+    chosen = settings.get("switches") or {}
+    if unknown := sorted(set(chosen) - set(registry)):
+        raise ValueError(f"site.yaml: switches not in {REGISTRY.name}: {', '.join(unknown)}")
+    if not all(isinstance(value, bool) for value in chosen.values()):
+        raise ValueError("site.yaml: each switch is true or false")
+    return {name: chosen.get(name, spec["default"]) for name, spec in registry.items()}
+
+
+def switch_on(name: str, settings: dict | None = None) -> bool:
+    """Whether the site (or `settings`) has switch `name` on. A name the
+    registry lacks raises KeyError: asking for one is a mistake."""
+    resolved = switches(settings)
+    if name not in resolved:
+        raise KeyError(f"no switch {name} in {REGISTRY}")
+    return resolved[name]
+
+
 if __name__ == "__main__":
     # `sitelib.py config KEY` prints one value, for the shell tools
-    # (site-paths.sh's site_config).
+    # (site-paths.sh's site_config); `sitelib.py switch NAME` exits 0 when
+    # the switch is on, 1 when it is off, and 2 when it cannot say (no such
+    # switch, an unreadable site.yaml, a missing module), which make must not
+    # read as off (engine.mk's switch_on).
+    if len(sys.argv) == 3 and sys.argv[1] == "switch":
+        try:
+            on = switch_on(sys.argv[2])
+        except Exception as error:   # noqa: BLE001 — any failure is "cannot say"
+            print(f"sitelib: switch {sys.argv[2]}: {error!r}", file=sys.stderr)
+            sys.exit(2)
+        sys.exit(0 if on else 1)
     if len(sys.argv) != 3 or sys.argv[1] != "config":
-        sys.exit("usage: sitelib.py config KEY")
+        sys.exit("usage: sitelib.py config KEY | sitelib.py switch NAME")
     value = site_config().get(sys.argv[2])
     if not isinstance(value, str):
         sys.exit(f"site config: no {sys.argv[2]}")

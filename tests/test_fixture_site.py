@@ -1,8 +1,14 @@
-"""The engine's fixture site (engine/fixture-site/): a small site with the
-minimal profile's features, under another identity, that builds and passes
-the artifact gate. It is copied to a scratch directory and committed there
-(the build reads Git for dates and /build/), with engine/ linked in, as a
-site of the engine's has it.
+"""The engine's fixture site (engine/fixture-site/): a small site under
+another identity, built from a copy committed in a scratch directory (the
+build reads Git for dates and /build/), with engine/ linked in, as a site of
+the engine's has it.
+
+It is built once per profile (profiles.yaml: full, every switch on; minimal,
+the partner's site) and once per variant (tests/fixture_variants.py), each
+with its switches written into the copy's site.yaml. Every build must pass
+the artifact gate, and every switch's checks (tests/switch_checks.py) run on
+every build, as the build has the switch; the coverage test fails unless
+each switch is built both ways.
 
 Its temporary-inputs.yaml lists what it carries only because an engine rule
 is still unconditional, each with the switch that will remove the need; an
@@ -15,16 +21,18 @@ only a machine that has them checks that the fixture passes the gate.
 
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 import yaml
 
+from tests import fixture_variants, switch_checks
 from tests._helpers import ENGINE, engine_path, load_tool, requires_cabal, script_env, site_binary
 
 FIXTURE = engine_path("fixture-site")
-# A8's switch registry: the switches that exist (none before it).
 REGISTRY = engine_path("switches.yaml")
 # The engine's downloads, gitignored: a fresh checkout has none, and the
 # gate fails a site without them (the map's Leaflet, search's model).
@@ -34,7 +42,7 @@ review = load_tool("override-review.py", "override_review")
 
 
 def registered_switches() -> set[str]:
-    return set(yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}) if REGISTRY.is_file() else set()
+    return set(yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {})
 
 
 class FixtureFiles(unittest.TestCase):
@@ -67,50 +75,153 @@ class FixtureFiles(unittest.TestCase):
         self.assertEqual(review.hook_problems(FIXTURE, str(site_binary())), [])
 
 
+class Profiles(unittest.TestCase):
+    def test_each_profile_names_every_switch(self):
+        for name, profile in fixture_variants.profiles().items():
+            with self.subTest(profile=name):
+                self.assertEqual(set(profile["switches"]), registered_switches())
+                self.assertTrue(all(isinstance(v, bool) for v in profile["switches"].values()))
+                self.assertLessEqual(set(profile), {"switches", "without"})
+
+    def test_variants_turn_off_what_needs_what_they_turn_off(self):
+        terms = {"a": {}, "b": {"needs": ["a"]}, "c": {"needs-any": ["a", "d"]}, "d": {}}
+        self.assertEqual(fixture_variants.settle({"a": False, "b": True, "c": True, "d": False}, terms),
+                         {"a": False, "b": False, "c": False, "d": False})
+        self.assertEqual(fixture_variants.settle({"a": False, "b": True, "c": True, "d": True}, terms),
+                         {"a": False, "b": False, "c": True, "d": True})
+
+    def test_the_builds_are_derived_from_the_registry(self):
+        terms = {"a": {}, "b": {"needs": ["a"]}, "c": {"needs-any": ["a", "d"]}, "d": {}}
+        profiles = {"full": {"switches": dict.fromkeys(terms, True)},
+                    "minimal": {"switches": {"a": True, "b": True, "c": False, "d": False},
+                                "without": ["x/"]}}
+        with unittest.mock.patch.object(fixture_variants, "registry", return_value=terms), \
+                unittest.mock.patch.object(fixture_variants, "profiles", return_value=profiles):
+            found = {b.name: (b.switches, b.without) for b in fixture_variants.builds()}
+        self.assertEqual(found["minimal-without-a"], ({"a": False, "b": False, "c": False, "d": False}, ("x/",)))
+        self.assertEqual(found["minimal-without-b"][0], {"a": True, "b": False, "c": False, "d": False})
+        self.assertEqual(found["c-by-a"][0], {"a": True, "b": True, "c": True, "d": False})
+        self.assertEqual(found["c-by-d"][0], {"a": False, "b": False, "c": True, "d": True})
+        self.assertEqual(set(found), {"full", "minimal", "minimal-without-a", "minimal-without-b",
+                                      "c-by-a", "c-by-d"})
+
+
+class Coverage(unittest.TestCase):
+    def test_every_switch_is_built_both_ways_and_checked(self):
+        builds = fixture_variants.builds()
+        for name in sorted(registered_switches()):
+            with self.subTest(switch=name):
+                self.assertIn(name, switch_checks.CHECKS, f"{name} has no checks in tests/switch_checks.py")
+                self.assertTrue(any(b.switches[name] for b in builds), f"no fixture build has {name} on")
+                self.assertTrue(any(not b.switches[name] for b in builds), f"no fixture build has {name} off")
+        self.assertLessEqual(set(switch_checks.CHECKS), registered_switches())
+
+
 @requires_cabal
 @unittest.skipUnless(shutil.which("pagefind"), "pagefind not on PATH")
-class FixtureBuild(unittest.TestCase):
+class FixtureBuilds(unittest.TestCase):
+    """Each build in a copy of its own: the generator reads its switches
+    first; with the archive on, the fetch stage runs as `make build` runs it
+    (offline: the fixture's snapshot is committed); then the build, the
+    search index and the gate."""
+
     @classmethod
     def setUpClass(cls):
         tmp = tempfile.TemporaryDirectory(prefix="fixture-site-")
         cls.addClassCleanup(tmp.cleanup)
-        cls.site = Path(tmp.name) / "site"
-        shutil.copytree(FIXTURE, cls.site)
-        (cls.site / "engine").symlink_to(ENGINE)
-        # The commit ignores the user's signing and hooks, which could fail it.
-        git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
-               "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
-        for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
-            subprocess.run(git + args, cwd=cls.site, check=True, capture_output=True)
+        cls.builds = fixture_variants.builds()
+        cls.sites, cls.runs = {}, {}
         binary = str(site_binary())
-        env = script_env(SITE_ENV="production", SITE_ROOT=str(cls.site), SITE_BINARY=binary)
-        cls.build = subprocess.run([binary, "build"], cwd=cls.site, env=env,
-                                   capture_output=True, text=True, timeout=600)
-        cls.index = subprocess.run([str(engine_path("tools/pagefind-index.sh")), "_site"], cwd=cls.site,
-                                   env=env, capture_output=True, text=True, timeout=300)
-        cls.gate = subprocess.run([shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site"],
-                                  cwd=cls.site, env=env, capture_output=True, text=True, timeout=300)
+        for build in cls.builds:
+            site = cls.sites[build.name] = Path(tmp.name) / build.name
+            shutil.copytree(FIXTURE, site)
+            for rel in build.without:
+                shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
+            config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
+            config["switches"] = build.switches
+            (site / "site.yaml").write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+            (site / "engine").symlink_to(ENGINE)
+            # The commit ignores the user's signing and hooks, which could fail it.
+            git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
+                   "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+            for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
+                subprocess.run(git + args, cwd=site, check=True, capture_output=True)
+            env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
 
-    def test_it_builds(self):
-        self.assertEqual(self.build.returncode, 0, self.build.stdout[-3000:] + self.build.stderr)
-        self.assertNotIn("[ERROR]", self.build.stdout)
-        self.assertEqual(self.index.returncode, 0, self.index.stdout + self.index.stderr)
+            def run(*args, timeout=600):
+                return subprocess.run(list(args), cwd=site, env=env, capture_output=True, text=True,
+                                      timeout=timeout)
+
+            runs = cls.runs[build.name] = {"config": run(binary, "config")}
+            if runs["config"].returncode:
+                continue
+            if build.switches.get("archive"):
+                runs["fetch"] = run(sys.executable, str(engine_path("tools/archive.py")), "fetch")
+            runs["build"] = run(binary, "build")
+            runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
+            runs["gate"] = run(shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site",
+                               timeout=300)
+
+    def test_the_generator_accepts_each_build_s_switches(self):
+        for build in self.builds:
+            with self.subTest(build=build.name):
+                config = self.runs[build.name]["config"]
+                self.assertEqual(config.returncode, 0, config.stderr)
+
+    def test_each_build_builds(self):
+        for build in self.builds:
+            with self.subTest(build=build.name):
+                runs = self.runs[build.name]
+                for stage in ("fetch", "build", "index"):
+                    if stage in runs:
+                        done = runs[stage]
+                        self.assertEqual(done.returncode, 0, f"{stage}: {done.stdout[-3000:]}{done.stderr}")
+                self.assertNotIn("[ERROR]", runs["build"].stdout)
 
     @unittest.skipUnless(all(engine_path(p).is_file() for p in DOWNLOADS),
                          "no engine downloads (make download-pdfjs download-leaflet download-model)")
     def test_the_artifact_gate_passes(self):
-        self.assertEqual(self.gate.returncode, 0, self.gate.stdout[-5000:] + self.gate.stderr)
+        for build in self.builds:
+            with self.subTest(build=build.name):
+                gate = self.runs[build.name]["gate"]
+                self.assertEqual(gate.returncode, 0, gate.stdout[-5000:] + gate.stderr)
+
+    def test_each_switch_does_what_it_says_both_ways(self):
+        for build in self.builds:
+            for name, state in sorted(build.switches.items()):
+                with self.subTest(build=build.name, switch=name, on=state):
+                    on, off = switch_checks.CHECKS[name]
+                    (on if state else off)(self.sites[build.name])
+
+    def test_a_site_that_turns_the_archive_off_keeps_none_of_it(self):
+        # The full build's copy, its archive fetched (data/archive-index.json
+        # left behind), built again with the switch off: the leftover index
+        # must not mark links to /archive/ pages no longer built.
+        site = self.sites["full"].with_name("full-archive-turned-off")
+        shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
+        self.assertTrue((site / "data/archive-index.json").is_file())
+        config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
+        config["switches"]["archive"] = False
+        (site / "site.yaml").write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+        binary = str(site_binary())
+        env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
+        done = subprocess.run([binary, "build"], cwd=site, env=env, capture_output=True, text=True, timeout=600)
+        self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
+        switch_checks.archive_off(site)
 
     def test_every_page_its_routes_name_is_built(self):
-        routes = load_tool("browser/routes.py", "fixture_routes").Routes(self.site)
-        not_found = routes.role("not-found")   # its own document is meant to 404
-        missing = [path for path in routes.pages.values() if path != not_found
-                   and not (self.site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else ""))
-                   .is_file()]
-        self.assertEqual(missing, [])
+        for name in ("minimal", "full"):
+            with self.subTest(build=name):
+                site = self.sites[name]
+                routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
+                not_found = routes.role("not-found")   # its own document is meant to 404
+                missing = [path for path in routes.pages.values() if path != not_found
+                           and not (site / "_site" / path.lstrip("/")
+                                    / ("index.html" if path.endswith("/") else "")).is_file()]
+                self.assertEqual(missing, [])
 
     def test_its_override_stands_in_for_the_engine_s(self):
-        essay = (self.site / "_site/essays/long/index.html").read_text(encoding="utf-8")
+        essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
         self.assertIn("fixture-ornament", essay)
 
 

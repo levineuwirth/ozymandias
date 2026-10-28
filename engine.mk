@@ -69,6 +69,16 @@ WITH_LOCK  = $(call tool,with-lock.sh) $(LOCK_FILE)
 # directly, from tools/.
 tool = engine/tools/$(1)
 
+# Whether the site has switch $(1) on (engine/switches.yaml under its
+# site.yaml's settings, resolved by tools/sitelib.py with no generator),
+# for a recipe's `if`: true when on, false when off. A switch the registry
+# lacks stops the recipe instead of reading as off.
+switch_on = { $(PY) $(call tool,sitelib.py) switch $(1); s=$$?; [ $$s -le 1 ] || exit $$s; [ $$s -eq 0 ]; }
+
+# A target that belongs to switch $(1): its recipe $(2) when the switch is
+# on, else a line saying it is off.
+with_switch = if $(call switch_on,$(1)); then $(2); else echo "$@: the $(1) switch is off for this site"; fi
+
 # Flags handed to the post-build artifact gate (tools/check-site.py).
 #
 # Empty by default: every check is an error, including a missing /404.html
@@ -178,10 +188,13 @@ build-locked:
 	fi
 	# Archive pipeline (Phase 1): fetch any manifest URL without a local
 	# artifact, extract text, write archive/<slug>/PROVENANCE.json and
-	# data/archive-index.json. Gated on .venv, same as embed.py. A SHA or
-	# slug-URL integrity error exits non-zero and halts the build; a
-	# transient network failure is non-fatal (the entry retries next build).
-	@if [ -x $(VENV_PY) ]; then \
+	# data/archive-index.json. Behind the archive switch, and gated on .venv,
+	# same as embed.py. A SHA or slug-URL integrity error exits non-zero and
+	# halts the build; a transient network failure is non-fatal (the entry
+	# retries next build).
+	@if ! $(call switch_on,archive); then \
+	  echo "Archive fetch skipped: the archive switch is off"; \
+	elif [ -x $(VENV_PY) ]; then \
 	  $(VENV_PY) $(call tool,archive.py) fetch; \
 	else \
 	  echo "Archive fetch skipped: run 'make venv' to enable link archiving (build continues)"; \
@@ -563,27 +576,27 @@ audit-marks:
 # Orphan directories (not in manifest.yaml, not in removed.yaml) are
 # reported, never deleted. See ARCHIVE.md - Eviction & removal.
 archive-gc:
-	@$(PY) $(call tool,archive.py) gc
+	@$(call with_switch,archive,$(PY) $(call tool,archive.py) gc)
 
 # Submit archived URLs to the Wayback Machine and backfill the capture URL
 # into each PROVENANCE.json. A slow network job — opt-in, never run by
 # `make build`. Always exits 0; an entry without a capture retries next run.
 archive-wayback:
-	@$(PY) $(call tool,archive.py) wayback
+	@$(call with_switch,archive,$(PY) $(call tool,archive.py) wayback)
 
 # Print works cited in data/*.bib but not yet archived, as manifest-ready
 # lines the author copies by hand. Read-only — it never edits the manifest
 # (bibliography auto-seeding is rejected by design; see ARCHIVE.md).
 # Offline: scans local files only, no network.
 archive-suggest:
-	@$(PY) $(call tool,archive.py) suggest
+	@$(call with_switch,archive,$(PY) $(call tool,archive.py) suggest)
 
 # Probe every archived URL for link rot, updating data/archive-state.json.
 # A slow network job — opt-in, never run by `make build`. Asymmetric
 # hysteresis: `rotted` needs 3 consecutive failures over >=14 days; a
 # single success recovers immediately. The next build consumes the state.
 archive-check:
-	@$(PY) $(call tool,archive.py) check
+	@$(call with_switch,archive,$(PY) $(call tool,archive.py) check)
 
 # Dev build includes any in-progress drafts under content/drafts/essays/.
 # SITE_ENV=dev is read by build/Site.hs; `make build` now forces

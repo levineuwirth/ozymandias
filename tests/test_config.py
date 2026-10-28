@@ -36,6 +36,11 @@ class ConfigTests(unittest.TestCase):
     def write_config(self):
         (self.root / "site.yaml").write_text(json.dumps(self.config), encoding="utf-8")
 
+    def resolved(self) -> dict:
+        """The config as `site config` gives it back: its switches resolved
+        over the registry, as tools/sitelib.py resolves them."""
+        return dict(self.config, switches=target.switches(self.config))
+
     def run_site(self, *args):
         return subprocess.run([str(self.binary), *args], cwd=self.root, env=script_env(),
                               capture_output=True, text=True, timeout=120)
@@ -51,7 +56,7 @@ class ConfigTests(unittest.TestCase):
     def test_config_json_uses_this_sites_identity(self):
         done = self.run_site("config")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(json.loads(done.stdout), self.config)
+        self.assertEqual(json.loads(done.stdout), self.resolved())
         self.assertFalse((self.root / "_cache").exists())
         self.assertFalse((self.root / "data").exists())
 
@@ -72,7 +77,54 @@ class ConfigTests(unittest.TestCase):
                               capture_output=True, text=True)
         self.assertEqual(made.returncode, 0, made.stderr)
         self.assertEqual((self.root / "title.txt").read_text(), self.config["title"] + "\n")
-        self.assertEqual(json.loads((self.root / "config.json").read_text()), self.config)
+        self.assertEqual(json.loads((self.root / "config.json").read_text()), self.resolved())
+
+    def test_a_switch_is_set_true_or_false_and_must_be_the_registry_s(self):
+        for switches, message in (({"no-such-switch": True}, "switches: not in engine/switches.yaml: no-such-switch"),
+                                  ({"archive": "yes"}, "switches")):
+            with self.subTest(switches=switches):
+                self.config["switches"] = switches
+                self.write_config()
+                done = self.run_site("config")
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn(message, done.stderr)
+        self.config["switches"] = {"archive": True}
+        self.write_config()
+        self.assertEqual(json.loads(self.run_site("config").stdout)["switches"]["archive"], True)
+
+    def test_a_switch_on_without_what_it_needs_is_refused(self):
+        registry = self.root / "engine" / "switches.yaml"
+        registry.unlink()
+        entry = "{kind: capability, default: false, about: x"
+        registry.write_text(f"a: {entry}}}\nb: {entry}}}\nc: {entry}, needs: [a]}}\n"
+                            f"d: {entry}, needs-any: [a, b]}}\n")
+        for switches, refusal in (({"c": True}, "switches: c needs a"),
+                                  ({"d": True}, "switches: d needs one of a, b"),
+                                  ({"a": True, "c": True, "d": True}, None),
+                                  ({"b": True, "d": True}, None)):
+            with self.subTest(switches=switches):
+                self.config["switches"] = switches
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
+    def test_a_malformed_registry_is_refused(self):
+        registry = self.root / "engine" / "switches.yaml"
+        registry.unlink()
+        for text, message in (("a: {kind: capability, default: false, about: x, needs: [z]}\n",
+                               "engine/switches.yaml: no such switch: a needs z"),
+                              ("a: {kind: widget, default: false, about: x}\n", "kind"),
+                              ("a: {kind: capability, default: false}\n", "about"),
+                              ("a: {kind: capability, default: false, about: x, colour: red}\n", "colour")):
+            with self.subTest(text=text):
+                registry.write_text(text)
+                done = self.run_site("config")
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn(message, done.stderr)
 
     def test_missing_and_malformed_config_fail(self):
         path = self.root / "site.yaml"

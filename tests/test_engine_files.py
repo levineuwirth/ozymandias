@@ -174,6 +174,9 @@ class EngineFilesTests(unittest.TestCase):
 
     def image_pages(self):
         shutil.copy2(SITE_ROOT / "site.yaml", self.root / "site.yaml")
+        # Its switches resolve over the engine's registry, where a site has it.
+        (self.root / "engine").mkdir(exist_ok=True)
+        (self.root / "engine/switches.yaml").symlink_to(engine_path("switches.yaml"))
         pages = ("content/essays/image.md", "content/photography/image.md")
         for page in pages:
             self.write(page, "![Standalone](/images/probe.jpg)\n\n"

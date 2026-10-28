@@ -1,0 +1,14 @@
+{
+  "url": "https://example.com/a-cited-page.html",
+  "slug": "example-cited-page",
+  "title": "A Cited Page (example.com)",
+  "type": "html",
+  "artifact": "snapshot.html",
+  "sha256": "7e37c4c5b829266cb4335b14118d5e629d305db752e4fdfab1f1dd06d909f1f9",
+  "previous-sha256": null,
+  "bytes": 214,
+  "archived": "2026-10-28",
+  "source-date": null,
+  "snapshot-quality": "ok",
+  "wayback": null
+}

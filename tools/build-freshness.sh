@@ -82,7 +82,9 @@ DRAFT_HASH_FILE="$STATE_DIR/unpublished-hash.txt"
 
 # Everything that changes the compiled site generator: the Haskell rules
 # and the cabal metadata (dependency-bound moves change behaviour too),
-# plus site.yaml: identity and feed settings can change route shape.
+# plus site.yaml: identity and feed settings can change route shape, and
+# the switch registry, whose defaults decide with site.yaml which rules
+# exist at all.
 # Template contents are absent — Hakyll tracks those itself. The
 # engine's files are digested by their path in the engine, so moving them
 # under engine/ (A6) changes nothing here.
@@ -98,7 +100,7 @@ rules_hash() {
     {
         (cd "$build/.." && find build -name '*.hs' -print0 | sort -z | xargs -0 sha256sum)
         sha256sum cabal.project cabal.project.freeze
-        (cd "$(dirname "$cabal")" && sha256sum "$(basename "$cabal")")
+        (cd "$(dirname "$cabal")" && sha256sum "$(basename "$cabal")" switches.yaml)
         sha256sum site.yaml
         file_rules
     } | sha256sum | cut -d' ' -f1

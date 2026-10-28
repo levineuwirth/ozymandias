@@ -17,7 +17,9 @@ history:
 ## Opening
 
 The essay opens with a claim that needs a source [@alpha2001] and a cluster
-of two [@beta2010; @alpha2001]. It links to [[Short Page]] by its title.
+of two [@beta2010; @alpha2001]. It links to [[Short Page]] by its title, and
+to [a page elsewhere](https://example.com/a-cited-page.html), which the archive
+keeps.
 
 ## Notes
 

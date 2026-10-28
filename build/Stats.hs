@@ -12,7 +12,7 @@
 module Stats (statsRules) where
 
 import Control.Exception          (IOException, catch)
-import Control.Monad              (forM)
+import Control.Monad              (forM, when)
 import Data.Char                  (isDigit)
 import Data.List                  (find, intercalate, isPrefixOf, isSuffixOf,
                                    sort, sortBy)
@@ -45,6 +45,7 @@ import           Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Text.Blaze.Internal         as BI
 import Hakyll
 import Archive                    (archiveBuildStats)
+import ArchiveIndex               (archiveOn)
 import Contexts                   (siteCtx, authorLinksField, canonicalUrlPath)
 import Marks                      (hasMonogram, monogramSvgFieldFor,
                                    hasMonogramFieldFor)
@@ -983,11 +984,12 @@ renderArchive metrics =
     dl [ (k, txt v) | (k, v) <- metrics ]
 
 -- ---------------------------------------------------------------------------
--- Static TOC (matches the eleven h2 sections above)
+-- Static TOC (matches the eleven h2 sections above; the link archive's
+-- only with the archive switch on)
 -- ---------------------------------------------------------------------------
 
 pageTOC :: H.Html
-pageTOC = tocOf
+pageTOC = tocOf $ filter (\(anchor, _) -> archiveOn || anchor /= "archive")
         [ ("corpus",       "Content")
         , ("pages",        "Pages")
         , ("distribution", "Word-length distribution")
@@ -1192,7 +1194,7 @@ statsRules tags = do
             -- ----------------------------------------------------------------
             -- Link-archive coverage + link-rot health
             -- ----------------------------------------------------------------
-            archiveMetrics <- unsafeCompiler archiveBuildStats
+            archiveMetrics <- if archiveOn then unsafeCompiler archiveBuildStats else pure []
 
             -- ----------------------------------------------------------------
             -- Build timestamp + last build duration
@@ -1218,7 +1220,7 @@ statsRules tags = do
                     renderEpistemic epTotal withStatus withConf withImp withEv
                     renderMarks markRows
                     renderOutput outputGrouped totalFiles totalSize
-                    renderArchive archiveMetrics
+                    when archiveOn (renderArchive archiveMetrics)
                     renderRepository hf hl cf cl jf jl commits firstDate
                     renderBuild buildTimestamp lastBuildDur
             statsPage "Build Telemetry"

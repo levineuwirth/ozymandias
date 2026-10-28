@@ -1,1 +1,9 @@
-[]
+# The fixture's link archive: one snapshot, which the archive switch builds
+# (the full profile's; the minimal profile's site has no archive/).
+- url: "https://example.com/a-cited-page.html"
+  slug: example-cited-page
+  title: "A Cited Page (example.com)"
+  type: html
+  note: >
+    A page the long essay links to, archived so that the full profile
+    builds an entry page, the index, and the link's archive mark.

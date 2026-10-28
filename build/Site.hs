@@ -23,7 +23,7 @@ import Hakyll hiding (escapeHtml)
 import Config     (SiteConfig (..), FeedSpec (..), FeedSection (..), LibraryConfig (..),
                    NavLink (..), Portal (..), Standalone (..), PageKind (..),
                    engineSources, standaloneDir, configRules, manifestRules,
-                   readSiteConfig, loadConfig, loadFeed, renderSiteFeed, photoFeed)
+                   readSiteConfig, loadConfig, loadFeed, renderSiteFeed, photoFeed, switchOn)
 import Archive    (archiveRules)
 import Authors    (buildAllAuthors, applyAuthorRules)
 import Backlinks  (backlinkRules)
@@ -726,9 +726,10 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Archive — link-archiving system: per-entry /archive/<slug>/ pages and
     -- the /archive/ index, driven by archive/manifest.yaml + PROVENANCE.json.
-    -- See build/Archive.hs and ARCHIVE.md for the design.
+    -- See build/Archive.hs and ARCHIVE.md for the design. Behind the
+    -- archive switch, as is everything that reads the archive (ArchiveIndex).
     -- ---------------------------------------------------------------------------
-    archiveRules
+    when (switchOn cfg "archive") archiveRules
 
     -- ---------------------------------------------------------------------------
     -- Blog index (paginated)

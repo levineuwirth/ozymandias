@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Site-owned identity and feeds. Rule construction reads this explicitly
--- in 'preprocess'; compilers use 'loadConfig', so site.yaml is a real Hakyll
--- dependency. There is deliberately no process-global configuration.
+-- | Site-owned identity and feeds, and the site's switches over the
+-- engine's registry (engine/switches.yaml). Rule construction reads this
+-- explicitly in 'preprocess'; compilers use 'loadConfig', so site.yaml and
+-- the registry are real Hakyll dependencies. There is deliberately no
+-- process-global configuration.
 module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
     , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
     , Standalone (..), PageKind (..), standaloneDir, engineSources, engineContentDirs
-    , configRules, readSiteConfig, loadConfig, configField
+    , configRules, readSiteConfig, loadConfig, configField, switchOn, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
     , siteOwnHosts, identityContext, identityFields, navigationContext, manifestRules
     , knownDingbats
@@ -16,10 +18,12 @@ import Control.Monad (forM_, unless, when)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
+import Data.Bifunctor (first)
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Map.Strict as Map
 import Data.Char (isControl, isSpace, toLower, toUpper)
 import Data.List (find, intercalate, isPrefixOf, isSuffixOf, nub, sortOn, stripPrefix)
 import Data.Maybe (fromMaybe, isNothing)
@@ -54,6 +58,7 @@ data SiteConfig = SiteConfig
     , siteLibrary :: LibraryConfig
     , siteStandalone :: [Standalone]
     , siteFontPreloads :: [String]
+    , siteSwitches :: Map.Map String Bool
     } deriving (Eq, Show)
 
 data FeedSection = Essays | Blog | Fiction | Poetry | Music | Photos
@@ -349,7 +354,7 @@ instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
-                      "nav-primary", "library", "standalone", "font-preloads"]) o
+                      "nav-primary", "library", "standalone", "font-preloads", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -360,6 +365,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .: "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
+                        <*> o .:? "switches" .!= Map.empty
         mapM_ (uncurry singleLine) (identityValues c)
         forM_ (siteFontPreloads c) $ \href ->
             unless ("/" `isPrefixOf` href && ".woff2" `isSuffixOf` href
@@ -405,7 +411,8 @@ instance ToJSON SiteConfig where
                            "sections" .= siteSections c, "portals" .= sitePortals c,
                            "nav-primary" .= siteNavPrimary c, "library" .= siteLibrary c,
                            "standalone" .= siteStandalone c,
-                           "font-preloads" .= siteFontPreloads c])
+                           "font-preloads" .= siteFontPreloads c,
+                           "switches" .= siteSwitches c])
 
 identityKeys :: [String]
 identityKeys = ["title", "author", "author-sort", "email", "contact-email", "url", "host",
@@ -463,18 +470,90 @@ bareHost c = fromMaybe (siteHost c) (stripPrefix "www." (siteHost c))
 photoFeed :: FeedSpec -> Bool
 photoFeed f = feedSections f == [Photos]
 
-decodeConfig :: BS.ByteString -> Either String SiteConfig
-decodeConfig = either (Left . ("site.yaml: " ++) . Yaml.prettyPrintParseException) Right
-             . Yaml.decodeEither'
+-- | The registry, then site.yaml: the site's config with its switches
+--   resolved ('resolveSwitches').
+decodeConfig :: BS.ByteString -> BS.ByteString -> Either String SiteConfig
+decodeConfig registryBytes siteBytes = do
+    registry <- decode registryPath registryBytes
+    cfg      <- decode "site.yaml" siteBytes
+    resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
+    pure cfg { siteSwitches = resolved }
+  where
+    decode :: FromJSON a => FilePath -> BS.ByteString -> Either String a
+    decode path = first ((path ++ ": ") ++) . first Yaml.prettyPrintParseException . Yaml.decodeEither'
 
 readSiteConfig :: IO SiteConfig
-readSiteConfig = BS.readFile "site.yaml" >>= either fail pure . decodeConfig
+readSiteConfig = do
+    registry <- BS.readFile registryPath
+    site     <- BS.readFile "site.yaml"
+    either fail pure (decodeConfig registry site)
 
 configRules :: Rules ()
-configRules = match "site.yaml" $ compile getResourceBody
+configRules = match ("site.yaml" .||. fromGlob registryPath) $ compile getResourceBody
 
 loadConfig :: Compiler SiteConfig
-loadConfig = loadBody "site.yaml" >>= either fail pure . decodeConfig . TE.encodeUtf8 . T.pack
+loadConfig = do
+    registry <- loadBody (fromFilePath registryPath)
+    site     <- loadBody "site.yaml"
+    either fail pure (decodeConfig (utf8 registry) (utf8 site))
+  where utf8 = TE.encodeUtf8 . T.pack
+
+-- ---------------------------------------------------------------------------
+-- Switches
+-- ---------------------------------------------------------------------------
+
+-- | The engine's switch registry, read from the site's root as the build
+--   runs there (tools/sitelib.py reads the same file).
+registryPath :: FilePath
+registryPath = "engine/switches.yaml"
+
+-- | One switch of the registry: its default and what it needs; its kind
+--   and description are checked, not kept.
+data SwitchSpec = SwitchSpec
+    { switchDefault  :: Bool
+    , switchNeeds    :: [String]
+    , switchNeedsAny :: [String]
+    }
+
+instance FromJSON SwitchSpec where
+    parseJSON = withObject "switch" $ \o -> do
+        onlyKeys ["kind", "default", "needs", "needs-any", "about"] o
+        kind <- o .: "kind"
+        unless (kind `elem` ["capability", "generated", "interface" :: String]) $
+            fail ("a switch's kind is capability, generated or interface, not " ++ kind)
+        _ <- o .: "about" :: Parser String
+        SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
+
+-- | The site's switches: those its site.yaml sets, over the registry's
+--   defaults. A switch the registry lacks, or one on without what it
+--   needs (all of @needs@, one of @needs-any@), is refused here, and only
+--   here: the tools resolve without checking.
+resolveSwitches :: Map.Map String SwitchSpec -> Map.Map String Bool -> Either String (Map.Map String Bool)
+resolveSwitches registry set = do
+    let dangling = [ name ++ " needs " ++ other
+                   | (name, spec) <- Map.toList registry
+                   , other <- switchNeeds spec ++ switchNeedsAny spec
+                   , not (Map.member other registry) ]
+    unless (null dangling) $
+        Left (registryPath ++ ": no such switch: " ++ intercalate "; " dangling)
+    let unknown = Map.keys (Map.difference set registry)
+    unless (null unknown) $
+        Left ("switches: not in " ++ registryPath ++ ": " ++ intercalate ", " unknown)
+    let resolved = Map.union set (Map.map switchDefault registry)
+        on name  = Map.findWithDefault False name resolved
+    forM_ (Map.toList registry) $ \(name, spec) -> when (on name) $ do
+        let missing = filter (not . on) (switchNeeds spec)
+        unless (null missing) $
+            Left ("switches: " ++ name ++ " needs " ++ intercalate ", " missing)
+        unless (null (switchNeedsAny spec) || any on (switchNeedsAny spec)) $
+            Left ("switches: " ++ name ++ " needs one of " ++ intercalate ", " (switchNeedsAny spec))
+    pure resolved
+
+-- | Whether the site has switch @name@ on. A name the registry lacks is the
+--   engine's own mistake, which stops the build.
+switchOn :: SiteConfig -> String -> Bool
+switchOn cfg name = fromMaybe (error ("switchOn: " ++ name ++ " is not in " ++ registryPath))
+                              (Map.lookup name (siteSwitches cfg))
 
 loadFeed :: FilePath -> Compiler (SiteConfig, FeedSpec)
 loadFeed path = do

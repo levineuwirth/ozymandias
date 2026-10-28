@@ -29,6 +29,8 @@ import yaml
 
 from tests._helpers import SITE_ROOT, engine_path, load_tool, site_binary
 
+sitelib = load_tool("sitelib.py")
+
 SITE = SITE_ROOT / "_site"
 CONTENT = SITE_ROOT / "content"
 SITE_YAML = SITE_ROOT / "site.yaml"
@@ -54,20 +56,29 @@ def site_yaml() -> dict:
 
 
 def switches(settings: dict | None = None) -> dict:
-    """The switches the site's site.yaml (or `settings`) sets."""
-    return dict((site_yaml() if settings is None else settings).get("switches") or {})
+    """The site's switches (or those of `settings`, a site.yaml's contents),
+    over the engine's registry, as the generator resolves them
+    (tools/sitelib.py; test_config holds the two to each other)."""
+    return sitelib.switches(site_yaml() if settings is None else settings)
 
 
 def switch_on(name: str, settings: dict | None = None) -> bool:
-    """Whether the site (or `settings`) turns feature `name` on."""
-    return switches(settings).get(name, True) is not False
+    """Whether the site (or `settings`) has switch `name` on; a name the
+    registry lacks raises KeyError."""
+    resolved = switches(settings)
+    if name not in resolved:
+        raise KeyError(f"no switch {name} in {sitelib.REGISTRY}")
+    return resolved[name]
 
 
 def explained(reason: str, settings: dict | None = None) -> bool:
-    """Whether the site explains a test's skip: a switch it turns off, or
-    web fonts it has none of."""
+    """Whether the site explains a test's skip: a switch it turns off (one
+    the registry has), or web fonts it has none of."""
     if reason.startswith(SWITCH_OFF):
-        return not switch_on(reason.removeprefix(SWITCH_OFF), settings)
+        try:
+            return not switch_on(reason.removeprefix(SWITCH_OFF), settings)
+        except KeyError:
+            return False
     return reason == NO_FONTS and not FONTS.is_file()
 
 

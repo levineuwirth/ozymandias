@@ -152,4 +152,10 @@ def write_site_config(root: Path, **overrides) -> dict:
     config.update(overrides)
     # JSON is also YAML; no Python YAML defaults or schema reader.
     (root / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
+    # The generator resolves the site's switches over the engine's registry,
+    # which it reads at engine/switches.yaml as a site has it.
+    registry = root / "engine" / "switches.yaml"
+    if not registry.exists():
+        registry.parent.mkdir(exist_ok=True)
+        registry.symlink_to(engine_path("switches.yaml"))
     return config

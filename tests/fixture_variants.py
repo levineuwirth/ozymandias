@@ -1,0 +1,75 @@
+"""The fixture site's builds (plan §7.4): its two profiles
+(fixture-site/profiles.yaml), and the variants that build each switch the
+other way where the profiles do not.
+
+- An off variant for each switch on in minimal: minimal with that switch
+  off, and with it every switch left without what it needs.
+- An alternative variant for each switch with `needs-any`: the full
+  profile with only one of the alternatives on, one variant per
+  alternative.
+
+Each build is a full set of switches and the inputs its copy leaves out.
+The generator is the judge of a set: test_fixture_site has it read each
+one first, and a set it refuses is this module's mistake.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import yaml
+
+from tests._helpers import engine_path
+
+FIXTURE = engine_path("fixture-site")
+REGISTRY = engine_path("switches.yaml")
+
+
+@dataclass(frozen=True)
+class Build:
+    name: str
+    switches: dict[str, bool]
+    without: tuple[str, ...] = field(default=())
+
+
+def registry() -> dict[str, dict]:
+    return yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
+
+
+def profiles() -> dict[str, dict]:
+    return yaml.safe_load((FIXTURE / "profiles.yaml").read_text(encoding="utf-8"))
+
+
+def settle(switches: dict[str, bool], terms: dict[str, dict]) -> dict[str, bool]:
+    """`switches` with every switch that lacks what it needs turned off, until
+    none does: what turning one off takes with it."""
+    settled = dict(switches)
+    changed = True
+    while changed:
+        changed = False
+        for name, spec in terms.items():
+            needs, any_of = spec.get("needs") or [], spec.get("needs-any") or []
+            if settled[name] and (not all(settled[n] for n in needs)
+                                  or (any_of and not any(settled[n] for n in any_of))):
+                settled[name] = False
+                changed = True
+    return settled
+
+
+def builds() -> list[Build]:
+    """The profiles, then the variants, each named for what it shows."""
+    terms, profile = registry(), profiles()
+    found = [Build(name, dict(spec["switches"]), tuple(spec.get("without") or ()))
+             for name, spec in profile.items()]
+    minimal = next(b for b in found if b.name == "minimal")
+    full = next(b for b in found if b.name == "full")
+    for name in terms:
+        if minimal.switches[name]:
+            found.append(Build(f"minimal-without-{name}",
+                               settle(dict(minimal.switches, **{name: False}), terms), minimal.without))
+    for name, spec in terms.items():
+        for alternative in spec.get("needs-any") or []:
+            only = {other: other == alternative for other in spec["needs-any"]}
+            found.append(Build(f"{name}-by-{alternative}",
+                               settle(dict(full.switches, **only), terms), full.without))
+    return found

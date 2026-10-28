@@ -23,44 +23,49 @@ ci = load_ci()
 
 
 class Switches(unittest.TestCase):
-    def test_a_feature_is_on_unless_the_config_turns_it_off(self):
-        settings = {"switches": {"math": False, "music": True}}
-        self.assertFalse(target.switch_on("math", settings))
-        self.assertTrue(target.switch_on("music", settings))
-        self.assertTrue(target.switch_on("viz", settings))
-        self.assertTrue(target.switch_on("math", {}))
+    def test_a_switch_is_the_site_s_setting_over_the_registry_s_default(self):
+        self.assertTrue(target.switch_on("archive", {"switches": {"archive": True}}))
+        self.assertFalse(target.switch_on("archive", {"switches": {"archive": False}}))
+        self.assertFalse(target.switch_on("archive", {}))   # the engine's default
+        with self.assertRaises(KeyError):
+            target.switch_on("a-switch-the-registry-lacks", {})
+        with self.assertRaises(ValueError):
+            target.switches({"switches": {"a-switch-the-registry-lacks": True}})
+        with self.assertRaises(ValueError):
+            target.switches({"switches": {"archive": "yes"}})
 
     def test_a_test_of_a_feature_turned_off_skips_saying_which(self):
         class Probe(unittest.TestCase):
-            @target.requires_switch("math")
-            def test_math(self):
+            @target.requires_switch("archive")
+            def test_archive(self):
                 pass
 
-        with mock.patch.object(target, "switches", return_value={"math": False}):
+        with mock.patch.object(target, "switches", return_value={"archive": False}):
             result = unittest.TestResult()
-            Probe("test_math").run(result)
-        self.assertEqual([reason for _, reason in result.skipped], ["switch off: math"])
-        with mock.patch.object(target, "switches", return_value={}):
+            Probe("test_archive").run(result)
+        self.assertEqual([reason for _, reason in result.skipped], ["switch off: archive"])
+        with mock.patch.object(target, "switches", return_value={"archive": True}):
             result = unittest.TestResult()
-            Probe("test_math").run(result)
+            Probe("test_archive").run(result)
         self.assertEqual((result.skipped, result.testsRun), ([], 1))
 
     def test_switches_come_from_site_yaml_not_the_generator(self):
         # CI, where ci.py runs, has no generator.
         with mock.patch.object(target, "site_binary", side_effect=AssertionError("generator asked")):
             self.assertIsInstance(target.switches(), dict)
-            self.assertTrue(target.switch_on("a-feature-no-site-turns-off"))
+            self.assertIsInstance(target.switch_on("archive"), bool)
 
     def test_ci_accepts_only_the_skips_the_site_explains(self):
-        skipped = [("a", "switch off: math"), ("b", "switch off: viz"), ("c", "node not installed"),
+        # A switch the registry lacks explains nothing (b).
+        skipped = [("a", "switch off: archive"), ("b", "switch off: viz"), ("c", "node not installed"),
                    ("d", target.NO_FONTS)]
         with tempfile.TemporaryDirectory() as tmp:
             fonts = Path(tmp) / "fonts.yaml"
             with mock.patch.object(target, "FONTS", fonts):
-                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"math": False}}),
+                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"archive": False}}),
                                  skipped[1:3])
                 fonts.write_text("families: {}\n")
-                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"math": False}}),
+                self.assertEqual(ci.unexpected_skips(skipped, {"switches": {"archive": False}}),
                                  skipped[1:])
 
 

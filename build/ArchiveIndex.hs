@@ -33,6 +33,7 @@ module ArchiveIndex
     , archiveSlugFor
     , archiveStatusForSlug
     , archiveIndexIsEmpty
+    , archiveOn
     , normalizeUrl
     , trackingParams
     ) where
@@ -49,6 +50,8 @@ import           Data.Aeson             ((.!=), (.:), (.:?))
 import qualified Data.Yaml              as Y
 import           System.Directory       (doesFileExist)
 import           System.IO.Unsafe       (unsafePerformIO)
+
+import           Config                 (readSiteConfig, switchOn)
 
 -- ---------------------------------------------------------------------------
 -- Link-rot status
@@ -135,9 +138,17 @@ removedUrls = unsafePerformIO (readUrlSet removedPath)
 -- | Canonical URLs still permitted to participate in link annotation.
 --   Filtering the generated index at build time makes a direct Hakyll build
 --   respect authored manifest/removal state even when archive.py did not run.
+-- | Whether the site has the archive switch on, read once like the
+--   archive's files. Off, the manifest and the index are not read: every
+--   lookup here finds nothing, so the link, citation and backlink
+--   annotations that consult it do nothing.
+{-# NOINLINE archiveOn #-}
+archiveOn :: Bool
+archiveOn = unsafePerformIO ((`switchOn` "archive") <$> readSiteConfig)
+
 {-# NOINLINE activeUrls #-}
 activeUrls :: Set Text
-activeUrls = unsafePerformIO $ do
+activeUrls = unsafePerformIO $ if not archiveOn then return Set.empty else do
     manifest <- readUrlSet manifestPath
     return (manifest `Set.difference` removedUrls)
 
@@ -146,7 +157,7 @@ activeUrls = unsafePerformIO $ do
 {-# NOINLINE rawIndex #-}
 rawIndex :: Map Text IdxEntry
 rawIndex = unsafePerformIO $ do
-    exists <- doesFileExist indexPath
+    exists <- (archiveOn &&) <$> doesFileExist indexPath
     if not exists
         then return Map.empty
         else do
