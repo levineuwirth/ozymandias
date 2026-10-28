@@ -102,9 +102,28 @@ def math_off(site: Path) -> None:
         assert EULER in text(site, CAPABILITIES), "the essay's TeX is not left as written"
 
 
+# What code puts on a page: Prism's language classes and the highlighter,
+# its stylesheet, the copy buttons' script.
+CODE_MARKS = ('class="language-', "/js/prism.min.js", "/css/syntax.css", "/js/copy.js")
+
+
+def code_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    for mark in CODE_MARKS:
+        assert mark in essay, f"the essay's code block has no {mark}"
+    assert "/js/copy.js" in text(site, "index.html"), "the home page has no copy buttons' script"
+
+
+def code_off(site: Path) -> None:
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in CODE_MARKS}
+    assert not any(marked.values()), f"code on pages: {marked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
+    "code": (code_on, code_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
 }

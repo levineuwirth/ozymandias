@@ -56,7 +56,7 @@ applyAll cfg numberFigures srcDir doc = do
         . Smallcaps.apply
         . Dropcaps.apply
         . on "math" Math.apply
-        . Code.apply
+        . on "code" Code.apply
         $ sourceRefsDone
   where
     on name filter' = if switchOn cfg name then filter' else id

@@ -8,7 +8,7 @@ module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
     , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
     , Standalone (..), PageKind (..), standaloneDir, engineSources, engineContentDirs
-    , configRules, readSiteConfig, loadConfig, configField, switchOn, registryPath
+    , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
     , siteOwnHosts, identityContext, identityFields, navigationContext, manifestRules
     , knownDingbats
@@ -591,6 +591,20 @@ switchedSections registry on cfg = do
 switchOn :: SiteConfig -> String -> Bool
 switchOn cfg name = fromMaybe (error ("switchOn: " ++ name ++ " is not in " ++ registryPath))
                               (Map.lookup name (siteSwitches cfg))
+
+-- | @$switch-NAME$@, present when the site has switch NAME on: how a
+--   template asks, where rules and compilers ask 'switchOn'. A name the
+--   registry lacks stops the build, as it does there; in a context without
+--   this one, every switch would read as off.
+switchContext :: Context a
+switchContext = Context $ \key _ _ -> case stripPrefix "switch-" key of
+    Nothing   -> noResult ("not a switch: " ++ key)
+    Just name -> do
+        cfg <- loadConfig
+        case Map.lookup name (siteSwitches cfg) of
+            Nothing    -> fail ("a template asks for " ++ key ++ ": " ++ name ++ " is not in " ++ registryPath)
+            Just True  -> pure (StringField "true")
+            Just False -> noResult ("the " ++ name ++ " switch is off")
 
 loadFeed :: FilePath -> Compiler (SiteConfig, FeedSpec)
 loadFeed path = do

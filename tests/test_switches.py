@@ -25,10 +25,9 @@ ASKS = {
     "engine.mk": ("engine.mk", re.compile(r"(?:switch_on|with_switch),([a-z][a-z0-9-]*)")),
     "tools": ("*.py", re.compile(r'switch_on\(\s*"([a-z][a-z0-9-]*)"')),
     "tests": ("*.py", re.compile(r'(?:switch_on|requires_switch)\(\s*"([a-z][a-z0-9-]*)"')),
+    # Config.switchContext's fields, in siteCtx.
+    "templates": ("*.html", re.compile(r"\$if\(switch-([a-z][a-z0-9-]*)\)\$")),
 }
-# Templates cannot ask yet: no context gives a switch field, and a missing
-# field in $if$ reads as false, so a template gate would be off for every
-# site. The first one brings the field (Config) and its pattern here.
 # The tests of the mechanism itself, which ask about unregistered names on
 # purpose.
 MECHANISM = {"test_switches.py", "test_target.py", "test_config.py"}

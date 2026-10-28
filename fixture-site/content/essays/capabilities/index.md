@@ -13,6 +13,15 @@ Euler's identity inline, $e^{i\pi} + 1 = 0$, and a sum as a display:
 
 $$\sum_{k=0}^{n} \binom{n}{k} = 2^n$$
 
+## Code
+
+A block in a named language:
+
+```python
+def double(n):
+    return 2 * n
+```
+
 ## A score fragment
 
 The motif the [[Short Page]] mentions, as the music switch inlines it.

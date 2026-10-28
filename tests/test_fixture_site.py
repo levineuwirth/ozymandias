@@ -230,6 +230,9 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((self.sites["full"] / "data/archive-index.json").is_file())
         switch_checks.archive_off(self.turned_off("archive"))
 
+    def test_a_site_that_turns_code_off_has_neither_highlighting_nor_copy_buttons(self):
+        switch_checks.code_off(self.turned_off("code"))
+
     def test_a_site_that_turns_math_off_keeps_its_tex_as_text(self):
         switch_checks.math_off(self.turned_off("math"))
 

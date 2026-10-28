@@ -9,7 +9,8 @@ Checked: one button per block, a sibling of the <pre>, none in excluded
 places, and still one after content is announced twice; the text copied is
 the block's exactly, without the newline Pandoc ends it with; "Copied" and
 "Copy failed" are shown and announced, then reset; and the button, unseen
-until wanted, is seen when the keyboard reaches it.
+until wanted, is seen when the keyboard reaches it. A site without the code
+switch publishes no copy.js, and skips these.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_copy -v
 """
@@ -22,6 +23,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, page_styles, require_playwright,
                             requires_browser, site_server)
+from tests.target import requires_switch
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Copy fixture</title>
@@ -48,6 +50,7 @@ Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {
 """
 
 
+@requires_switch("code")
 @requires_browser
 class CopyButtons(unittest.TestCase):
     @classmethod
