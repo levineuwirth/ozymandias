@@ -550,7 +550,10 @@ resolveSwitches registry set = do
     pure resolved
 
 -- | Whether the site has switch @name@ on. A name the registry lacks is the
---   engine's own mistake, which stops the build.
+--   engine's own mistake, which stops the build. The one way to ask: rules
+--   with the config they read in 'preprocess', compilers with
+--   'loadConfig'; only a module that already reads its files once per
+--   process (ArchiveIndex) reads it so too.
 switchOn :: SiteConfig -> String -> Bool
 switchOn cfg name = fromMaybe (error ("switchOn: " ++ name ++ " is not in " ++ registryPath))
                               (Map.lookup name (siteSwitches cfg))

@@ -152,6 +152,10 @@ def site_config(build: bool = False) -> dict:
 # The engine's switches (switches.yaml): each one's kind, default and what
 # it needs. The generator reads the same file (build/Config.hs).
 REGISTRY = ENGINE / "switches.yaml"
+# YAML 1.1's y and n, which the generator's YAML reader takes for booleans
+# and PyYAML leaves as strings; its other spellings (yes/no, on/off) both
+# read alike (test_config holds them to each other).
+YAML11_BOOLS = {"y": True, "Y": True, "n": False, "N": False}
 
 
 def switches(settings: dict | None = None) -> dict[str, bool]:
@@ -165,7 +169,8 @@ def switches(settings: dict | None = None) -> dict[str, bool]:
     if settings is None:
         settings = yaml.safe_load((site_root() / "site.yaml").read_text(encoding="utf-8")) or {}
     registry = yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
-    chosen = settings.get("switches") or {}
+    chosen = {name: YAML11_BOOLS.get(value, value) if isinstance(value, str) else value
+              for name, value in (settings.get("switches") or {}).items()}
     if unknown := sorted(set(chosen) - set(registry)):
         raise ValueError(f"site.yaml: switches not in {REGISTRY.name}: {', '.join(unknown)}")
     if not all(isinstance(value, bool) for value in chosen.values()):

@@ -33,7 +33,6 @@ module ArchiveIndex
     , archiveSlugFor
     , archiveStatusForSlug
     , archiveIndexIsEmpty
-    , archiveOn
     , normalizeUrl
     , trackingParams
     ) where
@@ -135,9 +134,6 @@ readUrlSet path = do
 removedUrls :: Set Text
 removedUrls = unsafePerformIO (readUrlSet removedPath)
 
--- | Canonical URLs still permitted to participate in link annotation.
---   Filtering the generated index at build time makes a direct Hakyll build
---   respect authored manifest/removal state even when archive.py did not run.
 -- | Whether the site has the archive switch on, read once like the
 --   archive's files. Off, the manifest and the index are not read: every
 --   lookup here finds nothing, so the link, citation and backlink
@@ -146,6 +142,9 @@ removedUrls = unsafePerformIO (readUrlSet removedPath)
 archiveOn :: Bool
 archiveOn = unsafePerformIO ((`switchOn` "archive") <$> readSiteConfig)
 
+-- | Canonical URLs still permitted to participate in link annotation.
+--   Filtering the generated index at build time makes a direct Hakyll build
+--   respect authored manifest/removal state even when archive.py did not run.
 {-# NOINLINE activeUrls #-}
 activeUrls :: Set Text
 activeUrls = unsafePerformIO $ if not archiveOn then return Set.empty else do

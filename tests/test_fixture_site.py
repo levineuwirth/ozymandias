@@ -19,12 +19,15 @@ checkout lacks, so `make test-clean` and the GitHub workflow never run it:
 only a machine that has them checks that the fixture passes the gate.
 """
 
+import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 import unittest.mock
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import yaml
@@ -117,50 +120,64 @@ class Coverage(unittest.TestCase):
         self.assertLessEqual(set(switch_checks.CHECKS), registered_switches())
 
 
+def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
+    """One build in a copy of its own (`site`): the generator reads its
+    switches first; with the archive on, the fetch stage runs as `make
+    build` runs it (offline: the fixture's snapshot is committed); then the
+    build, the search index and the gate. Each stage's result, by name."""
+    shutil.copytree(FIXTURE, site)
+    for rel in build.without:
+        shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
+    config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
+    config["switches"] = build.switches
+    # JSON, which YAML reads as written: a dumped string "y" would come back
+    # as a boolean.
+    (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
+    (site / "engine").symlink_to(ENGINE)
+    # The commit ignores the user's signing and hooks, which could fail it.
+    git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
+           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
+        subprocess.run(git + args, cwd=site, check=True, capture_output=True)
+    env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
+
+    def run(*args, timeout=600):
+        return subprocess.run(list(args), cwd=site, env=env, capture_output=True, text=True, timeout=timeout)
+
+    runs = {"config": run(binary, "config")}
+    if runs["config"].returncode:
+        return runs
+    if build.switches.get("archive"):
+        runs["fetch"] = run(sys.executable, str(engine_path("tools/archive.py")), "fetch")
+    runs["build"] = run(binary, "build")
+    runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
+    runs["gate"] = run(shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site", timeout=300)
+    return runs
+
+
 @requires_cabal
 @unittest.skipUnless(shutil.which("pagefind"), "pagefind not on PATH")
 class FixtureBuilds(unittest.TestCase):
-    """Each build in a copy of its own: the generator reads its switches
-    first; with the archive on, the fetch stage runs as `make build` runs it
-    (offline: the fixture's snapshot is committed); then the build, the
-    search index and the gate."""
+    """Every profile and variant, built at once: they share nothing, and one
+    each is a build per switch the minimal profile has on (FIXTURE_JOBS at
+    a time, 4 by default)."""
 
     @classmethod
     def setUpClass(cls):
         tmp = tempfile.TemporaryDirectory(prefix="fixture-site-")
         cls.addClassCleanup(tmp.cleanup)
         cls.builds = fixture_variants.builds()
-        cls.sites, cls.runs = {}, {}
+        cls.sites = {b.name: Path(tmp.name) / b.name for b in cls.builds}
         binary = str(site_binary())
-        for build in cls.builds:
-            site = cls.sites[build.name] = Path(tmp.name) / build.name
-            shutil.copytree(FIXTURE, site)
-            for rel in build.without:
-                shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
-            config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
-            config["switches"] = build.switches
-            (site / "site.yaml").write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-            (site / "engine").symlink_to(ENGINE)
-            # The commit ignores the user's signing and hooks, which could fail it.
-            git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
-                   "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
-            for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
-                subprocess.run(git + args, cwd=site, check=True, capture_output=True)
-            env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
+        with ThreadPoolExecutor(max_workers=int(os.environ.get("FIXTURE_JOBS") or 4)) as pool:
+            done = {b.name: pool.submit(build_site, b, cls.sites[b.name], binary) for b in cls.builds}
+        cls.runs = {name: future.result() for name, future in done.items()}
 
-            def run(*args, timeout=600):
-                return subprocess.run(list(args), cwd=site, env=env, capture_output=True, text=True,
-                                      timeout=timeout)
-
-            runs = cls.runs[build.name] = {"config": run(binary, "config")}
-            if runs["config"].returncode:
-                continue
-            if build.switches.get("archive"):
-                runs["fetch"] = run(sys.executable, str(engine_path("tools/archive.py")), "fetch")
-            runs["build"] = run(binary, "build")
-            runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
-            runs["gate"] = run(shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site",
-                               timeout=300)
+    def refused(self, name: str) -> None:
+        """Fail a build the generator refused, with its reason."""
+        runs = self.runs[name]
+        if "build" not in runs:
+            self.fail(f"the generator refused its switches: {runs['config'].stderr}")
 
     def test_the_generator_accepts_each_build_s_switches(self):
         for build in self.builds:
@@ -171,6 +188,7 @@ class FixtureBuilds(unittest.TestCase):
     def test_each_build_builds(self):
         for build in self.builds:
             with self.subTest(build=build.name):
+                self.refused(build.name)
                 runs = self.runs[build.name]
                 for stage in ("fetch", "build", "index"):
                     if stage in runs:
@@ -183,6 +201,7 @@ class FixtureBuilds(unittest.TestCase):
     def test_the_artifact_gate_passes(self):
         for build in self.builds:
             with self.subTest(build=build.name):
+                self.refused(build.name)
                 gate = self.runs[build.name]["gate"]
                 self.assertEqual(gate.returncode, 0, gate.stdout[-5000:] + gate.stderr)
 
@@ -202,7 +221,7 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "data/archive-index.json").is_file())
         config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
         config["switches"]["archive"] = False
-        (site / "site.yaml").write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+        (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
         env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
         done = subprocess.run([binary, "build"], cwd=site, env=env, capture_output=True, text=True, timeout=600)

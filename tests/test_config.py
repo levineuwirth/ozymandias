@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from xml.etree import ElementTree
 
+import yaml
+
 from tests import target
 from tests._helpers import (ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary,
                             write_site_config)
@@ -91,6 +93,23 @@ class ConfigTests(unittest.TestCase):
         self.config["switches"] = {"archive": True}
         self.write_config()
         self.assertEqual(json.loads(self.run_site("config").stdout)["switches"]["archive"], True)
+
+    def test_the_tools_read_each_spelling_of_a_switch_as_the_generator_does(self):
+        # The generator reads YAML 1.1 booleans (Data.Yaml), PyYAML fewer;
+        # tools/sitelib.py must make the same of each, or both refuse it.
+        head = yaml.safe_dump(self.config)
+        for spelling in ("true", "True", "TRUE", "false", "False", "yes", "Yes", "no", "No",
+                         "on", "ON", "off", "Off", "y", "Y", "n", "N", "1", "0", "~", "'true'"):
+            with self.subTest(spelling=spelling):
+                text = f"{head}switches:\n  archive: {spelling}\n"
+                (self.root / "site.yaml").write_text(text, encoding="utf-8")
+                done = self.run_site("config")
+                generator = json.loads(done.stdout)["switches"]["archive"] if done.returncode == 0 else "refused"
+                try:
+                    tools = target.switches(yaml.safe_load(text))["archive"]
+                except ValueError:
+                    tools = "refused"
+                self.assertEqual(tools, generator)
 
     def test_a_switch_on_without_what_it_needs_is_refused(self):
         registry = self.root / "engine" / "switches.yaml"

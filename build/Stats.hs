@@ -45,7 +45,7 @@ import           Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Text.Blaze.Internal         as BI
 import Hakyll
 import Archive                    (archiveBuildStats)
-import ArchiveIndex               (archiveOn)
+import Config                     (loadConfig, switchOn)
 import Contexts                   (siteCtx, authorLinksField, canonicalUrlPath)
 import Marks                      (hasMonogram, monogramSvgFieldFor,
                                    hasMonogramFieldFor)
@@ -988,8 +988,8 @@ renderArchive metrics =
 -- only with the archive switch on)
 -- ---------------------------------------------------------------------------
 
-pageTOC :: H.Html
-pageTOC = tocOf $ filter (\(anchor, _) -> archiveOn || anchor /= "archive")
+pageTOC :: Bool -> H.Html
+pageTOC archive = tocOf $ filter (\(anchor, _) -> archive || anchor /= "archive")
         [ ("corpus",       "Content")
         , ("pages",        "Pages")
         , ("distribution", "Word-length distribution")
@@ -1096,6 +1096,7 @@ statsRules tags = do
   create ["build/index.html"] $ do
         route idRoute
         compile $ do
+            archive <- (`switchOn` "archive") <$> loadConfig
             corpus <- loadCorpus
             let essays = kindItems "Essays" corpus
                 posts  = kindItems "Blog posts" corpus
@@ -1194,7 +1195,7 @@ statsRules tags = do
             -- ----------------------------------------------------------------
             -- Link-archive coverage + link-rot health
             -- ----------------------------------------------------------------
-            archiveMetrics <- if archiveOn then unsafeCompiler archiveBuildStats else pure []
+            archiveMetrics <- if archive then unsafeCompiler archiveBuildStats else pure []
 
             -- ----------------------------------------------------------------
             -- Build timestamp + last build duration
@@ -1220,14 +1221,14 @@ statsRules tags = do
                     renderEpistemic epTotal withStatus withConf withImp withEv
                     renderMarks markRows
                     renderOutput outputGrouped totalFiles totalSize
-                    when archiveOn (renderArchive archiveMetrics)
+                    when archive (renderArchive archiveMetrics)
                     renderRepository hf hl cf cl jf jl commits firstDate
                     renderBuild buildTimestamp lastBuildDur
             statsPage "Build Telemetry"
                 "Per-build corpus statistics, tag distribution, link analysis, \
                 \epistemic coverage, output metrics, repository overview, and \
                 \build timing."
-                "content/build.mark.svg" pageTOC htmlContent
+                "content/build.mark.svg" (pageTOC archive) htmlContent
 
   -- -------------------------------------------------------------------------
   -- Writing statistics page (/stats/)
