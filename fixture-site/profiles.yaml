@@ -15,9 +15,11 @@
 full:
   switches:
     archive: true
+    math: true
     music: true
 minimal:
   switches:
     archive: false
+    math: false
     music: false
   without: [archive/, content/music/, content/essays/capabilities/]

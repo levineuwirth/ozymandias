@@ -74,11 +74,12 @@ $if(math)$
 <!-- KaTeX 0.16.11, self-hosted under static/katex/ (audit X6): the npm
      package's katex.min.js unchanged (its SHA-384 is the SRI these tags
      carried from jsDelivr), the stylesheet trimmed to woff2 sources, woff2
-     fonts only. `math` is set from the rendered page (Contexts.mathField),
-     so pages without math load none of it; transclude.js loads it on demand
-     when a transclusion brings math. To upgrade: take dist/ from the new
-     release, trim the stylesheet the same way, and compare the math-heavy
-     essays. The script tag is in templates/default.html. -->
+     fonts only. `math` is set from the rendered page
+     (Contexts.pageFeatureFields), so pages without math load none of it;
+     transclude.js loads it on demand when a transclusion brings math. To
+     upgrade: take dist/ from the new release, trim the stylesheet the same
+     way, and compare the math-heavy essays. The script tag is in
+     templates/default.html. -->
 <link rel="stylesheet" href="/katex/katex.min.css">
 $endif$
 $if(search)$

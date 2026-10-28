@@ -51,7 +51,8 @@ import           Text.Pandoc.Definition     (Block (..), Inline (..), Pandoc (..
 import           Text.Pandoc.Options        (WriterOptions (..), HTMLMathMethod (..))
 import           Text.Pandoc.Walk           (query, walk)
 import           Hakyll
-import           Config                     (SiteConfig, loadConfig)
+import           Config                     (SiteConfig, loadConfig, switchOn)
+import           PandocOptions              (withMath)
 import           Compilers                  (readerOpts, writerOpts)
 import           Filters                    (preprocessSource)
 import qualified Patterns                   as P
@@ -301,7 +302,7 @@ linksCompiler = do
     body <- getResourceBody
     let src   = itemBody body
     let body' = itemSetBody (preprocessSource cfg src) body
-    pandocItem <- readPandocWith readerOpts body'
+    pandocItem <- readPandocWith (withMath (switchOn cfg "math") readerOpts) body'
     let entries = nubBy sameEntry
                         (extractLinksWithContext (itemBody pandocItem))
     makeItem . TL.unpack . TLE.decodeUtf8 . Aeson.encode $ entries

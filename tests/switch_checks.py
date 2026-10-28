@@ -15,6 +15,8 @@ from pathlib import Path
 
 ARCHIVED = "example-cited-page"   # the fixture's archive entry (archive/manifest.yaml)
 PIECE = "a-piece"                 # the fixture's composition (content/music/a-piece/)
+CAPABILITIES = "essays/capabilities/index.html"   # the full profile's essay of switched features
+EULER = r"$e^{i\pi} + 1 = 0$"     # its inline math, as written
 # What music puts on a page: the score filter's fragment, the composition
 # page's stylesheet, the catalog's shelf script, the reader's page list.
 MUSIC_MARKS = ('data-exhibit-type="score"', "/css/composition.css", "/css/catalog.css", "/js/music-shelf.js",
@@ -85,8 +87,24 @@ def music_off(site: Path) -> None:
     assert "Compositions" not in text(site, "stats/index.html"), "/stats/ counts compositions"
 
 
+def math_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    for mark in ('class="math inline"', 'class="math display"', "/katex/katex.min.css", "/katex/katex.min.js"):
+        assert mark in essay, f"the essay's math has no {mark}"
+    assert "<math" in essay, "the essay's abstract has no MathML"
+
+
+def math_off(site: Path) -> None:
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in ('class="math', "/katex/", "<math")}
+    assert not any(marked.values()), f"math on pages: {marked}"
+    if (site / "_site" / CAPABILITIES).is_file():
+        assert EULER in text(site, CAPABILITIES), "the essay's TeX is not left as written"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
+    "math": (math_on, math_off),
     "music": (music_on, music_off),
 }

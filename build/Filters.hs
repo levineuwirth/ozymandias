@@ -7,7 +7,7 @@ module Filters
     ) where
 
 import           Text.Pandoc.Definition (Pandoc)
-import           Config (SiteConfig)
+import           Config (SiteConfig, switchOn)
 import           Sections (directoryRouteSlugs)
 
 import qualified Filters.Sidenotes  as Sidenotes
@@ -40,6 +40,7 @@ import qualified Filters.FigureRefs as FigureRefs
 --   @figure-numbering: true@, read by "Compilers"). It runs last, and
 --   outermost: it rewrites the @\<figure\>@ HTML that Images and Viz emit,
 --   so both must have produced their markup before it looks for any.
+--   A switch's filter runs only with the switch on.
 applyAll :: SiteConfig -> Bool -> FilePath -> Pandoc -> IO Pandoc
 applyAll cfg numberFigures srcDir doc = do
     imagesDone     <- Images.apply     srcDir doc
@@ -54,9 +55,11 @@ applyAll cfg numberFigures srcDir doc = do
         . Archive.apply
         . Smallcaps.apply
         . Dropcaps.apply
-        . Math.apply
+        . on "math" Math.apply
         . Code.apply
         $ sourceRefsDone
+  where
+    on name filter' = if switchOn cfg name then filter' else id
 
 -- | Apply source-level preprocessors to the raw Markdown string.
 --   Order matters: EmbedPdf must run before Transclusion, because the

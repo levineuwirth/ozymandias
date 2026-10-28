@@ -30,7 +30,7 @@ import           Data.List                  (isInfixOf)
 import           Data.Maybe                 (fromMaybe)
 import           System.FilePath            (takeDirectory)
 import           Utils                      (wordCount, readingTime, escapeHtml, inlinesText, parseBool)
-import           PandocOptions              (poetryReaderOpts, readerOpts, writerOpts)
+import           PandocOptions              (poetryReaderOpts, readerOpts, withMath, writerOpts)
 import           Filters                    (applyAll, preprocessSource)
 import qualified Citations
 import qualified Filters.Headings           as Headings
@@ -160,7 +160,7 @@ essayCompilerWith rOpts = do
     -- and their major sections out of the TOC entirely, since
     -- 'collectHeadings' collects h2/h3. 'Filters.Headings.normalizeLevels'
     -- is the identity for every document that already starts at h2.
-    rawPandoc  <- readPandocWith rOpts body'
+    rawPandoc  <- readPandocWith (withMath (switchOn cfg "math") rOpts) body'
     let pandocItem = fmap Headings.normalizeLevels rawPandoc
 
     -- Get further-reading keys from Hakyll metadata (YAML frontmatter is stripped
@@ -233,7 +233,7 @@ transformDocument cfg frKeys bibPath numberFigures srcDir doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
-    withViz    <- Viz.inlineViz srcDir withScores
+    withViz    <- Viz.inlineViz (withMath (switchOn cfg "math") readerOpts) srcDir withScores
     filtered   <- applyAll cfg numberFigures srcDir withViz
     return (filtered, bibHtml, furtherHtml)
 
@@ -312,7 +312,8 @@ filteredPage = do
     body     <- getResourceBody
     filePath <- getResourceFilePath
     let src = itemBody body
-    pandocItem <- readPandocWith readerOpts (itemSetBody (preprocessSource cfg src) body)
+    pandocItem <- readPandocWith (withMath (switchOn cfg "math") readerOpts)
+                                 (itemSetBody (preprocessSource cfg src) body)
     filtered   <- unsafeCompiler $
         applyAll cfg False (takeDirectory filePath) (itemBody pandocItem)
     return (src, writePandocWith writerOpts (itemSetBody filtered pandocItem))

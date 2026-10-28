@@ -3,7 +3,8 @@
 gallery.js wraps each display equation of an essay and gives it an
 expand control; the overlay shows one equation at a time, large, steps
 through them all, and returns focus where it came from. Run on a built
-essay with many display equations (rendered by KaTeX in the page).
+essay with many display equations (rendered by KaTeX in the page), the
+site's `essay-gallery`; a site without the math switch has none.
 
 Checked: one named button per equation and the equation itself left as
 it is (audit J04: each was an unnamed role="button" tab stop); the
@@ -22,18 +23,19 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route
 
-ESSAY = route("essay-gallery")
 OVERLAY = "#gallery-overlay"
 
 
+@requires_switch("math")
 @requires_browser
 class Gallery(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         check_site()
         require_playwright()
+        cls.essay = route("essay-gallery")
         from playwright.sync_api import expect, sync_playwright
         cls.expect = staticmethod(expect)
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-gallery-")))
@@ -53,7 +55,7 @@ class Gallery(unittest.TestCase):
         page.on("pageerror", lambda e: errors.append(str(e)))
         self.addCleanup(lambda: self.assertEqual(errors, [], "page errors"))
         self.addCleanup(lambda: self.assertEqual(net.unexpected, [], "requests leaving serve.py"))
-        page.goto(self.base + ESSAY, wait_until="load")
+        page.goto(self.base + self.essay, wait_until="load")
         self.expect(page.locator(".math-focusable .exhibit-expand-btn").first).to_be_attached()
         return page
 

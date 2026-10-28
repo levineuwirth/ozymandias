@@ -22,7 +22,8 @@ import           Text.Pandoc.Definition         (Inline (..))
 import           Text.Pandoc.Walk               (query)
 
 import           Compilers                      (readerOpts)
-import           Config                         (SiteConfig)
+import           Config                         (SiteConfig, switchOn)
+import           PandocOptions                  (withMath)
 import           Drafts                         (isUnpublished, markdownUnder, scanUnpublished)
 import           Filters                        (preprocessSource)
 import           Site                           (refusedPath)
@@ -47,7 +48,8 @@ pageLinks cfg fp = do
     return $ case parsePage src of
         Left _          -> []
         Right (_, body) ->
-            case runPure (readMarkdown readerOpts (T.pack (preprocessSource cfg body))) of
+            let opts = withMath (switchOn cfg "math") readerOpts
+            in case runPure (readMarkdown opts (T.pack (preprocessSource cfg body))) of
                 Left _    -> []
                 Right doc -> query target doc
   where

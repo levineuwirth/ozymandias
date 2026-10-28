@@ -58,7 +58,8 @@ import qualified Text.Pandoc            as Pandoc
 import           Text.Pandoc.Definition
 import           Text.Pandoc.Walk       (walkM)
 import           EngineFiles            (resolveFile)
-import           PandocOptions          (readerOpts, writerOpts)
+import           PandocOptions          (writerOpts)
+import           Text.Pandoc.Options    (ReaderOptions)
 import qualified Utils                  as U
 
 -- ---------------------------------------------------------------------------
@@ -66,24 +67,25 @@ import qualified Utils                  as U
 -- ---------------------------------------------------------------------------
 
 -- | Walk the Pandoc AST and inline all @.figure@ and @.visualization@ divs.
---   @baseDir@ is the directory of the source file; @script=@ paths are
---   resolved relative to it.
-inlineViz :: FilePath -> Pandoc -> IO Pandoc
-inlineViz baseDir = walkM (transformBlock baseDir)
+--   @rOpts@ reads their captions as the page's body is read; @baseDir@ is
+--   the directory of the source file; @script=@ paths are resolved
+--   relative to it.
+inlineViz :: ReaderOptions -> FilePath -> Pandoc -> IO Pandoc
+inlineViz rOpts baseDir = walkM (transformBlock rOpts baseDir)
 
 -- ---------------------------------------------------------------------------
 -- Block transformation
 -- ---------------------------------------------------------------------------
 
-transformBlock :: FilePath -> Block -> IO Block
-transformBlock baseDir blk@(Div (divId, cls, attrs) _)
+transformBlock :: ReaderOptions -> FilePath -> Block -> IO Block
+transformBlock rOpts baseDir blk@(Div (divId, cls, attrs) _)
     | "figure" `elem` cls = do
         result <- runScript baseDir attrs
         case result of
             Left err ->
                 warn "figure" err >> return (errorBlock err)
             Right out ->
-                let caption = attr "caption" attrs
+                let caption = captionHtml rOpts (attr "caption" attrs)
                     token   = idToken (attr "script" attrs)
                 in  return $ RawBlock (Format "html")
                         (staticFigureHtml divId
@@ -94,11 +96,11 @@ transformBlock baseDir blk@(Div (divId, cls, attrs) _)
             Left err ->
                 warn "visualization" err >> return (errorBlock err)
             Right out ->
-                let caption = attr "caption" attrs
+                let caption = captionHtml rOpts (attr "caption" attrs)
                 in  return $ RawBlock (Format "html")
                         (interactiveFigureHtml divId (escScriptTag out) caption)
     | otherwise = return blk
-transformBlock _ b = return b
+transformBlock _ _ b = return b
 
 -- ---------------------------------------------------------------------------
 -- Script execution
@@ -285,13 +287,13 @@ escScriptTag = T.replace "</" "\\u003c/"
 --   roughly 4px on a 375px phone, against a legible floor near 10px. The
 --   wrapper lets a figure keep a readable size and pan sideways instead.
 staticFigureHtml :: T.Text -> T.Text -> T.Text -> T.Text
-staticFigureHtml figId svgContent caption = T.concat
+staticFigureHtml figId svgContent figcaption = T.concat
     [ "<figure", idAttr figId, " class=\"viz-figure\">"
     , "<div class=\"viz-scroll\"" <> naturalWidthStyle svgContent
       <> " tabindex=\"0\">"
     , svgContent
     , "</div>"
-    , captionHtml caption
+    , figcaption
     , "</figure>"
     ]
 
@@ -323,24 +325,24 @@ viewBoxWidth svg =
     needle = "viewBox=\""
 
 interactiveFigureHtml :: T.Text -> T.Text -> T.Text -> T.Text
-interactiveFigureHtml figId jsonSpec caption = T.concat
+interactiveFigureHtml figId jsonSpec figcaption = T.concat
     [ "<figure", idAttr figId, " class=\"viz-interactive\">"
     , "<div class=\"vega-container\">"
     , "<script type=\"application/json\" class=\"vega-spec\">"
     , jsonSpec
     , "</script>"
     , "</div>"
-    , captionHtml caption
+    , figcaption
     , "</figure>"
     ]
 
 -- | Wrap a rendered caption in its @\<figcaption\>@, or emit nothing when
 --   the @caption=@ attribute is absent or empty.
-captionHtml :: T.Text -> T.Text
-captionHtml caption
+captionHtml :: ReaderOptions -> T.Text -> T.Text
+captionHtml rOpts caption
     | T.null caption = ""
     | otherwise      =
-        "<figcaption class=\"viz-caption\">" <> renderCaption caption <> "</figcaption>"
+        "<figcaption class=\"viz-caption\">" <> renderCaption rOpts caption <> "</figcaption>"
 
 -- | Render a @caption=@ attribute value as Markdown.
 --
@@ -353,7 +355,8 @@ captionHtml caption
 --   @$\\delta$@ under each figure.
 --
 --   The caption is read and written with the body's own options
---   ("PandocOptions"). Pandoc's 'def' would not do: its reader enables far
+--   ("PandocOptions"; the reader's as the page's compiler passes them, with
+--   math as the site has it). Pandoc's 'def' would not do: its reader enables far
 --   less than the site's, so a caption kept its straight quotes and its
 --   @$…$@ stayed literal while body prose one line above got both; and
 --   its math method wraps TeX in @\\(…\\)@ delimiters, while
@@ -363,14 +366,14 @@ captionHtml caption
 --   A caption is inline content, so the reader's block wrapper is unwrapped
 --   to keep a @\<p\>@ out of the @\<figcaption\>@. On the (essentially
 --   impossible) round-trip failure, fall back to the old escaped text.
-renderCaption :: T.Text -> T.Text
-renderCaption caption =
+renderCaption :: ReaderOptions -> T.Text -> T.Text
+renderCaption rOpts caption =
     case Pandoc.runPure convert of
         Right html -> T.strip html
         Left  _    -> escHtml caption
   where
     convert = do
-        Pandoc meta blocks <- Pandoc.readMarkdown readerOpts caption
+        Pandoc meta blocks <- Pandoc.readMarkdown rOpts caption
         Pandoc.writeHtml5String writerOpts (Pandoc meta (map unBlock blocks))
 
     unBlock (Para ils) = Plain ils

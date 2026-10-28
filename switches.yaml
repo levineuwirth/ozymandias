@@ -43,3 +43,12 @@ music:
     feeds, keyword pages), score fragments in pages (Filters.Score, and a
     standalone page's `scores`), and the build's pruning of published score
     pages (tools/prune-site.py).
+
+math:
+  kind: capability
+  default: false
+  assets: [katex/**, js/katex-bootstrap.js, licenses/KaTeX-MIT.txt]
+  about: >-
+    TeX math: Markdown's $ and $$ read as math (PandocOptions.withMath, in
+    every reader of a page, an abstract or a caption) and typeset by the
+    self-hosted KaTeX the pages that have math load. Without it a $ is text.

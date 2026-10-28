@@ -31,7 +31,8 @@ import           System.FilePath       (takeDirectory, (</>))
 import           System.IO             (hPutStrLn, stderr)
 import           Text.Pandoc           (readMarkdown, runPure, writeHtml5String)
 
-import           Config                (readSiteConfig)
+import           Config                (readSiteConfig, switchOn)
+import           PandocOptions         (withMath)
 import           Compilers             (readerOpts, writerOpts, transformDocument,
                                         buildTOC)
 import           Hakyll.Core.Provider.Metadata (parsePage)
@@ -51,7 +52,7 @@ renderFixture path = do
                                       (lookupString "bibliography" meta))
         numberFigures = fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
     parsed <- either (die . show) return $
-        runPure (readMarkdown readerOpts (T.pack (preprocessSource cfg body)))
+        runPure (readMarkdown (withMath (switchOn cfg "math") readerOpts) (T.pack (preprocessSource cfg body)))
     (doc, bibHtml, furtherHtml) <-
         transformDocument cfg frKeys bibPath numberFigures (takeDirectory path)
                           (Headings.normalizeLevels parsed)

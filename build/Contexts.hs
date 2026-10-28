@@ -64,7 +64,7 @@ import qualified Data.Text     as T
 import qualified Data.Text.IO  as TIO
 import qualified Data.Yaml     as Y
 import Text.Pandoc             (runPure, readMarkdown, writeHtml5String, writePlain, Pandoc(..), Block(..), Inline(..))
-import Text.Pandoc.Options     (WriterOptions(..), HTMLMathMethod(..))
+import Text.Pandoc.Options     (ReaderOptions, WriterOptions(..), HTMLMathMethod(..))
 import Text.Pandoc.Extensions  (Extension(..), disableExtension)
 import Hakyll       hiding (escapeHtml, trim)
 import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
@@ -79,7 +79,8 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryPrimaryField, versionHistoryRestField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
-import Config       (loadConfig, identityContext, navigationContext, siteAuthor)
+import Config       (loadConfig, identityContext, navigationContext, siteAuthor, switchOn)
+import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
@@ -318,8 +319,9 @@ abstractField = field "abstract" $ \item -> do
     case lookupString "abstract" meta of
         Nothing -> noResult "no abstract"
         Just src -> do
+            opts <- metadataReaderOpts
             let pandocResult = runPure $ do
-                    doc <- readMarkdown defaultHakyllReaderOptions (T.pack src)
+                    doc <- readMarkdown opts (T.pack src)
                     let doc' = case doc of
                                  Pandoc m [Para ils] -> Pandoc m [Plain ils]
                                  Pandoc m blocks
@@ -390,9 +392,9 @@ descriptionField = field "description" $ \item -> do
 --   @\<sub\>0\<\/sub\>@, and 'unwrapSubSup' takes the tags off to leave
 --   @v0@. Both markers are noise in a one-line summary.
 plainOfMarkdown :: String -> Compiler T.Text
-plainOfMarkdown src =
-    case runPure (readMarkdown defaultHakyllReaderOptions (T.pack src)
-                    >>= writePlain plainOpts) of
+plainOfMarkdown src = do
+    opts <- metadataReaderOpts
+    case runPure (readMarkdown opts (T.pack src) >>= writePlain plainOpts) of
         Left err  -> fail $ "Pandoc error rendering description: " ++ show err
         Right txt -> return (unwrapSubSup txt)
   where
@@ -661,13 +663,21 @@ summaryField = field "summary" $ \item -> do
     case lookupString "summary" meta of
         Nothing -> noResult "no summary"
         Just src -> do
+            opts <- metadataReaderOpts
             let pandocResult = runPure $ do
-                    doc <- readMarkdown defaultHakyllReaderOptions (T.pack src)
+                    doc <- readMarkdown opts (T.pack src)
                     let wOpts = defaultHakyllWriterOptions { writerHTMLMathMethod = MathML }
                     writeHtml5String wOpts doc
             case pandocResult of
                 Left err -> fail $ "Pandoc error rendering summary: " ++ show err
                 Right html -> return (T.unpack html)
+
+-- | How front matter's Markdown (an abstract, a summary, a description) is
+--   read: Pandoc's defaults, with math only with the math switch on.
+metadataReaderOpts :: Compiler ReaderOptions
+metadataReaderOpts = do
+    cfg <- loadConfig
+    return (withMath (switchOn cfg "math") defaultHakyllReaderOptions)
 
 siteCtx :: Context String
 siteCtx =
