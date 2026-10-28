@@ -15,6 +15,7 @@
     </div>
     $endif$
     <nav class="meta-row meta-pagelinks" aria-label="Page sections">
+        $if(build)$$else$
         $if(version-history-range)$
         <a href="#version-history" class="date-hover"
            data-date-start="$version-history-range-start$"
@@ -22,6 +23,7 @@
            $if(version-history-commits)$data-date-commits="$version-history-commits$"$endif$>$version-history-range$</a>
         $else$
         <a href="#version-history">History</a>
+        $endif$
         $endif$
         $if(status)$<a href="#epistemic">Epistemic</a>$endif$
         $if(bibliography)$<a href="#bibliography">Bibliography</a>$endif$
