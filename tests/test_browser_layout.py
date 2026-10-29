@@ -22,7 +22,8 @@ of it:
   grows must be recorded; one that shrinks need not be); and the origins
   other than the site's own that each page asks for, as recorded in
   outside.json (offline, those requests are refused, so the bytes are
-  the site's own).
+  the site's own). Its date is outside every season's window, so the
+  budgets weigh the plain pages on any day (_browser.off_season).
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_layout -v
     UPDATE_BROWSER_BASELINE=1 RUN_BROWSER_TESTS=1 ...   # record what is found
@@ -37,8 +38,8 @@ from pathlib import Path
 
 from tests.target import routes
 from tests._browser import (BROWSERS, UPDATE_BASELINE, assert_complete, baseline, check_site,
-                            harness_constant, harness_routes, require_playwright, requires_browser,
-                            run_harness, site_server)
+                            harness_constant, harness_routes, off_season, require_playwright,
+                            requires_browser, run_harness, site_server)
 
 ROUTES = harness_routes()
 OVERFLOW_WIDTHS = harness_constant("overflow_run.py", "WIDTHS")
@@ -71,7 +72,8 @@ class Layout(unittest.TestCase):
                     + [["overflow_run.py", "chromium", f"overflow-{px}px.json", f"--text-size={px}",
                         "--widths=" + ",".join(map(str, TEXT_SIZE_WIDTHS))] for px in TEXT_SIZES]
                     + [["motion_run.py", b, f"motion-{b}.json"] for b in BROWSERS]
-                    + [["perf_run.py", f"perf-{w}.json", str(w)] for w in WIDTHS])
+                    + [["perf_run.py", f"perf-{w}.json", str(w), "--date=" + off_season().isoformat()]
+                       for w in WIDTHS])
         load = lambda name: json.loads((out / name).read_text())
         # (browser, text size or None for the default) -> report
         cls.overflow = {(b, None): {k: v for i in range(len(OVERFLOW_HALVES))
