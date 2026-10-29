@@ -33,6 +33,9 @@
      stage.headerSlot()
                     a free spot in the header, {cx, cy, size, header}, or null
 
+   stage.wake() asks for a frame, for an actor whose picture changed
+   between them (something it waited for arrived).
+
    The stage starts once the page has loaded and the browser is idle, so it
    never competes with the page's own first work, and fades in. */
 (function () {
@@ -53,7 +56,7 @@
         BUSY: BUSY, IDLE: IDLE, REST: REST,
         geo: geo, pointer: pointer, flung: 0, still: stillMode(),
         register: register, blocked: blocked, rectBlocked: rectBlocked,
-        headerSlot: headerSlot
+        headerSlot: headerSlot, wake: wake
     };
 
     /* ------------------------------------------------------------------
