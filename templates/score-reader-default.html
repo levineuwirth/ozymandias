@@ -9,7 +9,8 @@
 <link rel="stylesheet" href="/css/score-reader.css">
 <!-- utils.js must precede theme.js: theme.js reads saved settings via
      window.lnUtils.safeStorage and silently restores nothing without it. -->
-<script src="/js/utils.js"></script>
+$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$">
+$endfor$<script src="/js/utils.js"></script>
 <script src="/js/theme.js"></script>
 </head>
 <body class="score-reader-page">

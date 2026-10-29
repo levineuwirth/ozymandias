@@ -40,7 +40,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> constField "home" "true" <> constField "title" "Piece"
+    let ctx = identityContext <> navigationContext <> seasonContext <> constField "home" "true" <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"
     forM_ ["partials/head.html", "partials/footer.html", "partials/nav.html",
@@ -89,7 +89,11 @@ main = hakyll $ do
             portals = [{"name": "Zines", "tag": "zines"}, {"name": "Art & <Craft>", "tag": "art"},
                        {"name": "beekeeping", "tag": "bees"}]
             nav = [{"label": "Home", "href": "/"}, {"label": "Q&A", "href": "/q.html?a=1&b=2"}]
-            config = dict(title=title, email="a&b@example.org", portals=portals, **{
+            seasons = [{"id": "dusk", "label": "Dusk & <Dawn>", "base": "dark", "from": "12-20",
+                        "to": "01-02", "stylesheet": "/css/dusk.css", "script": "/js/dusk.js"},
+                       {"id": "noon", "label": "Noon", "base": "light", "from": "06-21",
+                        "to": "06-21", "stylesheet": "/css/noon.css"}]
+            config = dict(title=title, email="a&b@example.org", portals=portals, seasons=seasons, **{
                 "nav-primary": nav,
                 "contact-email": "contact&us@example.org", "signing-fingerprint": "ABC DEF",
                 "manifest": manifest, "feeds": [feed, dict(feed, path="hidden.xml", advertise=False)]})
@@ -121,6 +125,22 @@ main = hakyll $ do
                 self.assertIn("contact&amp;us@example.org", read("partials/archive-removal-notice.html"))
                 self.assertIn("Ed25519 signing subkey ABC DEF", read("partials/footer.html"))
                 self.assertIn(f'Piece — Score — {html.escape(config["title"])}', read("score-reader-default.html"))
+                # Seasons: a meta each ahead of theme.js, which reads them; a
+                # stylesheet each, for the screen; a hidden button each. The
+                # score reader names no script and loads no stylesheet.
+                self.assertIn('<meta name="ozy:season" content="dusk" data-base="dark" data-from="12-20"'
+                              ' data-to="01-02" data-script="/js/dusk.js">', head)
+                self.assertIn('<meta name="ozy:season" content="noon" data-base="light" data-from="06-21"'
+                              ' data-to="06-21">', head)
+                self.assertLess(head.index('name="ozy:season"'), head.index('/js/theme.js'))
+                self.assertIn('<link rel="stylesheet" href="/css/dusk.css" media="screen">', head)
+                nav_html = read("partials/nav.html")
+                self.assertIn('data-action="season-dusk" hidden>Dusk &amp; &lt;Dawn&gt;</button>', nav_html)
+                self.assertIn('data-action="season-noon" hidden>Noon</button>', nav_html)
+                reader = read("score-reader-default.html")
+                self.assertEqual(reader.count('name="ozy:season"'), 2)
+                self.assertNotIn("data-script", reader)
+                self.assertNotIn("/css/dusk.css", reader)
                 parsed = json.loads(read("site.webmanifest"))
                 for key, value in config["manifest"].items():
                     self.assertEqual(parsed[key.replace("-", "_")], value)

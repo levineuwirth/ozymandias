@@ -2245,3 +2245,37 @@ h3:hover .section-toggle,
     background: var(--text);
     border-color: var(--text);
 }
+
+
+/* ============================================================
+   STAGE
+   The layer a season's decorations are drawn in (static/js/stage.js):
+   over the page and under the header (100) and popups (500 and up),
+   taking no clicks. It fades in once the page has settled. Focus mode
+   and print take it away; Reduce Motion stops its animations with the
+   rest of the page's, above, and stage.js stops what it moves itself.
+   ============================================================ */
+
+.stage-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    contain: strict;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+}
+
+.stage-layer.is-on {
+    opacity: 1;
+}
+
+[data-focus-mode] .stage-layer {
+    display: none;
+}
+
+@media print {
+    .stage-layer {
+        display: none !important;
+    }
+}

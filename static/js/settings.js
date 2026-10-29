@@ -1,4 +1,4 @@
-/* settings.js — Settings panel: theme, text size, print.
+/* settings.js — Settings panel: theme, season, text size, print.
    Text sizes are lnUtils.TEXT_SIZE (utils.js), which theme.js reads too.
 
    All localStorage access routes through window.lnUtils.safeStorage so
@@ -24,6 +24,7 @@
         var panel  = document.querySelector('.settings-panel');
         if (!toggle || !panel) return;
 
+        showOpenSeasons();
         syncThemeButtons();
         syncTextSizeButtons();
         syncToggleButton('focus-mode',    'data-focus-mode');
@@ -42,7 +43,7 @@
             if (e.key === 'Escape') { setOpen(false); return; }
             if (e.key !== 'Tab' || !panel.classList.contains('is-open')) return;
             var focusable = Array.from(panel.querySelectorAll(
-                'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                'button:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])'
             ));
             if (focusable.length === 0) return;
             var first = focusable[0];
@@ -75,7 +76,7 @@
         panel.setAttribute('aria-hidden',    open ? 'false' : 'true');
         panel.classList.toggle('is-open', open);
         if (open) {
-            var first = panel.querySelector('button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+            var first = panel.querySelector('button:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])');
             if (first) first.focus();
         } else if (wasOpen && (panel.contains(document.activeElement) || document.activeElement === toggle)) {
             /* Only return focus to toggle when the panel was open and focus
@@ -93,6 +94,7 @@
         if      (action === 'theme-light')      setTheme('light');
         else if (action === 'theme-dark')       setTheme('dark');
         else if (action === 'theme-cappuccino') setTheme('cappuccino');
+        else if (action.indexOf('season-') === 0) setSeason(action.slice(7));
         else if (action === 'text-smaller')  shiftSize(-1);
         else if (action === 'text-larger')   shiftSize(+1);
         else if (action === 'text-reset')    setSize(SIZES.base);
@@ -111,12 +113,42 @@
     /* Theme ----------------------------------------------------------- */
 
     function setTheme(theme) {
+        document.documentElement.removeAttribute('data-season');
         document.documentElement.setAttribute('data-theme', theme);
         store.set('theme', theme);
         syncThemeButtons();
     }
 
+    /* A season (theme.js) is worn over its base theme and stored by its
+       id. Its script waits for stage.js, which may not be on the page
+       yet: theme.js loads it only for a season worn from the start. */
+    function setSeason(id) {
+        var meta = document.querySelector('meta[name="ozy:season"][content="' + id + '"]');
+        if (!meta) return;
+        var html = document.documentElement;
+        html.setAttribute('data-theme', meta.getAttribute('data-base'));
+        html.setAttribute('data-season', id);
+        store.set('theme', id);
+        syncThemeButtons();
+        if (meta.hasAttribute('data-script') && !document.querySelector('script[src="/js/stage.js"]')) {
+            var stage = document.createElement('script');
+            stage.src = '/js/stage.js';
+            document.head.appendChild(stage);
+        }
+    }
+
+    /* A season's button shows while its window is open (theme.js lists
+       the open ones in data-seasons-open). */
+    function showOpenSeasons() {
+        var open = (document.documentElement.getAttribute('data-seasons-open') || '').split(' ');
+        document.querySelectorAll('[data-action^="season-"]').forEach(function (btn) {
+            btn.hidden = open.indexOf(btn.getAttribute('data-action').slice(7)) < 0;
+        });
+    }
+
     function currentTheme() {
+        var season = document.documentElement.getAttribute('data-season');
+        if (season) return season;
         var attr = document.documentElement.getAttribute('data-theme');
         if (attr) return attr;
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -125,8 +157,9 @@
     function syncThemeButtons() {
         var active = currentTheme();
         /* aria-pressed says which: the class only showed it. */
-        document.querySelectorAll('[data-action^="theme-"]').forEach(function (btn) {
-            var on = btn.getAttribute('data-action') === 'theme-' + active;
+        document.querySelectorAll('[data-action^="theme-"], [data-action^="season-"]').forEach(function (btn) {
+            var action = btn.getAttribute('data-action');
+            var on = action === 'theme-' + active || action === 'season-' + active;
             btn.classList.toggle('is-active', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         });

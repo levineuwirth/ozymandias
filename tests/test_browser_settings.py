@@ -26,7 +26,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
+from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server)
 from tests.target import route
 
@@ -70,6 +70,9 @@ class SettingsPanel(unittest.TestCase):
     def open_page(self, browser: str, path: str = PAGE, init: str = "", width: int = 1280):
         context = self.browsers[browser].new_context(viewport={"width": width, "height": 900})
         self.addCleanup(context.close)
+        # Out of every season (test_browser_seasons), so that nothing stored
+        # means no theme, on any date.
+        context.clock.set_fixed_time(off_season())
         context.add_init_script(STUBS + init)
         page = context.new_page()
         errors = []
@@ -127,7 +130,8 @@ class SettingsPanel(unittest.TestCase):
             with self.subTest(browser=browser):
                 page = self.open_page(browser)
                 self.open_panel(page)
-                count = page.locator(f"{PANEL} button").count()
+                # The buttons shown: a season's is hidden out of its window.
+                count = page.locator(f"{PANEL} button:visible").count()
                 seen = set()
                 for _ in range(count + 2):
                     page.keyboard.press("Tab")

@@ -5,10 +5,11 @@
 module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
     , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
-    , Standalone (..), PageKind (..), standaloneDir, engineSources, engineContentDirs
+    , Standalone (..), PageKind (..), Season (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
-    , siteOwnHosts, identityContext, identityFields, navigationContext, manifestRules
+    , siteOwnHosts, identityContext, identityFields, navigationContext, seasonContext
+    , manifestRules
     , knownDingbats
     ) where
 
@@ -54,7 +55,75 @@ data SiteConfig = SiteConfig
     , siteLibrary :: LibraryConfig
     , siteStandalone :: [Standalone]
     , siteFontPreloads :: [String]
+    , siteSeasons :: [Season]
     } deriving (Eq, Show)
+
+-- | A seasonal dressing over one of the themes (site.yaml's @seasons@).
+--   While its window is open, @from@ to @to@ inclusive (month-day; a window
+--   whose @from@ is later than its @to@ runs through the new year), a
+--   reader with no stored theme wears it and Settings offers it; once the
+--   window closes, a reader who chose it gets @base@. @stylesheet@, screen
+--   only, holds its tokens, scoped to @[data-season]@; @script@, if any, is
+--   loaded only while the season is worn and registers decorations with
+--   the stage (static/js/stage.js). theme.js and settings.js read them from
+--   head.html's @ozy:season@ metas.
+data Season = Season
+    { seasonId :: String
+    , seasonLabel :: String
+    , seasonBase :: String
+    , seasonFrom :: String
+    , seasonTo :: String
+    , seasonStylesheet :: String
+    , seasonScript :: Maybe String
+    } deriving (Eq, Show)
+
+-- | The themes a season can dress: theme.js's, settings.js's and base.css's.
+seasonBases :: [String]
+seasonBases = ["light", "dark", "cappuccino"]
+
+instance FromJSON Season where
+    parseJSON = withObject "season" $ \o -> do
+        onlyKeys ["id", "label", "base", "from", "to", "stylesheet", "script"] o
+        s <- Season <$> o .: "id" <*> o .: "label" <*> o .: "base"
+                    <*> o .: "from" <*> o .: "to" <*> o .: "stylesheet" <*> o .:? "script"
+        unless (slug (seasonId s)) $
+            fail ("season id must be lowercase letters, digits and hyphens: " ++ seasonId s)
+        when (seasonId s `elem` seasonBases) $
+            fail ("season id names a theme: " ++ seasonId s)
+        singleLine "season label" (seasonLabel s)
+        unless (seasonBase s `elem` seasonBases) $
+            fail ("season base must be one of " ++ intercalate ", " seasonBases ++ ": " ++ seasonBase s)
+        forM_ [("from", seasonFrom s), ("to", seasonTo s)] $ \(key, day) ->
+            unless (monthDay day) $
+                fail ("season " ++ key ++ " must be a day of the year as MM-DD: " ++ day)
+        unless (siteAsset ".css" (seasonStylesheet s)) $
+            fail ("season stylesheet must be the site's .css path: " ++ seasonStylesheet s)
+        forM_ (seasonScript s) $ \path -> unless (siteAsset ".js" path) $
+            fail ("season script must be the site's .js path: " ++ path)
+        pure s
+
+instance ToJSON Season where
+    toJSON s = object
+        [ "id" .= seasonId s, "label" .= seasonLabel s, "base" .= seasonBase s
+        , "from" .= seasonFrom s, "to" .= seasonTo s
+        , "stylesheet" .= seasonStylesheet s, "script" .= seasonScript s ]
+
+-- | MM-DD naming a day some year has (02-29 included).
+monthDay :: String -> Bool
+monthDay value = case value of
+    [m1, m2, '-', d1, d2] | all (`elem` ['0'..'9']) [m1, m2, d1, d2] ->
+        let month = read [m1, m2] :: Int
+            day = read [d1, d2] :: Int
+        in month >= 1 && month <= 12 && day >= 1
+           && day <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] !! (month - 1)
+    _ -> False
+
+-- | A root-relative path to one of the site's files with the given
+--   extension, safe to put in an attribute unescaped.
+siteAsset :: String -> String -> Bool
+siteAsset ext path = "/" `isPrefixOf` path && ext `isSuffixOf` path
+    && safePath (drop 1 path)
+    && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) path
 
 data FeedSection = Essays | Blog | Fiction | Poetry | Music | Photos
     deriving (Eq, Show, Enum, Bounded)
@@ -349,7 +418,7 @@ instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
-                      "nav-primary", "library", "standalone", "font-preloads"]) o
+                      "nav-primary", "library", "standalone", "font-preloads", "seasons"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -360,11 +429,13 @@ instance FromJSON SiteConfig where
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .: "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
+                        <*> o .:? "seasons" .!= []
         mapM_ (uncurry singleLine) (identityValues c)
         forM_ (siteFontPreloads c) $ \href ->
-            unless ("/" `isPrefixOf` href && ".woff2" `isSuffixOf` href
-                    && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) href) $
+            unless (siteAsset ".woff2" href) $
                 fail ("font-preloads must be the site's .woff2 paths: " ++ href)
+        let seasonIds = map seasonId (siteSeasons c)
+        when (nub seasonIds /= seasonIds) $ fail "season ids must be unique"
         when (any isControl (siteSigningFingerprint c)) $
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
@@ -405,7 +476,8 @@ instance ToJSON SiteConfig where
                            "sections" .= siteSections c, "portals" .= sitePortals c,
                            "nav-primary" .= siteNavPrimary c, "library" .= siteLibrary c,
                            "standalone" .= siteStandalone c,
-                           "font-preloads" .= siteFontPreloads c])
+                           "font-preloads" .= siteFontPreloads c,
+                           "seasons" .= siteSeasons c])
 
 identityKeys :: [String]
 identityKeys = ["title", "author", "author-sort", "email", "contact-email", "url", "host",
@@ -526,6 +598,22 @@ navigationContext =
                <> field "href" (pure . escapeHtml . navHref . itemBody)
     portalContext = field "portal-name" (pure . escapeHtml . portalName . itemBody)
                  <> field "portal-url" (pure . escapeHtml . (\t -> "/" ++ t ++ "/") . portalTag . itemBody)
+
+-- | site.yaml's seasons, escaped like 'identityContext', for head.html's
+--   metas and stylesheets and the Settings buttons: @$for(seasons)$@ with
+--   @$season-id$@, @$season-label$@, @$season-base$@, @$season-from$@,
+--   @$season-to$@, @$season-stylesheet$@ and @$season-script$@ (absent when
+--   the season has none, so @$if(season-script)$@ asks).
+seasonContext :: Context String
+seasonContext = listField "seasons" fields (loadConfig >>= mapM makeItem . siteSeasons)
+  where
+    fields = mconcat
+        [ field name (pure . escapeHtml . get . itemBody)
+        | (name, get) <- [ ("season-id", seasonId), ("season-label", seasonLabel)
+                         , ("season-base", seasonBase), ("season-from", seasonFrom)
+                         , ("season-to", seasonTo), ("season-stylesheet", seasonStylesheet) ] ]
+        <> field "season-script"
+               (maybe (noResult "season has no script") (pure . escapeHtml) . seasonScript . itemBody)
 
 manifestRules :: Rules ()
 manifestRules = create ["site.webmanifest"] $ do

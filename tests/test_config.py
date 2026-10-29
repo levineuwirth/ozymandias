@@ -93,12 +93,25 @@ class ConfigTests(unittest.TestCase):
         link = self.config["nav-primary"][0]
         page = {"source": "content/me/index.md", "route": "me.html", "template": "essay.html",
                 "context": "essay", "scores": True, "dingbat": None, "flags": []}
+        season = {"id": "autumn", "label": "Autumn", "base": "dark", "from": "10-01", "to": "10-31",
+                  "stylesheet": "/css/seasons/autumn.css", "script": "/js/seasons/autumn.js"}
         bad = [
             {"titel": "misspelled"}, {"author": ""}, {"title": "one\ntwo"},
             {"url": "example.org"}, {"url": "https://example.org/"},
             {"host": "example.org/path"}, {"code-license": "../outside"},
             {"font-preloads": ["fonts/a.woff2"]}, {"font-preloads": ["/fonts/a.ttf"]},
             {"font-preloads": ['/fonts/a".woff2']}, {"font-preloads": "/fonts/a.woff2"},
+            {"font-preloads": ["/fonts/../a.woff2"]},
+            {"seasons": season}, {"seasons": [season, season]},
+            *[{"seasons": [dict(season, **change)]} for change in (
+                {"id": "Autumn"}, {"id": "-autumn"}, {"id": ""}, {"id": "dark"}, {"label": ""},
+                {"label": "one\ntwo"}, {"base": "neon"}, {"base": None},
+                {"from": "10-1"}, {"from": "13-01"}, {"from": "02-30"}, {"to": "00-10"},
+                {"to": "1031"}, {"stylesheet": "css/autumn.css"}, {"stylesheet": "/css/autumn.js"},
+                {"stylesheet": '/css/a"utumn.css'}, {"stylesheet": "/css/../autumn.css"},
+                {"script": "/js/autumn.css"}, {"script": "js/autumn.js"}, {"script": "/js/a b.js"},
+                {"order": 1},
+            )],
             {"manifest": self.config["manifest"] | {"unknown": "value"}},
             {"manifest": self.config["manifest"] | {"name": ""}},
             {"manifest": self.config["manifest"] | {"description": "one\ntwo"}},
@@ -150,6 +163,23 @@ class ConfigTests(unittest.TestCase):
                 done = self.run_site("config")
                 self.assertNotEqual(done.returncode, 0, done.stdout)
                 self.assertIn("site.yaml", done.stderr)
+
+    def test_seasons_are_read_and_emitted(self):
+        # No seasons: an empty list. A window may run through the new year
+        # and include 02-29; a season needs no script.
+        self.assertEqual(json.loads(self.run_site("config").stdout)["seasons"], [])
+        seasons = [
+            {"id": "winter", "label": "Long Night", "base": "light", "from": "12-01", "to": "02-29",
+             "stylesheet": "/css/seasons/winter.css", "script": "/js/seasons/winter.js"},
+            {"id": "spring-2", "label": "Spring", "base": "cappuccino", "from": "03-20", "to": "03-20",
+             "stylesheet": "/css/seasons/spring.css"},
+        ]
+        self.config["seasons"] = seasons
+        self.write_config()
+        done = self.run_site("config")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout)["seasons"],
+                         [seasons[0], seasons[1] | {"script": None}])
 
     def test_taxonomy_rejects_declarations_the_routes_cannot_honor(self):
         original = self.config["sections"]

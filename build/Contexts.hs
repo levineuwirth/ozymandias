@@ -79,7 +79,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryPrimaryField, versionHistoryRestField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
-import Config       (loadConfig, identityContext, navigationContext, siteAuthor)
+import Config       (loadConfig, identityContext, navigationContext, seasonContext, siteAuthor)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
@@ -673,6 +673,7 @@ siteCtx :: Context String
 siteCtx =
     identityContext
     <> navigationContext
+    <> seasonContext
     <> plainField
     <> canonicalUrlField
     <> pageScriptsField

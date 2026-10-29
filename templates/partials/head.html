@@ -69,7 +69,8 @@ $if(archive)$<link rel="stylesheet" href="/css/archive.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/leaflet.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.Default.css">$endif$
-<link rel="stylesheet" href="/css/print.css" media="print">
+$for(seasons)$<link rel="stylesheet" href="$season-stylesheet$" media="screen">
+$endfor$<link rel="stylesheet" href="/css/print.css" media="print">
 $if(math)$
 <!-- KaTeX 0.16.11, self-hosted under static/katex/ (audit X6): the npm
      package's katex.min.js unchanged (its SHA-384 is the SRI these tags
@@ -84,7 +85,8 @@ $endif$
 $if(search)$
 <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
 $endif$
-<script src="/js/utils.js"></script>
+$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$season-script$"$endif$>
+$endfor$<script src="/js/utils.js"></script>
 <script src="/js/theme.js"></script>
 $if(viz)$
 <!-- Pinned to exact versions with Subresource Integrity (audit S08). The old
