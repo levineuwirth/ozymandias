@@ -43,7 +43,7 @@ import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCt
                    canonicalUrlPath, feedMetaFields, identifierDisplayUTC)
 import qualified Filters.SourceRefs as SR
 import MarkdownSections (markdownSectionsCompiler)
-import Marks      (monogramPattern)
+import Marks      (initialPattern, monogramPattern)
 import qualified Patterns as P
 import Photography (photographyRules)
 import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
@@ -564,13 +564,13 @@ rules = do
     when isDev $
         match "content/drafts/essays/**/*.dims.yaml" $ compile getResourceLBS
 
-    -- Monograms: the same blind spot. Marks.hs inlines them inside
+    -- Monograms and drawn initials: the same blind spot. Marks.hs inlines them inside
     -- 'unsafeCompiler' and records a dependency on each candidate path,
     -- which fires only for a path some rule claims. The essay, music and
     -- photography asset rules claim (and copy) theirs; this claims the rest
     -- (standalone pages, /me/, /music/, poetry), with no route. Drafts' are
     -- claimed by the dev asset rule, or not built.
-    match (monogramPattern
+    match ((monogramPattern .||. initialPattern)
            .&&. complement (essayAssets .||. musicAssets
                             .||. "content/photography/**" .||. "content/drafts/**")) $
         compile getResourceLBS
