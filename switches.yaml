@@ -83,3 +83,15 @@ pdf-viewer:
     in it, and {{pdf:…}} embeds it. Without it those links go to the PDF
     itself and an embed is a link to it; a PDF link keeps its class and
     preview either way.
+
+source-refs:
+  kind: capability
+  default: false
+  needs: [code]
+  about: >-
+    Links from prose to the site's own files (Filters.SourceRefs): inline
+    code naming a file the /source/ mirror publishes, and links to the
+    source repository, each previewed in a popup from that mirror, with
+    Prism (so it needs code). Without it inline code is just code, an
+    authored .source-ref link is an ordinary one, and nothing is published
+    under /source/.

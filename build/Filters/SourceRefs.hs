@@ -29,6 +29,7 @@
 --   @/source/…@ copy.
 module Filters.SourceRefs
     ( apply
+    , plain
     , isSourcePath
     , forgejoSourceUrl
       -- * Shared with 'Site.rules'
@@ -46,7 +47,7 @@ import           Hakyll               (Pattern, fromFilePath, fromGlob, matches)
 import           Data.Maybe           (isJust)
 import           System.IO.Unsafe     (unsafePerformIO)
 import           Text.Pandoc.Definition
-import           Text.Pandoc.Walk     (walkM)
+import           Text.Pandoc.Walk     (walk, walkM)
 
 -- | Two passes: lift Forgejo source URLs in existing Markdown links
 --   first, then wrap inline-code source paths. Both passes only add
@@ -62,6 +63,18 @@ apply :: SiteConfig -> Pandoc -> IO Pandoc
 apply cfg doc = do
     afterLinks <- walkM (classifyExistingLink cfg) doc
     walkM (wrapInlineCode cfg) afterLinks
+
+-- | For a site without the source-refs switch, which publishes no
+--   @/source/@ copies: a link an author marked @.source-ref@ (with its
+--   @data-source-path@) becomes an ordinary link, which no popup binds to.
+plain :: Pandoc -> Pandoc
+plain = walk unmark
+  where
+    unmark (Link (ident, classes, kvs) ils target)
+        | "source-ref" `elem` classes =
+            Link (ident, filter (/= "source-ref") classes,
+                  filter ((/= "data-source-path") . fst) kvs) ils target
+    unmark x = x
 
 -- | Inline @`path`@ → @\<a class="source-ref" data-source-path="path"\>\<code\>path\<\/code\>\<\/a\>@.
 --   The original 'Code' node is preserved as the link's body so the

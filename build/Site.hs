@@ -356,17 +356,19 @@ rules = do
     -- twice without conflict. An engine file is served at its site path,
     -- unless a site file there overrides it.
     -- ---------------------------------------------------------------------------
-    let sourcePreviewable = foldr1 (.||.) [fromGlob g .||. twins g | g <- SR.sourcePreviewGlobs]
-    match sourcePreviewable $ version "source-preview" $ do
-        route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident))
-        compile copyFileCompiler
+    -- Only with the source-refs switch on, which links prose to it.
+    when (switchOn cfg "source-refs") $ do
+        let sourcePreviewable = foldr1 (.||.) [fromGlob g .||. twins g | g <- SR.sourcePreviewGlobs]
+        match sourcePreviewable $ version "source-preview" $ do
+            route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident))
+            compile copyFileCompiler
 
-    -- Markdown among them also gets a sectioned rendering, so a popup can
-    -- show a .md file as prose, or just the section a #fragment names
-    -- (MarkdownSections; renderMarkdownPopup in static/js/popups.js).
-    match (sourcePreviewable .&&. "**.md") $ version "source-sections" $ do
-        route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident) ++ ".sections.json")
-        compile markdownSectionsCompiler
+        -- Markdown among them also gets a sectioned rendering, so a popup can
+        -- show a .md file as prose, or just the section a #fragment names
+        -- (MarkdownSections; renderMarkdownPopup in static/js/popups.js).
+        match (sourcePreviewable .&&. "**.md") $ version "source-sections" $ do
+            route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident) ++ ".sections.json")
+            compile markdownSectionsCompiler
 
     -- Code-reference snapshots — GitHub blobs, trees and commits that prose
     -- links to, fetched by tools/code-refs.py and served at /code-refs/…
@@ -520,8 +522,8 @@ rules = do
     -- (unversioned), and re-checks it every run against the identifiers some
     -- rule claims, where a glob also matches versioned ones. So the pattern is
     -- restricted to unversioned identifiers, every file in it must be claimed
-    -- without a version (viz_theme.py is, just below, besides its
-    -- source-preview copy), and the drafts globs apply only in dev, where a
+    -- without a version (viz_theme.py is, just below), and the drafts globs
+    -- apply only in dev, where a
     -- rule claims drafts. Otherwise the two sets differ on every run and
     -- every essay is out of date on every build (audit H05).
     -- The figure scripts' theme, with the viz switch on: no figure runs

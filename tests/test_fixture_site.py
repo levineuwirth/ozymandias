@@ -244,6 +244,10 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_the_pdf_viewer_off_links_to_its_pdfs(self):
         switch_checks.pdf_viewer_off(self.turned_off("pdf-viewer"))
 
+    def test_a_site_that_turns_source_refs_off_links_no_source(self):
+        # The essay still has an authored .source-ref link.
+        switch_checks.source_refs_off(self.turned_off("source-refs"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

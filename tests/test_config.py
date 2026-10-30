@@ -446,6 +446,7 @@ class ConfigTests(unittest.TestCase):
             "[configured](https://git.example.org/author/site/raw/branch/next/docs/Makefile)\n\n"
             "`Makefile`\n")
         self.config["source-branch"] = "next/docs"
+        self.config["switches"] = {"code": True, "source-refs": True}
         self.write_config()
         done = self.run_site("render-fixture", "probe.md")
         self.assertEqual(done.returncode, 0, done.stderr)

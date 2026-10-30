@@ -174,6 +174,23 @@ def pdf_viewer_off(site: Path) -> None:
         assert len(links) >= 3, f"{len(links)} of the link, the citation and the embed go to the PDF as one"
 
 
+SOURCED = "data/bibliography.bib"   # the file the essay names, three ways
+
+
+def source_refs_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    marked = essay.count(f'class="source-ref" data-source-path="{SOURCED}"')
+    assert marked >= 2, f"{marked} of the inline code and the links are source references"
+    assert (site / "_site/source" / SOURCED).is_file(), "/source/ has no copy of the file"
+
+
+def source_refs_off(site: Path) -> None:
+    assert not (site / "_site/source").exists(), "_site/source/ was built"
+    mark = re.compile(r'class="[^"]*\bsource-ref\b|data-source-path=')
+    marked = [p.name for p in pages(site) if mark.search(p.read_text(encoding="utf-8"))]
+    assert not marked, f"source references on {marked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -181,5 +198,6 @@ CHECKS = {
     "math": (math_on, math_off),
     "music": (music_on, music_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
+    "source-refs": (source_refs_on, source_refs_off),
     "viz": (viz_on, viz_off),
 }

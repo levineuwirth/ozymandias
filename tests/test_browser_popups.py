@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlsplit
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import built, route
+from tests.target import SWITCH_OFF, built, route, switch_on
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
@@ -332,6 +332,8 @@ class LinkPopups(unittest.TestCase):
                 self.expect(thumb).to_have_js_property("complete", True)
                 self.assertGreater(thumb.evaluate("i => i.naturalWidth"), 0)
             with self.subTest(browser=browser, link="source (same origin, J08)"):
+                if not switch_on("source-refs"):
+                    self.skipTest(SWITCH_OFF + "source-refs")
                 popup = self.shown(page, "source")
                 self.expect(popup.locator(".popup-source-code .popup-source-path")) \
                     .to_contain_text("data/similar-links.json")

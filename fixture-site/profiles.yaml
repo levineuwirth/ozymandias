@@ -19,6 +19,7 @@ full:
     math: true
     music: true
     pdf-viewer: true
+    source-refs: true
     viz: true
 minimal:
   switches:
@@ -27,5 +28,6 @@ minimal:
     math: false
     music: false
     pdf-viewer: false
+    source-refs: false
     viz: false
   without: [archive/, content/music/, content/essays/capabilities/]

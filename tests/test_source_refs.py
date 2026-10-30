@@ -4,18 +4,21 @@ build/Filters/SourceRefs.hs wraps a repo path in prose as a source-ref link,
 and the source-preview rule in build/Site.hs copies files to /source/<path>;
 both read Filters.SourceRefs.sourcePreviewGlobs (until 2026-10-04 each kept
 its own copy of the whitelist). A path wrapped but not copied is a popup
-that 404s on hover. Reads the built site."""
+that 404s on hover. Reads the built site; a site without the source-refs
+switch has neither."""
 
 import re
 import unittest
 
 from tests._helpers import SITE_ROOT
+from tests.target import requires_switch
 
 SITE = SITE_ROOT / "_site"
 SOURCE_PATH_RE = re.compile(r'data-source-path="([^"]+)"')
 
 
-@unittest.skipUnless((SITE / "source").is_dir(), "no _site — run `make build`")
+@requires_switch("source-refs")
+@unittest.skipUnless((SITE / "index.html").is_file(), "no _site — run `make build`")
 class SourceRefTargets(unittest.TestCase):
     def test_every_wrapped_path_is_served(self) -> None:
         wrapped: dict[str, str] = {}

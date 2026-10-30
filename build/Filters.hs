@@ -44,7 +44,8 @@ import qualified Filters.FigureRefs as FigureRefs
 applyAll :: SiteConfig -> Bool -> FilePath -> Pandoc -> IO Pandoc
 applyAll cfg numberFigures srcDir doc = do
     imagesDone     <- Images.apply     srcDir doc
-    sourceRefsDone <- SourceRefs.apply cfg imagesDone
+    sourceRefsDone <- if switchOn cfg "source-refs" then SourceRefs.apply cfg imagesDone
+                                                     else pure (SourceRefs.plain imagesDone)
     pure
         . (if numberFigures then FigureRefs.apply else id)
         . Aftermatter.apply

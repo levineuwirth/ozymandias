@@ -35,6 +35,12 @@ An interactive one, which loads Vega:
 ::: {.visualization script="figures/chart.py" caption="Three points, joined."}
 :::
 
+## Source references
+
+Inline code naming a file the site publishes, `data/bibliography.bib`, links
+to it, and so does [its link to the repository](https://git.example.org/author/site/src/branch/main/data/bibliography.bib),
+and one an author marked, [the same file](https://git.example.org/author/site/src/branch/main/data/bibliography.bib){.source-ref data-source-path="data/bibliography.bib"}.
+
 ## A paper
 
 [The fixture paper](/essays/capabilities/paper.pdf) is cited too [@delta2026],
