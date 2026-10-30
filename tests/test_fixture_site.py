@@ -109,9 +109,8 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
     shutil.copytree(FIXTURE, site)
     for rel in build.without:
         shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
-    config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
-    config["switches"] = build.switches
-    config["sections"] = fixture_variants.listed_sections(config["sections"], build.switches)
+    config = fixture_variants.switched(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")),
+                                       build.switches)
     # JSON, which YAML reads as written: a dumped string "y" would come back
     # as a boolean.
     (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
@@ -214,9 +213,8 @@ class FixtureBuilds(unittest.TestCase):
         site = self.sites["full"].with_name(f"full-{name}-turned-off")
         shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
         config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
-        config["switches"] = fixture_variants.settle(dict(config["switches"], **{name: False}),
-                                                     fixture_variants.registry())
-        config["sections"] = fixture_variants.listed_sections(config["sections"], config["switches"])
+        config = fixture_variants.switched(config, fixture_variants.settle(
+            dict(config["switches"], **{name: False}), fixture_variants.registry()))
         (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
         env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
@@ -261,6 +259,10 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_marks_off_leaves_the_slot_empty(self):
         # The essay's mark.svg is still beside it.
         switch_checks.marks_off(self.turned_off("marks"))
+
+    def test_a_site_that_turns_vita_off_renders_no_cv(self):
+        # yaml-source/ and content/cv.md are still there.
+        switch_checks.vita_off(self.turned_off("vita"))
 
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of

@@ -23,6 +23,7 @@ full:
     music: true
     pdf-viewer: true
     source-refs: true
+    vita: true
     viz: true
 minimal:
   switches:
@@ -35,5 +36,6 @@ minimal:
     music: false
     pdf-viewer: false
     source-refs: false
+    vita: false
     viz: false
-  without: [archive/, code-refs/, content/music/, content/essays/capabilities/]
+  without: [archive/, code-refs/, content/cv.md, content/music/, content/essays/capabilities/, yaml-source/]

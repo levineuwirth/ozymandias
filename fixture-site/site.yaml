@@ -36,7 +36,8 @@ sections:
   - {dir: fiction, kind: Fiction, dingbat: null}
   - {dir: music, kind: Composition, dingbat: null}
   - {dir: photography, kind: Photo, dingbat: null}
-standalone: []
+standalone:
+  - {source: content/cv.md, route: cv.html, template: vita.html, context: vita}
 portals:
   - {name: Notes, tag: notes}
 nav-primary:

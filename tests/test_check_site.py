@@ -88,8 +88,8 @@ class CheckSiteTestCase(unittest.TestCase):
         feeds = mock.patch.object(check_site, "site_feeds", return_value=["feed.xml", "music/feed.xml"])
         feeds.start()
         self.addCleanup(feeds.stop)
-        # And its switches: music on, as its music feed says.
-        switches = mock.patch.object(check_site, "site_switches", return_value={"music": True})
+        # And its switches: music on, as its music feed says, and vita.
+        switches = mock.patch.object(check_site, "site_switches", return_value={"music": True, "vita": True})
         switches.start()
         self.addCleanup(switches.stop)
 
@@ -518,7 +518,7 @@ class CheckSiteTestCase(unittest.TestCase):
         self.score_reader(1, 2)
         self.site.write("music/w/scores/page-3.svg", "<svg/>")
         with mock.patch.object(check_site, "site_feeds", return_value=["feed.xml"]), \
-                mock.patch.object(check_site, "site_switches", return_value={"music": False}):
+                mock.patch.object(check_site, "site_switches", return_value={"music": False, "vita": True}):
             code, output = self.run_gate()
         self.assertEqual(code, 0, output)
 
@@ -612,6 +612,21 @@ class CheckSiteTestCase(unittest.TestCase):
         with mock.patch.dict(os.environ, {"SITE_ROOT": str(self.root.parent)}):
             code, output = self.run_gate()
         self.assertEqual(code, 0, output)
+
+    def test_the_cv_check_follows_the_vita_switch(self):
+        # A site's tools/cv-pdfs.py reports stale CV PDFs; without the vita
+        # switch no page reads the CV's YAML, and there is nothing to check.
+        (self.root.parent / "tools").mkdir()
+        (self.root.parent / "tools" / "cv-pdfs.py").write_text(
+            "def stale():\n    return ['cv.pdf is older than education.yml']\n")
+        with mock.patch.dict(os.environ, {"SITE_ROOT": str(self.root.parent)}):
+            code, output = self.run_gate()
+            self.assertEqual(code, 0, output)
+            self.assertIn("cv.pdf is older than education.yml", output)
+            with mock.patch.object(check_site, "site_switches", return_value={"music": True, "vita": False}):
+                code, output = self.run_gate()
+            self.assertEqual(code, 0, output)
+            self.assertNotIn("cv.pdf is older", output)
 
     def test_malformed_sitemap_fails(self):
         self.site.write("sitemap.xml", "<urlset><url>")

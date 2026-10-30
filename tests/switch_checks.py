@@ -251,6 +251,19 @@ def marks_off(site: Path) -> None:
         assert '<h2 id="marks"' not in text(site, "build/index.html"), "the build page has marks coverage"
 
 
+def vita_on(site: Path) -> None:
+    cv = text(site, "cv.html")
+    assert "Example University" in cv, "the CV page does not render yaml-source/data/education.yml"
+    assert "/css/vita.css" in cv, "the CV page has no vita stylesheet"
+
+
+def vita_off(site: Path) -> None:
+    # Without the switch content/cv.md may still be an ordinary page.
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in ("/css/vita.css", "Example University")}
+    assert not any(marked.values()), f"the CV on pages: {marked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -262,5 +275,6 @@ CHECKS = {
     "music": (music_on, music_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "source-refs": (source_refs_on, source_refs_off),
+    "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),
 }

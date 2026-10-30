@@ -680,6 +680,8 @@ def check_cv_pdfs(site_dir: str, report: Report) -> None:
     for the output of the site being checked ($SITE_ROOT, else the working
     directory): the record is that checkout's."""
     report.check("cv-pdfs")
+    if not site_switches()["vita"]:
+        return   # no CV page reads the YAML
     root = os.path.realpath(os.environ.get("SITE_ROOT") or os.getcwd())
     if os.path.realpath(site_dir) not in (os.path.join(root, "_site"), os.path.join(root, "_site-dev")):
         return

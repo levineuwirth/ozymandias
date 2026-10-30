@@ -145,7 +145,9 @@ class ConfigTests(unittest.TestCase):
                               ("a: {kind: capability, default: false, about: x, section: notes}\n",
                                "a switch's section is one the engine routes, not notes"),
                               ("a: {kind: capability, default: false, about: x, assets: [../site.yaml]}\n",
-                               "a switch's assets are paths under static/, not ../site.yaml")):
+                               "a switch's assets are paths under static/, not ../site.yaml"),
+                              ("a: {kind: capability, default: false, about: x, contexts: [cv]}\n",
+                               "a switch's contexts are standalone-page contexts, not cv")):
             with self.subTest(text=text):
                 registry.write_text(text)
                 done = self.run_site("config")
@@ -183,6 +185,22 @@ class ConfigTests(unittest.TestCase):
             with self.subTest(music=switch, changes=sorted(changes)):
                 self.config = dict(self.config, sections=sections, feeds=[], standalone=[],
                                    switches={"music": switch}) | changes
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
+    def test_a_switch_owns_its_standalone_contexts(self):
+        # vita owns the vita and projects contexts (engine/switches.yaml).
+        page = standalone("content/cv.md", "cv.html", template="vita.html", context="vita")
+        for switch, refusal in ((False, "standalone pages need their context's switch: "
+                                        "content/cv.md (context vita: the vita switch is off)"),
+                                (True, None)):
+            with self.subTest(vita=switch):
+                self.config = dict(self.config, standalone=[page], switches={"vita": switch})
                 self.write_config()
                 done = self.run_site("config")
                 if refusal is None:

@@ -489,6 +489,7 @@ decodeConfig registryBytes siteBytes = do
     cfg      <- decode "site.yaml" siteBytes
     resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
     first ("site.yaml: " ++) (switchedSections registry resolved cfg)
+    first ("site.yaml: " ++) (switchedContexts registry resolved cfg)
     let withheld = [ glob | (name, spec) <- Map.toList registry
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
@@ -524,27 +525,31 @@ loadConfig = do
 registryPath :: FilePath
 registryPath = "engine/switches.yaml"
 
--- | One switch of the registry: its default, what it needs, and the
---   section it owns; its kind and description are checked, not kept.
+-- | One switch of the registry: its default, what it needs, the section
+--   and standalone-page contexts it owns, and its assets; its kind and
+--   description are checked, not kept.
 data SwitchSpec = SwitchSpec
     { switchDefault  :: Bool
     , switchNeeds    :: [String]
     , switchNeedsAny :: [String]
     , switchSection  :: Maybe String
+    , switchContexts :: [String]
     , switchAssets   :: [String]
     }
 
 instance FromJSON SwitchSpec where
     parseJSON = withObject "switch" $ \o -> do
-        onlyKeys ["kind", "default", "needs", "needs-any", "section", "assets", "about"] o
+        onlyKeys ["kind", "default", "needs", "needs-any", "section", "contexts", "assets", "about"] o
         kind <- o .: "kind"
         unless (kind `elem` ["capability", "generated", "interface" :: String]) $
             fail ("a switch's kind is capability, generated or interface, not " ++ kind)
         _ <- o .: "about" :: Parser String
         spec <- SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
-                           <*> o .:? "section" <*> o .:? "assets" .!= []
+                           <*> o .:? "section" <*> o .:? "contexts" .!= [] <*> o .:? "assets" .!= []
         forM_ (switchSection spec) $ \dir -> unless (dir `elem` sectionRoutes) $
             fail ("a switch's section is one the engine routes, not " ++ dir)
+        forM_ (switchContexts spec) $ \name -> unless (name `elem` map pageKindName [minBound .. maxBound]) $
+            fail ("a switch's contexts are standalone-page contexts, not " ++ name)
         forM_ (switchAssets spec) $ \glob -> unless (safePath glob) $
             fail ("a switch's assets are paths under static/, not " ++ glob)
         pure spec
@@ -592,6 +597,20 @@ switchedSections registry on cfg = do
         Left ("sections must include the engine's routed sections: " ++ intercalate ", " missing)
     unless (null refused) $
         Left ("sections and feeds name a section the engine does not route: " ++ intercalate ", " refused)
+
+-- | A standalone page's context a switch owns (its registry @contexts@) is
+--   the site's only with that switch on.
+switchedContexts :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
+switchedContexts registry on cfg = do
+    let owners  = Map.fromList [ (context, name) | (name, spec) <- Map.toList registry
+                                                 , context <- switchContexts spec ]
+        refused = [ standaloneSource p ++ " (context " ++ context ++ ": the " ++ name ++ " switch is off)"
+                  | p <- siteStandalone cfg
+                  , let context = pageKindName (standaloneContext p)
+                  , Just name <- [Map.lookup context owners]
+                  , not (Map.findWithDefault False name on) ]
+    unless (null refused) $
+        Left ("standalone pages need their context's switch: " ++ intercalate ", " refused)
 
 -- | Whether the site has switch @name@ on. A name the registry lacks is the
 --   engine's own mistake, which stops the build. The one way to ask: rules

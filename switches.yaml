@@ -13,6 +13,8 @@
 #   needs-any  switches of which at least one must be on with it;
 #   section    the content section it owns (site.yaml's sections), which a
 #              site lists, and may feed, only with the switch on;
+#   contexts   the standalone-page contexts it owns (site.yaml's standalone
+#              pages' `context`), which a page may have only with it on;
 #   assets     the engine's static files (globs under engine/static/, as
 #              they are served) that only it uses, published only with it on;
 #   about      what it covers.
@@ -129,3 +131,14 @@ marks:
     coverage of them. Without it the slot is left empty (marks.css, which
     also lays out the frontmatter grid, stays loaded) and no candidate
     mark is read or depended on.
+
+vita:
+  kind: capability
+  default: false
+  contexts: [vita, projects]
+  assets: [css/vita.css]
+  about: >-
+    A CV page and a projects index (Vita.hs), standalone pages with the
+    vita and projects contexts, rendered from yaml-source/data/*.yml (the
+    files the CV's PDFs are built from), and check-site's warning when the
+    CV PDFs are older than them (a site's own tools/cv-pdfs.py).

@@ -23,7 +23,7 @@ KINDS = {"capability", "generated", "interface"}
 ASKS = {
     "build": ("*.hs", re.compile(r'switchOn\b[^"\n]*"([a-z][a-z0-9-]*)"')),
     "engine.mk": ("engine.mk", re.compile(r"(?:switch_on|with_switch),([a-z][a-z0-9-]*)")),
-    "tools": ("*.py", re.compile(r'switch_on\(\s*"([a-z][a-z0-9-]*)"')),
+    "tools": ("*.py", re.compile(r'(?:switch_on\(\s*"|site_switches\(\)\[")([a-z][a-z0-9-]*)"')),
     "tests": ("*.py", re.compile(r'(?:switch_on|requires_switch)\(\s*"([a-z][a-z0-9-]*)"')),
     # Config.switchContext's fields, in siteCtx.
     "templates": ("*.html", re.compile(r"\$if\(switch-([a-z][a-z0-9-]*)\)\$")),
@@ -58,8 +58,8 @@ class RegistryTests(unittest.TestCase):
         for name, spec in terms.items():
             with self.subTest(switch=name):
                 self.assertRegex(name, r"^[a-z][a-z0-9-]*$")
-                self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "section", "assets",
-                                                 "about"})
+                self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "section", "contexts",
+                                                 "assets", "about"})
                 self.assertIn(spec["kind"], KINDS)
                 self.assertIsInstance(spec["default"], bool)
                 self.assertTrue(isinstance(spec["about"], str) and spec["about"].strip())
@@ -93,7 +93,10 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(unknown, {})
 
     def test_every_registered_switch_gates_something(self):
-        used = asked()
+        # Or what it owns in the registry gates for it: the loader enforces
+        # a section, standalone contexts and assets without naming it.
+        used = set(asked()) | {name for name, spec in registry().items()
+                               if {"section", "contexts", "assets"} & set(spec)}
         self.assertEqual([name for name in registry() if name not in used], [])
 
 

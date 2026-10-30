@@ -1,0 +1,7 @@
+# The fixture's CV, as a site's yaml-source/data/ holds it (Vita.hs).
+education:
+  - institution: Example University
+    location: Example City
+    degree: B.A., Examples
+    start: September 2020
+    end: May 2024

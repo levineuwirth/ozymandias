@@ -40,12 +40,18 @@ def profiles() -> dict[str, dict]:
     return yaml.safe_load((FIXTURE / "profiles.yaml").read_text(encoding="utf-8"))
 
 
-def listed_sections(sections: list[dict], switches: dict[str, bool]) -> list[dict]:
-    """`sections` (a site.yaml's) without those a switch owns
-    (switches.yaml's `section`) that `switches` has off: the generator
-    refuses a section the engine does not route."""
-    owners = {spec["section"]: name for name, spec in registry().items() if "section" in spec}
-    return [s for s in sections if s["dir"] not in owners or switches[owners[s["dir"]]]]
+def switched(config: dict, switches: dict[str, bool]) -> dict:
+    """`config` (a site.yaml's) with `switches`, less the sections and the
+    standalone pages' contexts a switch owns (switches.yaml's `section`
+    and `contexts`) that `switches` has off: the generator refuses them."""
+    terms = registry()
+    sections = {spec["section"]: name for name, spec in terms.items() if "section" in spec}
+    contexts = {c: name for name, spec in terms.items() for c in spec.get("contexts") or []}
+    return dict(config, switches=switches,
+                sections=[s for s in config["sections"]
+                          if s["dir"] not in sections or switches[sections[s["dir"]]]],
+                standalone=[p for p in config["standalone"]
+                            if p["context"] not in contexts or switches[contexts[p["context"]]]])
 
 
 def settle(switches: dict[str, bool], terms: dict[str, dict]) -> dict[str, bool]:
