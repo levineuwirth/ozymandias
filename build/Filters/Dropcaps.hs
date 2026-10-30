@@ -117,6 +117,9 @@ markLetter (x : xs) = case x of
     Str t | Just (c, rest) <- T.uncons t ->
         Span ("", ["initial-letter"], []) [Str (T.singleton c)]
             : [Str rest | not (T.null rest)] ++ xs
+    RawInline f t
+        | Just inner <- T.stripPrefix abbrOpen t, Just (c, rest) <- T.uncons inner ->
+            RawInline f (abbrOpen <> "<span class=\"initial-letter\">" <> T.singleton c <> "</span>" <> rest) : xs
     Emph ys       -> Emph (markLetter ys) : xs
     Strong ys     -> Strong (markLetter ys) : xs
     Underline ys  -> Underline (markLetter ys) : xs
@@ -126,13 +129,15 @@ markLetter (x : xs) = case x of
     _             -> x : xs
 
 -- | The capital a paragraph's dropcap would show: the first character of
---   its first word, through emphasis, small caps, spans and links.
+--   its first word, through emphasis, small caps, spans and links, and
+--   through the @<abbr class="smallcaps">@ that 'Filters.Smallcaps' wraps
+--   an all-capital word in.
 firstCapital :: [Inline] -> Maybe Char
 firstCapital []      = Nothing
 firstCapital (x : _) = case x of
-    Str t -> case T.uncons t of
-        Just (c, rest) | isUpper c && isLetter c && not (combining rest) -> Just c
-        _ -> Nothing
+    Str t -> capital t
+    RawInline (Format "html") t
+        | Just inner <- T.stripPrefix abbrOpen t -> capital inner
     Emph xs      -> firstCapital xs
     Strong xs    -> firstCapital xs
     Underline xs -> firstCapital xs
@@ -141,9 +146,16 @@ firstCapital (x : _) = case x of
     Link _ xs _  -> firstCapital xs
     _            -> Nothing
   where
+    capital t = case T.uncons t of
+        Just (c, rest) | isUpper c && isLetter c && not (combining rest) -> Just c
+        _ -> Nothing
     combining rest = case T.uncons rest of
         Just (m, _) -> generalCategory m `elem` [NonSpacingMark, SpacingCombiningMark, EnclosingMark]
         Nothing     -> False
+
+-- | How 'Filters.Smallcaps' opens the abbr it wraps an all-capital word in.
+abbrOpen :: T.Text
+abbrOpen = "<abbr class=\"smallcaps\">"
 
 -- | The first set's SVG for a capital, read once per page.
 letterSvg :: [FilePath] -> IORef (Map.Map Char (Maybe T.Text)) -> Char -> IO (Maybe T.Text)

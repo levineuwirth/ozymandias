@@ -9,9 +9,10 @@ baseline of the third, with the paragraph's own letter kept in the text at
 no size. That holds on the site's pages with several dropcaps (routes.yaml's
 dropcaps), and on
 tests/golden/initials.md, rendered by the real pipeline (``site
-render-fixture``): four drawn initials on one page from two sets, the first
-set winning, each aligned and each with ids of its own, beside paragraphs
-no set can draw, which keep the CSS dropcap. In print an initial gives way to the letter's own dropcap;
+render-fixture``): five drawn initials on one page from two sets, the first
+set winning, one through the small caps filter's abbr, each aligned and
+each with ids of its own, beside paragraphs no set can draw, which keep
+the CSS dropcap. In print an initial gives way to the letter's own dropcap;
 under Reduce Motion it does not animate.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_dropcaps -v
@@ -143,7 +144,7 @@ class Dropcaps(unittest.TestCase):
                 self.assert_drops(drops)
                 drawn = [d["text"].strip() for d in drops if d.get("initial")]
                 plain = [d["text"].strip() for d in drops if not d.get("initial")]
-                self.assertEqual(drawn, ["The opening", "A paragraph", "Through emph", "When the fir"])
+                self.assertEqual(drawn, ["The opening", "A paragraph", "Through emph", "When the fir", "AWOL in smal"])
                 self.assertEqual(plain, ["“A quotation", "Zero sets ho"])
                 # The first set's T, not the second's.
                 self.assertNotIn("never drawn", page.content())
@@ -167,7 +168,7 @@ class Dropcaps(unittest.TestCase):
                     getComputedStyle(p.querySelector('.initial')).display,
                     parseFloat(getComputedStyle(p.querySelector('.initial-letter')).fontSize) > 0,
                     getComputedStyle(p, '::first-letter').float])""")
-                self.assertEqual(len(state), 4)
+                self.assertEqual(len(state), 5)
                 for display, letter_shows, float_ in state:
                     self.assertEqual(display, "none")
                     self.assertTrue(letter_shows)

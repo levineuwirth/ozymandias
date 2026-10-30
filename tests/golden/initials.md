@@ -15,6 +15,8 @@ A paragraph in a dropcap block: its A is drawn too.
 When the first set has no W, the second one draws it.
 
 Zero sets hold a Z, so the CSS dropcap stays.
+
+AWOL in small caps: the small caps filter wraps the word, and its A is drawn through the wrapping.
 :::
 
 ## After a heading
