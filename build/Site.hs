@@ -468,15 +468,18 @@ rules = do
             ++ " (content/" ++ dir ++ "/ belongs to a standalone page)"
 
     -- ---------------------------------------------------------------------------
-    -- Commonplace book
+    -- Commonplace book, with its switch on; without it content/commonplace.md
+    -- is a top-level page like any other.
     -- ---------------------------------------------------------------------------
-    match "content/commonplace.md" $ do
+    let commonplace = switchOn cfg "commonplace"
+        ownSources  = [ src | src <- engineSources, commonplace || src /= "content/commonplace.md" ]
+    when commonplace $ match "content/commonplace.md" $ do
         route   $ constRoute "commonplace.html"
         compile $ pageCompiler
             >>= inDefault "templates/commonplace.html" commonplaceCtx
 
     -- Every other top-level page.
-    match ("content/*.md" .&&. complement (fromList (map fromFilePath engineSources)
+    match ("content/*.md" .&&. complement (fromList (map fromFilePath ownSources)
                                              .||. P.standaloneSources cfg)) $ do
         route   contentPageRoute
         compile $ pageCompiler

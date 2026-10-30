@@ -17,6 +17,7 @@ full:
     archive: true
     code: true
     code-refs: true
+    commonplace: true
     epistemic: true
     marks: true
     math: true
@@ -30,6 +31,7 @@ minimal:
     archive: false
     code: false
     code-refs: false
+    commonplace: false
     epistemic: false
     marks: false
     math: false
@@ -38,4 +40,4 @@ minimal:
     source-refs: false
     vita: false
     viz: false
-  without: [archive/, code-refs/, content/cv.md, content/music/, content/essays/capabilities/, yaml-source/]
+  without: [archive/, code-refs/, content/commonplace.md, content/cv.md, data/commonplace.yaml, content/music/, content/essays/capabilities/, yaml-source/]

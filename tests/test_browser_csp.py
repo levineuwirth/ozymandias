@@ -70,7 +70,7 @@ PROBE_SWITCHES = {
     "popups": None, "search": None, "map": None, "slideshow": None, "lightbox": None,
     "score": "music", "pdf-viewer": "pdf-viewer", "archive-snapshot": "archive",
     "archive-pdf": "archive", "pdf-links": None, "composition": "music",
-    "transclusion": None, "commonplace": None, "math": "math",
+    "transclusion": None, "commonplace": "commonplace", "math": "math",
 }
 
 

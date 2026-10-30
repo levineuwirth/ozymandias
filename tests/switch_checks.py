@@ -264,11 +264,29 @@ def vita_off(site: Path) -> None:
     assert not any(marked.values()), f"the CV on pages: {marked}"
 
 
+COMMONPLACE_MARKS = ("/js/commonplace.js", "/css/commonplace.css", "cp-attribution")
+
+
+def commonplace_on(site: Path) -> None:
+    book = text(site, "commonplace.html")
+    for mark in COMMONPLACE_MARKS:
+        assert mark in book, f"the commonplace book has no {mark}"
+    assert "An Example Writer" in book, "the commonplace book does not render data/commonplace.yaml"
+
+
+def commonplace_off(site: Path) -> None:
+    # Without the switch content/commonplace.md may still be an ordinary page.
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in COMMONPLACE_MARKS}
+    assert not any(marked.values()), f"the commonplace book on pages: {marked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),
+    "commonplace": (commonplace_on, commonplace_off),
     "epistemic": (epistemic_on, epistemic_off),
     "marks": (marks_on, marks_off),
     "math": (math_on, math_off),

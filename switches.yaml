@@ -142,3 +142,12 @@ vita:
     vita and projects contexts, rendered from yaml-source/data/*.yml (the
     files the CV's PDFs are built from), and check-site's warning when the
     CV PDFs are older than them (a site's own tools/cv-pdfs.py).
+
+commonplace:
+  kind: capability
+  default: false
+  assets: [css/commonplace.css, js/commonplace.js]
+  about: >-
+    A commonplace book (Commonplace.hs): /commonplace.html from
+    content/commonplace.md and data/commonplace.yaml, by theme or by date.
+    Without it content/commonplace.md, if any, is an ordinary page.
