@@ -19,7 +19,7 @@
 --   since @::first-letter@ would hide that with it. The ids in a set's SVG
 --   (its gradient) are made unique to each paragraph, so a page may carry
 --   any number of initials, and another page's transcluded beside them.
-module Filters.Dropcaps (apply, initialsDir) where
+module Filters.Dropcaps (Initials (..), noInitials, apply, initialsDir) where
 
 import           Control.Monad          (filterM)
 import           Data.Bits              (xor)
@@ -51,15 +51,26 @@ initialsDir srcDir v
     | "/" `isPrefixOf` v             = Just ("static" </> dropWhile (== '/') v)
     | otherwise                      = Just (srcDir </> v)
 
+-- | What a page asks of its initials: its sets, in order, and its stage,
+--   the page's status as a class (@Working model@ is @working-model@),
+--   which typography.css draws each initial at.
+data Initials = Initials
+    { initialSets  :: [FilePath]
+    , initialStage :: Maybe T.Text
+    }
+
+noInitials :: Initials
+noInitials = Initials [] Nothing
+
 -- | Draw the initials of a page from its sets, in order; the identity
 --   when it has none, or none of them exists.
-apply :: [FilePath] -> Pandoc -> IO Pandoc
-apply named doc@(Pandoc meta blocks) = do
+apply :: Initials -> Pandoc -> IO Pandoc
+apply (Initials named stage) doc@(Pandoc meta blocks) = do
     dirs <- filterM doesDirectoryExist named
     if null dirs then pure doc else do
         cache   <- newIORef Map.empty
         counter <- newIORef (0 :: Int)
-        let draw    = drawInitial dirs cache counter
+        let draw    = drawInitial dirs stage cache counter
             opening = findIndex isPara (takeWhile (not . isHeader) blocks)
             visit (i, b)
                 | Just i == opening, Para ils <- b = Para <$> draw ils
@@ -87,9 +98,9 @@ dropcapBlock draw (Div attr@(_, classes, _) bs)
 dropcapBlock _ b = pure b
 
 -- | The paragraph with its letter's initial at its head, or as it was.
-drawInitial :: [FilePath] -> IORef (Map.Map Char (Maybe T.Text)) -> IORef Int
+drawInitial :: [FilePath] -> Maybe T.Text -> IORef (Map.Map Char (Maybe T.Text)) -> IORef Int
             -> [Inline] -> IO [Inline]
-drawInitial dirs cache counter ils
+drawInitial dirs stage cache counter ils
     | drawn ils = pure ils
     | otherwise = case firstCapital ils of
         Nothing -> pure ils
@@ -100,11 +111,12 @@ drawInitial dirs cache counter ils
                 Just svg -> do
                     n <- atomicModifyIORef' counter (\k -> (k + 1, k + 1))
                     let suffix = T.pack (show n) <> "-" <> fnv (stringify ils)
-                        html   = "<span class=\"initial\" aria-hidden=\"true\">"
+                        cls    = maybe "initial" ("initial initial--" <>) stage
+                        html   = "<span class=\"" <> cls <> "\" aria-hidden=\"true\">"
                                  <> uniqueIds suffix svg <> "</span>"
                     pure (RawInline (Format "html") html : markLetter ils)
   where
-    drawn (RawInline _ t : _) = "<span class=\"initial\"" `T.isPrefixOf` t
+    drawn (RawInline _ t : _) = any (`T.isPrefixOf` t) ["<span class=\"initial\"", "<span class=\"initial "]
     drawn _                   = False
 
 -- | The paragraph's own first letter in a span of its own, which

@@ -12,8 +12,10 @@ tests/golden/initials.md, rendered by the real pipeline (``site
 render-fixture``): five drawn initials on one page from two sets, the first
 set winning, one through the small caps filter's abbr, each aligned and
 each with ids of its own, beside paragraphs no set can draw, which keep
-the CSS dropcap. In print an initial gives way to the letter's own dropcap;
-under Reduce Motion it does not animate.
+the CSS dropcap. The page's status is its initials' stage: the fixture's
+Working model shows the drawing before the ink, and each stage shows the
+layers typography.css gives it. In print an initial gives way to the
+letter's own dropcap; under Reduce Motion it does not animate.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_dropcaps -v
 """
@@ -158,6 +160,43 @@ class Dropcaps(unittest.TestCase):
                 after = page.evaluate("""(() => { const p = document.querySelector('h2 + p');
                     return [!!p.querySelector('.initial'), getComputedStyle(p, '::first-letter').float]; })()""")
                 self.assertEqual(after, [False, "none"])
+
+    def test_stages(self) -> None:
+        # Which layers each stage shows, set on the fixture's first initial
+        # (its SVG has every layer): ink, cut (outlines), growth, shade,
+        # outline, and the initial's opacity.
+        every = (True, True, True, True, False, "1")
+        stages = {
+            None: every, "refined": every,
+            "durable": (True, True, True, False, False, "1"),
+            "working-model": (False, True, True, False, True, "1"),
+            "draft": (False, True, False, False, True, "1"),
+            "superseded": every[:5] + ("0.3",), "deprecated": every[:5] + ("0.3",),
+        }
+        probe = """stage => {
+            const i = document.querySelector('.initial');
+            i.className = stage ? 'initial initial--' + stage : 'initial';
+            const shown = c => [...i.querySelectorAll(c)].some(e => getComputedStyle(e).display !== 'none');
+            const cut = i.querySelector('.initial-cut:not(.initial-growth):not(.initial-outline)');
+            return [shown('.initial-ink'), shown('.initial-cut:not(.initial-growth):not(.initial-outline)'),
+                    shown('.initial-growth'), shown('.initial-shade'), shown('.initial-outline'),
+                    getComputedStyle(i).opacity, getComputedStyle(cut).stroke];
+        }"""
+        for browser in BROWSERS:
+            page = self.open_page(browser, "/__fixture/initials.html", reduced=True)
+            with self.subTest(browser=browser, stage="the fixture's status"):
+                classes = page.evaluate("[...document.querySelectorAll('.initial')].map(i => i.className)")
+                self.assertEqual(set(classes), {"initial initial--working-model"})
+            faint = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--text-faint').trim()")
+            for stage, expected in stages.items():
+                with self.subTest(browser=browser, stage=stage or "none"):
+                    *layers, stroke = page.evaluate(probe, stage)
+                    self.assertEqual(tuple(layers), expected)
+                    if stage == "draft":
+                        # The pencil: the page's faint text color.
+                        self.assertEqual(stroke, page.evaluate(
+                            "c => { const e = document.createElement('i'); e.style.color = c; document.body.append(e);"
+                            " const v = getComputedStyle(e).color; e.remove(); return v; }", faint))
 
     def test_print_and_reduce_motion(self) -> None:
         for browser in BROWSERS:

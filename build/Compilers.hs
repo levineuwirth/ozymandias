@@ -35,7 +35,7 @@ import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import           Utils                      (wordCount, readingTime, escapeHtml, inlinesText, parseBool)
 import           PandocOptions              (poetryReaderOpts, readerOpts, writerOpts)
 import           Filters                    (applyAll, preprocessSource)
-import           Filters.Dropcaps           (initialsDir)
+import           Filters.Dropcaps           (Initials (..), initialsDir)
 import qualified Citations
 import qualified Filters.Headings           as Headings
 import qualified Filters.Score              as Score
@@ -222,12 +222,18 @@ essayCompilerWith rOpts = do
 
     return htmlItem
 
--- | The page's sets of drawn initials, in order: frontmatter @initials:@,
---   one path or a list, each resolved by 'initialsDir'.
-pageInitials :: FilePath -> Metadata -> [FilePath]
-pageInitials srcDir meta =
-    mapMaybe (initialsDir srcDir) $
-        fromMaybe (maybe [] pure (lookupString "initials" meta)) (lookupStringList "initials" meta)
+-- | The page's sets of drawn initials, in order (frontmatter
+--   @initials:@, one path or a list, each resolved by 'initialsDir'), and
+--   the stage its @status:@ draws them at, as a class: @Working model@ is
+--   @working-model@.
+pageInitials :: FilePath -> Metadata -> Initials
+pageInitials srcDir meta = Initials
+    { initialSets  = mapMaybe (initialsDir srcDir) $
+          fromMaybe (maybe [] pure (lookupString "initials" meta)) (lookupStringList "initials" meta)
+    , initialStage = stage <$> lookupString "status" meta
+    }
+  where
+    stage = T.intercalate "-" . T.words . T.toLower . T.pack
 
 -- | Record that a page depends on its sets of drawn initials, whose letters
 --   'Filters.Dropcaps' reads in IO, where Hakyll cannot see: without it,
@@ -235,8 +241,8 @@ pageInitials srcDir meta =
 --   files are claimed by the static rules, so the dependency fires; a letter
 --   added to a set later reaches its pages at their next edit or a clean
 --   build.
-trackInitials :: [FilePath] -> Compiler ()
-trackInitials dirs = do
+trackInitials :: Initials -> Compiler ()
+trackInitials (Initials dirs _) = do
     letters <- unsafeCompiler $ fmap concat $ forM dirs $ \dir -> do
         exists <- doesDirectoryExist dir
         if exists then map (dir </>) . filter ((== ".svg") . takeExtension) <$> listDirectory dir
@@ -255,7 +261,7 @@ trackInitials dirs = do
 --
 --   Returns the filtered document, the bibliography HTML and the
 --   further-reading HTML.
-transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> [FilePath] -> Pandoc
+transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Initials -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
 transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc

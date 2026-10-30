@@ -1,6 +1,7 @@
 ---
 title: Drawn initials
 initials: [initials/fixture, initials/fallback]
+status: Working model
 ---
 
 The opening paragraph, before any heading: its T is drawn from the first set beside this page.

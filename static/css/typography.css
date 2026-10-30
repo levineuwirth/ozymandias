@@ -96,6 +96,56 @@
     font-size: 0;
 }
 
+/* Stages: the page's status (frontmatter status:), which the filter puts
+   on each initial as initial--<status>. A set's SVG carries the layers:
+   .initial-cut, its outlines, drawn in; .initial-ink, the ink filling
+   them; .initial-shade, the hairline an engraver cuts below and right;
+   .initial-growth, what grows from the letter (the logo's hand's sprigs,
+   leaves and veins); and .initial-outline, the letter's own outline where
+   its cuts are not that. Refined, or no status, shows every layer;
+   Durable is the ink without the shade; a Working model is the drawing
+   before the ink; a Draft only the letter, in pencil; Superseded and
+   Deprecated fade. */
+.initial .initial-outline {
+    display: none;
+}
+
+/* Outlines are hairlines at any size: non-scaling, set on each path, as
+   vector-effect is not inherited (a set's SVG that puts it on a group
+   drew them a twentieth of a pixel wide). What grows from a letter scales
+   with it. */
+.initial .initial-cut:not(.initial-growth) {
+    vector-effect: non-scaling-stroke;
+}
+
+.initial--durable .initial-shade,
+.initial--working-model .initial-ink,
+.initial--working-model .initial-shade,
+.initial--draft .initial-ink,
+.initial--draft .initial-shade,
+.initial--draft .initial-growth {
+    display: none;
+}
+
+.initial--working-model .initial-outline,
+.initial--draft .initial-outline {
+    display: inline;
+}
+
+.initial--working-model .initial-cut:not(.initial-growth) {
+    stroke-width: 0.9px;
+}
+
+.initial--draft .initial-cut {
+    stroke: var(--text-faint);
+    stroke-width: 1px;
+}
+
+.initial--superseded,
+.initial--deprecated {
+    opacity: 0.3;
+}
+
 /* Cut, then inked, once, as the page opens: each outline is drawn at its
    own moment (--t, set in the SVG) and pace (--d), then the ink fills it. */
 @media (prefers-reduced-motion: no-preference) {
