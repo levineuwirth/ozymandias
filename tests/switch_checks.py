@@ -281,6 +281,25 @@ def commonplace_off(site: Path) -> None:
     assert not any(marked.values()), f"the commonplace book on pages: {marked}"
 
 
+NOW_MARKS = ("/js/now.js", "/css/now.css", "now-stamp")
+
+
+def now_on(site: Path) -> None:
+    current = text(site, "current.html")
+    for mark in NOW_MARKS:
+        assert mark in current, f"the now page has no {mark}"
+    assert "An example project" in current, "the now page does not render data/now.yaml"
+    assert "/current.html</loc><lastmod>2026-02-01" in text(site, "sitemap.xml").replace("\n", "").replace(" ", ""), \
+        "the sitemap does not date the now page by data/now.yaml"
+
+
+def now_off(site: Path) -> None:
+    # Without the switch content/current.md may still be an ordinary page.
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in NOW_MARKS}
+    assert not any(marked.values()), f"the now page on pages: {marked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -291,6 +310,7 @@ CHECKS = {
     "marks": (marks_on, marks_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
+    "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "source-refs": (source_refs_on, source_refs_off),
     "vita": (vita_on, vita_off),

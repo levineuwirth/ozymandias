@@ -151,3 +151,13 @@ commonplace:
     A commonplace book (Commonplace.hs): /commonplace.html from
     content/commonplace.md and data/commonplace.yaml, by theme or by date.
     Without it content/commonplace.md, if any, is an ordinary page.
+
+now:
+  kind: capability
+  default: false
+  contexts: [now]
+  assets: [css/now.css, js/now.js]
+  about: >-
+    A now page (Now.hs): a standalone page with the now context, from
+    data/now.yaml, whose stamp now.js dates in the reader's calendar, and
+    whose last-updated date the sitemap gives it.

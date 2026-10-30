@@ -269,6 +269,9 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "_site/commonplace.html").is_file(), "content/commonplace.md was not built")
         switch_checks.commonplace_off(site)
 
+    def test_a_site_that_turns_now_off_has_no_now_page(self):
+        switch_checks.now_off(self.turned_off("now"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

@@ -1,0 +1,11 @@
+# The fixture's status feed (Now.hs).
+last-updated: 2026-02-01
+entries:
+  - title: An example project
+    section: writing
+    status: drafting
+    updated: 2026-02-01
+    note: A first draft.
+shipped:
+  - title: An earlier project
+    completed: 2026-01-15

@@ -2,7 +2,7 @@
 (audit J09).
 
 A fixture page carries a date popup, a date-range popup (popups.js) and a
-Current-page stamp (now.js), all dated 1 October 2026. Each case sets the
+Current-page stamp (now.js, with the now switch on), all dated 1 October 2026. Each case sets the
 browser's time zone and freezes its clock, then reads what the page says.
 Both scripts count calendar days the same way (lnUtils.isoDay/localDay,
 tested alone in tests/test_js_dates.py); this checks that they use it,
@@ -21,13 +21,13 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route, switch_on
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Dates fixture</title>
 <script src="/js/utils.js"></script>
 <script src="/js/popups.js" defer></script>
-<script src="/js/now.js" defer></script>
+{now_script}
 </head><body><main id="markdownBody">
 <p class="now-stamp">Updated <time class="now-stamp-date" datetime="2026-10-01">1 October 2026</time>
 </p>
@@ -64,7 +64,9 @@ class RelativeDates(unittest.TestCase):
         cls.expect = staticmethod(expect)
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-dates-")))
         (tmp / "fixtures").mkdir()
-        (tmp / "fixtures" / "dates.html").write_text(PAGE, encoding="utf-8")
+        # A site without the now switch publishes no now.js: no stamp.
+        now = '<script src="/js/now.js" defer></script>' if switch_on("now") else ""
+        (tmp / "fixtures" / "dates.html").write_text(PAGE.format(now_script=now), encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
@@ -93,6 +95,7 @@ class RelativeDates(unittest.TestCase):
             return None
         return shown.inner_text().strip()
 
+    @requires_switch("now")
     def test_current_age_between_builds(self) -> None:
         for name, browser in self.browsers.items():
             with self.subTest(browser=name):
@@ -130,7 +133,7 @@ class RelativeDates(unittest.TestCase):
                                       " d.getHours(), d.getMinutes()])(new Date())"),
                         [wall.year, wall.month, wall.day, wall.hour, wall.minute])
                     relative = page.locator(".now-stamp-relative")
-                    if stamp is None:
+                    if stamp is None or not switch_on("now"):
                         self.expect(relative).to_have_count(0)
                     else:
                         self.expect(relative).to_have_text(stamp)

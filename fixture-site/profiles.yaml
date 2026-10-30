@@ -22,6 +22,7 @@ full:
     marks: true
     math: true
     music: true
+    now: true
     pdf-viewer: true
     source-refs: true
     vita: true
@@ -36,8 +37,9 @@ minimal:
     marks: false
     math: false
     music: false
+    now: false
     pdf-viewer: false
     source-refs: false
     vita: false
     viz: false
-  without: [archive/, code-refs/, content/commonplace.md, content/cv.md, data/commonplace.yaml, content/music/, content/essays/capabilities/, yaml-source/]
+  without: [archive/, code-refs/, content/commonplace.md, content/current.md, content/cv.md, data/commonplace.yaml, data/now.yaml, content/music/, content/essays/capabilities/, yaml-source/]

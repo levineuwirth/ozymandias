@@ -38,6 +38,7 @@ sections:
   - {dir: photography, kind: Photo, dingbat: null}
 standalone:
   - {source: content/cv.md, route: cv.html, template: vita.html, context: vita}
+  - {source: content/current.md, route: current.html, template: current.html, context: now}
 portals:
   - {name: Notes, tag: notes}
 nav-primary:
