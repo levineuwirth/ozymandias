@@ -922,17 +922,19 @@ data MarkRow = MarkRow
 liveMarkRows :: [MarkRow] -> [MarkRow]
 liveMarkRows = filter ((> 0) . mrCount)
 
-renderMarks :: [MarkRow] -> H.Html
-renderMarks rows =
+-- | With @figures@ (the epistemic switch) a column for the epistemic
+--   figure beside the monogram's.
+renderMarks :: Bool -> [MarkRow] -> H.Html
+renderMarks figures rows =
     section "marks" "Marks coverage" $
     table
-        ["Type", "Pieces", "Monogram", "Epistemic figure"]
+        (["Type", "Pieces", "Monogram"] ++ ["Epistemic figure" | figures])
         (map row rows)
-        (Just [ "Total"
-              , txt (commaInt totalCount)
-              , txt (commaInt totalMono ++ " (" ++ pctStr totalMono totalCount ++ ")")
-              , txt (commaInt totalFig  ++ " (" ++ pctStr totalFig  totalCount ++ ")")
-              ])
+        (Just $ [ "Total"
+                , txt (commaInt totalCount)
+                , txt (commaInt totalMono ++ " (" ++ pctStr totalMono totalCount ++ ")")
+                ]
+                ++ [ txt (commaInt totalFig ++ " (" ++ pctStr totalFig totalCount ++ ")") | figures ])
   where
     totalCount = sum (map mrCount    rows)
     totalMono  = sum (map mrMonogram rows)
@@ -940,8 +942,8 @@ renderMarks rows =
     row r = [ txt (mrLabel r)
             , txt (commaInt (mrCount r))
             , txt (commaInt (mrMonogram r) ++ " (" ++ pctStr (mrMonogram r) (mrCount r) ++ ")")
-            , txt (commaInt (mrFigure   r) ++ " (" ++ pctStr (mrFigure   r) (mrCount r) ++ ")")
             ]
+            ++ [ txt (commaInt (mrFigure r) ++ " (" ++ pctStr (mrFigure r) (mrCount r) ++ ")") | figures ]
 
 renderOutput :: Map.Map String (Int, Integer) -> Int -> Integer -> H.Html
 renderOutput grouped totalFiles totalSize =
@@ -984,12 +986,12 @@ renderArchive metrics =
     dl [ (k, txt v) | (k, v) <- metrics ]
 
 -- ---------------------------------------------------------------------------
--- Static TOC (matches the eleven h2 sections above; the link archive's
--- only with the archive switch on)
+-- Static TOC (matches the eleven h2 sections above; @shown@ says which a
+-- switch leaves out: the link archive's, the epistemic coverage)
 -- ---------------------------------------------------------------------------
 
-pageTOC :: Bool -> H.Html
-pageTOC archive = tocOf $ filter (\(anchor, _) -> archive || anchor /= "archive")
+pageTOC :: (String -> Bool) -> H.Html
+pageTOC shown = tocOf $ filter (shown . fst)
         [ ("corpus",       "Content")
         , ("pages",        "Pages")
         , ("distribution", "Word-length distribution")
@@ -1096,7 +1098,13 @@ statsRules tags = do
   create ["build/index.html"] $ do
         route idRoute
         compile $ do
-            archive <- (`switchOn` "archive") <$> loadConfig
+            cfg <- loadConfig
+            let archive   = switchOn cfg "archive"
+                epistemic = switchOn cfg "epistemic"
+                shown anchor = case anchor of
+                    "archive"   -> archive
+                    "epistemic" -> epistemic
+                    _           -> True
             corpus <- loadCorpus
             let essays = kindItems "Essays" corpus
                 posts  = kindItems "Blog posts" corpus
@@ -1218,8 +1226,8 @@ statsRules tags = do
                     renderDistribution allWCs
                     renderTagsSection topTags uniqueTags
                     renderLinks mostLinkedInfo orphanCount (length allPIs)
-                    renderEpistemic epTotal withStatus withConf withImp withEv
-                    renderMarks markRows
+                    when epistemic (renderEpistemic epTotal withStatus withConf withImp withEv)
+                    renderMarks epistemic markRows
                     renderOutput outputGrouped totalFiles totalSize
                     when archive (renderArchive archiveMetrics)
                     renderRepository hf hl cf cl jf jl commits firstDate
@@ -1228,7 +1236,7 @@ statsRules tags = do
                 "Per-build corpus statistics, tag distribution, link analysis, \
                 \epistemic coverage, output metrics, repository overview, and \
                 \build timing."
-                "content/build.mark.svg" (pageTOC archive) htmlContent
+                "content/build.mark.svg" (pageTOC shown) htmlContent
 
   -- -------------------------------------------------------------------------
   -- Writing statistics page (/stats/)

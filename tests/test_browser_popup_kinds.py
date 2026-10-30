@@ -36,10 +36,9 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import route
+from tests.target import requires_switch, route
 
 ESSAY = route("essay")
-PEER_REVIEWED = route("essay-peer-reviewed")   # carries a peer-status
 LIST = route("list")
 
 POPUP = ".link-popup.is-visible"
@@ -98,9 +97,11 @@ class PopupKinds(unittest.TestCase):
         self.assertTrue(page.evaluate(INSIDE), "the popup runs past the window")
         return popup
 
+    @requires_switch("epistemic")
     def test_every_term_has_its_definition(self) -> None:
         for browser in BROWSERS:
-            for path in (ESSAY, PEER_REVIEWED):
+            # The second carries a peer-status.
+            for path in (ESSAY, route("essay-peer-reviewed")):
                 page = self.open(browser, path)
                 terms = page.eval_on_selector_all(
                     ".meta-epistemic-strip [data-ep-term]", "es => es.map(e => e.dataset.epTerm)")
@@ -116,6 +117,7 @@ class PopupKinds(unittest.TestCase):
             with self.subTest(browser=browser, part="peer status is among them"):
                 self.assertIn("peer-status", terms)
 
+    @requires_switch("epistemic")
     def test_the_figure_previews_the_epistemic_block(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -221,6 +223,7 @@ class PopupKinds(unittest.TestCase):
                 self.assertEqual(" ".join(popup.locator(".popup-revision .popup-abstract").text_content().split()),
                                  " ".join(note.split()))
 
+    @requires_switch("epistemic")
     def test_the_pointer_can_enter_the_popup(self) -> None:
         # WCAG 1.4.13: content shown on hover can itself be hovered.
         for browser in BROWSERS:

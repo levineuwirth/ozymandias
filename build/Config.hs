@@ -58,6 +58,9 @@ data SiteConfig = SiteConfig
     , siteLibrary :: LibraryConfig
     , siteStandalone :: [Standalone]
     , siteFontPreloads :: [String]
+      -- | Where the site explains its epistemic profile (a path, with its
+      --   anchor), which the footer's Epistemic heading links to; none, unlinked.
+    , siteEpistemicAbout :: String
     , siteSwitches :: Map.Map String Bool
       -- | The engine's static files (globs as served) of the switches the
       --   site has off, which it does not publish; set with the switches.
@@ -358,7 +361,8 @@ instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
-                      "nav-primary", "library", "standalone", "font-preloads", "switches"]) o
+                      "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
+                      "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -369,12 +373,17 @@ instance FromJSON SiteConfig where
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .: "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
+                        <*> o .:? "epistemic-about" .!= ""
                         <*> o .:? "switches" .!= Map.empty <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
         forM_ (siteFontPreloads c) $ \href ->
             unless ("/" `isPrefixOf` href && ".woff2" `isSuffixOf` href
                     && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) href) $
                 fail ("font-preloads must be the site's .woff2 paths: " ++ href)
+        let about = siteEpistemicAbout c
+        unless (null about || ("/" `isPrefixOf` about
+                               && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) about)) $
+            fail ("epistemic-about must be a path on the site: " ++ about)
         when (any isControl (siteSigningFingerprint c)) $
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
@@ -413,6 +422,7 @@ instance ToJSON SiteConfig where
                            "nav-primary" .= siteNavPrimary c, "library" .= siteLibrary c,
                            "standalone" .= siteStandalone c,
                            "font-preloads" .= siteFontPreloads c,
+                           "epistemic-about" .= siteEpistemicAbout c,
                            "switches" .= siteSwitches c])
 
 identityKeys :: [String]

@@ -11,6 +11,7 @@ import re
 import subprocess
 import unittest
 from tests._helpers import SITE_ROOT, engine_path, requires_cabal, site_binary
+from tests.target import requires_switch
 
 SEARCH_FILTERS_JS = engine_path("static/js/search-filters.js")
 SEARCH_MD = SITE_ROOT / "content" / "search.md"
@@ -52,6 +53,7 @@ class EpistemicVocabularyTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertEqual(values, self.vocab[field])
 
+    @requires_switch("epistemic")
     def test_each_button_is_its_values_index(self) -> None:
         buttons = ordinal_buttons()
         self.assertEqual(sorted(buttons), sorted(js_scales()))
@@ -65,7 +67,8 @@ class EpistemicVocabularyTests(unittest.TestCase):
         self.assertEqual(self.vocab["peer-status"][0], "unreviewed")
 
 
-    @unittest.skipUnless(SEARCH_META.is_file(), "no _site — run `make build`")
+    @requires_switch("epistemic")
+    @unittest.skipUnless((SITE_ROOT / "_site" / "index.html").is_file(), "no _site — run `make build`")
     def test_indexed_values_are_filterable(self) -> None:
         # Every page the footer gives a stability (those with a status) must
         # carry it in the index: read from front matter, which no page sets,

@@ -6,6 +6,14 @@ abstract: >-
   in a section of its own, from $\pi$ on.
 tags: [notes]
 viz: true
+status: Working
+confidence: 70
+importance: 3
+evidence: 2
+scope: broad
+novelty: moderate
+practicality: low
+peer-status: under-review
 ---
 
 ## Math

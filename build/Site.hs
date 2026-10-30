@@ -1185,7 +1185,8 @@ rules = do
     -- (status, confidence, importance, evidence, scope, novelty, practicality,
     -- stability, score) for client-side search filtering.
     -- ---------------------------------------------------------------------------
-    create ["data/epistemic-meta.json"] $ do
+    -- Only with the epistemic switch on.
+    when (switchOn cfg "epistemic") $ create ["data/epistemic-meta.json"] $ do
         route idRoute
         compile $ do
             essays  <- loadAll (allEssays        .&&. hasNoVersion) :: Compiler [Item String]

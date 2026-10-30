@@ -17,6 +17,7 @@ full:
     archive: true
     code: true
     code-refs: true
+    epistemic: true
     math: true
     music: true
     pdf-viewer: true
@@ -27,6 +28,7 @@ minimal:
     archive: false
     code: false
     code-refs: false
+    epistemic: false
     math: false
     music: false
     pdf-viewer: false

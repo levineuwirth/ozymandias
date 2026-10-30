@@ -42,6 +42,7 @@ import           Text.Read              (readMaybe)
 import           Hakyll hiding (trim)
 import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import Utils (isProvedConfidence, confidencePercent, trustScore, trim)
+import           Config                 (loadConfig, switchOn)
 import           Stability              (resolveStability, stabilityLabels)
 import           SvgColor               (blackToCurrentColor)
 
@@ -612,16 +613,17 @@ renderResultShape (Just shape) mScore =
 
 -- | @$epistemicSvg$@. Returns 'noResult' when @status:@ is absent
 --   (matches the existing visibility rule for the epistemic block —
---   MARKS.md §3.1). Otherwise returns the inline SVG string ready for
---   template interpolation.
+--   MARKS.md §3.1) or the site has the epistemic switch off. Otherwise
+--   returns the inline SVG string ready for template interpolation.
 epistemicSvgField :: Context String
 epistemicSvgField = field "epistemicSvg" $ \item -> do
     meta <- getMetadata (itemIdentifier item)
+    on   <- (`switchOn` "epistemic") <$> loadConfig
     case lookupString "status" meta of
-        Nothing -> noResult "no status; epistemic figure suppressed"
-        Just _  -> do
+        Just _ | on -> do
             d <- readEpistemicData item
             return $ T.unpack (wrapEpistemic (renderEpistemicFigure d))
+        _ -> noResult "no status, or the epistemic switch off; epistemic figure suppressed"
 
 wrapEpistemic :: T.Text -> T.Text
 wrapEpistemic svg = T.concat

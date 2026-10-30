@@ -254,6 +254,10 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "code-refs/index.json").is_file())
         switch_checks.code_refs_off(site)
 
+    def test_a_site_that_turns_epistemic_off_shows_no_profile(self):
+        # The essay still has its status, confidence and the rest.
+        switch_checks.epistemic_off(self.turned_off("epistemic"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

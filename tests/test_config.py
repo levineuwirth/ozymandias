@@ -210,6 +210,7 @@ class ConfigTests(unittest.TestCase):
             {"host": "example.org/path"}, {"code-license": "../outside"},
             {"font-preloads": ["fonts/a.woff2"]}, {"font-preloads": ["/fonts/a.ttf"]},
             {"font-preloads": ['/fonts/a".woff2']}, {"font-preloads": "/fonts/a.woff2"},
+            {"epistemic-about": "colophon.html"}, {"epistemic-about": "/a page.html"},
             {"manifest": self.config["manifest"] | {"unknown": "value"}},
             {"manifest": self.config["manifest"] | {"name": ""}},
             {"manifest": self.config["manifest"] | {"description": "one\ntwo"}},

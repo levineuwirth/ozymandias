@@ -32,9 +32,9 @@ $partial("templates/partials/ornament.html")-$
 
     <div class="meta-footer-grid">
 
-        $if(status)$
+        $if(has-epistemic)$
         <div class="meta-footer-section meta-footer-epistemic" id="epistemic">
-            <h3><a href="/colophon.html#living-documents">Epistemic</a></h3>
+            <h3>$if(epistemic-about)$<a href="$epistemic-about$">Epistemic</a>$else$Epistemic$endif$</h3>
             <dl class="ep-expanded">
                 <dt data-ep-term="stability">Stability</dt><dd>$stability$</dd>
                 $if(last-reviewed)$<dt>Last reviewed</dt><dd class="date-hover"$if(last-reviewed-iso)$ data-date-start="$last-reviewed-iso$"$endif$>$last-reviewed$</dd>$endif$

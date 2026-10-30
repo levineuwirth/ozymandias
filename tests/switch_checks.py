@@ -206,11 +206,38 @@ def code_refs_off(site: Path) -> None:
     assert not tagged, f"code references on {tagged}"
 
 
+# What the epistemic profile puts on a page: the strip, its terms, the
+# figure, the footer's section.
+EPISTEMIC_MARKS = ("meta-epistemic-strip", "data-ep-term=", "frontmatter-mark--epistemic", "ep-expanded")
+
+
+def epistemic_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    for mark in EPISTEMIC_MARKS:
+        assert mark in essay, f"the essay's epistemic profile has no {mark}"
+    assert 'data-ep-term="peer-status"' in essay, "the essay's peer status is not shown"
+    assert f'"/{CAPABILITIES}"' in text(site, "data/epistemic-meta.json"), "epistemic-meta.json lacks the essay"
+    if (site / "_site/build/index.html").is_file():
+        assert '<h2 id="epistemic"' in text(site, "build/index.html"), "the build page has no epistemic coverage"
+
+
+def epistemic_off(site: Path) -> None:
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in EPISTEMIC_MARKS}
+    assert not any(marked.values()), f"epistemic profiles on pages: {marked}"
+    assert not (site / "_site/data/epistemic-meta.json").exists(), "epistemic-meta.json was built"
+    if (site / "_site/build/index.html").is_file():
+        build = text(site, "build/index.html")
+        assert '<h2 id="epistemic"' not in build and "Epistemic figure" not in build, \
+            "the build page covers the epistemic profile"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),
+    "epistemic": (epistemic_on, epistemic_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),

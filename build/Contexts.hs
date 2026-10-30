@@ -47,7 +47,7 @@ import qualified Data.Vector        as V
 import Data.Char               (isDigit, isSpace, toLower, toUpper)
 import Data.List               (intercalate, isInfixOf, isPrefixOf, sortBy,
                                 stripPrefix)
-import Data.Maybe              (fromMaybe, mapMaybe)
+import Data.Maybe              (fromMaybe, isJust, mapMaybe)
 import Data.Ord                (Down (..), comparing)
 import qualified Data.Scientific    as Sci
 import qualified Data.Set           as Set
@@ -79,7 +79,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryPrimaryField, versionHistoryRestField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
-import Config       (loadConfig, identityContext, navigationContext, siteAuthor, switchContext, switchOn)
+import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, switchContext, switchOn)
 import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
@@ -672,6 +672,25 @@ summaryField = field "summary" $ \item -> do
                 Left err -> fail $ "Pandoc error rendering summary: " ++ show err
                 Right html -> return (T.unpack html)
 
+-- | @$has-epistemic$@: the page has an epistemic profile to show (a
+--   @status:@) and the site has the epistemic switch on. Templates ask
+--   this, not @status@, which reaches them from the front matter whatever
+--   the switch.
+hasEpistemicField :: Context String
+hasEpistemicField = field "has-epistemic" $ \item -> do
+    on   <- (`switchOn` "epistemic") <$> loadConfig
+    meta <- getMetadata (itemIdentifier item)
+    if on && isJust (lookupString "status" meta)
+        then return "true"
+        else noResult "no epistemic profile"
+
+-- | @$epistemic-about$@: site.yaml's page explaining the epistemic profile,
+--   which the footer's Epistemic heading links to; absent when it names none.
+epistemicAboutField :: Context String
+epistemicAboutField = field "epistemic-about" $ \_ -> do
+    about <- siteEpistemicAbout <$> loadConfig
+    if null about then noResult "no epistemic-about" else return (escapeHtml about)
+
 -- | How front matter's Markdown (an abstract, a summary, a description) is
 --   read: Pandoc's defaults, with math only with the math switch on.
 metadataReaderOpts :: Compiler ReaderOptions
@@ -684,6 +703,8 @@ siteCtx =
     identityContext
     <> navigationContext
     <> switchContext
+    <> hasEpistemicField
+    <> epistemicAboutField
     <> plainField
     <> canonicalUrlField
     <> pageScriptsField
