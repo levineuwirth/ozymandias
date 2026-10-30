@@ -64,8 +64,12 @@
     ------------------------------------------------------------------ */
 
     function measure() {
-        geo.vw = window.innerWidth;
-        geo.vh = window.innerHeight;
+        /* The layer's own box. innerWidth counts a classic scrollbar,
+           which the layer does not cover: a canvas sized to it was shown
+           squeezed, and some browsers left streaks where it was redrawn. */
+        var layer = running && running.layer;
+        geo.vw = layer && layer.clientWidth || root.clientWidth || window.innerWidth;
+        geo.vh = layer && layer.clientHeight || window.innerHeight;
         var header = document.querySelector('body > header');
         geo.top = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
         var body = document.getElementById('markdownBody');

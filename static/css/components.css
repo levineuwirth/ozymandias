@@ -479,12 +479,35 @@ nav.site-nav {
 
     /* Pull controls out of absolute positioning, span full width, center */
     .nav-controls {
-        position: static;
+        position: relative;
+        right: auto;
         width: 100%;
         justify-content: center;
         padding-top: 0.3rem;
         border-top: 1px solid var(--border);
         margin-top: 0.15rem;
+    }
+
+    /* The settings panel hangs from the whole row, centered, not from the
+       gear, which sits mid-row here: from the gear it ran off the screen's
+       left, the more so with a season's button in the theme row. */
+    .settings-wrap {
+        position: static;
+    }
+
+    .settings-panel {
+        left: 0;
+        right: 0;
+        max-width: 22rem;
+        margin-inline: auto;
+    }
+
+    [data-focus-mode] .settings-panel {
+        left: 1.25rem;
+    }
+
+    .settings-row {
+        flex-wrap: wrap;
     }
 
     .nav-portal-toggle {

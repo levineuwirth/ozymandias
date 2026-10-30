@@ -125,6 +125,20 @@ class SettingsPanel(unittest.TestCase):
                 # Focus is not pulled back to the gear from where the reader clicked.
                 self.assertNotEqual(page.evaluate("document.activeElement.className"), "settings-toggle")
 
+    def test_the_panel_fits_a_phone(self) -> None:
+        # Where the header's controls are a centered row, the panel hung
+        # from the gear, mid-row, and ran off the screen's left.
+        for browser in BROWSERS:
+            for width in (320, 390):
+                for focus in (False, True):
+                    with self.subTest(browser=browser, width=width, focus_mode=focus):
+                        init = "try { localStorage.setItem('focus-mode', '1'); } catch (e) {}" if focus else ""
+                        page = self.open_page(browser, init=init, width=width)
+                        self.open_panel(page)
+                        box = page.locator(PANEL).bounding_box()
+                        self.assertGreaterEqual(box["x"], 0)
+                        self.assertLessEqual(box["x"] + box["width"], width)
+
     def test_tab_stays_in_the_open_panel(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
