@@ -12,6 +12,7 @@ module Compilers
     , readerOpts
     , writerOpts
     , transformDocument
+    , pageInitials
     , buildTOC
     ) where
 
@@ -25,9 +26,9 @@ import           Text.Pandoc.Walk           (walk, query)
 import           Text.Pandoc.Writers        (writeHtml5String)
 import           Text.Pandoc.Options        (ReaderOptions)
 import qualified Data.Text                  as T
-import           Control.Monad              (forM_, void, when)
+import           Control.Monad              (forM, forM_, void, when)
 import           Data.List                  (isInfixOf)
-import           Data.Maybe                 (fromMaybe)
+import           Data.Maybe                 (fromMaybe, mapMaybe)
 import           System.Directory           (doesDirectoryExist, listDirectory)
 import           System.FilePath            (takeDirectory, takeExtension, (</>))
 import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
@@ -192,7 +193,7 @@ essayCompilerWith rOpts = do
     let numberFigures =
             fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
 
-    let initials = lookupString "initials" meta >>= initialsDir srcDir
+    let initials = pageInitials srcDir meta
     trackInitials initials
 
     (pandocFiltered, bibHtml, furtherHtml) <- unsafeCompiler $
@@ -221,20 +222,26 @@ essayCompilerWith rOpts = do
 
     return htmlItem
 
--- | Record that a page depends on its set of drawn initials, whose letters
+-- | The page's sets of drawn initials, in order: frontmatter @initials:@,
+--   one path or a list, each resolved by 'initialsDir'.
+pageInitials :: FilePath -> Metadata -> [FilePath]
+pageInitials srcDir meta =
+    mapMaybe (initialsDir srcDir) $
+        fromMaybe (maybe [] pure (lookupString "initials" meta)) (lookupStringList "initials" meta)
+
+-- | Record that a page depends on its sets of drawn initials, whose letters
 --   'Filters.Dropcaps' reads in IO, where Hakyll cannot see: without it,
---   editing a letter left every page drawn from it as it was. The set's
+--   editing a letter left every page drawn from it as it was. The sets'
 --   files are claimed by the static rules, so the dependency fires; a letter
---   added to the set later reaches its pages at their next edit or a clean
+--   added to a set later reaches its pages at their next edit or a clean
 --   build.
-trackInitials :: Maybe FilePath -> Compiler ()
-trackInitials Nothing    = pure ()
-trackInitials (Just dir) = do
-    letters <- unsafeCompiler $ do
+trackInitials :: [FilePath] -> Compiler ()
+trackInitials dirs = do
+    letters <- unsafeCompiler $ fmap concat $ forM dirs $ \dir -> do
         exists <- doesDirectoryExist dir
-        if exists then filter ((== ".svg") . takeExtension) <$> listDirectory dir
+        if exists then map (dir </>) . filter ((== ".svg") . takeExtension) <$> listDirectory dir
                   else pure []
-    compilerTellDependencies [IdentifierDependency (fromFilePath (dir </> f)) | f <- letters]
+    compilerTellDependencies [IdentifierDependency (fromFilePath f) | f <- letters]
 
 -- | Everything 'essayCompilerWith' does between the parsed document and the
 --   filtered one, outside Hakyll, so that @site render-fixture@ (build/Golden.hs,
@@ -248,7 +255,7 @@ trackInitials (Just dir) = do
 --
 --   Returns the filtered document, the bibliography HTML and the
 --   further-reading HTML.
-transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Maybe FilePath -> Pandoc
+transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> [FilePath] -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
 transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc
@@ -335,7 +342,7 @@ filteredPage = do
     pandocItem <- readPandocWith readerOpts (itemSetBody (preprocessSource cfg src) body)
     meta       <- getMetadata =<< getUnderlying
     let srcDir   = takeDirectory filePath
-        initials = lookupString "initials" meta >>= initialsDir srcDir
+        initials = pageInitials srcDir meta
     trackInitials initials
     filtered   <- unsafeCompiler $
         applyAll cfg False srcDir initials (itemBody pandocItem)

@@ -40,11 +40,11 @@ import qualified Filters.FigureRefs as FigureRefs
 --   @figure-numbering: true@, read by "Compilers"). It runs last, and
 --   outermost: it rewrites the @\<figure\>@ HTML that Images and Viz emit,
 --   so both must have produced their markup before it looks for any.
---   @initials@ is the page's set of drawn initials (frontmatter
---   @initials:@, resolved by 'Filters.Dropcaps.initialsDir'), if any.
+--   @initials@ are the page's sets of drawn initials, in order
+--   (frontmatter @initials:@, resolved by 'Filters.Dropcaps.initialsDir').
 --   'Filters.Dropcaps' reads it, so it is IO too; it runs after the rest,
 --   on the paragraphs as they will be written.
-applyAll :: SiteConfig -> Bool -> FilePath -> Maybe FilePath -> Pandoc -> IO Pandoc
+applyAll :: SiteConfig -> Bool -> FilePath -> [FilePath] -> Pandoc -> IO Pandoc
 applyAll cfg numberFigures srcDir initials doc = do
     imagesDone     <- Images.apply     srcDir doc
     sourceRefsDone <- SourceRefs.apply cfg imagesDone

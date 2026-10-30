@@ -97,17 +97,17 @@
 }
 
 /* Cut, then inked, once, as the page opens: each outline is drawn at its
-   own moment (--t, set in the SVG), then the ink fills it. */
+   own moment (--t, set in the SVG) and pace (--d), then the ink fills it. */
 @media (prefers-reduced-motion: no-preference) {
     :root:not([data-reduce-motion]) .initial .initial-cut {
         stroke-dasharray: 1;
         stroke-dashoffset: 1;
-        animation: initial-cut 0.7s ease-out var(--t, 0s) forwards;
+        animation: initial-cut var(--d, 0.7s) ease-out var(--t, 0s) forwards;
     }
     :root:not([data-reduce-motion]) .initial .initial-ink,
     :root:not([data-reduce-motion]) .initial .initial-shade {
         opacity: 0;
-        animation: initial-ink 0.5s ease var(--t, 1s) forwards;
+        animation: initial-ink var(--d, 0.5s) ease var(--t, 1s) forwards;
     }
 }
 

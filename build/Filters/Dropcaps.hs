@@ -6,13 +6,14 @@
 --   (@#markdownBody > p:first-of-type::first-letter@) and the first letter
 --   of every paragraph in a @::: dropcap@ block (typography.css). A page
 --   that names a set of drawn initials (frontmatter @initials:@, resolved
---   by 'initialsDir') has each of those letters drawn instead: the set's
---   SVG for the letter is put at the head of the paragraph, in
+--   by 'initialsDir'), or several in order, has each of those letters
+--   drawn instead, from the first set that has it: its SVG is put at the
+--   head of the paragraph, in
 --   @<span class="initial" aria-hidden="true">@, and the paragraph's own
 --   letter goes in @<span class="initial-letter">@, which typography.css
 --   sets at no size, so the text keeps the letter.
 --
---   A paragraph keeps the CSS dropcap when the set has no SVG for its
+--   A paragraph keeps the CSS dropcap when no set has an SVG for its
 --   letter, or when it opens with anything but a capital (a quotation
 --   mark, a digit, a lower-case letter, a capital with a combining mark),
 --   since @::first-letter@ would hide that with it. The ids in a set's SVG
@@ -20,6 +21,7 @@
 --   any number of initials, and another page's transcluded beside them.
 module Filters.Dropcaps (apply, initialsDir) where
 
+import           Control.Monad          (filterM)
 import           Data.Bits              (xor)
 import           Data.Char              (GeneralCategory (EnclosingMark, NonSpacingMark,
                                                           SpacingCombiningMark),
@@ -49,16 +51,15 @@ initialsDir srcDir v
     | "/" `isPrefixOf` v             = Just ("static" </> dropWhile (== '/') v)
     | otherwise                      = Just (srcDir </> v)
 
--- | Draw the initials of a page with a set; the identity without one, or
---   when the set's directory does not exist.
-apply :: Maybe FilePath -> Pandoc -> IO Pandoc
-apply Nothing doc = pure doc
-apply (Just dir) doc@(Pandoc meta blocks) = do
-    exists <- doesDirectoryExist dir
-    if not exists then pure doc else do
+-- | Draw the initials of a page from its sets, in order; the identity
+--   when it has none, or none of them exists.
+apply :: [FilePath] -> Pandoc -> IO Pandoc
+apply named doc@(Pandoc meta blocks) = do
+    dirs <- filterM doesDirectoryExist named
+    if null dirs then pure doc else do
         cache   <- newIORef Map.empty
         counter <- newIORef (0 :: Int)
-        let draw    = drawInitial dir cache counter
+        let draw    = drawInitial dirs cache counter
             opening = findIndex isPara (takeWhile (not . isHeader) blocks)
             visit (i, b)
                 | Just i == opening, Para ils <- b = Para <$> draw ils
@@ -86,14 +87,14 @@ dropcapBlock draw (Div attr@(_, classes, _) bs)
 dropcapBlock _ b = pure b
 
 -- | The paragraph with its letter's initial at its head, or as it was.
-drawInitial :: FilePath -> IORef (Map.Map Char (Maybe T.Text)) -> IORef Int
+drawInitial :: [FilePath] -> IORef (Map.Map Char (Maybe T.Text)) -> IORef Int
             -> [Inline] -> IO [Inline]
-drawInitial dir cache counter ils
+drawInitial dirs cache counter ils
     | drawn ils = pure ils
     | otherwise = case firstCapital ils of
         Nothing -> pure ils
         Just c  -> do
-            found <- letterSvg dir cache c
+            found <- letterSvg dirs cache c
             case found of
                 Nothing  -> pure ils
                 Just svg -> do
@@ -144,17 +145,17 @@ firstCapital (x : _) = case x of
         Just (m, _) -> generalCategory m `elem` [NonSpacingMark, SpacingCombiningMark, EnclosingMark]
         Nothing     -> False
 
--- | The set's SVG for a capital, read once per page.
-letterSvg :: FilePath -> IORef (Map.Map Char (Maybe T.Text)) -> Char -> IO (Maybe T.Text)
-letterSvg dir cache c = do
+-- | The first set's SVG for a capital, read once per page.
+letterSvg :: [FilePath] -> IORef (Map.Map Char (Maybe T.Text)) -> Char -> IO (Maybe T.Text)
+letterSvg dirs cache c = do
     known <- Map.lookup c <$> readIORef cache
     case known of
         Just svg -> pure svg
         Nothing  -> do
-            let path = dir </> (c : ".svg")
-            exists <- doesFileExist path
-            svg <- if exists then Just . stripDeclaration . T.strip <$> TIO.readFile path
-                             else pure Nothing
+            found <- filterM doesFileExist [dir </> (c : ".svg") | dir <- dirs]
+            svg <- case found of
+                path : _ -> Just . stripDeclaration . T.strip <$> TIO.readFile path
+                []       -> pure Nothing
             modifyIORef' cache (Map.insert c svg)
             pure svg
   where

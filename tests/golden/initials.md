@@ -1,9 +1,9 @@
 ---
 title: Drawn initials
-initials: initials/fixture
+initials: [initials/fixture, initials/fallback]
 ---
 
-The opening paragraph, before any heading: its T is drawn from the set beside this page.
+The opening paragraph, before any heading: its T is drawn from the first set beside this page.
 
 ::: dropcap
 A paragraph in a dropcap block: its A is drawn too.
@@ -12,7 +12,9 @@ A paragraph in a dropcap block: its A is drawn too.
 
 "A quotation opens this one, so it keeps the CSS dropcap."
 
-When the set has no W, the CSS dropcap stays.
+When the first set has no W, the second one draws it.
+
+Zero sets hold a Z, so the CSS dropcap stays.
 :::
 
 ## After a heading
