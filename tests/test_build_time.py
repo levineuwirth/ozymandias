@@ -19,6 +19,7 @@ import unittest
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, script_env, stub_bin
+from tests.target import requires_switch
 
 STAMP = engine_path("tools/stamp-build-time.py")
 SIGN = engine_path("tools/sign-site.sh")
@@ -44,6 +45,7 @@ class StampTests(unittest.TestCase):
                              r"^[A-Z][a-z]+day, [A-Z][a-z]+ \d{1,2}(st|nd|rd|th), "
                              r"\d{4} \d{2}:\d{2}:\d{2}\n$")
 
+    @requires_switch("footer-build-time")
     def test_the_footer_ships_an_empty_span(self):
         footer = (SITE_ROOT / "templates" / "partials" / "footer.html").read_text()
         self.assertIn('<span class="footer-build-time" data-build-time></span>', footer)

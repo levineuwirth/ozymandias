@@ -343,6 +343,18 @@ def stats_page_off(site: Path) -> None:
     assert not (site / "_site/stats").exists(), "/stats/ was built"
 
 
+def footer_build_time_on(site: Path) -> None:
+    # make stamp-build-time, which test_fixture_site runs for every build.
+    assert (site / "_site/build/time.txt").is_file(), "make stamp-build-time wrote no time"
+    assert "data-build-time" in text(site, "essays/long/index.html"), "the footer has no build time"
+
+
+def footer_build_time_off(site: Path) -> None:
+    assert not (site / "_site/build/time.txt").exists(), "the build's time was published"
+    stamped = [p.name for p in pages(site) if "data-build-time" in p.read_text(encoding="utf-8")]
+    assert not stamped, f"build times on {stamped}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -351,6 +363,7 @@ CHECKS = {
     "code-refs": (code_refs_on, code_refs_off),
     "commonplace": (commonplace_on, commonplace_off),
     "epistemic": (epistemic_on, epistemic_off),
+    "footer-build-time": (footer_build_time_on, footer_build_time_off),
     "marks": (marks_on, marks_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),

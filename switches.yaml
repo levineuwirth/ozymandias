@@ -191,3 +191,11 @@ build-page:
   about: >-
     /build/: the build's telemetry (corpus, pages, links, output,
     repository, timing), and the footer's link to it.
+
+footer-build-time:
+  kind: interface
+  default: false
+  about: >-
+    The build's time in every footer: written once to _site/build/time.txt
+    (make stamp-build-time, a build stage: tools/stamp-build-time.py), which
+    nav.js puts in the footer's span.

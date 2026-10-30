@@ -39,6 +39,7 @@ contexts:
   # each on, so that what they gate renders and its hooks are checked.
   switches:
     switch-build-page: true
+    switch-footer-build-time: true
     switch-signature-link: true
 
 templates:

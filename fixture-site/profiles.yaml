@@ -20,6 +20,7 @@ full:
     code-refs: true
     commonplace: true
     epistemic: true
+    footer-build-time: true
     marks: true
     math: true
     music: true
@@ -39,6 +40,7 @@ minimal:
     code-refs: false
     commonplace: false
     epistemic: false
+    footer-build-time: false
     marks: false
     math: false
     music: false

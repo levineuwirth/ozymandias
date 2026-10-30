@@ -7,7 +7,7 @@
 #
 # and adds its own targets, its deploy among them.
 
-.PHONY: build build-locked sign download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
+.PHONY: build build-locked sign stamp-build-time download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
 .DEFAULT_GOAL := build
 
 # Prerequisite orders (deploy: build -> sign; deploy-clean: clean ->
@@ -279,7 +279,7 @@ build-locked:
 	# page (P05), so every build rewrote ~500 unchanged pages and every
 	# deploy re-signed and re-sent them; pages now stay byte-identical
 	# until their content changes. See tools/stamp-build-time.py.
-	@python3 $(call tool,stamp-build-time.py) _site
+	@$(MAKE) --no-print-directory stamp-build-time
 	@$(call tool,compress-assets.sh) _site
 	# ---- Stage 6: gate ---------------------------------------------------
 	# Reject the finished artifact before anything can sign or ship it:
@@ -303,6 +303,11 @@ build-locked:
 
 sign:
 	@$(call with_switch,signing,$(WITH_LOCK) $(call tool,sign-site.sh))
+
+# The build's time for every footer (the build's stage 5), with the
+# footer-build-time switch on.
+stamp-build-time:
+	@$(call with_switch,footer-build-time,python3 $(call tool,stamp-build-time.py) _site)
 
 # Download the quantized ONNX model for client-side semantic search.
 # Run once; files are gitignored. Safe to re-run (skips existing files).

@@ -105,9 +105,10 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str, signer: d
     """One build in a copy of its own (`site`): the generator reads its
     switches first; with the archive on, the fetch stage runs as `make
     build` runs it (offline: the fixture's snapshot is committed); then the
-    build, the search index and the gate; then `make sign`, as deploy runs
-    it, through the engine's make, which signs (with `signer`'s throwaway
-    key) only with the signing switch on. Each stage's result, by name."""
+    build, the search index, the build-time stamp (`make stamp-build-time`)
+    and the gate; then `make sign`, as deploy runs it. The two make stages
+    run through the engine's make, which runs each only with its switch on
+    (signing with `signer`'s throwaway key). Each stage's result, by name."""
     shutil.copytree(FIXTURE, site)
     for rel in build.without:
         shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
@@ -135,6 +136,7 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str, signer: d
         runs["fetch"] = run(sys.executable, str(engine_path("tools/archive.py")), "fetch")
     runs["build"] = run(binary, "build")
     runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
+    runs["stamp"] = run("make", "--no-print-directory", f"PY={sys.executable}", "stamp-build-time")
     runs["gate"] = run(shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site", timeout=300)
     runs["sign"] = subprocess.run(["make", "--no-print-directory", f"PY={sys.executable}", "sign"], cwd=site,
                                   env=env | signer, capture_output=True, text=True, timeout=300)
@@ -192,7 +194,7 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(build=build.name):
                 self.refused(build.name)
                 runs = self.runs[build.name]
-                for stage in ("fetch", "build", "index", "sign"):
+                for stage in ("fetch", "build", "index", "stamp", "sign"):
                     if stage in runs:
                         done = runs[stage]
                         self.assertEqual(done.returncode, 0, f"{stage}: {done.stdout[-3000:]}{done.stderr}")
@@ -301,6 +303,13 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_the_build_and_stats_pages_off_builds_neither(self):
         switch_checks.build_page_off(self.turned_off("build-page"))
         switch_checks.stats_page_off(self.turned_off("stats-page"))
+
+    def test_a_site_that_turns_the_footer_build_time_off_shows_none(self):
+        # The stamp is a make stage, which the minimal build's make shows
+        # off; the footer's span is the generator's.
+        site = self.turned_off("footer-build-time")
+        stamped = [p.name for p in switch_checks.pages(site) if "data-build-time" in p.read_text(encoding="utf-8")]
+        self.assertEqual(stamped, [])
 
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
