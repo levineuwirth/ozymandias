@@ -232,12 +232,32 @@ def epistemic_off(site: Path) -> None:
             "the build page covers the epistemic profile"
 
 
+def marks_on(site: Path) -> None:
+    essay = text(site, CAPABILITIES)
+    assert 'frontmatter-mark--monogram">' in essay and "M90 190" in essay, "the essay's monogram is not inlined"
+    assert "frontmatter-mark--placeholder" in text(site, "essays/long/index.html"), \
+        "an essay without a mark has no placeholder roundel"
+    if (site / "_site/build/index.html").is_file():
+        assert '<h2 id="marks"' in text(site, "build/index.html"), "the build page has no marks coverage"
+
+
+def marks_off(site: Path) -> None:
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
+              for mark in ("frontmatter-mark--monogram", "item-card--has-monogram")}
+    assert not any(marked.values()), f"monograms on {marked}"
+    assert '<div class="frontmatter-mark-slot frontmatter-mark-slot--left"></div>' in \
+        text(site, "essays/long/index.html"), "an essay's monogram slot is not left empty"
+    if (site / "_site/build/index.html").is_file():
+        assert '<h2 id="marks"' not in text(site, "build/index.html"), "the build page has marks coverage"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),
     "epistemic": (epistemic_on, epistemic_off),
+    "marks": (marks_on, marks_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),

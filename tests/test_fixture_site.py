@@ -258,6 +258,10 @@ class FixtureBuilds(unittest.TestCase):
         # The essay still has its status, confidence and the rest.
         switch_checks.epistemic_off(self.turned_off("epistemic"))
 
+    def test_a_site_that_turns_marks_off_leaves_the_slot_empty(self):
+        # The essay's mark.svg is still beside it.
+        switch_checks.marks_off(self.turned_off("marks"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

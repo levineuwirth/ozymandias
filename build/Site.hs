@@ -581,7 +581,7 @@ rules = do
     -- photography asset rules claim (and copy) theirs; this claims the rest
     -- (standalone pages, /me/, /music/, poetry), with no route. Drafts' are
     -- claimed by the dev asset rule, or not built.
-    match (monogramPattern
+    when (switchOn cfg "marks") $ match (monogramPattern
            .&&. complement (essayAssets .||. musicAssets
                             .||. "content/photography/**" .||. "content/drafts/**")) $
         compile getResourceLBS

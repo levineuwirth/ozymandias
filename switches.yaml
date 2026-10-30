@@ -118,3 +118,14 @@ epistemic:
     section and link, data/epistemic-meta.json for search's filters, and
     the build page's coverage of it. Templates ask `has-epistemic`, which
     is present only with the switch on and a status set.
+
+marks:
+  kind: capability
+  default: false
+  assets: [templates/mark-template.svg]
+  about: >-
+    Monograms (Marks.hs): a page's mark.svg in its title's left slot, or a
+    placeholder roundel, in item cards and popups, and the build page's
+    coverage of them. Without it the slot is left empty (marks.css, which
+    also lays out the frontmatter grid, stays loaded) and no candidate
+    mark is read or depended on.

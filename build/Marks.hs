@@ -95,7 +95,7 @@ hasMonogram item = isJust <$> resolveMonogramPath item
 --   column layout.
 hasMonogramField :: Context String
 hasMonogramField = field "has-monogram" $ \item -> do
-    has <- hasMonogram item
+    has <- (&&) <$> marksOn <*> hasMonogram item
     if has then return "true" else noResult "no real monogram"
 
 -- | Return the first candidate path that exists on disk, or 'Nothing'.
@@ -126,8 +126,17 @@ resolveMonogramPath item = do
 --   empty outer ring at lower opacity that visually balances the
 --   epistemic-figure column and signals "monogram not yet authored".
 --   Read failures fall back to the same placeholder.
+--
+--   Without the marks switch the slot is left empty: the field is "", as
+--   the frontmatter grid keeps its column.
 monogramSvgField :: Context String
-monogramSvgField = field "monogramSvg" $ \item -> resolveMonogramPath item >>= monogramHtml
+monogramSvgField = field "monogramSvg" $ \item -> do
+    on <- marksOn
+    if on then resolveMonogramPath item >>= monogramHtml else return ""
+
+-- | The site has the marks switch on.
+marksOn :: Compiler Bool
+marksOn = (`switchOn` "marks") <$> loadConfig
 
 -- | The inlined mark at a path, or the placeholder roundel when there is
 --   none or it cannot be read.
@@ -173,16 +182,19 @@ wrapMonogram svg = T.concat
 --   when the file is absent or unreadable.
 monogramSvgFieldFor :: FilePath -> Context a
 monogramSvgFieldFor path = field "monogramSvg" $ \_ -> do
-    trackMonogram path
-    exists <- unsafeCompiler $ doesFileExist path
-    monogramHtml (if exists then Just path else Nothing)
+    on <- marksOn
+    if not on then return "" else do
+        trackMonogram path
+        exists <- unsafeCompiler $ doesFileExist path
+        monogramHtml (if exists then Just path else Nothing)
 
 -- | @$has-monogram$@ override paired with 'monogramSvgFieldFor'. Present
 --   (as @"true"@) only when the path exists; 'noResult' otherwise.
 hasMonogramFieldFor :: FilePath -> Context a
 hasMonogramFieldFor path = field "has-monogram" $ \_ -> do
+    on     <- marksOn
     exists <- unsafeCompiler $ doesFileExist path
-    if exists then return "true" else noResult "no real monogram"
+    if on && exists then return "true" else noResult "no real monogram"
 
 -- | Replace hardcoded black fills/strokes with @currentColor@ and strip
 --   the root @<svg>@'s @width@/@height@ attributes (presentation lives

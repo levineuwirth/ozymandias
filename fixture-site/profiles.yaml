@@ -18,6 +18,7 @@ full:
     code: true
     code-refs: true
     epistemic: true
+    marks: true
     math: true
     music: true
     pdf-viewer: true
@@ -29,6 +30,7 @@ minimal:
     code: false
     code-refs: false
     epistemic: false
+    marks: false
     math: false
     music: false
     pdf-viewer: false

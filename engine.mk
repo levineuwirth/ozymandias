@@ -569,7 +569,9 @@ audit-viz:
 # hook tools/hooks/pre-commit-marks.sh (not installed by default; MARKS.md
 # § 9.3) makes its own, narrower check of newly added essays.
 audit-marks:
-	@$(PY) $(call tool,audit-marks.py)
+	@if $(call switch_on,marks) || $(call switch_on,epistemic); then \
+	  $(PY) $(call tool,audit-marks.py); \
+	else echo "$@: the marks and epistemic switches are off for this site"; fi
 
 # Evict archived works: delete archive/<slug>/ directories whose slug is
 # recorded in archive/removed.yaml. Opt-in — NEVER run by `make build`.

@@ -987,7 +987,7 @@ renderArchive metrics =
 
 -- ---------------------------------------------------------------------------
 -- Static TOC (matches the eleven h2 sections above; @shown@ says which a
--- switch leaves out: the link archive's, the epistemic coverage)
+-- switch leaves out: the link archive's, the epistemic and marks coverage)
 -- ---------------------------------------------------------------------------
 
 pageTOC :: (String -> Bool) -> H.Html
@@ -1101,9 +1101,11 @@ statsRules tags = do
             cfg <- loadConfig
             let archive   = switchOn cfg "archive"
                 epistemic = switchOn cfg "epistemic"
+                marks     = switchOn cfg "marks"
                 shown anchor = case anchor of
                     "archive"   -> archive
                     "epistemic" -> epistemic
+                    "marks"     -> marks
                     _           -> True
             corpus <- loadCorpus
             let essays = kindItems "Essays" corpus
@@ -1227,7 +1229,7 @@ statsRules tags = do
                     renderTagsSection topTags uniqueTags
                     renderLinks mostLinkedInfo orphanCount (length allPIs)
                     when epistemic (renderEpistemic epTotal withStatus withConf withImp withEv)
-                    renderMarks epistemic markRows
+                    when marks (renderMarks epistemic markRows)
                     renderOutput outputGrouped totalFiles totalSize
                     when archive (renderArchive archiveMetrics)
                     renderRepository hf hl cf cl jf jl commits firstDate
