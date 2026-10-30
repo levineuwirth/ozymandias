@@ -1,0 +1,16 @@
+{
+ "https://github.com/example/fixture/blob/0123456789abcdef0123456789abcdef01234567/README.md": {
+  "kind": "blob",
+  "host": "github",
+  "owner": "example",
+  "repo": "fixture",
+  "ref": "0123456789abcdef0123456789abcdef01234567",
+  "sha": "0123456789abcdef0123456789abcdef01234567",
+  "path": "README.md",
+  "pinned": true,
+  "src": "/code-refs/github/example/fixture/0123456789abcdef0123456789abcdef01234567/blob/README.md.txt",
+  "commit": "/code-refs/github/example/fixture/0123456789abcdef0123456789abcdef01234567/commit.json",
+  "date": "2026-01-01T00:00:00Z",
+  "fetched": "2026-01-02"
+ }
+}

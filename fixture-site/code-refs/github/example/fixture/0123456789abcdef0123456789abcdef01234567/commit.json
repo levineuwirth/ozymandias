@@ -1,0 +1,10 @@
+{
+ "sha": "0123456789abcdef0123456789abcdef01234567",
+ "message": "The fixture's one commit",
+ "author": "Example Author",
+ "date": "2026-01-01T00:00:00Z",
+ "parents": [],
+ "stats": {"total": 7, "additions": 7, "deletions": 0},
+ "files_total": 1,
+ "files": [{"filename": "README.md", "status": "added", "additions": 7, "deletions": 0}]
+}

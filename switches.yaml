@@ -95,3 +95,14 @@ source-refs:
     Prism (so it needs code). Without it inline code is just code, an
     authored .source-ref link is an ordinary one, and nothing is published
     under /source/.
+
+code-refs:
+  kind: capability
+  default: false
+  needs: [code]
+  about: >-
+    Snapshots of the GitHub code that prose links to (tools/code-refs.py
+    fetch, a build stage, into code-refs/), published under /code-refs/ and
+    tagged on each link (Filters.CodeRefs) for a popup that shows the code,
+    with Prism (so it needs code). Without it GitHub links are ordinary
+    external links.

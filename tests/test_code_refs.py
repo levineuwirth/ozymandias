@@ -15,6 +15,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 from tests._helpers import load_tool, requires_cabal
+from tests.target import requires_switch
 
 code_refs = load_tool("code-refs.py")
 
@@ -314,9 +315,11 @@ class CommitSnapshots(unittest.TestCase):
         self.assertEqual(path.stat().st_mtime, 1)
 
 
+@requires_switch("code-refs")
 class RepositoryStore(unittest.TestCase):
     """The committed store: every file is referenced, every reference
-    exists, and every entry comes from a page the site publishes."""
+    exists, and every entry comes from a page the site publishes (a site
+    without the code-refs switch has none)."""
 
     def test_store_matches_index(self):
         index = code_refs.load_index()

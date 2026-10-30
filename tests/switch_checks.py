@@ -191,10 +191,26 @@ def source_refs_off(site: Path) -> None:
     assert not marked, f"source references on {marked}"
 
 
+SNAPSHOT = "code-refs/github/example/fixture/0123456789abcdef0123456789abcdef01234567"
+
+
+def code_refs_on(site: Path) -> None:
+    assert 'data-code-ref="blob"' in text(site, CAPABILITIES), "the essay's GitHub link is not tagged"
+    for rel in ("blob/README.md.txt", "blob/README.md.sections.json", "commit.json"):
+        assert (site / "_site" / SNAPSHOT / rel).is_file(), f"{rel} of the snapshot was not published"
+
+
+def code_refs_off(site: Path) -> None:
+    assert not (site / "_site/code-refs").exists(), "_site/code-refs/ was built"
+    tagged = [p.name for p in pages(site) if "data-code-ref" in p.read_text(encoding="utf-8")]
+    assert not tagged, f"code references on {tagged}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
     "code": (code_on, code_off),
+    "code-refs": (code_refs_on, code_refs_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),

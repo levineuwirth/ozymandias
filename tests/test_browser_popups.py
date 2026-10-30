@@ -220,7 +220,8 @@ class LinkPopups(unittest.TestCase):
         cls.expect = staticmethod(expect)
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-popups-")))
         (tmp / "fixtures").mkdir()
-        link, cls.code = code_ref()
+        # A site without the code-refs switch has no snapshot to link.
+        link, cls.code = code_ref() if switch_on("code-refs") else ("", {})
         (tmp / "fixtures" / "popups.html").write_text(PAGE.format(code_ref=link, essay=route("essay")), encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         essay = built(route("essay")).read_text(encoding="utf-8")
@@ -339,6 +340,8 @@ class LinkPopups(unittest.TestCase):
                     .to_contain_text("data/similar-links.json")
                 self.expect(popup.locator(".popup-internal")).to_have_count(0)
             with self.subTest(browser=browser, link="code reference"):
+                if not switch_on("code-refs"):
+                    self.skipTest(SWITCH_OFF + "code-refs")
                 popup = self.shown(page, "code")
                 self.expect(popup.locator(".popup-source-path")).to_contain_text(self.code["path"])
                 self.expect(popup.locator(".popup-source-rev")).to_contain_text(self.code["rev"])

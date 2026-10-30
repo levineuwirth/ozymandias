@@ -248,6 +248,12 @@ class FixtureBuilds(unittest.TestCase):
         # The essay still has an authored .source-ref link.
         switch_checks.source_refs_off(self.turned_off("source-refs"))
 
+    def test_a_site_that_turns_code_refs_off_tags_no_link(self):
+        # Its snapshots and their index are still in code-refs/.
+        site = self.turned_off("code-refs")
+        self.assertTrue((site / "code-refs/index.json").is_file())
+        switch_checks.code_refs_off(site)
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

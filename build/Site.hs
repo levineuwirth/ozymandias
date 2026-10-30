@@ -376,16 +376,18 @@ rules = do
     -- carry a .txt suffix so nothing from another repository is ever served
     -- as a document on this origin. The index is read directly by
     -- Filters.CodeRefs and is not published.
-    match ("code-refs/**" .&&. complement "code-refs/index.json") $ do
-        route   idRoute
-        compile copyFileCompiler
+    -- Only with the code-refs switch on.
+    when (switchOn cfg "code-refs") $ do
+        match ("code-refs/**" .&&. complement "code-refs/index.json") $ do
+            route   idRoute
+            compile copyFileCompiler
 
-    -- …and each Markdown blob's sectioned rendering beside it:
-    -- <path>.md.txt -> <path>.md.sections.json.
-    match "code-refs/**.md.txt" $ version "sections" $ do
-        route   $ customRoute (\ident ->
-            dropExtension (toFilePath ident) ++ ".sections.json")
-        compile markdownSectionsCompiler
+        -- …and each Markdown blob's sectioned rendering beside it:
+        -- <path>.md.txt -> <path>.md.sections.json.
+        match "code-refs/**.md.txt" $ version "sections" $ do
+            route   $ customRoute (\ident ->
+                dropExtension (toFilePath ident) ++ ".sections.json")
+            compile markdownSectionsCompiler
 
     -- Link annotations — author-defined previews for any URL
     match "data/annotations.json" $ do

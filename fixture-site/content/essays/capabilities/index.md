@@ -41,6 +41,11 @@ Inline code naming a file the site publishes, `data/bibliography.bib`, links
 to it, and so does [its link to the repository](https://git.example.org/author/site/src/branch/main/data/bibliography.bib),
 and one an author marked, [the same file](https://git.example.org/author/site/src/branch/main/data/bibliography.bib){.source-ref data-source-path="data/bibliography.bib"}.
 
+## A code reference
+
+[The fixture's README](https://github.com/example/fixture/blob/0123456789abcdef0123456789abcdef01234567/README.md)
+has a snapshot (code-refs/, as tools/code-refs.py would leave it).
+
 ## A paper
 
 [The fixture paper](/essays/capabilities/paper.pdf) is cited too [@delta2026],

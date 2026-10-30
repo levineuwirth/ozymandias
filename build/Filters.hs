@@ -52,7 +52,7 @@ applyAll cfg numberFigures srcDir doc = do
         . Sidenotes.apply
         . Typography.apply
         . Links.apply cfg
-        . CodeRefs.apply
+        . on "code-refs" CodeRefs.apply
         . Archive.apply
         . Smallcaps.apply
         . Dropcaps.apply

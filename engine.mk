@@ -204,7 +204,7 @@ build-locked:
 	# Python stdlib plus the site draft scanner; not gated on .venv.
 	# Network failures are warnings;
 	# the link keeps its previous snapshot or gets no code popup.
-	@python3 $(call tool,code-refs.py) fetch
+	@$(call with_switch,code-refs,python3 $(call tool,code-refs.py) fetch)
 	# ---- Stage 1: compile (produces the HTML that embed.py reads) --------
 	cabal run site -- build
 	# Purge dev/watch leftovers BEFORE embedding or indexing: drafts under

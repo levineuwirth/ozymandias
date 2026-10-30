@@ -16,6 +16,7 @@ full:
   switches:
     archive: true
     code: true
+    code-refs: true
     math: true
     music: true
     pdf-viewer: true
@@ -25,9 +26,10 @@ minimal:
   switches:
     archive: false
     code: false
+    code-refs: false
     math: false
     music: false
     pdf-viewer: false
     source-refs: false
     viz: false
-  without: [archive/, content/music/, content/essays/capabilities/]
+  without: [archive/, code-refs/, content/music/, content/essays/capabilities/]
