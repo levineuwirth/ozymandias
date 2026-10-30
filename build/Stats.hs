@@ -45,7 +45,7 @@ import           Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Text.Blaze.Internal         as BI
 import Hakyll
 import Archive                    (archiveBuildStats)
-import Config                     (loadConfig, switchOn)
+import Config                     (SiteConfig, loadConfig, switchOn)
 import Contexts                   (siteCtx, authorLinksField, canonicalUrlPath)
 import Marks                      (hasMonogram, monogramSvgFieldFor,
                                    hasMonogramFieldFor)
@@ -1089,13 +1089,15 @@ statsPage title abstract markPath toc htmlContent = do
 -- Rules
 -- ---------------------------------------------------------------------------
 
-statsRules :: Tags -> Rules ()
-statsRules tags = do
+-- | /build/ and /stats/, each with its switch on (rules ask the config
+--   they are given, read in 'preprocess').
+statsRules :: SiteConfig -> Tags -> Rules ()
+statsRules site tags = do
 
   -- -------------------------------------------------------------------------
   -- Build telemetry page (/build/)
   -- -------------------------------------------------------------------------
-  create ["build/index.html"] $ do
+  when (switchOn site "build-page") $ create ["build/index.html"] $ do
         route idRoute
         compile $ do
             cfg <- loadConfig
@@ -1243,7 +1245,7 @@ statsRules tags = do
   -- -------------------------------------------------------------------------
   -- Writing statistics page (/stats/)
   -- -------------------------------------------------------------------------
-  create ["stats/index.html"] $ do
+  when (switchOn site "stats-page") $ create ["stats/index.html"] $ do
         route idRoute
         compile $ do
             corpus <- loadCorpus

@@ -53,14 +53,16 @@ def archive_on(site: Path) -> None:
     assert (site / "_site/archive" / ARCHIVED / "index.html").is_file(), "no page for the archived entry"
     assert "archive-affordance" in text(site, "essays/long/index.html"), \
         "the essay's link to the archived page has no archive mark"
-    assert 'id="archive"' in text(site, "build/index.html"), "the build page has no link-archive section"
+    if (site / "_site/build/index.html").is_file():
+        assert 'id="archive"' in text(site, "build/index.html"), "the build page has no link-archive section"
 
 
 def archive_off(site: Path) -> None:
     assert not (site / "_site/archive").exists(), "_site/archive/ was built"
     marked = [p.name for p in pages(site) if "archive-affordance" in p.read_text(encoding="utf-8")]
     assert not marked, f"archive marks on {marked}"
-    assert 'id="archive"' not in text(site, "build/index.html"), "the build page has a link-archive section"
+    if (site / "_site/build/index.html").is_file():
+        assert 'id="archive"' not in text(site, "build/index.html"), "the build page has a link-archive section"
 
 
 def music_on(site: Path) -> None:
@@ -77,7 +79,8 @@ def music_on(site: Path) -> None:
         assert (site / "_site/music" / PIECE / rel).is_file(), f"{rel} was not published"
     for rel in ("new.html", "sitemap.xml", "data/backlinks.json"):
         assert f"/music/{PIECE}/" in text(site, rel), f"{rel} does not list the work"
-    assert "Compositions" in text(site, "stats/index.html"), "/stats/ counts no compositions"
+    if (site / "_site/stats/index.html").is_file():
+        assert "Compositions" in text(site, "stats/index.html"), "/stats/ counts no compositions"
 
 
 def music_off(site: Path) -> None:
@@ -91,7 +94,8 @@ def music_off(site: Path) -> None:
     naming = [str(p.relative_to(site / "_site")) for p in published(site)
               if f"/music/{PIECE}/".encode() in p.read_bytes()]
     assert not naming, f"the work is named in {naming}"
-    assert "Compositions" not in text(site, "stats/index.html"), "/stats/ counts compositions"
+    if (site / "_site/stats/index.html").is_file():
+        assert "Compositions" not in text(site, "stats/index.html"), "/stats/ counts compositions"
 
 
 def math_on(site: Path) -> None:
@@ -320,9 +324,29 @@ def signature_link_off(site: Path) -> None:
     assert not linked, f"signature links on {linked}"
 
 
+def build_page_on(site: Path) -> None:
+    assert "Build Telemetry" in text(site, "build/index.html"), "/build/ was not built"
+    assert 'class="footer-build-link"' in text(site, "essays/long/index.html"), "the footer has no link to /build/"
+
+
+def build_page_off(site: Path) -> None:
+    assert not (site / "_site/build/index.html").exists(), "/build/ was built"
+    linked = [p.name for p in pages(site) if "footer-build-link" in p.read_text(encoding="utf-8")]
+    assert not linked, f"links to /build/ on {linked}"
+
+
+def stats_page_on(site: Path) -> None:
+    assert 'id="activity"' in text(site, "stats/index.html"), "/stats/ was not built"
+
+
+def stats_page_off(site: Path) -> None:
+    assert not (site / "_site/stats").exists(), "/stats/ was built"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
+    "build-page": (build_page_on, build_page_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),
     "commonplace": (commonplace_on, commonplace_off),
@@ -335,6 +359,7 @@ CHECKS = {
     "signature-link": (signature_link_on, signature_link_off),
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),
+    "stats-page": (stats_page_on, stats_page_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),
 }

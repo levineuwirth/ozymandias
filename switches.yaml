@@ -177,3 +177,17 @@ signature-link:
   about: >-
     The footer's link to the page's signature (<page>.sig), with the
     signing key's fingerprint and its popup.
+
+stats-page:
+  kind: generated
+  default: false
+  about: >-
+    /stats/: the writing's statistics (counts, words, the activity
+    heatmap, tags, notable pages).
+
+build-page:
+  kind: generated
+  default: false
+  about: >-
+    /build/: the build's telemetry (corpus, pages, links, output,
+    repository, timing), and the footer's link to it.

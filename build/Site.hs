@@ -315,7 +315,7 @@ rules = do
     -- ---------------------------------------------------------------------------
     tags <- buildAllTags cfg
     applyTagRules tags (map portalPair (sitePortals cfg)) siteCtx
-    statsRules tags
+    statsRules cfg tags
 
     -- Per-page JS files — authored alongside content in content/**/*.js.
     -- Draft JS is handled by a separate dev-only rule below.

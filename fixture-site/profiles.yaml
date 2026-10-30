@@ -15,6 +15,7 @@
 full:
   switches:
     archive: true
+    build-page: true
     code: true
     code-refs: true
     commonplace: true
@@ -27,11 +28,13 @@ full:
     signature-link: true
     signing: true
     source-refs: true
+    stats-page: true
     vita: true
     viz: true
 minimal:
   switches:
     archive: false
+    build-page: false
     code: false
     code-refs: false
     commonplace: false
@@ -44,6 +47,7 @@ minimal:
     signature-link: false
     signing: false
     source-refs: false
+    stats-page: false
     vita: false
     viz: false
   without: [archive/, code-refs/, content/commonplace.md, content/current.md, content/cv.md, data/commonplace.yaml, data/now.yaml, content/music/, content/essays/capabilities/, yaml-source/]

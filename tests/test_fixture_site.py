@@ -298,6 +298,10 @@ class FixtureBuilds(unittest.TestCase):
         # off; the link is the generator's.
         switch_checks.signature_link_off(self.turned_off("signature-link"))
 
+    def test_a_site_that_turns_the_build_and_stats_pages_off_builds_neither(self):
+        switch_checks.build_page_off(self.turned_off("build-page"))
+        switch_checks.stats_page_off(self.turned_off("stats-page"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

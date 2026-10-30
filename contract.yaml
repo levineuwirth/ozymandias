@@ -38,6 +38,7 @@ contexts:
   # The switches a template asks ($if(switch-NAME)$, Config.switchContext),
   # each on, so that what they gate renders and its hooks are checked.
   switches:
+    switch-build-page: true
     switch-signature-link: true
 
 templates:
