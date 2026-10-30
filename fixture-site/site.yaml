@@ -16,6 +16,9 @@ source-branch: main
 forge-host: git.example.org
 content-license: CC-BY-NC-SA-4.0
 code-license: MIT
+# A key's fingerprint for the signing switch; the fixture's builds sign with a
+# throwaway key of their own (SIGNING_KEY).
+signing-fingerprint: 0000 1111 2222 3333 4444 5555 6666 7777 8888 9999
 manifest:
   name: Example Site
   short-name: Example

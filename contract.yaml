@@ -35,6 +35,10 @@ contexts:
   page:
     url: /essays/example/
     title: An Example
+  # The switches a template asks ($if(switch-NAME)$, Config.switchContext),
+  # each on, so that what they gate renders and its hooks are checked.
+  switches:
+    switch-signature-link: true
 
 templates:
   templates/404.html:
@@ -42,7 +46,7 @@ templates:
     hooks: []
 
   templates/partials/footer.html:
-    context: [identity, page]
+    context: [identity, page, switches]
     hooks:
       - selector: footer
         root: true

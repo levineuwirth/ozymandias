@@ -302,7 +302,7 @@ build-locked:
 	@python3 $(call tool,build-inputs.py) record $(BUILD_INPUTS) content
 
 sign:
-	@$(WITH_LOCK) $(call tool,sign-site.sh)
+	@$(call with_switch,signing,$(WITH_LOCK) $(call tool,sign-site.sh))
 
 # Download the quantized ONNX model for client-side semantic search.
 # Run once; files are gitignored. Safe to re-run (skips existing files).

@@ -126,6 +126,7 @@ class PopupKinds(unittest.TestCase):
                 self.expect(popup.locator(".popup-epistemic .meta-epistemic-strip")).to_have_count(1)
                 self.expect(popup.locator(".popup-epistemic .ep-expanded")).to_have_count(1)
 
+    @requires_switch("signature-link")
     def test_the_signature(self) -> None:
         for browser in BROWSERS:
             for how in ("pointer", "keyboard"):
@@ -176,6 +177,7 @@ class PopupKinds(unittest.TestCase):
         page.mouse.move(min(page.viewport_size["width"] - 5, box["x"] + box["width"] + 80), y, steps=4)
         page.wait_for_timeout(600)
 
+    @requires_switch("signature-link")
     def test_the_keyboard_and_popups(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser, part="hidden, inert; Tab never lands in one"):

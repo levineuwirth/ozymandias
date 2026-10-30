@@ -209,6 +209,19 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
 
+    def test_signing_needs_a_fingerprint(self):
+        for fingerprint, refusal in (("", "the signing switch needs a signing-fingerprint"), ("ABC DEF", None)):
+            with self.subTest(fingerprint=fingerprint):
+                self.config = dict(self.config, switches={"signing": True},
+                                   **{"signing-fingerprint": fingerprint})
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
     def test_invalid_settings_are_rejected(self):
         feed = {"path": "feed.xml", "title": "Example", "description": "Posts",
                 "sections": ["essays"], "advertise": True, "limit": 30}

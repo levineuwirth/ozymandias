@@ -300,6 +300,26 @@ def now_off(site: Path) -> None:
     assert not any(marked.values()), f"the now page on pages: {marked}"
 
 
+def signing_on(site: Path) -> None:
+    # make sign, which test_fixture_site runs for every build.
+    assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
+    assert (site / "data/sign-manifest.txt").is_file(), "make sign left no manifest"
+
+
+def signing_off(site: Path) -> None:
+    signed = [str(p.relative_to(site / "_site")) for p in (site / "_site").rglob("*.sig")]
+    assert not signed, f"make sign signed {signed[:3]}"
+
+
+def signature_link_on(site: Path) -> None:
+    assert 'class="footer-sig-link"' in text(site, "essays/long/index.html"), "the footer has no signature link"
+
+
+def signature_link_off(site: Path) -> None:
+    linked = [p.name for p in pages(site) if "footer-sig-link" in p.read_text(encoding="utf-8")]
+    assert not linked, f"signature links on {linked}"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -312,6 +332,8 @@ CHECKS = {
     "music": (music_on, music_off),
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
+    "signature-link": (signature_link_on, signature_link_off),
+    "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),

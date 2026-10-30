@@ -9,7 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import load_tool, requires_cabal, site_binary
+import yaml
+
+from tests._helpers import engine_path, load_tool, requires_cabal, site_binary
 
 review = load_tool("override-review.py", "override_review")
 
@@ -86,6 +88,14 @@ class TemplateContractTests(unittest.TestCase):
         contract = {name: {key for item in value for key in item} if isinstance(value, list) else set()
                     for name, value in identity.items()}
         self.assertEqual(contract, engine)
+
+    def test_the_switches_group_names_registered_switches_on(self):
+        # A misspelt one would give a field no site has.
+        registry = yaml.safe_load(engine_path("switches.yaml").read_text(encoding="utf-8"))
+        switches = self.terms["contexts"]["switches"]
+        self.assertTrue(switches)
+        self.assertEqual({name.removeprefix("switch-") for name in switches} - set(registry), set())
+        self.assertTrue(all(name.startswith("switch-") and value is True for name, value in switches.items()))
 
     def test_an_override_of_a_template_the_contract_does_not_name_is_reported(self):
         self.override("templates/partials/toc.html", "<nav></nav>\n")

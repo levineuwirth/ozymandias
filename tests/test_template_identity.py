@@ -40,7 +40,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> constField "home" "true" <> constField "title" "Piece"
+    let ctx = identityContext <> navigationContext <> switchContext <> constField "home" "true" <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"
     forM_ ["partials/head.html", "partials/footer.html", "partials/nav.html",
@@ -92,6 +92,8 @@ main = hakyll $ do
             config = dict(title=title, email="a&b@example.org", portals=portals, **{
                 "nav-primary": nav,
                 "contact-email": "contact&us@example.org", "signing-fingerprint": "ABC DEF",
+                # The footer's signature link is the signature-link switch's.
+                "switches": {"signing": True, "signature-link": True},
                 "manifest": manifest, "feeds": [feed, dict(feed, path="hidden.xml", advertise=False)]})
             write_site_config(root, **config)
             for changed in (False, True):

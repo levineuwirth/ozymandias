@@ -1,7 +1,8 @@
 <!-- The engine's footer, for a site that brings none of its own: the
      site's host and code license from site.yaml (Config.identityContext).
-     The empty right part balances the left, so the license sits centered.
-     A site overrides it at templates/partials/footer.html. -->
+     The right part balances the left, so the license sits centered, and
+     holds what a switch adds: the signature link. A site overrides it at
+     templates/partials/footer.html. -->
 <footer data-pagefind-ignore="all">
     <div class="footer-left">
         <button class="footer-totop" aria-label="Return to top">↑ top</button>
@@ -10,5 +11,5 @@
     <div class="footer-center">
         <span class="footer-license"><a href="$site-source-repo$">$site-code-license$</a></span>
     </div>
-    <div class="footer-right"></div>
+    <div class="footer-right">$if(switch-signature-link)$<a href="$url$.sig" class="footer-sig-link" title="Signed by key $site-signing-fingerprint$">sig<span class="visually-hidden">: PGP signature for this page</span></a>$endif$</div>
 </footer>

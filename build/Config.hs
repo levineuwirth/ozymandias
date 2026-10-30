@@ -492,6 +492,8 @@ decodeConfig registryBytes siteBytes = do
     first ("site.yaml: " ++) (switchedContexts registry resolved cfg)
     let withheld = [ glob | (name, spec) <- Map.toList registry
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
+    when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
+        Left "site.yaml: the signing switch needs a signing-fingerprint"
     let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
     unless (null scored || Map.findWithDefault False "music" resolved) $
         Left ("site.yaml: standalone scores need the music switch: " ++ intercalate ", " scored)

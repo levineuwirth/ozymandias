@@ -161,3 +161,19 @@ now:
     A now page (Now.hs): a standalone page with the now context, from
     data/now.yaml, whose stamp now.js dates in the reader's calendar, and
     whose last-updated date the sitemap gives it.
+
+signing:
+  kind: capability
+  default: false
+  about: >-
+    A detached signature beside every published file (make sign, which
+    deploy runs: tools/sign-site.sh), by the subkey site.yaml's
+    signing-fingerprint names, which the site must then give.
+
+signature-link:
+  kind: interface
+  default: false
+  needs: [signing]
+  about: >-
+    The footer's link to the page's signature (<page>.sig), with the
+    signing key's fingerprint and its popup.

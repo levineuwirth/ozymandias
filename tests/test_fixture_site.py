@@ -101,11 +101,13 @@ class Coverage(unittest.TestCase):
         self.assertLessEqual(set(switch_checks.CHECKS), registered_switches())
 
 
-def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
+def build_site(build: fixture_variants.Build, site: Path, binary: str, signer: dict) -> dict:
     """One build in a copy of its own (`site`): the generator reads its
     switches first; with the archive on, the fetch stage runs as `make
     build` runs it (offline: the fixture's snapshot is committed); then the
-    build, the search index and the gate. Each stage's result, by name."""
+    build, the search index and the gate; then `make sign`, as deploy runs
+    it, through the engine's make, which signs (with `signer`'s throwaway
+    key) only with the signing switch on. Each stage's result, by name."""
     shutil.copytree(FIXTURE, site)
     for rel in build.without:
         shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
@@ -115,6 +117,7 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
     # as a boolean.
     (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
     (site / "engine").symlink_to(ENGINE)
+    (site / "Makefile").write_text("include engine/engine.mk\n")
     # The commit ignores the user's signing and hooks, which could fail it.
     git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
            "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
@@ -133,11 +136,26 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str) -> dict:
     runs["build"] = run(binary, "build")
     runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
     runs["gate"] = run(shutil.which("python3"), str(engine_path("tools/check-site.py")), "_site", timeout=300)
+    runs["sign"] = subprocess.run(["make", "--no-print-directory", f"PY={sys.executable}", "sign"], cwd=site,
+                                  env=env | signer, capture_output=True, text=True, timeout=300)
     return runs
+
+
+def throwaway_key(home: Path) -> dict:
+    """An Ed25519 key with no passphrase in a scratch keyring, as the
+    environment sign-site.sh signs with (GNUPGHOME, SIGNING_KEY)."""
+    home.mkdir(mode=0o700)
+    gpg = ["gpg", "--homedir", str(home), "--batch"]
+    subprocess.run(gpg + ["--passphrase", "", "--quick-gen-key", "fixture signing", "ed25519", "sign", "never"],
+                   check=True, capture_output=True, timeout=60)
+    listing = subprocess.run(gpg + ["--list-keys", "--with-colons"], check=True, capture_output=True, text=True)
+    key = next(line.split(":")[9] for line in listing.stdout.splitlines() if line.startswith("fpr:"))
+    return {"GNUPGHOME": str(home), "SIGNING_KEY": key}
 
 
 @requires_cabal
 @unittest.skipUnless(shutil.which("pagefind"), "pagefind not on PATH")
+@unittest.skipUnless(shutil.which("gpg") and shutil.which("gpgconf"), "gpg not on PATH (the signing switch)")
 class FixtureBuilds(unittest.TestCase):
     """Every profile and variant, built at once: they share nothing, and one
     each is a build per switch the minimal profile has on (FIXTURE_JOBS at
@@ -150,8 +168,11 @@ class FixtureBuilds(unittest.TestCase):
         cls.builds = fixture_variants.builds()
         cls.sites = {b.name: Path(tmp.name) / b.name for b in cls.builds}
         binary = str(site_binary())
+        signer = throwaway_key(Path(tmp.name) / "gnupg")
+        cls.addClassCleanup(subprocess.run, ["gpgconf", "--homedir", signer["GNUPGHOME"], "--kill", "all"],
+                            capture_output=True)
         with ThreadPoolExecutor(max_workers=int(os.environ.get("FIXTURE_JOBS") or 4)) as pool:
-            done = {b.name: pool.submit(build_site, b, cls.sites[b.name], binary) for b in cls.builds}
+            done = {b.name: pool.submit(build_site, b, cls.sites[b.name], binary, signer) for b in cls.builds}
         cls.runs = {name: future.result() for name, future in done.items()}
 
     def refused(self, name: str) -> None:
@@ -171,7 +192,7 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(build=build.name):
                 self.refused(build.name)
                 runs = self.runs[build.name]
-                for stage in ("fetch", "build", "index"):
+                for stage in ("fetch", "build", "index", "sign"):
                     if stage in runs:
                         done = runs[stage]
                         self.assertEqual(done.returncode, 0, f"{stage}: {done.stdout[-3000:]}{done.stderr}")
@@ -271,6 +292,11 @@ class FixtureBuilds(unittest.TestCase):
 
     def test_a_site_that_turns_now_off_has_no_now_page(self):
         switch_checks.now_off(self.turned_off("now"))
+
+    def test_a_site_that_turns_the_signature_link_off_links_no_signature(self):
+        # Signing is a make stage, which the minimal build's make sign shows
+        # off; the link is the generator's.
+        switch_checks.signature_link_off(self.turned_off("signature-link"))
 
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of

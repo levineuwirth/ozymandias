@@ -24,6 +24,8 @@ full:
     music: true
     now: true
     pdf-viewer: true
+    signature-link: true
+    signing: true
     source-refs: true
     vita: true
     viz: true
@@ -39,6 +41,8 @@ minimal:
     music: false
     now: false
     pdf-viewer: false
+    signature-link: false
+    signing: false
     source-refs: false
     vita: false
     viz: false
