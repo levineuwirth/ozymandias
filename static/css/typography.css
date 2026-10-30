@@ -61,18 +61,23 @@
     color: var(--text);
 }
 
-/* 4. A drawn initial: a page's initial.svg (Marks.hs), which the template
-   floats before the opening paragraph. Its top meets the capitals of the
-   first line and its foot the baseline of the third: a box
-   (lines - 1) * lh + cap tall, set down 0.5 * lh + (asc - desc) / 2 - cap.
-   Spectral's cap height and (asc - desc) / 2, measured: 0.66em, 0.298em.
-   The paragraph keeps its own first letter, for copying, search and
-   screen readers, at no size. The theme sets the glow (--initial-glow)
+/* 4. Drawn initials. A page that names a set (frontmatter initials:) has
+   each dropcap's letter drawn from it, as many as the page has, at the
+   head of its paragraph in <span class="initial" aria-hidden="true">
+   (Filters/Dropcaps.hs). Its top meets the capitals of the first line and
+   its foot the baseline of the third: a box (lines - 1) * lh + cap tall,
+   set down 0.5 * lh + (asc - desc) / 2 - cap. Spectral's cap height and
+   (asc - desc) / 2, measured: 0.66em, 0.298em. Unscoped, so an initial
+   keeps its size in a popup or a transclusion too. The paragraph keeps its
+   own first letter, for copying, search and screen readers, in
+   .initial-letter at no size: every ::first-letter dropcap is measured in
+   em, so it comes to nothing too. The theme sets the glow (--initial-glow)
    and may shade the ink (--initial-ink-lo, --initial-ink-hi). */
-#markdownBody > .initial {
+.initial {
     --initial-lines: 3;
     --initial-cap: 0.66em;
     --initial-rise: 0.298em;
+    display: block;
     float: left;
     height: calc((var(--initial-lines) - 1) * var(--line-height) * 1em + var(--initial-cap));
     margin: calc(0.5 * var(--line-height) * 1em + var(--initial-rise) - var(--initial-cap)) 0.22em 0 0;
@@ -80,29 +85,27 @@
     filter: var(--initial-glow, none);
 }
 
-#markdownBody > .initial svg {
+.initial svg {
     display: block;
     height: 100%;
     width: auto;
     overflow: visible;
 }
 
-#markdownBody > .initial + p::first-letter {
-    float: none;
+.initial-letter {
     font-size: 0;
-    padding: 0;
 }
 
 /* Cut, then inked, once, as the page opens: each outline is drawn at its
    own moment (--t, set in the SVG), then the ink fills it. */
 @media (prefers-reduced-motion: no-preference) {
-    :root:not([data-reduce-motion]) #markdownBody > .initial .initial-cut {
+    :root:not([data-reduce-motion]) .initial .initial-cut {
         stroke-dasharray: 1;
         stroke-dashoffset: 1;
         animation: initial-cut 0.7s ease-out var(--t, 0s) forwards;
     }
-    :root:not([data-reduce-motion]) #markdownBody > .initial .initial-ink,
-    :root:not([data-reduce-motion]) #markdownBody > .initial .initial-shade {
+    :root:not([data-reduce-motion]) .initial .initial-ink,
+    :root:not([data-reduce-motion]) .initial .initial-shade {
         opacity: 0;
         animation: initial-ink 0.5s ease var(--t, 1s) forwards;
     }

@@ -22,8 +22,6 @@ module Marks
     , epistemicSvgField
     , hasMonogram
     , monogramPattern
-    , initialSvgField
-    , initialPattern
     , peerStatusValues
     , epistemicVocabulary
     ) where
@@ -184,44 +182,6 @@ hasMonogramFieldFor :: FilePath -> Context a
 hasMonogramFieldFor path = field "has-monogram" $ \_ -> do
     exists <- unsafeCompiler $ doesFileExist path
     if exists then return "true" else noResult "no real monogram"
-
--- ---------------------------------------------------------------------------
--- Drawn initials
--- ---------------------------------------------------------------------------
-
--- | Where a page's drawn initial lives, beside it as its mark does:
---
---   > content/foo.md        → content/foo.initial.svg
---   > content/foo/index.md  → content/foo/initial.svg
-initialCandidates :: FilePath -> FilePath
-initialCandidates fp
-    | takeFileName fp == "index.md" = takeDirectory fp </> "initial.svg"
-    | otherwise                     = takeDirectory fp </> takeBaseName fp ++ ".initial.svg"
-
--- | Every path 'initialCandidates' can name; Site.hs claims them, as it
---   does the monograms, so that adding or editing one rebuilds the page.
-initialPattern :: Pattern
-initialPattern = "content/initial.svg" .||. "content/**/initial.svg" .||. "content/**.initial.svg"
-
--- | @$initialSvg$@: the page's drawn initial, inlined, or 'noResult' when
---   it has none. The template floats it before the opening paragraph,
---   whose own first letter typography.css then sets at no size; the
---   initial's colours are its own (currentColor and the --initial-*
---   tokens), and its animation is typography.css's.
-initialSvgField :: Context String
-initialSvgField = field "initialSvg" $ \item -> do
-    let path = initialCandidates (toFilePath (itemIdentifier item))
-    trackMonogram path
-    exists <- unsafeCompiler $ doesFileExist path
-    if not exists then noResult "no initial" else do
-        result <- unsafeCompiler $ try (TIO.readFile path)
-                    :: Compiler (Either IOException T.Text)
-        case result of
-            Left e -> do
-                unsafeCompiler $ hPutStrLn stderr $
-                    "[Marks] failed to read " ++ path ++ ": " ++ show e
-                noResult "unreadable initial"
-            Right svg -> return $ T.unpack $ processSvg (T.strip svg)
 
 -- | Replace hardcoded black fills/strokes with @currentColor@ and strip
 --   the root @<svg>@'s @width@/@height@ attributes (presentation lives

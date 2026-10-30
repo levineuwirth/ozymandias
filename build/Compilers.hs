@@ -28,10 +28,13 @@ import qualified Data.Text                  as T
 import           Control.Monad              (forM_, void, when)
 import           Data.List                  (isInfixOf)
 import           Data.Maybe                 (fromMaybe)
-import           System.FilePath            (takeDirectory)
+import           System.Directory           (doesDirectoryExist, listDirectory)
+import           System.FilePath            (takeDirectory, takeExtension, (</>))
+import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import           Utils                      (wordCount, readingTime, escapeHtml, inlinesText, parseBool)
 import           PandocOptions              (poetryReaderOpts, readerOpts, writerOpts)
 import           Filters                    (applyAll, preprocessSource)
+import           Filters.Dropcaps           (initialsDir)
 import qualified Citations
 import qualified Filters.Headings           as Headings
 import qualified Filters.Score              as Score
@@ -189,8 +192,11 @@ essayCompilerWith rOpts = do
     let numberFigures =
             fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
 
+    let initials = lookupString "initials" meta >>= initialsDir srcDir
+    trackInitials initials
+
     (pandocFiltered, bibHtml, furtherHtml) <- unsafeCompiler $
-        transformDocument cfg frKeys bibPath numberFigures srcDir (itemBody pandocItem)
+        transformDocument cfg frKeys bibPath numberFigures srcDir initials (itemBody pandocItem)
     let pandocItem'    = itemSetBody pandocFiltered pandocItem
 
     -- Build TOC from the filtered AST.
@@ -215,6 +221,21 @@ essayCompilerWith rOpts = do
 
     return htmlItem
 
+-- | Record that a page depends on its set of drawn initials, whose letters
+--   'Filters.Dropcaps' reads in IO, where Hakyll cannot see: without it,
+--   editing a letter left every page drawn from it as it was. The set's
+--   files are claimed by the static rules, so the dependency fires; a letter
+--   added to the set later reaches its pages at their next edit or a clean
+--   build.
+trackInitials :: Maybe FilePath -> Compiler ()
+trackInitials Nothing    = pure ()
+trackInitials (Just dir) = do
+    letters <- unsafeCompiler $ do
+        exists <- doesDirectoryExist dir
+        if exists then filter ((== ".svg") . takeExtension) <$> listDirectory dir
+                  else pure []
+    compilerTellDependencies [IdentifierDependency (fromFilePath (dir </> f)) | f <- letters]
+
 -- | Everything 'essayCompilerWith' does between the parsed document and the
 --   filtered one, outside Hakyll, so that @site render-fixture@ (build/Golden.hs,
 --   tests/test_golden.py) runs the same code a page does.
@@ -227,13 +248,13 @@ essayCompilerWith rOpts = do
 --
 --   Returns the filtered document, the bibliography HTML and the
 --   further-reading HTML.
-transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Pandoc
+transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Maybe FilePath -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
-transformDocument cfg frKeys bibPath numberFigures srcDir doc = do
+transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations frKeys bibPath doc
     withScores <- Score.inlineScores srcDir withCites
     withViz    <- Viz.inlineViz srcDir withScores
-    filtered   <- applyAll cfg numberFigures srcDir withViz
+    filtered   <- applyAll cfg numberFigures srcDir initials withViz
     return (filtered, bibHtml, furtherHtml)
 
 -- | Compiler for essays.
@@ -312,6 +333,10 @@ filteredPage = do
     filePath <- getResourceFilePath
     let src = itemBody body
     pandocItem <- readPandocWith readerOpts (itemSetBody (preprocessSource cfg src) body)
+    meta       <- getMetadata =<< getUnderlying
+    let srcDir   = takeDirectory filePath
+        initials = lookupString "initials" meta >>= initialsDir srcDir
+    trackInitials initials
     filtered   <- unsafeCompiler $
-        applyAll cfg False (takeDirectory filePath) (itemBody pandocItem)
+        applyAll cfg False srcDir initials (itemBody pandocItem)
     return (src, writePandocWith writerOpts (itemSetBody filtered pandocItem))

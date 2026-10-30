@@ -1,15 +1,182 @@
 {-# LANGUAGE GHC2021 #-}
--- | Dropcap support.
+{-# LANGUAGE OverloadedStrings #-}
+-- | Drawn initials.
 --
---   The dropcap on the opening paragraph is implemented entirely in CSS
---   via @#markdownBody > p:first-of-type::first-letter@, so no AST
---   transformation is required.  This module is a placeholder for future
---   work (e.g. adding a @.lead-paragraph@ class when the first block is
---   not a Para, or decorative initial-capital images).
-module Filters.Dropcaps (apply) where
+--   The dropcap itself is CSS: the opening paragraph's first letter
+--   (@#markdownBody > p:first-of-type::first-letter@) and the first letter
+--   of every paragraph in a @::: dropcap@ block (typography.css). A page
+--   that names a set of drawn initials (frontmatter @initials:@, resolved
+--   by 'initialsDir') has each of those letters drawn instead: the set's
+--   SVG for the letter is put at the head of the paragraph, in
+--   @<span class="initial" aria-hidden="true">@, and the paragraph's own
+--   letter goes in @<span class="initial-letter">@, which typography.css
+--   sets at no size, so the text keeps the letter.
+--
+--   A paragraph keeps the CSS dropcap when the set has no SVG for its
+--   letter, or when it opens with anything but a capital (a quotation
+--   mark, a digit, a lower-case letter, a capital with a combining mark),
+--   since @::first-letter@ would hide that with it. The ids in a set's SVG
+--   (its gradient) are made unique to each paragraph, so a page may carry
+--   any number of initials, and another page's transcluded beside them.
+module Filters.Dropcaps (apply, initialsDir) where
 
-import Text.Pandoc.Definition (Pandoc)
+import           Data.Bits              (xor)
+import           Data.Char              (GeneralCategory (EnclosingMark, NonSpacingMark,
+                                                          SpacingCombiningMark),
+                                         generalCategory, isLetter, isUpper)
+import           Data.IORef             (IORef, atomicModifyIORef', newIORef,
+                                         readIORef, modifyIORef')
+import           Data.List              (findIndex, isPrefixOf)
+import qualified Data.Map.Strict        as Map
+import qualified Data.Text              as T
+import qualified Data.Text.IO           as TIO
+import           Data.Word              (Word32)
+import           Numeric                (showHex)
+import           System.Directory       (doesDirectoryExist, doesFileExist)
+import           System.FilePath        (splitDirectories, (</>))
+import           Text.Pandoc.Definition
+import           Text.Pandoc.Shared     (stringify)
+import           Text.Pandoc.Walk       (walkM)
 
--- | Identity — dropcaps are handled by CSS.
-apply :: Pandoc -> Pandoc
-apply = id
+-- | Where a page's @initials:@ names its set: a path under the site's
+--   static directory when it begins with @/@ (@/initials/eb-garamond@ is
+--   @static/initials/eb-garamond@), else a path beside the page. Nothing
+--   for an empty value or one that climbs out with @..@.
+initialsDir :: FilePath -> String -> Maybe FilePath
+initialsDir srcDir v
+    | null v                         = Nothing
+    | ".." `elem` splitDirectories v = Nothing
+    | "/" `isPrefixOf` v             = Just ("static" </> dropWhile (== '/') v)
+    | otherwise                      = Just (srcDir </> v)
+
+-- | Draw the initials of a page with a set; the identity without one, or
+--   when the set's directory does not exist.
+apply :: Maybe FilePath -> Pandoc -> IO Pandoc
+apply Nothing doc = pure doc
+apply (Just dir) doc@(Pandoc meta blocks) = do
+    exists <- doesDirectoryExist dir
+    if not exists then pure doc else do
+        cache   <- newIORef Map.empty
+        counter <- newIORef (0 :: Int)
+        let draw    = drawInitial dir cache counter
+            opening = findIndex isPara (takeWhile (not . isHeader) blocks)
+            visit (i, b)
+                | Just i == opening, Para ils <- b = Para <$> draw ils
+                | otherwise                        = walkM (dropcapBlock draw) b
+        blocks' <- mapM visit (zip [0 :: Int ..] blocks)
+        pure (Pandoc meta blocks')
+  where
+    isPara (Para _) = True
+    isPara _        = False
+    -- The opening paragraph is the CSS's: the first <p> directly in
+    -- #markdownBody. collapse.js wraps what follows a heading in its
+    -- section's body, so only a paragraph before the first heading stays
+    -- it; a page whose first paragraph comes later keeps whatever the CSS
+    -- gives it, never a drawn initial the CSS would not have dropped.
+    isHeader (Header {}) = True
+    isHeader _           = False
+
+-- | Every paragraph in a @::: dropcap@ block, however deep.
+dropcapBlock :: ([Inline] -> IO [Inline]) -> Block -> IO Block
+dropcapBlock draw (Div attr@(_, classes, _) bs)
+    | "dropcap" `elem` classes = Div attr <$> walkM para bs
+  where
+    para (Para ils) = Para <$> draw ils
+    para b          = pure b
+dropcapBlock _ b = pure b
+
+-- | The paragraph with its letter's initial at its head, or as it was.
+drawInitial :: FilePath -> IORef (Map.Map Char (Maybe T.Text)) -> IORef Int
+            -> [Inline] -> IO [Inline]
+drawInitial dir cache counter ils
+    | drawn ils = pure ils
+    | otherwise = case firstCapital ils of
+        Nothing -> pure ils
+        Just c  -> do
+            found <- letterSvg dir cache c
+            case found of
+                Nothing  -> pure ils
+                Just svg -> do
+                    n <- atomicModifyIORef' counter (\k -> (k + 1, k + 1))
+                    let suffix = T.pack (show n) <> "-" <> fnv (stringify ils)
+                        html   = "<span class=\"initial\" aria-hidden=\"true\">"
+                                 <> uniqueIds suffix svg <> "</span>"
+                    pure (RawInline (Format "html") html : markLetter ils)
+  where
+    drawn (RawInline _ t : _) = "<span class=\"initial\"" `T.isPrefixOf` t
+    drawn _                   = False
+
+-- | The paragraph's own first letter in a span of its own, which
+--   typography.css sets at no size. Every ::first-letter dropcap is
+--   measured in em, so it comes to nothing with it, whichever rule gives
+--   it; the letter stays in the text.
+markLetter :: [Inline] -> [Inline]
+markLetter []       = []
+markLetter (x : xs) = case x of
+    Str t | Just (c, rest) <- T.uncons t ->
+        Span ("", ["initial-letter"], []) [Str (T.singleton c)]
+            : [Str rest | not (T.null rest)] ++ xs
+    Emph ys       -> Emph (markLetter ys) : xs
+    Strong ys     -> Strong (markLetter ys) : xs
+    Underline ys  -> Underline (markLetter ys) : xs
+    SmallCaps ys  -> SmallCaps (markLetter ys) : xs
+    Span a ys     -> Span a (markLetter ys) : xs
+    Link a ys tgt -> Link a (markLetter ys) tgt : xs
+    _             -> x : xs
+
+-- | The capital a paragraph's dropcap would show: the first character of
+--   its first word, through emphasis, small caps, spans and links.
+firstCapital :: [Inline] -> Maybe Char
+firstCapital []      = Nothing
+firstCapital (x : _) = case x of
+    Str t -> case T.uncons t of
+        Just (c, rest) | isUpper c && isLetter c && not (combining rest) -> Just c
+        _ -> Nothing
+    Emph xs      -> firstCapital xs
+    Strong xs    -> firstCapital xs
+    Underline xs -> firstCapital xs
+    SmallCaps xs -> firstCapital xs
+    Span _ xs    -> firstCapital xs
+    Link _ xs _  -> firstCapital xs
+    _            -> Nothing
+  where
+    combining rest = case T.uncons rest of
+        Just (m, _) -> generalCategory m `elem` [NonSpacingMark, SpacingCombiningMark, EnclosingMark]
+        Nothing     -> False
+
+-- | The set's SVG for a capital, read once per page.
+letterSvg :: FilePath -> IORef (Map.Map Char (Maybe T.Text)) -> Char -> IO (Maybe T.Text)
+letterSvg dir cache c = do
+    known <- Map.lookup c <$> readIORef cache
+    case known of
+        Just svg -> pure svg
+        Nothing  -> do
+            let path = dir </> (c : ".svg")
+            exists <- doesFileExist path
+            svg <- if exists then Just . stripDeclaration . T.strip <$> TIO.readFile path
+                             else pure Nothing
+            modifyIORef' cache (Map.insert c svg)
+            pure svg
+  where
+    stripDeclaration t
+        | "<?xml" `T.isPrefixOf` t = T.strip (T.drop 2 (snd (T.breakOn "?>" t)))
+        | otherwise                = t
+
+-- | Each id the SVG declares, and every reference to it (@url(#…)@,
+--   @href="#…"@), with the suffix added.
+uniqueIds :: T.Text -> T.Text -> T.Text
+uniqueIds suffix svg = foldr rename svg ids
+  where
+    ids = [ T.takeWhile (/= '"') (T.drop 4 after)
+          | (_, after) <- T.breakOnAll "id=\"" svg ]
+    rename i = T.replace ("id=\"" <> i <> "\"") ("id=\"" <> i' <> "\"")
+             . T.replace ("url(#" <> i <> ")") ("url(#" <> i' <> ")")
+             . T.replace ("href=\"#" <> i <> "\"") ("href=\"#" <> i' <> "\"")
+      where i' = i <> "-" <> suffix
+
+-- | FNV-1a over the paragraph's text: a short, stable tag that keeps two
+--   pages' initials apart when one is transcluded into the other.
+fnv :: T.Text -> T.Text
+fnv = T.pack . flip showHex "" . T.foldl' step (2166136261 :: Word32)
+  where
+    step h ch = (h `xor` fromIntegral (fromEnum ch)) * 16777619

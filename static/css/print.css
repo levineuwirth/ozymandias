@@ -253,15 +253,11 @@
     }
 
     /* A drawn initial prints as the letter's own quiet dropcap. */
-    #markdownBody > .initial {
+    .initial {
         display: none;
     }
-    #markdownBody > .initial + p::first-letter {
-        float: left;
-        font-size: 2.4em;
-        line-height: 0.9;
-        padding-top: 0.05em;
-        padding-right: 0.1em;
+    .initial-letter {
+        font-size: inherit;
     }
 
     /* ----------------------------------------------------------------

@@ -37,6 +37,7 @@ import           Compilers             (readerOpts, writerOpts, transformDocumen
 import           Hakyll.Core.Provider.Metadata (parsePage)
 import           Utils                 (parseBool)
 import           Filters               (preprocessSource)
+import           Filters.Dropcaps      (initialsDir)
 import qualified Filters.Headings      as Headings
 
 -- | Render one fixture: the body, then the table of contents, the
@@ -50,10 +51,11 @@ renderFixture path = do
         bibPath       = T.pack (maybe "data/bibliography.bib" (takeDirectory path </>)
                                       (lookupString "bibliography" meta))
         numberFigures = fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
+        initials      = lookupString "initials" meta >>= initialsDir (takeDirectory path)
     parsed <- either (die . show) return $
         runPure (readMarkdown readerOpts (T.pack (preprocessSource cfg body)))
     (doc, bibHtml, furtherHtml) <-
-        transformDocument cfg frKeys bibPath numberFigures (takeDirectory path)
+        transformDocument cfg frKeys bibPath numberFigures (takeDirectory path) initials
                           (Headings.normalizeLevels parsed)
     html <- either (die . show) return $ runPure (writeHtml5String writerOpts doc)
     mapM_ (\(name, part) -> TIO.putStrLn ("<!-- render-fixture: " <> name <> " -->")

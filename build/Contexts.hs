@@ -70,7 +70,7 @@ import Hakyll       hiding (escapeHtml, trim)
 import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
 import Backlinks    (backlinksField)
 import Dingbat      (dingbatField)
-import Marks        (monogramSvgField, hasMonogramField, initialSvgField, epistemicSvgField, peerStatusValues)
+import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, peerStatusValues)
 import Sections     (Section (..), sectionOfRoute)
 import SimilarLinks (similarLinksField)
 import FooterData   (footerDepsField)
@@ -684,7 +684,6 @@ siteCtx =
     <> dingbatField
     <> monogramSvgField
     <> hasMonogramField
-    <> initialSvgField
     <> defaultContext
 
 -- ---------------------------------------------------------------------------
