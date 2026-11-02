@@ -16,6 +16,7 @@ full:
   switches:
     archive: true
     authors: true
+    bibliography-index: true
     build-page: true
     code: true
     code-refs: true
@@ -41,6 +42,7 @@ minimal:
   switches:
     archive: false
     authors: true
+    bibliography-index: false
     build-page: false
     code: false
     code-refs: false

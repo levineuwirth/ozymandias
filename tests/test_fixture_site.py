@@ -319,6 +319,10 @@ class FixtureBuilds(unittest.TestCase):
         # The full build's photography and music pages have bylines too.
         switch_checks.authors_off(self.turned_off("authors"))
 
+    def test_a_site_that_turns_the_bibliography_index_off_links_no_keyword(self):
+        # Its works are still cited, its keywords still named.
+        switch_checks.bibliography_index_off(self.turned_off("bibliography-index"))
+
     def test_a_site_that_turns_the_library_off_builds_none(self):
         # Its intro, content/library.md, is left unbuilt.
         site = self.turned_off("library")
@@ -338,12 +342,18 @@ class FixtureBuilds(unittest.TestCase):
         switch_checks.music_off(site)
 
     def test_every_page_its_routes_name_is_built(self):
+        # But a page a switch the build has off publishes (its registry
+        # routes).
+        owners = {route: name for name, spec in fixture_variants.registry().items()
+                  for route in spec.get("routes") or []}
+        builds = {b.name: b for b in self.builds}
         for name in ("minimal", "full"):
             with self.subTest(build=name):
                 site = self.sites[name]
                 routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
                 not_found = routes.role("not-found")   # its own document is meant to 404
-                missing = [path for path in routes.pages.values() if path != not_found
+                off = {route for route, owner in owners.items() if not builds[name].switches[owner]}
+                missing = [path for path in routes.pages.values() if path != not_found and path not in off
                            and not (site / "_site" / path.lstrip("/")
                                     / ("index.html" if path.endswith("/") else "")).is_file()]
                 self.assertEqual(missing, [])

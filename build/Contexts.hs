@@ -251,9 +251,8 @@ tagLinksFieldExcludingTopSegment fieldName scope =
 
 -- | List context field exposing an item's @keywords:@ frontmatter as
 --   @$kw-name$@ / @$kw-url$@ pairs. URL targets @/bibliography/\<kw\>/@,
---   the per-keyword bibliography pages (built by Phase 6b; links will
---   404 until then, deliberately — the mechanism has to be in place
---   before the pages can be populated).
+--   the per-keyword bibliography pages; without the bibliography-index
+--   switch there are none, and no @kw-url@ (templates show the name).
 --
 --   Shared vocabulary with bib-entry @keywords:@ fields parsed by
 --   'BibExtras.parseBibExtras'. An essay tagged with the same keyword
@@ -276,7 +275,7 @@ tagLinksFieldExcludingTopSegment fieldName scope =
 --   Usage in metadata.html:
 --
 --   @
---   $for(essay-keywords)$\<a class="meta-keyword" href="$kw-url$"\>$kw-name$\</a\>$endfor$
+--   $for(essay-keywords)$$if(kw-url)$\<a class="meta-keyword" href="$kw-url$"\>$kw-name$\</a\>$else$\<span class="meta-keyword"\>$kw-name$\</span\>$endif$$endfor$
 --   @
 keywordLinksField :: String -> Context a
 keywordLinksField fieldName = listFieldWith fieldName ctx $ \item -> do
@@ -287,7 +286,10 @@ keywordLinksField fieldName = listFieldWith fieldName ctx $ \item -> do
   where
     toItem k = Item (fromFilePath (k ++ "/index.html")) k
     ctx = field "kw-name" (return . itemBody)
-       <> field "kw-url"  (\i -> return $ "/bibliography/" ++ itemBody i ++ "/")
+       <> field "kw-url"  (\i -> do
+              paged <- (`switchOn` "bibliography-index") <$> loadConfig
+              if paged then return ("/bibliography/" ++ itemBody i ++ "/")
+                       else noResult "no keyword pages")
 
 -- ---------------------------------------------------------------------------
 -- Author links field

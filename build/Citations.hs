@@ -49,6 +49,7 @@ import           Text.Pandoc.Walk
 import           Hakyll              (Pattern, (.||.))
 
 import           BibExtras           (BibExtra (..), emptyBibExtra, parseBibExtras)
+import           Config              (SiteConfig, switchOn)
 import           EngineFiles         (resolveFile)
 import qualified Filters.Archive     (annotateBlock)
 import qualified Filters.Links       (pdfViewerTarget)
@@ -65,9 +66,9 @@ import qualified Filters.Links       (pdfViewerTarget)
 --   replaced with numbered superscripts and no bibliography div,
 --   @citedHtml@ is the inline-cited references HTML, and @furtherHtml@ is
 --   the further-reading-only references HTML (each empty when absent).
---   @viewer@: the site has the pdf-viewer switch on ('asPdfLink').
-applyCitations :: Bool -> [Text] -> Text -> Pandoc -> IO (Pandoc, Text, Text)
-applyCitations viewer frKeys bibPath doc
+--   @cfg@: the site's switches, for the entries' links ('enhanceEntry').
+applyCitations :: SiteConfig -> [Text] -> Text -> Pandoc -> IO (Pandoc, Text, Text)
+applyCitations cfg frKeys bibPath doc
     | not (hasCitations frKeys doc) = return (doc, "", "")
     | otherwise = do
         -- Read custom fields (@file:@, @keywords:@) from the .bib file
@@ -77,7 +78,7 @@ applyCitations viewer frKeys bibPath doc
         csl          <- cslStyle
         let doc1      = injectMeta csl frKeys bibPath doc
         processed    <- runIOorExplode $ processCitations doc1
-        let enhance = annotateArchive . enhanceEntry viewer extras
+        let enhance = annotateArchive . enhanceEntry cfg extras
             (body, citedHtml, furtherHtml) = transformAndExtract enhance frKeys processed
         return (body, citedHtml, furtherHtml)
 
@@ -97,19 +98,19 @@ applyCitations viewer frKeys bibPath doc
 --   @extras@ is the combined 'BibExtra' map for the same @.bib@ files;
 --   passed in so that 'enhanceEntry' can consult @file:@ and
 --   @keywords:@ without each entry re-parsing the files.
-renderBibliographyHtml :: Bool                  -- ^ the pdf-viewer switch ('asPdfLink')
+renderBibliographyHtml :: SiteConfig            -- ^ the switches ('enhanceEntry')
                       -> [FilePath]             -- ^ .bib paths
                       -> Map String BibExtra    -- ^ enhancement map
                       -> [String]               -- ^ citekeys, in desired order
                       -> IO Text
 renderBibliographyHtml _ _ _ [] = return ""
-renderBibliographyHtml viewer bibPaths extras keys = do
+renderBibliographyHtml cfg bibPaths extras keys = do
     csl <- cslStyle
     let doc = synthesizeNociteDoc csl bibPaths keys
     processed <- runIOorExplode $ processCitations doc
     let refsDivs = concatMap unwrapRefs (pandocBlocks processed)
         ordered  = reorderByKeys keys refsDivs
-        enhanced = map (annotateArchive . enhanceEntry viewer extras) ordered
+        enhanced = map (annotateArchive . enhanceEntry cfg extras) ordered
     return (renderEntries "csl-bib-body" enhanced)
   where
     pandocBlocks (Pandoc _ bs) = bs
@@ -370,15 +371,17 @@ annotateArchive :: Block -> Block
 annotateArchive = Filters.Archive.annotateBlock
 
 -- | Augment a single @csl-entry@ Div with the custom fields we parsed
---   from the .bib file. Other Blocks pass through unchanged.
-enhanceEntry :: Bool -> Map String BibExtra -> Block -> Block
-enhanceEntry viewer extras b@(Div attrs@(divId, _, _) blocks) =
+--   from the .bib file: its PDF (through the viewer with the pdf-viewer
+--   switch on) and its keywords (linked to their pages with the
+--   bibliography-index switch on). Other Blocks pass through unchanged.
+enhanceEntry :: SiteConfig -> Map String BibExtra -> Block -> Block
+enhanceEntry cfg extras b@(Div attrs@(divId, _, _) blocks) =
     let key    = T.unpack (stripRefPrefix divId)
         extra  = fromMaybe emptyBibExtra (Map.lookup key extras)
         withLink = case bibFile extra of
             Nothing -> blocks
-            Just fp -> map (wrapFirstTitleBlock (asPdfLink viewer (T.pack fp))) blocks
-        withKw   = withLink ++ keywordsBlocks (bibKeywords extra)
+            Just fp -> map (wrapFirstTitleBlock (asPdfLink (switchOn cfg "pdf-viewer") (T.pack fp))) blocks
+        withKw   = withLink ++ keywordsBlocks (switchOn cfg "bibliography-index") (bibKeywords extra)
     in case (bibFile extra, bibKeywords extra) of
         (Nothing, []) -> b
         _             -> Div attrs withKw
@@ -424,20 +427,21 @@ asPdfLink viewer href content =
     let (url, src) = fromMaybe (href, href) (Filters.Links.pdfViewerTarget viewer href)
     in  Link ("", ["pdf-link"], [("data-pdf-src", src)]) content (url, "")
 
--- | Trailing keyword strip, linking each keyword to the future
---   @/bibliography/\<keyword\>/@ page. Returns @[]@ when the keyword
+-- | Trailing keyword strip, linking each keyword to its
+--   @/bibliography/\<keyword\>/@ page when there are such pages
+--   (@paged@), and naming it otherwise. Returns @[]@ when the keyword
 --   list is empty so the entry gets no extra block at all.
-keywordsBlocks :: [String] -> [Block]
-keywordsBlocks [] = []
-keywordsBlocks ks =
+keywordsBlocks :: Bool -> [String] -> [Block]
+keywordsBlocks _ [] = []
+keywordsBlocks paged ks =
     [ Div ("", ["bib-keywords"], [])
-          [Plain (intersperse (Str ", ") (map keywordLink ks))]
+          [Plain (intersperse (Str ", ") (map keyword ks))]
     ]
   where
-    keywordLink k =
-        Link ("", ["bib-keyword"], [])
-             [Str (T.pack k)]
-             (T.pack ("/bibliography/" ++ k ++ "/"), "")
+    keyword k
+        | paged     = Link ("", ["bib-keyword"], []) [Str (T.pack k)]
+                           (T.pack ("/bibliography/" ++ k ++ "/"), "")
+        | otherwise = Span ("", ["bib-keyword"], []) [Str (T.pack k)]
 
 isCited :: Map Text Int -> Block -> Bool
 isCited keyIndex (Div (rid, _, _) _) = Map.member (stripRefPrefix rid) keyIndex

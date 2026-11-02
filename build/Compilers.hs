@@ -264,7 +264,7 @@ trackInitials (Initials dirs _) = do
 transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Initials -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
 transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
-    (withCites, bibHtml, furtherHtml) <- Citations.applyCitations (switchOn cfg "pdf-viewer") frKeys bibPath doc
+    (withCites, bibHtml, furtherHtml) <- Citations.applyCitations cfg frKeys bibPath doc
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
     withViz    <- if switchOn cfg "viz"

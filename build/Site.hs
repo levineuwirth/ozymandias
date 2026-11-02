@@ -1092,7 +1092,10 @@ rules = do
             (loadAll (("data/*.bib" .||. cslStyles) .&&. hasNoVersion)
                 :: Compiler [Item String])
 
-    create ["bibliography/index.html"] $ do
+    -- The index and the keyword pages: only with the bibliography-index
+    -- switch on.
+    let bibliographyIndex = switchOn cfg "bibliography-index"
+    when bibliographyIndex $ create ["bibliography/index.html"] $ do
         route idRoute
         compile $ do
             trackBibInputs
@@ -1106,10 +1109,10 @@ rules = do
             let sortedKeys = filter (`Set.member` cited) (bibliographyIndexOrder bibExtrasAll)
                 grouped    = groupByLetter bibExtrasAll sortedKeys
                 present    = map fst grouped
-            viewer <- (`switchOn` "pdf-viewer") <$> loadConfig
+            current <- loadConfig
             html <- unsafeCompiler $ do
                 parts <- forM grouped $ \(letter, keys) -> do
-                    body <- renderBibliographyHtml viewer bibFilePaths bibExtrasAll keys
+                    body <- renderBibliographyHtml current bibFilePaths bibExtrasAll keys
                     return (renderLetterHeader letter <> body)
                 return (renderBibliographyAlphabet present <> T.concat parts)
             let mathFld = katexFallbackField html
@@ -1128,7 +1131,7 @@ rules = do
                 >>= inDefault "templates/bibliography-index.html" ctx
 
     -- /bibliography/<keyword>/index.html for each keyword in the union.
-    forM_ (Set.toList allKeywords) $ \kw ->
+    when bibliographyIndex $ forM_ (Set.toList allKeywords) $ \kw ->
         create [fromFilePath ("bibliography/" ++ kw ++ "/index.html")] $ do
             route idRoute
             compile $ do
@@ -1147,9 +1150,9 @@ rules = do
 
                 -- References section
                 let refKeys = keywordReferencesOrder bibExtrasAll kw
-                viewer <- (`switchOn` "pdf-viewer") <$> loadConfig
+                current <- loadConfig
                 refsHtml <- unsafeCompiler $
-                    renderBibliographyHtml viewer bibFilePaths bibExtrasAll refKeys
+                    renderBibliographyHtml current bibFilePaths bibExtrasAll refKeys
                 let mathFld = katexFallbackField refsHtml
                 let referencesCtx
                         | null refKeys = mempty

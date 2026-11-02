@@ -5,6 +5,7 @@ abstract: >-
   The fixture's long essay: sections, sidenotes, citations, a figure, a
   wikilink and a transcluded passage.
 tags: [notes]
+keywords: [fixtures]
 further-reading:
   - gamma2020
 history:

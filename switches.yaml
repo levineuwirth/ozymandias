@@ -224,6 +224,16 @@ authors:
     links to it. Without the switch a byline names its authors as text,
     and /authors/ is no longer a reserved namespace.
 
+bibliography-index:
+  kind: generated
+  default: false
+  routes: [/bibliography/]
+  about: >-
+    /bibliography/, every work the site cites, and a page per keyword
+    (/bibliography/<keyword>/: the writing and the works that name it),
+    and every link to one: a page's keywords and its bibliography
+    entries'. Without the switch keywords are shown as text.
+
 library:
   kind: generated
   default: false

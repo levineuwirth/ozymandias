@@ -345,6 +345,35 @@ def signature_link_off(site: Path) -> None:
     assert not linked, f"signature links on {linked}"
 
 
+KEYWORD = "fixtures"   # the long essay's, and alpha2001's in the .bib
+
+
+def keyword_link(cls: str) -> re.Pattern:
+    """A link of class `cls` to the keyword's page."""
+    return re.compile(rf'<a\b(?=[^>]*\bclass="{cls}")(?=[^>]*\bhref="[./]*bibliography/{KEYWORD}/")[^>]*>')
+
+
+def bibliography_index_on(site: Path) -> None:
+    assert 'id="ref-alpha2001"' in text(site, "bibliography/index.html"), "/bibliography/ does not list a cited work"
+    keyword = text(site, f"bibliography/{KEYWORD}/index.html")
+    assert "/essays/long/" in keyword and 'id="ref-alpha2001"' in keyword, \
+        f"/bibliography/{KEYWORD}/ does not list the essay and the work"
+    assert "/bibliography/" in text(site, "sitemap.xml"), "the sitemap does not list /bibliography/"
+    essay = text(site, "essays/long/index.html")
+    for cls in ("meta-keyword", "bib-keyword"):
+        assert keyword_link(cls).search(essay), f"the essay's {cls} does not link its page"
+
+
+def bibliography_index_off(site: Path) -> None:
+    assert not (site / "_site/bibliography").exists(), "/bibliography/ was built"
+    assert "/bibliography/" not in text(site, "sitemap.xml"), "the sitemap lists /bibliography/"
+    linked = [p.name for p in pages(site) if re.search(r'href="[./]*bibliography/', p.read_text(encoding="utf-8"))]
+    assert not linked, f"links to the bibliography's pages on {linked}"
+    essay = text(site, "essays/long/index.html")
+    for cls in ("meta-keyword", "bib-keyword"):
+        assert f'<span class="{cls}">{KEYWORD}</span>' in essay, f"the essay's {cls} is not shown"
+
+
 def build_page_on(site: Path) -> None:
     assert "Build Telemetry" in text(site, "build/index.html"), "/build/ was not built"
     assert 'class="footer-build-link"' in text(site, "essays/long/index.html"), "the footer has no link to /build/"
@@ -459,6 +488,7 @@ def new_off(site: Path) -> None:
 CHECKS = {
     "archive": (archive_on, archive_off),
     "authors": (authors_on, authors_off),
+    "bibliography-index": (bibliography_index_on, bibliography_index_off),
     "build-page": (build_page_on, build_page_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),

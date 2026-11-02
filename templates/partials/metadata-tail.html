@@ -6,7 +6,7 @@
     $endif$
     $if(essay-keywords)$
     <div class="meta-row meta-keywords">
-        $for(essay-keywords)$<a class="meta-keyword" href="$kw-url$">$kw-name$</a>$endfor$
+        $for(essay-keywords)$$if(kw-url)$<a class="meta-keyword" href="$kw-url$">$kw-name$</a>$else$<span class="meta-keyword">$kw-name$</span>$endif$$endfor$
     </div>
     $endif$
     $if(affiliation-links)$
