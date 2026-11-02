@@ -874,15 +874,18 @@ rules = do
     -- Each card uses the shared item-card partial, with cross-portal filings
     -- rendered in the card's tag footer via 'tagLinksFieldExcludingTopSegment',
     -- scoped to the section's portal so the portal's own tag is suppressed.
+    --
+    -- Only with the library switch on, which needs site.yaml's library block.
     -- ---------------------------------------------------------------------------
-    create ["library.html"] $ do
+    when (switchOn cfg "library") $ create ["library.html"] $ do
         route idRoute
         compile $ do
             current <- loadConfig
+            library <- maybe (fail "site.yaml: the library switch needs a library block") return
+                             (siteLibrary current)
             sidecarIds <- getMatches ("content/tag-meta/*.md"
                                  .||. "content/tag-meta/**/*.md")
-            let library      = siteLibrary current
-                sidecarSet   = Set.fromList sidecarIds
+            let sidecarSet   = Set.fromList sidecarIds
                 knownPortals = map portalTag (sitePortals current)
 
                 -- Top segment of the first tag that names a known portal.
@@ -1691,13 +1694,15 @@ portalWritingCtx =
     <> essayCtx
 
 
--- | The bibliography pages' links on: the library, then the library's own
---   (site.yaml's library see-also), all but the bibliography's.
+-- | The bibliography pages' links on: the library (with its switch on),
+--   then the library's own (site.yaml's library see-also), all but the
+--   bibliography's.
 bibliographySeeAlso :: Context String
 bibliographySeeAlso = listField "library-see-also" linkCtx $ do
-    library <- siteLibrary <$> loadConfig
-    mapM makeItem (NavLink "Library" "/library.html"
-                   : filter ((/= "/bibliography/") . navHref) (librarySeeAlso library))
+    cfg <- loadConfig
+    mapM makeItem ([ NavLink "Library" "/library.html" | switchOn cfg "library" ]
+                   ++ filter ((/= "/bibliography/") . navHref)
+                             (maybe [] librarySeeAlso (siteLibrary cfg)))
   where
     linkCtx = field "label" (return . escapeHtml . navLabel . itemBody)
            <> field "href"  (return . escapeHtml . navHref . itemBody)

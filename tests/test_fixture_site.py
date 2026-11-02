@@ -319,6 +319,12 @@ class FixtureBuilds(unittest.TestCase):
         # The full build's photography and music pages have bylines too.
         switch_checks.authors_off(self.turned_off("authors"))
 
+    def test_a_site_that_turns_the_library_off_builds_none(self):
+        # Its intro, content/library.md, is left unbuilt.
+        site = self.turned_off("library")
+        self.assertTrue((site / "content/library.md").is_file())
+        switch_checks.library_off(site)
+
     def test_a_site_that_turns_new_off_links_no_new_page(self):
         # The full build's essay draws both its marks, the divider's and
         # its aftermatter's, without a link.

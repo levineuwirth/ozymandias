@@ -301,7 +301,7 @@ class ConfigTests(unittest.TestCase):
                 {"sections": ["unknown"]}, {"sections": ["essays", "photography"]},
                 {"adveritse": True}, {"advertise": "yes"},
             )],
-            {"sections": None}, {"portals": None}, {"nav-primary": None}, {"library": None},
+            {"sections": None}, {"portals": None}, {"nav-primary": None},
             *[{"sections": [dict(section, **change)] + self.config["sections"][1:]} for change in (
                 {"dir": "Essays"}, {"dir": "essays/old"}, {"dir": "-essays"}, {"dir": ""},
                 {"kind": ""}, {"dingbat": "unknown"}, {"landing": "no"}, {"order": 1},
@@ -573,6 +573,19 @@ class ConfigTests(unittest.TestCase):
                 else:
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
+
+    def test_the_library_needs_its_block_only_with_its_switch(self):
+        original = {key: value for key, value in self.config.items() if key != "library"}
+        for switch in (False, True):
+            with self.subTest(library=switch):
+                self.config = dict(original, switches={"library": switch})
+                self.write_config()
+                done = self.run_site("config")
+                if switch:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn("the library switch needs a library block", done.stderr)
+                else:
+                    self.assertEqual(done.returncode, 0, done.stderr)
 
 
 class FeedRenderingTests(unittest.TestCase):

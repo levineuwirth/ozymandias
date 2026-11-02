@@ -56,7 +56,9 @@ data SiteConfig = SiteConfig
     , siteSections :: [Section]
     , sitePortals :: [Portal]
     , siteNavPrimary :: [NavLink]
-    , siteLibrary :: LibraryConfig
+      -- | The library page's settings: needed with the library switch on,
+      --   and its see-also also lists the bibliography pages' links.
+    , siteLibrary :: Maybe LibraryConfig
     , siteStandalone :: [Standalone]
     , siteFontPreloads :: [String]
       -- | Where the site explains its epistemic profile (a path, with its
@@ -440,7 +442,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "code-license" <*> o .:? "signing-fingerprint" .!= ""
                         <*> o .: "manifest" <*> o .: "feeds"
                         <*> o .: "sections" <*> o .: "portals"
-                        <*> o .: "nav-primary" <*> o .: "library"
+                        <*> o .: "nav-primary" <*> o .:? "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
                         <*> o .:? "seasons" .!= []
@@ -567,6 +569,8 @@ decodeConfig registryBytes siteBytes = do
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
         Left "site.yaml: the signing switch needs a signing-fingerprint"
+    when (Map.findWithDefault False "library" resolved && isNothing (siteLibrary cfg)) $
+        Left "site.yaml: the library switch needs a library block"
     let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
     unless (null scored || Map.findWithDefault False "music" resolved) $
         Left ("site.yaml: standalone scores need the music switch: " ++ intercalate ", " scored)
@@ -698,7 +702,7 @@ switchedLinks :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig 
 switchedLinks registry on cfg = do
     let owners  = Map.fromList [ (path, name) | (name, spec) <- Map.toList registry
                                                , path <- switchRoutes spec ]
-        links   = siteNavPrimary cfg ++ librarySeeAlso (siteLibrary cfg)
+        links   = siteNavPrimary cfg ++ maybe [] librarySeeAlso (siteLibrary cfg)
         refused = [ navHref l ++ " (the " ++ name ++ " switch is off)"
                   | l <- links
                   , Just name <- [Map.lookup (takeWhile (`notElem` ("#?" :: String)) (navHref l)) owners]

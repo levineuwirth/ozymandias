@@ -54,8 +54,9 @@ def switched(config: dict, switches: dict[str, bool]) -> dict:
         owner = routes.get(link["href"].split("#")[0].split("?")[0])
         return owner is None or switches[owner]
 
-    library = dict(config["library"], **{"see-also": [l for l in config["library"]["see-also"] if built(l)]})
-    return dict(config, switches=switches, library=library,
+    library = {"library": dict(config["library"], **{"see-also": [l for l in config["library"]["see-also"]
+                                                                  if built(l)]})} if "library" in config else {}
+    return dict(config, switches=switches, **library,
                 **{"nav-primary": [l for l in config["nav-primary"] if built(l)]},
                 sections=[s for s in config["sections"]
                           if s["dir"] not in sections or switches[sections[s["dir"]]]],

@@ -290,6 +290,25 @@ def commonplace_off(site: Path) -> None:
 NOW_MARKS = ("/js/now.js", "/css/now.css", "now-stamp")
 
 
+LIBRARY_LINK = re.compile(r'href="[./]*library\.html"')
+
+
+def library_on(site: Path) -> None:
+    library = text(site, "library.html")
+    assert re.search(r'<section class="library-section">\s*<h2 id="notes">', library), \
+        "the library has no shelf for the Notes portal"
+    assert "one for each portal" in library, "the library does not show its intro (content/library.md)"
+    assert "/library.html" in text(site, "sitemap.xml"), "the sitemap does not list /library.html"
+    assert LIBRARY_LINK.search(text(site, "bibliography/index.html")), "the bibliography does not link the library"
+
+
+def library_off(site: Path) -> None:
+    assert not (site / "_site/library.html").exists(), "/library.html was built"
+    assert "/library.html" not in text(site, "sitemap.xml"), "the sitemap lists /library.html"
+    linked = [p.name for p in pages(site) if LIBRARY_LINK.search(p.read_text(encoding="utf-8"))]
+    assert not linked, f"links to /library.html on {linked}"
+
+
 def now_on(site: Path) -> None:
     current = text(site, "current.html")
     for mark in NOW_MARKS:
@@ -446,6 +465,7 @@ CHECKS = {
     "commonplace": (commonplace_on, commonplace_off),
     "epistemic": (epistemic_on, epistemic_off),
     "footer-build-time": (footer_build_time_on, footer_build_time_off),
+    "library": (library_on, library_off),
     "marks": (marks_on, marks_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),

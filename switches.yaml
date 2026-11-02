@@ -224,6 +224,16 @@ authors:
     links to it. Without the switch a byline names its authors as text,
     and /authors/ is no longer a reserved namespace.
 
+library:
+  kind: generated
+  default: false
+  routes: [/library.html]
+  about: >-
+    /library.html: a shelf per portal, with content/library.md as its
+    intro, and the bibliography pages' link to it. It needs site.yaml's
+    library block, which is otherwise optional (its see-also also lists
+    the bibliography pages' links).
+
 random:
   kind: generated
   default: false
