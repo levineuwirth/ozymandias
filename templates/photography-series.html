@@ -53,7 +53,7 @@
      name; hiding it from assistive technology while leaving it in the
      tab order was the defect. -->
 <div class="content-divider content-divider--frontmatter">
-    <a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>
+    $if(switch-new)$<a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>$else$<span class="content-divider-logo" aria-hidden="true"></span>$endif$
 </div>
 
 <div id="content">

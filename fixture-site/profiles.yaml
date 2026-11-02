@@ -24,6 +24,7 @@ full:
     marks: true
     math: true
     music: true
+    new: true
     now: true
     pdf-viewer: true
     signature-link: true
@@ -45,6 +46,7 @@ minimal:
     marks: false
     math: false
     music: false
+    new: true
     now: false
     pdf-viewer: false
     signature-link: false

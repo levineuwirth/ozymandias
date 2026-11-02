@@ -15,6 +15,8 @@
 #              site lists, and may feed, only with the switch on;
 #   contexts   the standalone-page contexts it owns (site.yaml's standalone
 #              pages' `context`), which a page may have only with it on;
+#   routes     the pages it publishes at fixed paths, which site.yaml's
+#              navigation and the library's see-also link only with it on;
 #   assets     the engine's static files (globs under engine/static/, as
 #              they are served) that only it uses, published only with it on;
 #   about      what it covers.
@@ -27,6 +29,7 @@
 archive:
   kind: capability
   default: false
+  routes: [/archive/]
   about: >-
     Link archiving: /archive/ and a page per entry from archive/manifest.yaml,
     the fetch stage of the build (tools/archive.py), archive annotations on
@@ -181,6 +184,7 @@ signature-link:
 stats-page:
   kind: generated
   default: false
+  routes: [/stats/]
   about: >-
     /stats/: the writing's statistics (counts, words, the activity
     heatmap, tags, notable pages).
@@ -188,6 +192,7 @@ stats-page:
 build-page:
   kind: generated
   default: false
+  routes: [/build/]
   about: >-
     /build/: the build's telemetry (corpus, pages, links, output,
     repository, timing), and the footer's link to it.
@@ -210,3 +215,12 @@ tag-pages:
     wikilinks to a portal by its name. Tags themselves are every site's:
     without the switch they are shown as text (Sections.tagPageUrl; a tag
     that names a section still links its landing).
+
+new:
+  kind: generated
+  default: true
+  routes: [/new.html]
+  about: >-
+    /new.html, everything by its date, newest first, and the mark between
+    a page's sections that links it (without the switch the mark is only
+    drawn).

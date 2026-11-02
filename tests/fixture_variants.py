@@ -41,13 +41,22 @@ def profiles() -> dict[str, dict]:
 
 
 def switched(config: dict, switches: dict[str, bool]) -> dict:
-    """`config` (a site.yaml's) with `switches`, less the sections and the
-    standalone pages' contexts a switch owns (switches.yaml's `section`
-    and `contexts`) that `switches` has off: the generator refuses them."""
+    """`config` (a site.yaml's) with `switches`, less the sections, the
+    standalone pages' contexts and the links to routes a switch owns
+    (switches.yaml's `section`, `contexts` and `routes`) that `switches`
+    has off: the generator refuses them."""
     terms = registry()
     sections = {spec["section"]: name for name, spec in terms.items() if "section" in spec}
     contexts = {c: name for name, spec in terms.items() for c in spec.get("contexts") or []}
-    return dict(config, switches=switches,
+    routes = {r: name for name, spec in terms.items() for r in spec.get("routes") or []}
+
+    def built(link: dict) -> bool:
+        owner = routes.get(link["href"].split("#")[0].split("?")[0])
+        return owner is None or switches[owner]
+
+    library = dict(config["library"], **{"see-also": [l for l in config["library"]["see-also"] if built(l)]})
+    return dict(config, switches=switches, library=library,
+                **{"nav-primary": [l for l in config["nav-primary"] if built(l)]},
                 sections=[s for s in config["sections"]
                           if s["dir"] not in sections or switches[sections[s["dir"]]]],
                 standalone=[p for p in config["standalone"]

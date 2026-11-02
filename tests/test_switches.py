@@ -59,13 +59,15 @@ class RegistryTests(unittest.TestCase):
             with self.subTest(switch=name):
                 self.assertRegex(name, r"^[a-z][a-z0-9-]*$")
                 self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "section", "contexts",
-                                                 "assets", "about"})
+                                                 "routes", "assets", "about"})
                 self.assertIn(spec["kind"], KINDS)
                 self.assertIsInstance(spec["default"], bool)
                 self.assertTrue(isinstance(spec["about"], str) and spec["about"].strip())
                 for other in (spec.get("needs") or []) + (spec.get("needs-any") or []):
                     self.assertIn(other, terms)
                     self.assertNotEqual(other, name)
+        routes = [r for spec in terms.values() for r in spec.get("routes") or []]
+        self.assertEqual(len(routes), len(set(routes)), "two switches publish one route")
         sections = [spec["section"] for spec in terms.values() if "section" in spec]
         self.assertEqual(len(sections), len(set(sections)), "two switches own one section")
 
@@ -96,7 +98,7 @@ class RegistryTests(unittest.TestCase):
         # Or what it owns in the registry gates for it: the loader enforces
         # a section, standalone contexts and assets without naming it.
         used = set(asked()) | {name for name, spec in registry().items()
-                               if {"section", "contexts", "assets"} & set(spec)}
+                               if {"section", "contexts", "routes", "assets"} & set(spec)}
         self.assertEqual([name for name in registry() if name not in used], [])
 
 

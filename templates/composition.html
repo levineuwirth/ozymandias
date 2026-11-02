@@ -67,7 +67,7 @@
     <!-- A04: see templates/essay.html — the artwork is CSS, the link
          is real, so neither is hidden from assistive technology. -->
     <div class="content-divider">
-        <a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>
+        $if(switch-new)$<a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>$else$<span class="content-divider-logo" aria-hidden="true"></span>$endif$
     </div>
     <div class="comp-notes">
         $body$

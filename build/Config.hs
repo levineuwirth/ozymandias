@@ -562,6 +562,7 @@ decodeConfig registryBytes siteBytes = do
     resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
     first ("site.yaml: " ++) (switchedSections registry resolved cfg)
     first ("site.yaml: " ++) (switchedContexts registry resolved cfg)
+    first ("site.yaml: " ++) (switchedLinks registry resolved cfg)
     let withheld = [ glob | (name, spec) <- Map.toList registry
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
@@ -600,30 +601,34 @@ registryPath :: FilePath
 registryPath = "engine/switches.yaml"
 
 -- | One switch of the registry: its default, what it needs, the section
---   and standalone-page contexts it owns, and its assets; its kind and
---   description are checked, not kept.
+--   and standalone-page contexts it owns, its routes and its assets; its
+--   kind and description are checked, not kept.
 data SwitchSpec = SwitchSpec
     { switchDefault  :: Bool
     , switchNeeds    :: [String]
     , switchNeedsAny :: [String]
     , switchSection  :: Maybe String
     , switchContexts :: [String]
+    , switchRoutes   :: [String]
     , switchAssets   :: [String]
     }
 
 instance FromJSON SwitchSpec where
     parseJSON = withObject "switch" $ \o -> do
-        onlyKeys ["kind", "default", "needs", "needs-any", "section", "contexts", "assets", "about"] o
+        onlyKeys ["kind", "default", "needs", "needs-any", "section", "contexts", "routes", "assets", "about"] o
         kind <- o .: "kind"
         unless (kind `elem` ["capability", "generated", "interface" :: String]) $
             fail ("a switch's kind is capability, generated or interface, not " ++ kind)
         _ <- o .: "about" :: Parser String
         spec <- SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
-                           <*> o .:? "section" <*> o .:? "contexts" .!= [] <*> o .:? "assets" .!= []
+                           <*> o .:? "section" <*> o .:? "contexts" .!= [] <*> o .:? "routes" .!= []
+                           <*> o .:? "assets" .!= []
         forM_ (switchSection spec) $ \dir -> unless (dir `elem` sectionRoutes) $
             fail ("a switch's section is one the engine routes, not " ++ dir)
         forM_ (switchContexts spec) $ \name -> unless (name `elem` map pageKindName [minBound .. maxBound]) $
             fail ("a switch's contexts are standalone-page contexts, not " ++ name)
+        forM_ (switchRoutes spec) $ \path -> unless ("/" `isPrefixOf` path && safePath (drop 1 path)) $
+            fail ("a switch's routes are paths on the site, not " ++ path)
         forM_ (switchAssets spec) $ \glob -> unless (safePath glob) $
             fail ("a switch's assets are paths under static/, not " ++ glob)
         pure spec
@@ -685,6 +690,21 @@ switchedContexts registry on cfg = do
                   , not (Map.findWithDefault False name on) ]
     unless (null refused) $
         Left ("standalone pages need their context's switch: " ++ intercalate ", " refused)
+
+-- | A page a switch publishes (its registry @routes@) is linked from
+--   site.yaml, the navigation or the library's see-also, only with that
+--   switch on: without it the page is not built.
+switchedLinks :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
+switchedLinks registry on cfg = do
+    let owners  = Map.fromList [ (path, name) | (name, spec) <- Map.toList registry
+                                               , path <- switchRoutes spec ]
+        links   = siteNavPrimary cfg ++ librarySeeAlso (siteLibrary cfg)
+        refused = [ navHref l ++ " (the " ++ name ++ " switch is off)"
+                  | l <- links
+                  , Just name <- [Map.lookup (takeWhile (`notElem` ("#?" :: String)) (navHref l)) owners]
+                  , not (Map.findWithDefault False name on) ]
+    unless (null refused) $
+        Left ("nav-primary and the library's see-also link pages that are not built: " ++ intercalate ", " refused)
 
 -- | Whether the site has switch @name@ on. A name the registry lacks is the
 --   engine's own mistake, which stops the build. The one way to ask: rules

@@ -78,7 +78,8 @@ def music_on(site: Path) -> None:
     for rel in ("scores/page-1.svg", "scores/page-2.svg", "scores/timing.json", "scores/realization.mp3"):
         assert (site / "_site/music" / PIECE / rel).is_file(), f"{rel} was not published"
     for rel in ("new.html", "sitemap.xml", "data/backlinks.json"):
-        assert f"/music/{PIECE}/" in text(site, rel), f"{rel} does not list the work"
+        if (site / "_site" / rel).is_file():
+            assert f"/music/{PIECE}/" in text(site, rel), f"{rel} does not list the work"
     if (site / "_site/stats/index.html").is_file():
         assert "Compositions" in text(site, "stats/index.html"), "/stats/ counts no compositions"
 
@@ -378,6 +379,26 @@ def tag_pages_off(site: Path) -> None:
         "a tag naming a section no longer links its landing"
 
 
+def new_on(site: Path) -> None:
+    assert "/essays/long/" in text(site, "new.html"), "/new.html does not list the essay"
+    assert "/new.html" in text(site, "sitemap.xml"), "the sitemap does not list /new.html"
+    assert re.search(r'<a href="[./]*new\.html" class="content-divider-logo">', text(site, "essays/long/index.html")), \
+        "the essay's mark does not link /new.html"
+    assert re.search(r'<a href="[./]*new\.html" class="aftermatter-logo">', text(site, "essays/long/index.html")), \
+        "the aftermatter's mark does not link /new.html"
+
+
+def new_off(site: Path) -> None:
+    assert not (site / "_site/new.html").exists(), "/new.html was built"
+    assert "/new.html" not in text(site, "sitemap.xml"), "the sitemap lists /new.html"
+    linked = [p.name for p in pages(site) if re.search(r'href="[./]*new\.html"', p.read_text(encoding="utf-8"))]
+    assert not linked, f"links to /new.html on {linked}"
+    assert '<span class="content-divider-logo" aria-hidden="true"></span>' in text(site, "essays/long/index.html"), \
+        "the essay's mark is not drawn"
+    assert '<span class="aftermatter-logo" aria-hidden="true"></span>' in text(site, "essays/long/index.html"), \
+        "the aftermatter's mark is not drawn"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -390,6 +411,7 @@ CHECKS = {
     "marks": (marks_on, marks_off),
     "math": (math_on, math_off),
     "music": (music_on, music_off),
+    "new": (new_on, new_off),
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "signature-link": (signature_link_on, signature_link_off),

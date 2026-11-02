@@ -821,7 +821,7 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- New page — all content sorted by creation date, newest first
     -- ---------------------------------------------------------------------------
-    create ["new.html"] $ do
+    when (switchOn cfg "new") $ create ["new.html"] $ do
         route idRoute
         compile $ do
             let allContent = (   allEssays

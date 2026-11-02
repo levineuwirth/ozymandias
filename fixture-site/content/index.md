@@ -7,4 +7,4 @@ description: >-
 ---
 
 This is the fixture site's home page. Start with [the long essay](/essays/long/)
-or [what is new](/new.html).
+or [the short page](/short-page.html).

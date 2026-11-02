@@ -147,7 +147,9 @@ class ConfigTests(unittest.TestCase):
                               ("a: {kind: capability, default: false, about: x, assets: [../site.yaml]}\n",
                                "a switch's assets are paths under static/, not ../site.yaml"),
                               ("a: {kind: capability, default: false, about: x, contexts: [cv]}\n",
-                               "a switch's contexts are standalone-page contexts, not cv")):
+                               "a switch's contexts are standalone-page contexts, not cv"),
+                              ("a: {kind: capability, default: false, about: x, routes: [new.html]}\n",
+                               "a switch's routes are paths on the site, not new.html")):
             with self.subTest(text=text):
                 registry.write_text(text)
                 done = self.run_site("config")
@@ -531,6 +533,28 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(done.stdout.count('class="source-ref"'), 3)
         self.assertIn('href="https://git.example.org/author/site/src/branch/next/docs/Makefile"', done.stdout)
         self.assertNotIn("levineuwirth", done.stdout)
+
+    def test_the_navigation_links_only_pages_that_are_built(self):
+        # A switch's routes (engine/switches.yaml): /new.html is the new
+        # switch's, so nav-primary and the library's see-also may link it
+        # only with the switch on.
+        new = {"label": "New", "href": "/new.html#top"}
+        original = self.config
+        library = dict(original["library"], **{"see-also": [new]})
+        for switch, changes, refusal in (
+                (True, {"nav-primary": [new]}, None),
+                (False, {"nav-primary": [new]}, "/new.html#top (the new switch is off)"),
+                (False, {"library": library}, "/new.html#top (the new switch is off)"),
+                (False, {}, None)):
+            with self.subTest(new=switch, changes=sorted(changes)):
+                self.config = dict(original, switches={"new": switch}) | changes
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
 
 
 class FeedRenderingTests(unittest.TestCase):

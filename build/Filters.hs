@@ -53,7 +53,7 @@ applyAll cfg numberFigures srcDir initials doc = do
                                                      else pure (SourceRefs.plain imagesDone)
     Dropcaps.apply initials
         . (if numberFigures then FigureRefs.apply else id)
-        . Aftermatter.apply
+        . Aftermatter.apply (switchOn cfg "new")
         . Sidenotes.apply
         . Typography.apply
         . Links.apply cfg

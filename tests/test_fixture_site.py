@@ -315,6 +315,11 @@ class FixtureBuilds(unittest.TestCase):
         # The full build's library, /stats/ and /build/ name tags too.
         switch_checks.tag_pages_off(self.turned_off("tag-pages"))
 
+    def test_a_site_that_turns_new_off_links_no_new_page(self):
+        # The full build's essay draws both its marks, the divider's and
+        # its aftermatter's, without a link.
+        switch_checks.new_off(self.turned_off("new"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

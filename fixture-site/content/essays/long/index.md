@@ -45,3 +45,7 @@ A note about the fixture's 10th thing.^[Sidenote 10: an aside about the 10th thi
 ## Closing
 
 The essay closes, citing the first source again [@alpha2001, p. 4].
+
+::: aftermatter
+The essay's closing matter.
+:::
