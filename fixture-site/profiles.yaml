@@ -30,6 +30,7 @@ full:
     signing: true
     source-refs: true
     stats-page: true
+    tag-pages: true
     vita: true
     viz: true
 minimal:
@@ -50,6 +51,7 @@ minimal:
     signing: false
     source-refs: false
     stats-page: false
+    tag-pages: true
     vita: false
     viz: false
   without: [archive/, code-refs/, content/commonplace.md, content/current.md, content/cv.md, data/commonplace.yaml, data/now.yaml, content/music/, content/essays/capabilities/, yaml-source/]

@@ -50,6 +50,7 @@ import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
+import Sections   (tagPageUrl)
 import Stats      (statsRules)
 import Utils      (cacheDirFor, confidencePercent, contentPageRoute, escapeHtml, formatIso, inDefault,
                    isDevBuild, metadataKeywords, outputDirFor, stripPrefixRoute,
@@ -313,6 +314,8 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Tag index pages
     -- ---------------------------------------------------------------------------
+    -- Tags are every site's (metadata); their pages only with tag-pages on
+    -- (Tags.pagedTags).
     tags <- buildAllTags cfg
     applyTagRules tags (map portalPair (sitePortals cfg)) siteCtx
     statsRules cfg tags
@@ -985,6 +988,10 @@ rules = do
             let shelfCtx =
                        field "tag"  (return . escapeHtml . portalTag . shelfPortal . itemBody)
                     <> field "name" (return . escapeHtml . portalName . shelfPortal . itemBody)
+                    -- The shelf's tag page, if it has one (Sections.tagPageUrl).
+                    <> field "shelf-url" (\i ->
+                           maybe (noResult "no page for this shelf's tag") (return . escapeHtml)
+                                 (tagPageUrl current (portalTag (shelfPortal (itemBody i)))))
                     <> boolField "has-more" (shelfHasMore . itemBody)
                     <> Context (\key _ item ->
                            let shelf = itemBody item

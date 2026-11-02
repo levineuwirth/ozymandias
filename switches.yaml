@@ -199,3 +199,14 @@ footer-build-time:
     The build's time in every footer: written once to _site/build/time.txt
     (make stamp-build-time, a build stage: tools/stamp-build-time.py), which
     nav.js puts in the footer's span.
+
+tag-pages:
+  kind: generated
+  default: true
+  about: >-
+    A page per tag (/<tag>/, Tags.hs), and every link to one: the tag lists
+    under pages and on cards, the home page's and the navigation's portals,
+    the library's shelf headings, /stats/'s and /build/'s tag tables, and
+    wikilinks to a portal by its name. Tags themselves are every site's:
+    without the switch they are shown as text (Sections.tagPageUrl; a tag
+    that names a section still links its landing).

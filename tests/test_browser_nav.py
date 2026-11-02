@@ -24,7 +24,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route, switch_on
 
 ESSAY = route("essay")
 HEADER = "body > header:not(.essay-frontmatter)"
@@ -104,13 +104,19 @@ class SiteHeader(unittest.TestCase):
     ]
 
     def test_nav_height_is_the_headers(self) -> None:
+        # The portals' row is the tag-pages switch's.
+        portals = switch_on("tag-pages")
         for browser in BROWSERS:
             for label, args in self.LAYOUTS:
+                if args.get("portals") and not portals:
+                    continue
                 with self.subTest(browser=browser, layout=label):
                     page = self.open(browser, **args)
                     m = self.measure(page)
                     self.assertGreater(m["header"], 0)
                     self.assertEqual(m["nav"], m["header"], m)
+            if not portals:
+                continue
             with self.subTest(browser=browser, layout="Portals opened and closed on the page"):
                 page = self.open(browser, width=375)
                 closed = self.measure(page)
@@ -150,6 +156,7 @@ class SiteHeader(unittest.TestCase):
                     page.evaluate(f"location.hash = {('#' + target)!r}")
                     self.assert_below_the_header(*self.landing(page, target))
 
+    @requires_switch("tag-pages")
     def test_portals_toggle(self) -> None:
         toggle, row = ".nav-portal-toggle", ".nav-portals"
         for browser in BROWSERS:

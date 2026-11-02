@@ -46,6 +46,7 @@ import qualified Text.Blaze.Internal         as BI
 import Hakyll
 import Archive                    (archiveBuildStats)
 import Config                     (SiteConfig, loadConfig, switchOn)
+import Sections                   (tagPageUrl)
 import Contexts                   (siteCtx, authorLinksField, canonicalUrlPath)
 import Marks                      (hasMonogram, monogramSvgFieldFor,
                                    hasMonogramFieldFor)
@@ -862,13 +863,15 @@ renderDistribution wcs =
     -- drift out of sync (matching the discipline used in 'median').
     buckets = [(lbl, fromMaybe 0 (Map.lookup i counts)) | (i, lbl) <- zip [0 :: Int ..] labels]
 
-renderTagsSection :: [(String, Int)] -> Int -> H.Html
-renderTagsSection topTags uniqueCount =
+-- | @page@ is where a tag's page is ('Sections.tagPageUrl'); a tag with
+--   none is named without a link.
+renderTagsSection :: (String -> Maybe String) -> [(String, Int)] -> Int -> H.Html
+renderTagsSection page topTags uniqueCount =
     section "tags" "Tags" $ do
         dl [("Unique tags", txt (commaInt uniqueCount))]
         table ["Tag", "Items"] (map row topTags) Nothing
   where
-    row (t, n) = [link ("/" ++ t ++ "/") t, txt (show n)]
+    row (t, n) = [maybe (txt t) (`link` t) (page t), txt (show n)]
 
 renderLinks :: Maybe (String, Int, String) -> Int -> Int -> H.Html
 renderLinks mMostLinked orphanCount total =
@@ -1228,7 +1231,7 @@ statsRules site tags = do
                     renderContent rows
                     renderPages allPIs oldestDate newestDate
                     renderDistribution allWCs
-                    renderTagsSection topTags uniqueTags
+                    renderTagsSection (tagPageUrl cfg) topTags uniqueTags
                     renderLinks mostLinkedInfo orphanCount (length allPIs)
                     when epistemic (renderEpistemic epTotal withStatus withConf withImp withEv)
                     when marks (renderMarks epistemic markRows)
@@ -1248,6 +1251,7 @@ statsRules site tags = do
   when (switchOn site "stats-page") $ create ["stats/index.html"] $ do
         route idRoute
         compile $ do
+            cfg <- loadConfig
             corpus <- loadCorpus
             let allItems = corpusItems corpus
                 typeRows = corpusRows corpus
@@ -1277,7 +1281,7 @@ statsRules site tags = do
                     renderCorpus typeRows allPIs
                     renderNotable allPIs
                     renderPhotography photos
-                    renderTagsSection topTags uniqueTags
+                    renderTagsSection (tagPageUrl cfg) topTags uniqueTags
             -- "Statistics", matching the only link into this page (the
             -- portal row on the home page). The page stopped being about the
             -- writing alone once the photographs were counted.

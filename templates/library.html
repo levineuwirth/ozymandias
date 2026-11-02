@@ -13,15 +13,15 @@ $for(library-see-also)$<a href="$href$">$label$</a>$sep$<span class="library-see
 
 $for(library-shelves)$$if(entries)$
 <section class="library-section">
-<h2 id="$tag$"><span class="library-section-ornament" data-ornament="$tag$" aria-hidden="true"></span><a href="/$tag$/">$name$</a></h2>
+<h2 id="$tag$"><span class="library-section-ornament" data-ornament="$tag$" aria-hidden="true"></span>$if(shelf-url)$<a href="$shelf-url$">$name$</a>$else$$name$$endif$</h2>
 <ul class="item-card-list">
 $for(entries)$
 $partial("templates/partials/item-card.html")$
 $endfor$
 </ul>
-$if(has-more)$
-<p class="library-more"><a href="/$tag$/">More on this shelf &rarr;</a></p>
-$endif$
+$if(has-more)$$if(shelf-url)$
+<p class="library-more"><a href="$shelf-url$">More on this shelf &rarr;</a></p>
+$endif$$endif$
 </section>
 $endif$
 

@@ -71,7 +71,7 @@ import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
 import Backlinks    (backlinksField)
 import Dingbat      (dingbatField)
 import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, peerStatusValues)
-import Sections     (Section (..), sectionOfRoute)
+import Sections     (Section (..), sectionOfRoute, tagPageUrl)
 import SimilarLinks (similarLinksField)
 import FooterData   (footerDepsField)
 import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
@@ -184,8 +184,12 @@ tagLinksWhere fieldName keep why = listFieldWith fieldName ctx $ \item -> do
         else return (map toItem ts)
   where
     toItem t = Item (fromFilePath (t ++ "/index.html")) t
+    -- A tag with no page ('Sections.tagPageUrl') has no @tag-url@, and
+    -- templates show its name alone.
     ctx      = field "tag-name" (return . itemBody)
-            <> field "tag-url"  (\i -> return $ "/" ++ itemBody i ++ "/")
+            <> field "tag-url"  (\i -> do
+                   cfg <- loadConfig
+                   maybe (noResult "no page for this tag") return (tagPageUrl cfg (itemBody i)))
 
 -- | Variant of 'tagLinksField' that suppresses tags equal to or ancestral
 --   to the given scope. Used on tag index pages to hide the redundant

@@ -222,6 +222,20 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
 
+    def test_without_tag_pages_no_tag_has_a_route(self):
+        # A portal's name is then no directory slug ([[Walks]] links
+        # /walks.html), and no tag is paged.
+        self.config = dict(self.config, portals=[{"name": "Walks", "tag": "walks"}],
+                           switches={"tag-pages": False})
+        self.write_config()
+        done = self.run_site("shared-rules")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("walks", json.loads(done.stdout)["directory-slugs"])
+        tagged = subprocess.run([str(self.binary), "expand-tags"], cwd=self.root, env=script_env(),
+                                input="essays\nwalks\nessays/field\n", capture_output=True,
+                                text=True, timeout=60)
+        self.assertEqual((tagged.returncode, tagged.stdout), (0, ""), tagged.stderr)
+
     def test_invalid_settings_are_rejected(self):
         feed = {"path": "feed.xml", "title": "Example", "description": "Posts",
                 "sections": ["essays"], "advertise": True, "limit": 30}

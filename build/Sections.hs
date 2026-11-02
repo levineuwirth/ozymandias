@@ -18,12 +18,21 @@ module Sections
     , sectionOwnedTopLevelTags
     , directoryRouteSlugs
     , generatedIndexes
+    , tagPageUrl
     ) where
 
 import Data.List  (find, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Maybe (mapMaybe)
 import Config     (SiteConfig (..), Section (..), Portal (..), Standalone (..),
-                   engineContentDirs, standaloneDir)
+                   engineContentDirs, standaloneDir, switchOn)
+
+-- | Where a tag's page is, @/<tag>/@: with the tag-pages switch on, or
+--   when the tag names a section, whose landing is there. None otherwise,
+--   and a tag is shown without a link.
+tagPageUrl :: SiteConfig -> String -> Maybe String
+tagPageUrl cfg t
+    | switchOn cfg "tag-pages" || t `elem` landings cfg = Just ("/" ++ t ++ "/")
+    | otherwise                                         = Nothing
 
 -- | The section a route belongs to.
 sectionOfRoute :: SiteConfig -> FilePath -> Maybe Section
@@ -85,7 +94,8 @@ sectionOwnedTopLevelTags cfg = nub $
 --   same way).
 directoryRouteSlugs :: SiteConfig -> [String]
 directoryRouteSlugs cfg = nub $
-    landings cfg ++ generatedIndexes ++ map portalTag (sitePortals cfg)
+    landings cfg ++ generatedIndexes
+    ++ [ portalTag p | p <- sitePortals cfg, switchOn cfg "tag-pages" ]
     ++ [ take (length r - length index) r
        | p <- siteStandalone cfg, let r = standaloneRoute p, index `isSuffixOf` r ]
   where

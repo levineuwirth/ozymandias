@@ -311,6 +311,10 @@ class FixtureBuilds(unittest.TestCase):
         stamped = [p.name for p in switch_checks.pages(site) if "data-build-time" in p.read_text(encoding="utf-8")]
         self.assertEqual(stamped, [])
 
+    def test_a_site_that_turns_tag_pages_off_links_none(self):
+        # The full build's library, /stats/ and /build/ name tags too.
+        switch_checks.tag_pages_off(self.turned_off("tag-pages"))
+
     def test_a_site_that_turns_music_off_keeps_none_of_it(self):
         # Its works still in content/music/: no work, reader or score of
         # theirs is built, nor listed anywhere.

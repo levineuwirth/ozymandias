@@ -13,7 +13,7 @@
             $endif$
             $if(item-tags)$
             <div class="essay-list-tags">
-                $for(item-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                $for(item-tags)$$if(tag-url)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$else$<span class="meta-tag">$tag-name$</span>$endif$$endfor$
             </div>
             $endif$
         </li>

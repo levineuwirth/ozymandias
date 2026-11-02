@@ -4,11 +4,11 @@
      the document outline without redesigning the masthead. -->
 <h1 class="visually-hidden">$title$</h1>
 $body$
-<nav class="hp-portals" aria-label="Portals">
+$if(switch-tag-pages)$<nav class="hp-portals" aria-label="Portals">
 $for(portals)$
 <div class="hp-portal-item">
 <p><a class="hp-portal-name" href="$portal-url$">$portal-name$</a>$if(portal-tooltip)$<span class="hp-portal-dash" aria-hidden="true">—</span><span class="hp-portal-desc">$portal-tooltip$</span>$endif$</p>
 </div>
 $endfor$
-</nav>
+</nav>$endif$
 </main>

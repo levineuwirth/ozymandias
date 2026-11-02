@@ -5,12 +5,12 @@
                 <h1 class="page-title">$title$</h1>
                 $if(essay-tags)$
                 <div class="meta-row meta-tags">
-                    $for(essay-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                    $for(essay-tags)$$if(tag-url)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$else$<span class="meta-tag">$tag-name$</span>$endif$$endfor$
                 </div>
                 $endif$
                 $if(photography-tags)$
                 <div class="meta-row meta-tags">
-                    $for(photography-tags)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$endfor$
+                    $for(photography-tags)$$if(tag-url)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$else$<span class="meta-tag">$tag-name$</span>$endif$$endfor$
                 </div>
                 $endif$
                 <div class="meta-row meta-authors">

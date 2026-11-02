@@ -355,6 +355,29 @@ def footer_build_time_off(site: Path) -> None:
     assert not stamped, f"build times on {stamped}"
 
 
+TAGGED = "notes"   # the fixture's portal, and its essays' tag
+
+
+def tag_pages_on(site: Path) -> None:
+    assert (site / "_site" / TAGGED / "index.html").is_file(), f"/{TAGGED}/ was not built"
+    essay = text(site, "essays/long/index.html")
+    assert re.search(rf'<a class="meta-tag" href="[./]*{TAGGED}/">{TAGGED}</a>', essay), "the essay's tag is not a link"
+    assert 'class="nav-portals"' in essay, "the navigation has no portals"
+    assert 'class="hp-portals"' in text(site, "index.html"), "the home page has no portals"
+
+
+def tag_pages_off(site: Path) -> None:
+    assert not (site / "_site" / TAGGED / "index.html").exists(), f"/{TAGGED}/ was built"
+    linking = re.compile(rf'href="[./]*{TAGGED}/"|class="(?:nav-portals|nav-portal-toggle|hp-portals)"')
+    linked = [p.name for p in pages(site) if linking.search(p.read_text(encoding="utf-8"))]
+    assert not linked, f"links to tag pages, or portals, on {linked}"
+    assert f'<span class="meta-tag">{TAGGED}</span>' in text(site, "essays/long/index.html"), \
+        "the essay's tag is not shown"
+    landing = re.compile(r'<a class="meta-tag" href="[./]*photography/">photography</a>')
+    assert any(landing.search(p.read_text(encoding="utf-8")) for p in pages(site)), \
+        "a tag naming a section no longer links its landing"
+
+
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
@@ -373,6 +396,7 @@ CHECKS = {
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),
     "stats-page": (stats_page_on, stats_page_off),
+    "tag-pages": (tag_pages_on, tag_pages_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),
 }
