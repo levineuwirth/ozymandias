@@ -238,6 +238,24 @@ class ConfigTests(unittest.TestCase):
                                 text=True, timeout=60)
         self.assertEqual((tagged.returncode, tagged.stdout), (0, ""), tagged.stderr)
 
+    def test_without_authors_no_author_has_a_page(self):
+        # Nor is /authors/ then reserved from a top-level tag.
+        (self.root / "data").mkdir()
+        page = self.root / "content/essays/example.md"
+        page.parent.mkdir(parents=True)
+        page.write_text("---\ntitle: Example\ndate: 2026-01-01\n---\nText.\n")
+        for on in (True, False):
+            with self.subTest(authors=on):
+                self.config = dict(self.config, switches={"authors": on})
+                self.write_config()
+                done = self.run_site("list-routes")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                routes = {line.split("\t")[0] for line in done.stdout.splitlines()}
+                self.assertEqual("authors/example-author/index.html" in routes, on)
+                done = self.run_site("shared-rules")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual("authors" in json.loads(done.stdout)["section-owned-tags"], on)
+
     def test_invalid_settings_are_rejected(self):
         feed = {"path": "feed.xml", "title": "Example", "description": "Posts",
                 "sections": ["essays"], "advertise": True, "limit": 30}

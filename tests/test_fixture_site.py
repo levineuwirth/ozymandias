@@ -315,6 +315,10 @@ class FixtureBuilds(unittest.TestCase):
         # The full build's library, /stats/ and /build/ name tags too.
         switch_checks.tag_pages_off(self.turned_off("tag-pages"))
 
+    def test_a_site_that_turns_authors_off_links_no_author_page(self):
+        # The full build's photography and music pages have bylines too.
+        switch_checks.authors_off(self.turned_off("authors"))
+
     def test_a_site_that_turns_new_off_links_no_new_page(self):
         # The full build's essay draws both its marks, the divider's and
         # its aftermatter's, without a link.

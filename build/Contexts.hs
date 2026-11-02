@@ -294,17 +294,20 @@ keywordLinksField fieldName = listFieldWith fieldName ctx $ \item -> do
 -- ---------------------------------------------------------------------------
 
 -- | Exposes each item's authors ('Utils.itemAuthors') as @author-name@ /
---   @author-url@ pairs.
+--   @author-url@ pairs. Without the authors switch there are no author
+--   pages, and so no @author-url@: templates show the name alone.
 --
---   $for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$
+--   $for(author-links)$$if(author-url)$<a href="$author-url$">$author-name$</a>$else$$author-name$$endif$$sep$, $endfor$
 authorLinksField :: Context a
 authorLinksField = listFieldWith "author-links" ctx $ \item -> do
     cfg <- loadConfig
     names <- itemAuthors (siteAuthor cfg) <$> getMetadata (itemIdentifier item)
-    return $ map (\n -> Item (fromFilePath "") (n, authorUrl n)) names
+    let url n | switchOn cfg "authors" = Just (authorUrl n)
+              | otherwise              = Nothing
+    return $ map (\n -> Item (fromFilePath "") (n, url n)) names
   where
     ctx = field "author-name" (return . fst . itemBody)
-       <> field "author-url"  (return . snd . itemBody)
+       <> field "author-url"  (maybe (noResult "no author pages") return . snd . itemBody)
 
 -- ---------------------------------------------------------------------------
 -- Abstract field

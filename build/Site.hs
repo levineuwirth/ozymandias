@@ -292,8 +292,10 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Author index pages
     -- ---------------------------------------------------------------------------
-    authors <- buildAllAuthors (siteAuthor cfg)
-    applyAuthorRules authors siteCtx
+    -- Only with the authors switch on.
+    when (switchOn cfg "authors") $ do
+        authors <- buildAllAuthors (siteAuthor cfg)
+        applyAuthorRules authors siteCtx
 
     -- ---------------------------------------------------------------------------
     -- Tag-meta sidecars — optional prose intros + tooltips for tag index

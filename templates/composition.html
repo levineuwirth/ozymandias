@@ -14,7 +14,7 @@
             $if(opus)$<p class="comp-opus">op. $opus$</p>$endif$
             $if(instrumentation)$<p class="comp-forces">for $instrumentation$</p>$endif$
             <p class="comp-credit">
-                <span class="comp-composer">$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$</span>
+                <span class="comp-composer">$for(author-links)$$if(author-url)$<a href="$author-url$">$author-name$</a>$else$$author-name$$endif$$sep$, $endfor$</span>
                 $if(composed)$<span class="comp-year">$composed$</span>$else$$if(year)$<span class="comp-year">$year$</span>$endif$$endif$
             </p>
             $if(abstract)$<div class="comp-abstract">$abstract$</div>$endif$

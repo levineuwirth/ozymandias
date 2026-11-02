@@ -216,6 +216,14 @@ tag-pages:
     without the switch they are shown as text (Sections.tagPageUrl; a tag
     that names a section still links its landing).
 
+authors:
+  kind: generated
+  default: true
+  about: >-
+    A page per author (/authors/<slug>/, Authors.hs), and the bylines'
+    links to it. Without the switch a byline names its authors as text,
+    and /authors/ is no longer a reserved namespace.
+
 new:
   kind: generated
   default: true

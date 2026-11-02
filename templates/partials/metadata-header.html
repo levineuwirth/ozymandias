@@ -1,6 +1,6 @@
 <div class="metadata metadata-header">
     <div class="meta-row meta-authors">
-        <span class="meta-label">by</span>$if(poet)$$poet$$else$$for(author-links)$<a href="$author-url$">$author-name$</a>$sep$, $endfor$$endif$
+        <span class="meta-label">by</span>$if(poet)$$poet$$else$$for(author-links)$$if(author-url)$<a href="$author-url$">$author-name$</a>$else$$author-name$$endif$$sep$, $endfor$$endif$
     </div>
     $if(abstract)$
     <div class="meta-row meta-description">

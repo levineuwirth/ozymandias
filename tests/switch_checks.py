@@ -379,6 +379,25 @@ def tag_pages_off(site: Path) -> None:
         "a tag naming a section no longer links its landing"
 
 
+AUTHOR, AUTHOR_SLUG = "Example Author", "example-author"   # site.yaml's author
+
+
+def authors_on(site: Path) -> None:
+    listing = sorted((site / "_site/authors" / AUTHOR_SLUG).rglob("index.html"))   # and its later pages
+    assert any("/essays/long/" in p.read_text(encoding="utf-8") for p in listing), \
+        "the author's pages do not list the essay"
+    assert re.search(rf'<a href="[./]*authors/{AUTHOR_SLUG}/">{AUTHOR}</a>', text(site, "essays/long/index.html")), \
+        "the essay's byline does not link its author"
+
+
+def authors_off(site: Path) -> None:
+    assert not (site / "_site/authors").exists(), "/authors/ was built"
+    linked = [p.name for p in pages(site) if re.search(r'href="[./]*authors/', p.read_text(encoding="utf-8"))]
+    assert not linked, f"links to author pages on {linked}"
+    assert re.search(rf'<span class="meta-label">by</span>{AUTHOR}\s', text(site, "essays/long/index.html")), \
+        "the essay's byline does not name its author"
+
+
 def new_on(site: Path) -> None:
     assert "/essays/long/" in text(site, "new.html"), "/new.html does not list the essay"
     assert "/new.html" in text(site, "sitemap.xml"), "the sitemap does not list /new.html"
@@ -402,6 +421,7 @@ def new_off(site: Path) -> None:
 # Each registered switch: (its on check, its off check).
 CHECKS = {
     "archive": (archive_on, archive_off),
+    "authors": (authors_on, authors_off),
     "build-page": (build_page_on, build_page_off),
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),

@@ -47,9 +47,9 @@ generatedIndexes :: [String]
 generatedIndexes = ["archive", "bibliography", "build", "stats"]
 
 -- | Generated URL namespaces without an index of their own: an author's
---   page is @/authors/<slug>/@.
-generatedNamespaces :: [String]
-generatedNamespaces = ["authors"]
+--   page is @/authors/<slug>/@ (with the authors switch on).
+generatedNamespaces :: SiteConfig -> [String]
+generatedNamespaces cfg = [ "authors" | switchOn cfg "authors" ]
 
 -- | The directories the standalone pages' sources sit in (@content/me/@),
 --   and the URL namespaces their routes open (@/cv/projects/@).
@@ -82,7 +82,7 @@ reservedSectionDirs cfg = sort . nub $
 --   claims those URLs.
 sectionOwnedTopLevelTags :: SiteConfig -> [String]
 sectionOwnedTopLevelTags cfg = nub $
-    landings cfg ++ standaloneNamespaces cfg ++ generatedIndexes ++ generatedNamespaces
+    landings cfg ++ standaloneNamespaces cfg ++ generatedIndexes ++ generatedNamespaces cfg
 
 -- | The bare wikilink slugs whose page is a directory index: the section
 --   landings, the generated indexes, the portal tags, whose tag pages
