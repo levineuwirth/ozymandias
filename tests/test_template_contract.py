@@ -3,7 +3,9 @@ engine's own templates keep it, and `site render-template` renders a
 template as the build would, with the fixture context and nothing else,
 so the hook check sees what an override does.
 """
+import itertools
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -96,6 +98,29 @@ class TemplateContractTests(unittest.TestCase):
         self.assertTrue(switches)
         self.assertEqual({name.removeprefix("switch-") for name in switches} - set(registry), set())
         self.assertTrue(all(name.startswith("switch-") and value is True for name, value in switches.items()))
+
+    def test_the_engine_footer_separates_what_each_switch_adds(self):
+        # Its right part holds the build page's link, the build's time and
+        # the signature link, each behind its switch: whichever of them a
+        # site has, the signature link is set off from what comes before
+        # it, and nothing else is.
+        build = '<a href="/build/" class="footer-build-link"'
+        stamp = '<span class="footer-build-time" data-build-time></span>'
+        sig = '<a href="/essays/example/.sig" class="footer-sig-link"'
+        base = self.terms["contexts"]["identity"] | self.terms["contexts"]["page"]
+        for on in itertools.product((False, True), repeat=3):
+            switches = dict(zip(("switch-build-page", "switch-footer-build-time", "switch-signature-link"), on))
+            with self.subTest(**{name.removeprefix("switch-"): value for name, value in switches.items()}):
+                done = review.render(self.root, "templates/partials/footer.html", base | switches, self.binary)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                right = re.search(r'<div class="footer-right">(.*?)</div>', done.stdout, re.S).group(1)
+                for (name, value), mark in zip(switches.items(), (build, stamp, sig)):
+                    self.assertEqual(mark in right, value, f"{name} {value}: {right}")
+                if on[2]:
+                    before = right[:right.index(sig)]
+                    self.assertEqual(before.endswith(" · "), on[0] or on[1], right)
+                self.assertNotIn("</a><a", right)
+                self.assertNotIn("</span><a", right)
 
     def test_an_override_of_a_template_the_contract_does_not_name_is_reported(self):
         self.override("templates/partials/toc.html", "<nav></nav>\n")

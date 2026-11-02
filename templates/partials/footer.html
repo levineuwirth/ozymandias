@@ -12,5 +12,5 @@
     <div class="footer-center">
         <span class="footer-license"><a href="$site-source-repo$">$site-code-license$</a></span>
     </div>
-    <div class="footer-right">$if(switch-build-page)$<a href="/build/" class="footer-build-link" aria-label="Build telemetry">build</a>$endif$$if(switch-footer-build-time)$ <span class="footer-build-time" data-build-time></span>$endif$$if(switch-signature-link)$$if(switch-build-page)$ · $endif$<a href="$url$.sig" class="footer-sig-link" title="Signed by key $site-signing-fingerprint$">sig<span class="visually-hidden">: PGP signature for this page</span></a>$endif$</div>
+    <div class="footer-right">$if(switch-build-page)$<a href="/build/" class="footer-build-link" aria-label="Build telemetry">build</a>$endif$$if(switch-footer-build-time)$ <span class="footer-build-time" data-build-time></span>$endif$$if(switch-signature-link)$$if(switch-build-page)$ · $else$$if(switch-footer-build-time)$ · $endif$$endif$<a href="$url$.sig" class="footer-sig-link" title="Signed by key $site-signing-fingerprint$">sig<span class="visually-hidden">: PGP signature for this page</span></a>$endif$</div>
 </footer>
