@@ -18,6 +18,7 @@ module Sections
     , sectionOwnedTopLevelTags
     , directoryRouteSlugs
     , generatedIndexes
+    , generatedIndexPages
     , tagPageUrl
     ) where
 
@@ -40,11 +41,17 @@ sectionOfRoute cfg r = find owns (siteSections cfg)
   where
     owns s = (sectionDir s ++ "/") `isPrefixOf` r
 
--- | The pages the engine generates at @<name>/index.html@.
---   @tests/test_wikilink_routes.py@ checks this against the routes in
---   @build/@.
-generatedIndexes :: [String]
-generatedIndexes = ["archive", "bibliography", "build", "stats"]
+-- | The pages the engine generates at @<name>/index.html@, each with the
+--   switch that builds it. @tests/test_wikilink_routes.py@ checks this
+--   against the routes in @build/@ and the switches' in the registry.
+generatedIndexPages :: [(String, String)]
+generatedIndexPages =
+    [ ("archive", "archive"), ("bibliography", "bibliography-index")
+    , ("build", "build-page"), ("stats", "stats-page") ]
+
+-- | Those the site's switches build.
+generatedIndexes :: SiteConfig -> [String]
+generatedIndexes cfg = [ index | (index, switch) <- generatedIndexPages, switchOn cfg switch ]
 
 -- | Generated URL namespaces without an index of their own: an author's
 --   page is @/authors/<slug>/@ (with the authors switch on).
@@ -82,7 +89,7 @@ reservedSectionDirs cfg = sort . nub $
 --   claims those URLs.
 sectionOwnedTopLevelTags :: SiteConfig -> [String]
 sectionOwnedTopLevelTags cfg = nub $
-    landings cfg ++ standaloneNamespaces cfg ++ generatedIndexes ++ generatedNamespaces cfg
+    landings cfg ++ standaloneNamespaces cfg ++ generatedIndexes cfg ++ generatedNamespaces cfg
 
 -- | The bare wikilink slugs whose page is a directory index: the section
 --   landings, the generated indexes, the portal tags, whose tag pages
@@ -94,7 +101,7 @@ sectionOwnedTopLevelTags cfg = nub $
 --   same way).
 directoryRouteSlugs :: SiteConfig -> [String]
 directoryRouteSlugs cfg = nub $
-    landings cfg ++ generatedIndexes
+    landings cfg ++ generatedIndexes cfg
     ++ [ portalTag p | p <- sitePortals cfg, switchOn cfg "tag-pages" ]
     ++ [ take (length r - length index) r
        | p <- siteStandalone cfg, let r = standaloneRoute p, index `isSuffixOf` r ]

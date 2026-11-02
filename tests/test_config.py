@@ -574,6 +574,20 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
 
+    def test_a_generated_index_is_a_slug_only_with_its_switch(self):
+        # Nor does it keep a top-level tag from its page without it.
+        indexes = {"archive": "archive", "bibliography": "bibliography-index",
+                   "build": "build-page", "stats": "stats-page"}
+        for on in (False, True):
+            with self.subTest(on=on):
+                self.config = dict(self.config, switches={switch: on for switch in indexes.values()})
+                self.write_config()
+                done = self.run_site("shared-rules")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                rules = json.loads(done.stdout)
+                for key in ("directory-slugs", "section-owned-tags"):
+                    self.assertEqual(set(indexes) & set(rules[key]), set(indexes) if on else set(), key)
+
     def test_the_library_needs_its_block_only_with_its_switch(self):
         original = {key: value for key, value in self.config.items() if key != "library"}
         for switch in (False, True):
