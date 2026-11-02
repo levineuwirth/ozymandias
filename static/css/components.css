@@ -2293,6 +2293,13 @@ h3:hover .section-toggle,
     opacity: 1;
 }
 
+/* A sprite (stage.sprite) is placed by its transform alone. */
+.stage-sprite {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
 [data-focus-mode] .stage-layer {
     display: none;
 }

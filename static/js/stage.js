@@ -36,6 +36,19 @@
    stage.wake() asks for a frame, for an actor whose picture changed
    between them (something it waited for arrived).
 
+   An actor clears a canvas whole, never part of one. A mark that moves
+   about the screen (a bat) gets a canvas of its own, a sprite:
+
+       var s = stage.sprite(ctx.layer);  // in mount
+       s.draw(l, t, w, h, function (c) { ... });
+       s.remove();                       // in unmount
+
+   draw moves the sprite over the box l, t, w, h (the layer's CSS pixels,
+   which are the viewport's), clears it, and has the function paint it
+   with c, a 2D context that draws in those same pixels. Whatever the
+   function leaves set on c (a clip, a transform, styles) is undone after
+   it.
+
    The stage starts once the page has loaded and the browser is idle, so it
    never competes with the page's own first work, and fades in. */
 (function () {
@@ -56,7 +69,7 @@
         BUSY: BUSY, IDLE: IDLE, REST: REST,
         geo: geo, pointer: pointer, flung: 0, still: stillMode(),
         register: register, blocked: blocked, rectBlocked: rectBlocked,
-        headerSlot: headerSlot, wake: wake
+        headerSlot: headerSlot, sprite: sprite, wake: wake
     };
 
     /* ------------------------------------------------------------------
@@ -208,6 +221,49 @@
             if (clear) return { cx: s.cx, cy: s.cy, size: s.size, header: header };
         }
         return null;
+    }
+
+    /* ------------------------------------------------------------------
+       Sprites
+    ------------------------------------------------------------------ */
+
+    /* Why never part of a canvas: Chromium drawing through ANGLE's OpenGL
+       backend (Linux's default) left faint specks of colors nothing had
+       drawn in a canvas the size of the screen that was cleared only where
+       each bat had been, and they stayed; cleared whole, or one small
+       canvas per bat, it left none (2026-11-02, Brave and Chrome on an AMD
+       780M). A sprite is that small canvas. It is moved by a transform to
+       a whole device pixel, so it is shown at the size it is drawn, and
+       resized only when its box changes size. */
+    function sprite(layer) {
+        var c = document.createElement('canvas'), ctx = c.getContext('2d'), at = '';
+        c.className = 'stage-sprite';
+        layer.appendChild(c);
+        return {
+            canvas: c,
+            draw: function (l, t, w, h, paint) {
+                var k = geo.dpr, x0 = Math.floor(l * k) - 1, y0 = Math.floor(t * k) - 1,
+                    W = Math.ceil(w * k) + 2, H = Math.ceil(h * k) + 2;
+                if (c.width !== W || c.height !== H) {
+                    c.width = W; c.height = H;
+                    c.style.width = W / k + 'px'; c.style.height = H / k + 'px';
+                }
+                var move = 'translate(' + x0 / k + 'px, ' + y0 / k + 'px)';
+                if (move !== at) { c.style.transform = move; at = move; }
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, W, H);
+                /* Whatever the paint leaves set is undone: a clip left in
+                   place would keep the next clear inside it. */
+                ctx.save();
+                try {
+                    ctx.setTransform(k, 0, 0, k, -x0, -y0);
+                    paint(ctx);
+                } finally {
+                    ctx.restore();
+                }
+            },
+            remove: function () { c.remove(); }
+        };
     }
 
     /* ------------------------------------------------------------------
