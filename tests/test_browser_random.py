@@ -1,11 +1,11 @@
 """The homepage's Random link, in Chromium and Firefox (audit J13).
 
 static/js/random.js sends a click to a random page from /random-pages.json.
-The link's own href (/new.html, content/index.md) is where it goes without
-JavaScript, when the list cannot be had, and on a click that asks for a new
-tab. It used to be href="#": without the list, or without script, the link
-did nothing. Only site paths in the list are followed; a list with none
-falls back too.
+The link's own href (the site's choice, on its home page) is where it goes
+without JavaScript, when the list cannot be had, and on a click that asks
+for a new tab. It used to be href="#": without the list, or without script,
+the link did nothing. Only site paths in the list are followed; a list with
+none falls back too.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_random -v
 """
@@ -13,19 +13,29 @@ falls back too.
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from tests._browser import (BROWSERS, SITE, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import requires_switch
 
 LINK = "[data-random]"
-FALLBACK = "/new.html"
+
+
+def fallback() -> str:
+    """The path the home page's Random link names in its href."""
+    home = (SITE / "index.html").read_text(encoding="utf-8")
+    found = re.search(r'<a href="([^"]*)"[^>]*\sdata-random[\s>=]', home)
+    assert found, "the home page has no Random link"
+    return urlsplit(urljoin("/", found.group(1))).path
 
 
 @requires_browser
+@requires_switch("random")
 class RandomLink(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -35,6 +45,7 @@ class RandomLink(unittest.TestCase):
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-random-")))
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp()))
         cls.pages = json.loads((SITE / "random-pages.json").read_text(encoding="utf-8"))
+        cls.fallback = fallback()
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
         for name in BROWSERS:
@@ -61,9 +72,9 @@ class RandomLink(unittest.TestCase):
         return urlsplit(page.url).path
 
     def test_the_fallback_exists(self) -> None:
-        # Landing on FALLBACK below proves the path; a missing page would
+        # Landing on the fallback below proves the path; a missing page would
         # land there too, as the 404 page.
-        self.assertTrue((SITE / FALLBACK.lstrip("/")).is_file())
+        self.assertTrue((SITE / self.fallback.lstrip("/")).is_file())
 
     def test_goes_to_a_listed_page(self) -> None:
         for browser in BROWSERS:
@@ -98,7 +109,7 @@ class RandomLink(unittest.TestCase):
             for case, answer in answers.items():
                 with self.subTest(browser=browser, case=case):
                     _, page = self.home(browser, pages_json=answer)
-                    self.assertEqual(self.click_and_land(page), FALLBACK)
+                    self.assertEqual(self.click_and_land(page), self.fallback)
 
     def test_only_site_paths_are_chosen(self) -> None:
         mixed = json.dumps([None, "", "//example.org/", "javascript:alert(1)", self.pages[0]])
@@ -112,7 +123,7 @@ class RandomLink(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 _, page = self.home(browser, javascript=False)
-                self.assertEqual(self.click_and_land(page), FALLBACK)
+                self.assertEqual(self.click_and_land(page), self.fallback)
 
     def test_a_new_tab_is_left_to_the_browser(self) -> None:
         for browser in BROWSERS:
@@ -123,8 +134,8 @@ class RandomLink(unittest.TestCase):
                 tab = opened.value
                 # A new tab starts at about:blank: its load state can be that
                 # page's, before it navigates.
-                tab.wait_for_url(f"**{FALLBACK}", timeout=10000)
-                self.assertEqual(urlsplit(tab.url).path, FALLBACK)
+                tab.wait_for_url(f"**{self.fallback}", timeout=10000)
+                self.assertEqual(urlsplit(tab.url).path, self.fallback)
                 self.assertEqual(urlsplit(page.url).path, "/")
 
 

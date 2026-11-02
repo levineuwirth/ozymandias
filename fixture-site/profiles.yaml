@@ -28,6 +28,7 @@ full:
     new: true
     now: true
     pdf-viewer: true
+    random: true
     signature-link: true
     signing: true
     source-refs: true
@@ -51,6 +52,7 @@ minimal:
     new: true
     now: false
     pdf-viewer: false
+    random: false
     signature-link: false
     signing: false
     source-refs: false

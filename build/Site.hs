@@ -1179,9 +1179,9 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Random page manifest — essays, blog posts, fiction, and poetry (flat
     -- and collection poems alike). No pagination/index pages; music and
-    -- photography landings are also excluded.
+    -- photography landings are also excluded. Only with the random switch on.
     -- ---------------------------------------------------------------------------
-    create ["random-pages.json"] $ do
+    when (switchOn cfg "random") $ create ["random-pages.json"] $ do
         route idRoute
         compile $ do
             essays  <- loadAll (allEssays        .&&. hasNoVersion) :: Compiler [Item String]

@@ -224,6 +224,15 @@ authors:
     links to it. Without the switch a byline names its authors as text,
     and /authors/ is no longer a reserved namespace.
 
+random:
+  kind: generated
+  default: false
+  assets: [js/random.js]
+  about: >-
+    The home page's Random link: /random-pages.json, the essays, posts,
+    fiction and poems it chooses among, and random.js, which follows it.
+    Without the switch a [data-random] link goes to its own href.
+
 new:
   kind: generated
   default: true

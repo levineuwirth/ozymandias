@@ -11,6 +11,7 @@ AssertionError saying what is wrong.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -398,6 +399,23 @@ def authors_off(site: Path) -> None:
         "the essay's byline does not name its author"
 
 
+RANDOM_SCRIPT = re.compile(r'<script src="[./]*js/random\.js"')
+
+
+def random_on(site: Path) -> None:
+    listed = json.loads(text(site, "random-pages.json"))
+    assert "/essays/long/index.html" in listed, "/random-pages.json does not list the essay"
+    home = text(site, "index.html")
+    assert RANDOM_SCRIPT.search(home), "the home page does not load random.js"
+    assert re.search(r'<a href="[./]*short-page\.html" data-random>', home), "the home page has no Random link"
+
+
+def random_off(site: Path) -> None:
+    assert not (site / "_site/random-pages.json").exists(), "/random-pages.json was built"
+    loading = [p.name for p in pages(site) if RANDOM_SCRIPT.search(p.read_text(encoding="utf-8"))]
+    assert not loading, f"random.js is loaded on {loading}"
+
+
 def new_on(site: Path) -> None:
     assert "/essays/long/" in text(site, "new.html"), "/new.html does not list the essay"
     assert "/new.html" in text(site, "sitemap.xml"), "the sitemap does not list /new.html"
@@ -434,6 +452,7 @@ CHECKS = {
     "new": (new_on, new_off),
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
+    "random": (random_on, random_off),
     "signature-link": (signature_link_on, signature_link_off),
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),

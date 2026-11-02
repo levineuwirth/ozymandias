@@ -6,5 +6,5 @@ description: >-
   a bibliography, enough to build every page the minimal profile has.
 ---
 
-This is the fixture site's home page. Start with [the long essay](/essays/long/)
-or [the short page](/short-page.html).
+This is the fixture site's home page. Start with [the long essay](/essays/long/),
+[the short page](/short-page.html) or <a href="/short-page.html" data-random>a random page</a>.
