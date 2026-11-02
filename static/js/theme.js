@@ -1,4 +1,4 @@
-/* theme.js — Restores theme and text size from localStorage before first paint.
+/* theme.js — Restores theme, season and text size from localStorage before first paint.
    Loaded synchronously (no defer/async) to prevent flash of wrong appearance.
    DOM interaction (button wiring) is handled by settings.js (deferred).
 
@@ -41,4 +41,52 @@
     if (safeGet('portals-open') === '1') {
         document.documentElement.setAttribute('data-portals-open', '');
     }
+
+    /* Seasons: site.yaml's, as head.html's ozy:season metas. A season
+       dresses a base theme: it is worn as data-season beside data-theme.
+       While its window is open (month-day, inclusive; a window whose start
+       is later than its end runs through the new year) a reader with no
+       stored theme wears it, and one who chose it in Settings keeps it;
+       once the window closes, one who chose it gets its base theme. The
+       open seasons go in data-seasons-open, for settings.js to show their
+       buttons. A worn season's script waits for stage.js, which loads it
+       (static/js/stage.js); settings.js loads stage.js when a reader picks
+       a season later. Malformed metas are skipped. */
+    var root = document.documentElement;
+    var today = new Date(), day = (today.getMonth() + 1) * 100 + today.getDate();
+    var themes = ['dark', 'light', 'cappuccino'];
+    var open = [], worn = null;
+    function monthDay(value) {
+        var m = /^(\d\d)-(\d\d)$/.exec(value || '');
+        return m ? parseInt(m[1], 10) * 100 + parseInt(m[2], 10) : null;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('meta[name="ozy:season"]'), function (meta) {
+        var id = meta.getAttribute('content'), base = meta.getAttribute('data-base');
+        var from = monthDay(meta.getAttribute('data-from')), to = monthDay(meta.getAttribute('data-to'));
+        if (!id || themes.indexOf(base) < 0 || from === null || to === null) return;
+        var isOpen = from <= to ? day >= from && day <= to : day >= from || day <= to;
+        if (isOpen) open.push(id);
+        if (storedTheme === id) {
+            root.setAttribute('data-theme', base);
+            if (isOpen) worn = meta;
+        } else if (isOpen && !worn && themes.indexOf(storedTheme) < 0 && !storedSeason()) {
+            worn = meta;
+        }
+    });
+    /* A stored theme that names a declared season counts as a choice
+       even out of its window: no other season is put on over it. */
+    function storedSeason() {
+        return !!storedTheme && !!document.querySelector(
+            'meta[name="ozy:season"][content="' + storedTheme.replace(/[^a-z0-9-]/g, '') + '"]');
+    }
+    if (worn) {
+        root.setAttribute('data-theme', worn.getAttribute('data-base'));
+        root.setAttribute('data-season', worn.getAttribute('content'));
+        if (worn.hasAttribute('data-script')) {
+            var stage = document.createElement('script');
+            stage.src = '/js/stage.js';
+            document.head.appendChild(stage);
+        }
+    }
+    if (open.length) root.setAttribute('data-seasons-open', open.join(' '));
 })();

@@ -1,15 +1,18 @@
 """Quick perf: requests, encoded bytes, LCP, CLS (local server, br/gz sidecars served, no network throttling).
 Also the origins other than the local server each page asks for; offline
 (BROWSER_OFFLINE=1) those requests are refused, so the bytes are the site's own.
-usage: python perf_run.py <outname> <width> [route ...]
+--date=ISO moves the pages' calendar there (lib.DATE_INIT).
+usage: python perf_run.py <outname> <width> [--date=ISO] [route ...]
 """
-import sys, collections
+import sys, collections, datetime
 from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
 from lib import *
 
-outname, width = sys.argv[1], int(sys.argv[2])
-only = set(sys.argv[3:])
+opts, args = options(sys.argv[1:])
+outname, width = args[0], int(args[1])
+only = set(args[2:])
+date = datetime.datetime.fromisoformat(opts['date']) if 'date' in opts else None
 BASE = f'http://127.0.0.1:{PORT_NONE}'
 PROUTES = SITE_ROUTES.names('perf')
 
@@ -31,6 +34,8 @@ def run():
             ctx = browser.new_context(viewport={'width': width, 'height': 900 if width > 500 else 812})
             ctx.add_init_script(OBS)
             offline(ctx)
+            if date:
+                ctx.add_init_script(DATE_INIT % (date.timestamp() * 1000))
             page = ctx.new_page()
             outside = set()
             def asked(request):

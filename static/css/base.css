@@ -286,6 +286,7 @@
     /* Selection */
     --selection-bg:    #1a1a1a;
     --selection-text:  #faf8f4;
+    --initial-glow:    drop-shadow(0 0 0.28em rgba(150, 105, 40, 0.30));   /* lamplight */
 
     /* Typography */
     --font-serif:      "Spectral", "Spectral on Georgia", "Spectral on Times", "Spectral on Noto", "Georgia", "Times New Roman", serif;
@@ -389,6 +390,7 @@
 
     --selection-bg:    #d4d0c8;
     --selection-text:  #121212;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));   /* a candle */
 
     /* Aliases — kept in sync with the light-mode definitions above. */
     --bg-subtle:       var(--bg-offset);
@@ -429,6 +431,7 @@
 
     --selection-bg:    #ead0a0;
     --selection-text:  #3a2418;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(255, 216, 150, 0.34));   /* cream */
 
     --bg-subtle:       var(--bg-offset);
 
@@ -461,6 +464,7 @@
 
         --selection-bg:    #d4d0c8;
         --selection-text:  #121212;
+        --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
 
         --bg-subtle:       var(--bg-offset);
 

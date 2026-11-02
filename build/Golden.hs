@@ -33,7 +33,7 @@ import           Text.Pandoc           (readMarkdown, runPure, writeHtml5String)
 
 import           Config                (readSiteConfig, switchOn)
 import           PandocOptions         (withMath)
-import           Compilers             (readerOpts, writerOpts, transformDocument,
+import           Compilers             (readerOpts, writerOpts, transformDocument, pageInitials,
                                         buildTOC)
 import           Hakyll.Core.Provider.Metadata (parsePage)
 import           Utils                 (parseBool)
@@ -51,10 +51,11 @@ renderFixture path = do
         bibPath       = T.pack (maybe "data/bibliography.bib" (takeDirectory path </>)
                                       (lookupString "bibliography" meta))
         numberFigures = fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
+        initials      = pageInitials (takeDirectory path) meta
     parsed <- either (die . show) return $
         runPure (readMarkdown (withMath (switchOn cfg "math") readerOpts) (T.pack (preprocessSource cfg body)))
     (doc, bibHtml, furtherHtml) <-
-        transformDocument cfg frKeys bibPath numberFigures (takeDirectory path)
+        transformDocument cfg frKeys bibPath numberFigures (takeDirectory path) initials
                           (Headings.normalizeLevels parsed)
     html <- either (die . show) return $ runPure (writeHtml5String writerOpts doc)
     mapM_ (\(name, part) -> TIO.putStrLn ("<!-- render-fixture: " <> name <> " -->")

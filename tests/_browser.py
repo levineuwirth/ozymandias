@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import ast
 import atexit
+import datetime
+import functools
 import json
 import os
 import re
@@ -29,7 +31,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, load_tool
-from tests.target import BASELINES, CSP_CONF, built, route, routes
+from tests.target import BASELINES, CSP_CONF, built, config, route, routes
 
 HARNESS = engine_path("tools/browser/serve.py").parent
 SITE = SITE_ROOT / "_site"
@@ -151,6 +153,26 @@ def site_server(workdir: Path, csp: str | None = None,
         finally:
             server.terminate()
             server.wait(timeout=10)
+
+
+def in_season(season: dict, day: datetime.date) -> bool:
+    """Whether `day` is in `season`'s window (site.yaml's seasons), as
+    theme.js reads it: month-day, inclusive, through the new year when it
+    starts later than it ends."""
+    start, end, md = int(season["from"].replace("-", "")), int(season["to"].replace("-", "")), \
+        day.month * 100 + day.day
+    return start <= md <= end if start <= end else md >= start or md <= end
+
+
+@functools.cache
+def off_season() -> datetime.datetime:
+    """Noon on a day in no season's window. theme.js puts a season on by
+    the reader's calendar, so a test that expects the plain themes fixes
+    its clock here (context.clock.set_fixed_time) and passes on any date."""
+    day = datetime.date(datetime.date.today().year, 1, 1)
+    while any(in_season(s, day) for s in config()["seasons"]):
+        day += datetime.timedelta(days=1)
+    return datetime.datetime(day.year, day.month, day.day, 12)
 
 
 def fake_answer(body, ctype: str = "application/json", status: int = 200) -> dict:

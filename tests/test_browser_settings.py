@@ -26,7 +26,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
+from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server)
 from tests.target import route
 
@@ -70,6 +70,9 @@ class SettingsPanel(unittest.TestCase):
     def open_page(self, browser: str, path: str = PAGE, init: str = "", width: int = 1280):
         context = self.browsers[browser].new_context(viewport={"width": width, "height": 900})
         self.addCleanup(context.close)
+        # Out of every season (test_browser_seasons), so that nothing stored
+        # means no theme, on any date.
+        context.clock.set_fixed_time(off_season())
         context.add_init_script(STUBS + init)
         page = context.new_page()
         errors = []
@@ -122,12 +125,27 @@ class SettingsPanel(unittest.TestCase):
                 # Focus is not pulled back to the gear from where the reader clicked.
                 self.assertNotEqual(page.evaluate("document.activeElement.className"), "settings-toggle")
 
+    def test_the_panel_fits_a_phone(self) -> None:
+        # Where the header's controls are a centered row, the panel hung
+        # from the gear, mid-row, and ran off the screen's left.
+        for browser in BROWSERS:
+            for width in (320, 390):
+                for focus in (False, True):
+                    with self.subTest(browser=browser, width=width, focus_mode=focus):
+                        init = "try { localStorage.setItem('focus-mode', '1'); } catch (e) {}" if focus else ""
+                        page = self.open_page(browser, init=init, width=width)
+                        self.open_panel(page)
+                        box = page.locator(PANEL).bounding_box()
+                        self.assertGreaterEqual(box["x"], 0)
+                        self.assertLessEqual(box["x"] + box["width"], width)
+
     def test_tab_stays_in_the_open_panel(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open_page(browser)
                 self.open_panel(page)
-                count = page.locator(f"{PANEL} button").count()
+                # The buttons shown: a season's is hidden out of its window.
+                count = page.locator(f"{PANEL} button:visible").count()
                 seen = set()
                 for _ in range(count + 2):
                     page.keyboard.press("Tab")

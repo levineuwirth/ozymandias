@@ -252,6 +252,14 @@
         line-height: 0.9;
     }
 
+    /* A drawn initial prints as the letter's own quiet dropcap. */
+    .initial {
+        display: none;
+    }
+    .initial-letter {
+        font-size: inherit;
+    }
+
     /* ----------------------------------------------------------------
        Page setup
     ---------------------------------------------------------------- */

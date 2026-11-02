@@ -12,6 +12,7 @@ module Compilers
     , readerOpts
     , writerOpts
     , transformDocument
+    , pageInitials
     , buildTOC
     ) where
 
@@ -25,13 +26,16 @@ import           Text.Pandoc.Walk           (walk, query)
 import           Text.Pandoc.Writers        (writeHtml5String)
 import           Text.Pandoc.Options        (ReaderOptions)
 import qualified Data.Text                  as T
-import           Control.Monad              (forM_, void, when)
+import           Control.Monad              (forM, forM_, void, when)
 import           Data.List                  (isInfixOf)
-import           Data.Maybe                 (fromMaybe)
-import           System.FilePath            (takeDirectory)
+import           Data.Maybe                 (fromMaybe, mapMaybe)
+import           System.Directory           (doesDirectoryExist, listDirectory)
+import           System.FilePath            (takeDirectory, takeExtension, (</>))
+import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import           Utils                      (wordCount, readingTime, escapeHtml, inlinesText, parseBool)
 import           PandocOptions              (poetryReaderOpts, readerOpts, withMath, writerOpts)
 import           Filters                    (applyAll, preprocessSource)
+import           Filters.Dropcaps           (Initials (..), initialsDir)
 import qualified Citations
 import qualified Filters.Headings           as Headings
 import qualified Filters.Score              as Score
@@ -189,8 +193,11 @@ essayCompilerWith rOpts = do
     let numberFigures =
             fromMaybe False (lookupString "figure-numbering" meta >>= parseBool)
 
+    let initials = pageInitials srcDir meta
+    trackInitials initials
+
     (pandocFiltered, bibHtml, furtherHtml) <- unsafeCompiler $
-        transformDocument cfg frKeys bibPath numberFigures srcDir (itemBody pandocItem)
+        transformDocument cfg frKeys bibPath numberFigures srcDir initials (itemBody pandocItem)
     let pandocItem'    = itemSetBody pandocFiltered pandocItem
 
     -- Build TOC from the filtered AST.
@@ -215,6 +222,33 @@ essayCompilerWith rOpts = do
 
     return htmlItem
 
+-- | The page's sets of drawn initials, in order (frontmatter
+--   @initials:@, one path or a list, each resolved by 'initialsDir'), and
+--   the stage its @status:@ draws them at, as a class: @Working model@ is
+--   @working-model@.
+pageInitials :: FilePath -> Metadata -> Initials
+pageInitials srcDir meta = Initials
+    { initialSets  = mapMaybe (initialsDir srcDir) $
+          fromMaybe (maybe [] pure (lookupString "initials" meta)) (lookupStringList "initials" meta)
+    , initialStage = stage <$> lookupString "status" meta
+    }
+  where
+    stage = T.intercalate "-" . T.words . T.toLower . T.pack
+
+-- | Record that a page depends on its sets of drawn initials, whose letters
+--   'Filters.Dropcaps' reads in IO, where Hakyll cannot see: without it,
+--   editing a letter left every page drawn from it as it was. The sets'
+--   files are claimed by the static rules, so the dependency fires; a letter
+--   added to a set later reaches its pages at their next edit or a clean
+--   build.
+trackInitials :: Initials -> Compiler ()
+trackInitials (Initials dirs _) = do
+    letters <- unsafeCompiler $ fmap concat $ forM dirs $ \dir -> do
+        exists <- doesDirectoryExist dir
+        if exists then map (dir </>) . filter ((== ".svg") . takeExtension) <$> listDirectory dir
+                  else pure []
+    compilerTellDependencies [IdentifierDependency (fromFilePath f) | f <- letters]
+
 -- | Everything 'essayCompilerWith' does between the parsed document and the
 --   filtered one, outside Hakyll, so that @site render-fixture@ (build/Golden.hs,
 --   tests/test_golden.py) runs the same code a page does.
@@ -227,16 +261,16 @@ essayCompilerWith rOpts = do
 --
 --   Returns the filtered document, the bibliography HTML and the
 --   further-reading HTML.
-transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Pandoc
+transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Initials -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
-transformDocument cfg frKeys bibPath numberFigures srcDir doc = do
+transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
     (withCites, bibHtml, furtherHtml) <- Citations.applyCitations (switchOn cfg "pdf-viewer") frKeys bibPath doc
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
     withViz    <- if switchOn cfg "viz"
                       then Viz.inlineViz (withMath (switchOn cfg "math") readerOpts) srcDir withScores
                       else return withScores
-    filtered   <- applyAll cfg numberFigures srcDir withViz
+    filtered   <- applyAll cfg numberFigures srcDir initials withViz
     return (filtered, bibHtml, furtherHtml)
 
 -- | Compiler for essays.
@@ -316,6 +350,10 @@ filteredPage = do
     let src = itemBody body
     pandocItem <- readPandocWith (withMath (switchOn cfg "math") readerOpts)
                                  (itemSetBody (preprocessSource cfg src) body)
+    meta       <- getMetadata =<< getUnderlying
+    let srcDir   = takeDirectory filePath
+        initials = pageInitials srcDir meta
+    trackInitials initials
     filtered   <- unsafeCompiler $
-        applyAll cfg False (takeDirectory filePath) (itemBody pandocItem)
+        applyAll cfg False srcDir initials (itemBody pandocItem)
     return (src, writePandocWith writerOpts (itemSetBody filtered pandocItem))

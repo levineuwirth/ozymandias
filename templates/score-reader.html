@@ -26,7 +26,8 @@
                     <div class="settings-row">
                         <button class="settings-btn" data-action="theme-light">Light</button>
                         <button class="settings-btn" data-action="theme-dark">Dark</button>
-                        <button class="settings-btn" data-action="theme-cappuccino">Cappuccino</button>
+                        <button class="settings-btn" data-action="theme-cappuccino">Cappuccino</button>$for(seasons)$
+                        <button class="settings-btn" data-action="season-$season-id$" hidden>$season-label$</button>$endfor$
                     </div>
                 </div>
             </div>

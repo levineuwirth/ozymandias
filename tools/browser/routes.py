@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 ROUTES_FILE = "tests/routes.yaml"
-NAMED = ("keyboard", "motion", "perf", "axe-skip")
+NAMED = ("keyboard", "motion", "perf", "axe-skip", "dropcaps")
 ANY = ("popup-sweep", "footer", "layout-shift")
 LISTS = NAMED + ANY
 # The CSP sweep's interactions (csp_run.features) and checks (test_browser_csp).

@@ -43,6 +43,7 @@ $partial("templates/partials/ornament.html")-$
         </div>
         $endif$
 
+        $if(build)$$else$
         <div class="meta-footer-section" id="version-history">
             <h3>Version history</h3>
             $if(version-history-primary)$
@@ -68,6 +69,7 @@ $partial("templates/partials/ornament.html")-$
             </ul>
             $endif$
         </div>
+        $endif$
 
     </div>
 

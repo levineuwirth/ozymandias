@@ -68,6 +68,22 @@ THEME_INIT = """
 try { localStorage.setItem('theme', '%s'); } catch (e) {}
 """
 
+# The pages' calendar moved to a date (milliseconds since the epoch), as
+# theme.js reads it for seasons; time still runs from there. Playwright's
+# clock would fake performance too, whose timings perf_run.py reads.
+DATE_INIT = """
+(() => {
+  const R = Date, shift = %d - R.now();
+  function D(...a) {
+    if (!new.target) return new R(R.now() + shift).toString();
+    return a.length ? new R(...a) : new R(R.now() + shift);
+  }
+  D.prototype = R.prototype; D.parse = R.parse; D.UTC = R.UTC;
+  D.now = () => R.now() + shift;
+  window.Date = D;
+})();
+"""
+
 def offline(ctx):
     """With BROWSER_OFFLINE=1, nothing leaves the local server: map tiles,
     CDN scripts and the like are refused. The tests set it; the CSP sweep,
