@@ -170,6 +170,7 @@ class Annotations(unittest.TestCase):
 
     # -- highlights --------------------------------------------------------
 
+    @requires_switch("annotations")
     def test_a_highlight_across_a_line_break(self) -> None:
         # J02: Pandoc leaves the source's line break in the text; the
         # selection reads it as a space.
@@ -195,6 +196,7 @@ class Annotations(unittest.TestCase):
             "ms => ms.map(m => ({text: m.textContent, cls: m.className, id: m.dataset.annId,"
             " tab: m.getAttribute('tabindex'), in: m.parentElement.closest('p').id}))")
 
+    @requires_switch("annotations")
     def test_a_highlight_across_an_inline_element(self) -> None:
         # A mark for each text node, the <em> left where it was.
         shape = "Array.from(document.querySelector('#inline').childNodes, n => n.nodeName + ':' + n.textContent)"
@@ -220,6 +222,7 @@ class Annotations(unittest.TestCase):
                 page.click(".ann-tooltip.is-visible .ann-tooltip-delete")
                 self.assertEqual(page.evaluate(shape), before)
 
+    @requires_switch("annotations")
     def test_a_highlight_across_a_paragraph_break(self) -> None:
         # It used to be extracted into one inline <mark> between the two
         # paragraphs, holding a clone of each half: two paragraphs became
@@ -244,6 +247,7 @@ class Annotations(unittest.TestCase):
                 self.expect(page.locator("main mark")).to_have_count(0)
                 self.assertEqual(page.evaluate(shape), before)
 
+    @requires_switch("annotations")
     def test_the_occurrence_selected(self) -> None:
         # "each of them partial" ends #wrapped and #echo; selected in #echo,
         # it used to be highlighted in #wrapped, the first.
@@ -268,6 +272,7 @@ class Annotations(unittest.TestCase):
                 self.expect(page.locator("main mark")).to_have_count(1)
                 self.assertEqual([m["in"] for m in self.marks(page)], ["wrapped"])
 
+    @requires_switch("annotations")
     def test_malformed_highlights_are_ignored(self) -> None:
         # Any of these used to throw at load and on every ln:content-added,
         # and made Annotate fail without its message.
@@ -300,6 +305,7 @@ class Annotations(unittest.TestCase):
                         self.expect(page.locator("#plain mark")).to_have_count(0)
                         self.assertEqual(len(self.stored(page)), 1)
 
+    @requires_switch("annotations")
     def test_the_picker_opens_in_view(self) -> None:
         # A selection from near the top of the window to near its foot
         # leaves no room above it or below: the picker went below, out of
@@ -351,6 +357,7 @@ class Annotations(unittest.TestCase):
                 page.press(".ann-picker-note", "Enter")
                 self.expect(page.locator("#echo mark.user-annotation")).to_have_count(1)
 
+    @requires_switch("annotations")
     def test_what_cannot_be_highlighted_says_so(self) -> None:
         # Text already inside a highlight cannot be anchored again.
         for browser in BROWSERS:
@@ -366,6 +373,7 @@ class Annotations(unittest.TestCase):
                 self.assertEqual(len(self.stored(page)), 1)
                 self.expect(page.locator("mark.user-annotation")).to_have_count(1)
 
+    @requires_switch("annotations")
     def test_tooltip_and_delete(self) -> None:
         note = '<img src=x onerror="window.__pwned=1">a note'
         for browser in BROWSERS:

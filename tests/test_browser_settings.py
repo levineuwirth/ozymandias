@@ -28,7 +28,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route
 
 PAGE = route("essay")
 READER = route("score") + "score/"
@@ -269,14 +269,19 @@ class SettingsPanel(unittest.TestCase):
                     self.assertIsNone(self.stored(page, action))
                     self.expect(btn).to_have_attribute("aria-pressed", "false")
 
-    def test_print_and_clear_annotations(self) -> None:
+    def test_print(self) -> None:
         for browser in BROWSERS:
-            page = self.open_page(browser)
-            with self.subTest(browser=browser, action="print"):
+            with self.subTest(browser=browser):
+                page = self.open_page(browser)
                 self.open_panel(page)
                 self.button(page, "print").click()
                 self.assertEqual(page.evaluate("window.__printed"), 1)
                 self.expect(page.locator(PANEL)).to_be_hidden()
+
+    @requires_switch("annotations")
+    def test_clear_annotations(self) -> None:
+        for browser in BROWSERS:
+            page = self.open_page(browser)
             # A highlight of the page's first words, made as Annotate does.
             words = page.evaluate("document.querySelector('#markdownBody p')"
                                   ".textContent.trim().split(/\\s+/).slice(0, 3).join(' ')")

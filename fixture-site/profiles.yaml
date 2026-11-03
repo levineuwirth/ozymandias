@@ -14,6 +14,7 @@
 # switch the other way.
 full:
   switches:
+    annotations: true
     archive: true
     authors: true
     bibliography-index: true
@@ -41,6 +42,7 @@ full:
     viz: true
 minimal:
   switches:
+    annotations: false
     archive: false
     authors: true
     bibliography-index: false

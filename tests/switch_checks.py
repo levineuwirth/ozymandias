@@ -348,6 +348,20 @@ def selection_toolbar_off(site: Path) -> None:
     assert not pages_with, f"the toolbar is loaded on {pages_with}"
 
 
+def annotations_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    for path in ("js/annotations.js", "css/annotations.css"):
+        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+    assert 'data-action="clear-annotations"' in essay, "the settings panel cannot clear annotations"
+
+
+def annotations_off(site: Path) -> None:
+    pages_with = loading(site, "js/annotations.js", "css/annotations.css")
+    assert not pages_with, f"annotations are loaded on {pages_with}"
+    offered = [p.name for p in pages(site) if 'data-action="clear-annotations"' in p.read_text(encoding="utf-8")]
+    assert not offered, f"Clear Annotations on {offered}"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -509,6 +523,7 @@ def new_off(site: Path) -> None:
 
 # Each registered switch: (its on check, its off check).
 CHECKS = {
+    "annotations": (annotations_on, annotations_off),
     "archive": (archive_on, archive_off),
     "authors": (authors_on, authors_off),
     "bibliography-index": (bibliography_index_on, bibliography_index_off),

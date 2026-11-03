@@ -270,4 +270,16 @@ selection-toolbar:
   assets: [js/selection-popup.js, css/selection-popup.css]
   about: >-
     The toolbar a text selection brings up (copy, cite, search, define,
-    translate and so on: selection-popup.js).
+    translate and so on: selection-popup.js). Its Annotate button is the
+    annotations switch's; until A9 it is offered without them, and does
+    nothing.
+
+annotations:
+  kind: interface
+  default: false
+  needs: [selection-toolbar]
+  assets: [js/annotations.js, css/annotations.css]
+  about: >-
+    A reader's highlights and notes, kept in their browser (annotations.js),
+    and the settings panel's Clear Annotations. They are made through the
+    selection toolbar, so it needs that switch.

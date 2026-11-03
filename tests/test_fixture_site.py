@@ -335,6 +335,12 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "content/library.md").is_file())
         switch_checks.library_off(site)
 
+    def test_a_site_that_turns_the_toolbar_off_loses_annotations_too(self):
+        # Annotations are made through the toolbar (their needs).
+        site = self.turned_off("selection-toolbar")
+        switch_checks.selection_toolbar_off(site)
+        switch_checks.annotations_off(site)
+
     def test_a_site_that_turns_new_off_links_no_new_page(self):
         # The full build's essay draws both its marks, the divider's and
         # its aftermatter's, without a link.
