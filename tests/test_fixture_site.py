@@ -353,6 +353,14 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "content/music" / switch_checks.PIECE / "index.md").is_file())
         switch_checks.music_off(site)
 
+    def test_its_search_page_has_a_search_box(self):
+        # search.js fills #search whatever the search switches: keyword
+        # search is every site's. A prototype starts from this page.
+        for build in self.builds:
+            with self.subTest(build=build.name):
+                self.refused(build.name)
+                self.assertIn('id="search"', switch_checks.text(self.sites[build.name], "search.html"))
+
     def test_every_page_its_routes_name_is_built(self):
         # But a page a switch the build has off publishes (its registry
         # routes).
