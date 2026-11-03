@@ -375,6 +375,16 @@ def popups_off(site: Path) -> None:
     assert not (site / "_site/data/annotations.json").exists(), "the author's previews are published"
 
 
+def search_filters_on(site: Path) -> None:
+    assert asset_tag("js/search-filters.js").search(text(site, "search.html")), \
+        "the search page does not load the filters"
+
+
+def search_filters_off(site: Path) -> None:
+    pages_with = loading(site, "js/search-filters.js")
+    assert not pages_with, f"the search filters are loaded on {pages_with}"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -555,6 +565,7 @@ CHECKS = {
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "popups": (popups_on, popups_off),
     "random": (random_on, random_off),
+    "search-filters": (search_filters_on, search_filters_off),
     "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
     "signature-link": (signature_link_on, signature_link_off),
     "signing": (signing_on, signing_off),

@@ -294,3 +294,15 @@ popups:
     provider list, which popups.js can read only from A9; until then, with
     the switch on, every provider is asked, and those the site's server
     does not proxy show nothing.
+
+search-filters:
+  kind: interface
+  default: false
+  needs-any: [epistemic, archive]
+  assets: [js/search-filters.js]
+  about: >-
+    The search page's filters (search-filters.js), over the epistemic
+    fields and archived pages' link status: so it needs one of those. It
+    reads both data/epistemic-meta.json and data/archive-meta.json, and
+    takes a missing one as empty. The panel's markup is the site's, in its
+    content/search.md.

@@ -73,6 +73,7 @@ class Hardening(unittest.TestCase):
         page.goto(self.base + path, wait_until="networkidle")
         return page, errors
 
+    @requires_switch("search-filters")
     def test_search_filters_ignore_misshapen_storage(self) -> None:
         bad = {
             "status not a list": '{"status": "draft"}',
@@ -97,6 +98,7 @@ class Hardening(unittest.TestCase):
                     self.expect(page.locator("#search-filters .is-active")).to_have_count(0)
                     self.assertEqual(page.inner_text(".filter-toggle-badge").strip(), "")
 
+    @requires_switch("search-filters")
     def test_search_filters_keep_a_well_formed_state(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):

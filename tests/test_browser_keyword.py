@@ -27,6 +27,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import requires_switch, switch_on
 
 CANDIDATES = ("proof", "model", "verification", "graph", "language", "theory")
 PAGE_SIZE = 5          # Pagefind UI's default, and search-filters.js's target
@@ -132,6 +133,7 @@ class KeywordSearch(unittest.TestCase):
                 self.expect(page.locator("#search-timing")).to_have_text(re.compile(r"^\d+ ms$"))
                 self.assertEqual(self.shown(page), self.urls[:PAGE_SIZE])
 
+    @requires_switch("search-filters")
     def test_a_filter_loads_pages_until_it_has_its_results(self) -> None:
         # Only the last result is a draft: every page has to be loaded.
         meta = {key(u): {"status": "Draft" if u == self.urls[-1] else "Durable"} for u in self.urls}
@@ -153,6 +155,7 @@ class KeywordSearch(unittest.TestCase):
                 self.expect(page.locator(f"{RESULT}.search-filtered")).to_have_count(0)
                 self.assertEqual(self.shown(page), self.urls)
 
+    @requires_switch("search-filters")
     def test_nothing_passing_says_so(self) -> None:
         meta = {key(u): {"status": "Durable"} for u in self.urls}
         for browser in BROWSERS:
@@ -165,6 +168,7 @@ class KeywordSearch(unittest.TestCase):
                     f"({len(self.urls)} before filtering).")
                 self.assertEqual(self.shown(page), [])
 
+    @requires_switch("search-filters")
     def test_unclassified_pages_stay(self) -> None:
         # Only the first result has metadata; the rest are never filtered.
         meta = {key(self.urls[0]): {"status": "Durable"}}
@@ -205,8 +209,9 @@ class KeywordSearch(unittest.TestCase):
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.goto(self.base + f"/search.html?q={self.term}", wait_until="load")
                 self.assertGreaterEqual(net.hits["pagefind-ui"], 1)   # Firefox asks twice
-                page.click(".library-filter-toggle")
-                self.expect(page.locator("#search-filters")).to_be_visible()
+                if switch_on("search-filters"):
+                    page.click(".library-filter-toggle")
+                    self.expect(page.locator("#search-filters")).to_be_visible()
                 page.click("#search-tab-semantic")
                 self.expect(page.locator("#search-panel-semantic")).to_be_visible()
                 self.assertEqual(errors, [])

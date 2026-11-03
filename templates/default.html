@@ -10,7 +10,7 @@ $if(search)$
 <script src="/pagefind/pagefind-ui.js" defer></script>
 <script src="/js/search.js" defer></script>
 <script src="/js/semantic-search.js" defer></script>
-<script src="/js/search-filters.js" defer></script>
+$if(switch-search-filters)$<script src="/js/search-filters.js" defer></script>$endif$
 $endif$
 <div class="page-shell">
 $body$

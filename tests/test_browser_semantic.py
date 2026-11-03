@@ -37,6 +37,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import requires_switch
 
 DIM = 384
 CDN = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
@@ -222,6 +223,7 @@ class SemanticSearch(unittest.TestCase):
                 self.assertEqual(len(page.evaluate("window.__fakeLoads")), 1)
                 self.assertEqual((net.hits["cdn"], net.hits["index"], net.hits["meta"]), (1, 1, 1))
 
+    @requires_switch("search-filters")
     def test_filters_apply_before_the_cut(self) -> None:
         for browser in BROWSERS:
             page, _ = self.search_page(browser)
@@ -250,6 +252,7 @@ class SemanticSearch(unittest.TestCase):
             with self.subTest(browser=browser, part="no re-embedding"):
                 self.assertEqual(len(page.evaluate("window.__fakeEmbeds")), embeds)
 
+    @requires_switch("search-filters")
     def test_archive_filters(self) -> None:
         for browser in BROWSERS:
             page, _ = self.search_page(browser)

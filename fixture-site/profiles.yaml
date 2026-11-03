@@ -33,6 +33,7 @@ full:
     pdf-viewer: true
     popups: true
     random: true
+    search-filters: true
     selection-toolbar: true
     signature-link: true
     signing: true
@@ -62,6 +63,7 @@ minimal:
     pdf-viewer: false
     popups: true
     random: false
+    search-filters: false
     selection-toolbar: false
     signature-link: false
     signing: false
