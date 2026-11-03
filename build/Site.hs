@@ -316,10 +316,11 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Tag index pages
     -- ---------------------------------------------------------------------------
-    -- Tags are every site's (metadata); their pages only with tag-pages on
-    -- (Tags.pagedTags).
+    -- Tags are every site's (metadata, counted on /stats/ and /build/);
+    -- their pages only with tag-pages on.
     tags <- buildAllTags cfg
-    applyTagRules tags (map portalPair (sitePortals cfg)) siteCtx
+    when (switchOn cfg "tag-pages") $
+        applyTagRules tags (map portalPair (sitePortals cfg)) siteCtx
     statsRules cfg tags
 
     -- Per-page JS files — authored alongside content in content/**/*.js.

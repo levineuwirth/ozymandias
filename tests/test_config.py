@@ -226,10 +226,18 @@ class ConfigTests(unittest.TestCase):
 
     def test_without_tag_pages_no_tag_has_a_route(self):
         # A portal's name is then no directory slug ([[Walks]] links
-        # /walks.html), and no tag is paged.
+        # /walks.html), and no tag is paged, though the essay keeps its tag.
         self.config = dict(self.config, portals=[{"name": "Walks", "tag": "walks"}],
                            switches={"tag-pages": False})
         self.write_config()
+        (self.root / "data").mkdir()
+        page = self.root / "content/essays/example.md"
+        page.parent.mkdir(parents=True)
+        page.write_text("---\ntitle: Example\ndate: 2026-01-01\ntags: [walks]\n---\nText.\n")
+        for command in ("list-tags", "list-routes"):
+            done = self.run_site(command)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertNotIn("walks", done.stdout, command)
         done = self.run_site("shared-rules")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn("walks", json.loads(done.stdout)["directory-slugs"])
@@ -551,28 +559,6 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(done.stdout.count('class="source-ref"'), 3)
         self.assertIn('href="https://git.example.org/author/site/src/branch/next/docs/Makefile"', done.stdout)
         self.assertNotIn("levineuwirth", done.stdout)
-
-    def test_the_navigation_links_only_pages_that_are_built(self):
-        # A switch's routes (engine/switches.yaml): /new.html is the new
-        # switch's, so nav-primary and the library's see-also may link it
-        # only with the switch on.
-        new = {"label": "New", "href": "/new.html#top"}
-        original = self.config
-        library = dict(original["library"], **{"see-also": [new]})
-        for switch, changes, refusal in (
-                (True, {"nav-primary": [new]}, None),
-                (False, {"nav-primary": [new]}, "/new.html#top (the new switch is off)"),
-                (False, {"library": library}, "/new.html#top (the new switch is off)"),
-                (False, {}, None)):
-            with self.subTest(new=switch, changes=sorted(changes)):
-                self.config = dict(original, switches={"new": switch}) | changes
-                self.write_config()
-                done = self.run_site("config")
-                if refusal is None:
-                    self.assertEqual(done.returncode, 0, done.stderr)
-                else:
-                    self.assertNotEqual(done.returncode, 0)
-                    self.assertIn(refusal, done.stderr)
 
     def test_a_generated_index_is_a_slug_only_with_its_switch(self):
         # Nor does it keep a top-level tag from its page without it.

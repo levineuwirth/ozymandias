@@ -312,8 +312,14 @@ class FixtureBuilds(unittest.TestCase):
         self.assertEqual(stamped, [])
 
     def test_a_site_that_turns_tag_pages_off_links_none(self):
-        # The full build's library, /stats/ and /build/ name tags too.
-        switch_checks.tag_pages_off(self.turned_off("tag-pages"))
+        # The full build's library, /stats/ and /build/ name tags too, and
+        # /stats/ and /build/ still count them.
+        site = self.turned_off("tag-pages")
+        switch_checks.tag_pages_off(site)
+        for page in ("stats/index.html", "build/index.html"):
+            html = switch_checks.text(site, page)
+            self.assertIn("Unique tags</dt><dd>1</dd>", html, page)
+            self.assertIn(f"<td>{switch_checks.TAGGED}</td>", html, page)
 
     def test_a_site_that_turns_authors_off_links_no_author_page(self):
         # The full build's photography and music pages have bylines too.

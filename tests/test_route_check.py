@@ -102,6 +102,42 @@ class RouteCheckTests(unittest.TestCase):
             self.assertNotIn("Two or more items route to the same file", done.stderr)
             self.assertIn("Compiling", done.stdout)
 
+    def test_a_link_to_a_page_a_switch_leaves_unbuilt_is_refused(self) -> None:
+        # site.yaml's navigation or library see-also linking the page of a
+        # switch it has off (its registry routes), unless another item
+        # builds it: a top-level page new.md, or a tag stats once the
+        # stats-page switch leaves /stats/ free.
+        new = {"label": "New", "href": "/new.html#top"}
+        stats = {"label": "Statistics", "href": "/stats/"}
+        library = {"shelf-cap": 4, "shelf-max": 5, "description": "Every shelf.", "see-also": [new]}
+        refused_new = "/new.html#top (the new switch is off)"
+        for switches, changes, also, refusal in (
+                ({"new": True}, {"nav-primary": [new]}, None, None),
+                ({"new": False}, {"nav-primary": [new]}, None, refused_new),
+                ({"new": False}, {"library": library}, None, refused_new),
+                ({"new": False}, {"nav-primary": [new]}, "content/new.md", None),
+                ({"stats-page": False}, {"nav-primary": [stats]}, None,
+                 "/stats/ (the stats-page switch is off)"),
+                ({"stats-page": False, "tag-pages": True}, {"nav-primary": [stats]},
+                 "content/essays/b.md", None)):
+            with self.subTest(switches=switches, changes=sorted(changes), also=also), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "data").mkdir()
+                page(root / "content/essays/a.md", "title: A\ndate: 2026-01-01\ntags: [notes]")
+                if also:
+                    page(root / also, "title: Also\ndate: 2026-01-02\ntags: [stats]")
+                write_site_config(root, switches=switches, **changes)
+                done = subprocess.run([str(site_binary()), "build"], cwd=root, env=script_env(),
+                                      capture_output=True, text=True, timeout=120)
+                if refusal:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+                    self.assertFalse((root / "_site").exists())
+                else:
+                    self.assertNotIn("link pages that are not built", done.stderr)
+                    self.assertIn("Compiling", done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

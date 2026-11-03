@@ -5,7 +5,7 @@ import Control.Monad         (when)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Directory      (createDirectoryIfMissing)
 import System.Environment    (getArgs)
-import Config                (SiteConfig, readSiteConfig, configMake, identityFields)
+import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
 import Hakyll                (hakyllWith, toFilePath)
 import Golden                (renderFixture)
@@ -29,7 +29,7 @@ import Data.List             (intercalate)
 import Data.Maybe            (fromMaybe)
 import Utils                 (boolSpellings, isDevBuild, outputDirFor, stripHtmlComments)
 import FooterData            (writeFooterData)
-import RouteCheck            (siteRoutes, siteRulesValue, withUniqueRoutes)
+import RouteCheck            (siteRoutes, siteRulesValue, withCheckedRoutes)
 import Tags                  (buildAllTags, pagedTags)
 import Hakyll                (tagsMap)
 
@@ -77,8 +77,9 @@ writeBuildStamp = do
 -- that gets a page, and @site expand-tags@ the pages the tags on stdin would
 -- get ('Tags.pagedTags'), for tools/scaffold-photos.py; @site
 -- strip-template-comments@ filters stdin as templates are ('Utils.stripHtmlComments'),
--- for its test. A build refuses to
--- run when two items share an output path ('withUniqueRoutes').
+-- for its test. A build refuses to run when two items share an output
+-- path, or when site.yaml links a page of a switch it has off that nothing
+-- else builds ('withCheckedRoutes').
 main :: IO ()
 main = do
     args <- getArgs
@@ -108,13 +109,15 @@ main = do
             mapM_ (\(path, ident) -> putStrLn (path ++ "\t" ++ toFilePath ident)) routed
         ["expand-tags"] -> do
             cfg <- readSiteConfig
-            getContents >>= mapM_ putStrLn . pagedTags cfg . lines
+            -- No tag gets a page without the tag-pages switch.
+            getContents >>= mapM_ putStrLn . (if switchOn cfg "tag-pages" then pagedTags cfg else const [])
+                          . lines
         ["strip-template-comments"] -> interact stripHtmlComments
         ["list-tags"] -> do
             dev <- isDevBuild
             cfg <- readSiteConfig
             tags <- siteRulesValue (siteConfigurationFor dev) (buildAllTags cfg)
-            mapM_ (putStrLn . fst) (tagsMap tags)
+            when (switchOn cfg "tag-pages") $ mapM_ (putStrLn . fst) (tagsMap tags)
         ["footer-data"] -> do
             dev <- isDevBuild
             when dev $ fail "footer-data: production builds only (a dev build's backlinks include drafts)"
@@ -123,8 +126,9 @@ main = do
             siteThreads >>= setNumCapabilities
             writeBuildStamp
             dev <- isDevBuild
+            cfg <- readSiteConfig
             hakyllWith (siteConfigurationFor dev)
-                (withUniqueRoutes (withoutUnpublished currentUnpublished rules))
+                (withCheckedRoutes (siteSwitchedLinks cfg) (withoutUnpublished currentUnpublished rules))
 
 -- | The lists the Python tools and tests must agree with the generator on,
 --   read through @site shared-rules@ (tools/shared_rules.py) rather than

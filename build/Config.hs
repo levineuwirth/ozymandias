@@ -69,6 +69,12 @@ data SiteConfig = SiteConfig
       -- | The engine's static files (globs as served) of the switches the
       --   site has off, which it does not publish; set with the switches.
     , siteWithheld :: [String]
+      -- | site.yaml's links (nav-primary, the library's see-also) to a page a
+      --   switch the site has off publishes (its registry @routes@), each
+      --   with that switch; set with the switches. The build refuses one
+      --   that no other item builds ('RouteCheck.withCheckedRoutes'): a tag,
+      --   a page collection or a standalone page may take the path.
+    , siteSwitchedLinks :: [(String, String)]
     } deriving (Eq, Show)
 
 -- | A seasonal dressing over one of the themes (site.yaml's @seasons@).
@@ -446,7 +452,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
                         <*> o .:? "seasons" .!= []
-                        <*> o .:? "switches" .!= Map.empty <*> pure []
+                        <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
         forM_ (siteFontPreloads c) $ \href ->
             unless (siteAsset ".woff2" href) $
@@ -564,7 +570,6 @@ decodeConfig registryBytes siteBytes = do
     resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
     first ("site.yaml: " ++) (switchedSections registry resolved cfg)
     first ("site.yaml: " ++) (switchedContexts registry resolved cfg)
-    first ("site.yaml: " ++) (switchedLinks registry resolved cfg)
     let withheld = [ glob | (name, spec) <- Map.toList registry
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
@@ -574,7 +579,8 @@ decodeConfig registryBytes siteBytes = do
     let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
     unless (null scored || Map.findWithDefault False "music" resolved) $
         Left ("site.yaml: standalone scores need the music switch: " ++ intercalate ", " scored)
-    pure cfg { siteSwitches = resolved, siteWithheld = withheld }
+    pure cfg { siteSwitches = resolved, siteWithheld = withheld
+             , siteSwitchedLinks = switchedLinks registry resolved cfg }
   where
     decode :: FromJSON a => FilePath -> BS.ByteString -> Either String a
     decode path = first ((path ++ ": ") ++) . first Yaml.prettyPrintParseException . Yaml.decodeEither'
@@ -695,20 +701,18 @@ switchedContexts registry on cfg = do
     unless (null refused) $
         Left ("standalone pages need their context's switch: " ++ intercalate ", " refused)
 
--- | A page a switch publishes (its registry @routes@) is linked from
---   site.yaml, the navigation or the library's see-also, only with that
---   switch on: without it the page is not built.
-switchedLinks :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
-switchedLinks registry on cfg = do
-    let owners  = Map.fromList [ (path, name) | (name, spec) <- Map.toList registry
-                                               , path <- switchRoutes spec ]
-        links   = siteNavPrimary cfg ++ maybe [] librarySeeAlso (siteLibrary cfg)
-        refused = [ navHref l ++ " (the " ++ name ++ " switch is off)"
-                  | l <- links
-                  , Just name <- [Map.lookup (takeWhile (`notElem` ("#?" :: String)) (navHref l)) owners]
-                  , not (Map.findWithDefault False name on) ]
-    unless (null refused) $
-        Left ("nav-primary and the library's see-also link pages that are not built: " ++ intercalate ", " refused)
+-- | site.yaml's links (the navigation, the library's see-also) to a page a
+--   switch the site has off publishes (its registry @routes@; a fragment
+--   or query aside), each with that switch: 'siteSwitchedLinks'.
+switchedLinks :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> [(String, String)]
+switchedLinks registry on cfg =
+    [ (navHref l, name)
+    | l <- siteNavPrimary cfg ++ maybe [] librarySeeAlso (siteLibrary cfg)
+    , Just name <- [Map.lookup (takeWhile (`notElem` ("#?" :: String)) (navHref l)) owners]
+    , not (Map.findWithDefault False name on) ]
+  where
+    owners = Map.fromList [ (path, name) | (name, spec) <- Map.toList registry
+                                         , path <- switchRoutes spec ]
 
 -- | Whether the site has switch @name@ on. A name the registry lacks is the
 --   engine's own mistake, which stops the build. The one way to ask: rules

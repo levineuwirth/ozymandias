@@ -41,7 +41,7 @@ import Data.Set   (Set)
 import qualified Data.Set as Set
 import Hakyll hiding (escapeHtml)
 import Utils (escapeHtml, inDefault, writerlyDate)
-import Config     (SiteConfig, switchOn)
+import Config     (SiteConfig)
 import Patterns   (tagIndexable)
 import Sections   (sectionOwnedTopLevelTags)
 import Contexts   (abstractField, contentKindField, identifierDisplayUTC,
@@ -94,9 +94,10 @@ getExpandedTags cfg ident = pagedTags cfg <$> getTags ident
 --   @photography/a@), less the 'Sections.sectionOwnedTopLevelTags', which
 --   would collide with section landings. @site expand-tags@ answers this for
 --   tools/scaffold-photos.py, whose own copy kept the empty segments.
---   None without the tag-pages switch.
+--   The tag index is built from them whatever the tag-pages switch, since
+--   /stats/ and /build/ count it; the pages, and the commands that list
+--   them, ask the switch.
 pagedTags :: SiteConfig -> [String] -> [String]
-pagedTags cfg | not (switchOn cfg "tag-pages") = const []
 pagedTags cfg = filter (`notElem` sectionOwnedTopLevelTags cfg) . nub . concatMap expandTag
 
 

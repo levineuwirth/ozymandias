@@ -16,7 +16,8 @@
 #   contexts   the standalone-page contexts it owns (site.yaml's standalone
 #              pages' `context`), which a page may have only with it on;
 #   routes     the pages it publishes at fixed paths, which site.yaml's
-#              navigation and the library's see-also link only with it on;
+#              navigation and the library's see-also link only with it on
+#              (or when another page takes the path: RouteCheck);
 #   assets     the engine's static files (globs under engine/static/, as
 #              they are served) that only it uses, published only with it on;
 #   about      what it covers.
@@ -212,9 +213,10 @@ tag-pages:
     A page per tag (/<tag>/, Tags.hs), and every link to one: the tag lists
     under pages and on cards, the home page's and the navigation's portals,
     the library's shelf headings, /stats/'s and /build/'s tag tables, and
-    wikilinks to a portal by its name. Tags themselves are every site's:
-    without the switch they are shown as text (Sections.tagPageUrl; a tag
-    that names a section still links its landing).
+    wikilinks to a portal by its name. Tags themselves are every site's,
+    counted on /stats/ and /build/: without the switch they are shown as
+    text (Sections.tagPageUrl; a tag that names a section still links its
+    landing).
 
 authors:
   kind: generated
