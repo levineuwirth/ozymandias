@@ -325,6 +325,29 @@ def now_off(site: Path) -> None:
     assert not any(marked.values()), f"the now page on pages: {marked}"
 
 
+def asset_tag(path: str) -> re.Pattern:
+    """The tag that loads an engine asset, as a page's relative URLs have it."""
+    return re.compile(rf'''(?:src|href)="[./]*{re.escape(path)}"''')
+
+
+def loading(site: Path, *paths: str) -> list[str]:
+    """Each page that loads one of `paths`, with its path under _site."""
+    tags = [asset_tag(path) for path in paths]
+    return [str(p.relative_to(site / "_site")) for p in pages(site)
+            if any(tag.search(p.read_text(encoding="utf-8")) for tag in tags)]
+
+
+def selection_toolbar_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    for path in ("js/selection-popup.js", "css/selection-popup.css"):
+        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+
+
+def selection_toolbar_off(site: Path) -> None:
+    pages_with = loading(site, "js/selection-popup.js", "css/selection-popup.css")
+    assert not pages_with, f"the toolbar is loaded on {pages_with}"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -503,6 +526,7 @@ CHECKS = {
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "random": (random_on, random_off),
+    "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
     "signature-link": (signature_link_on, signature_link_off),
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),

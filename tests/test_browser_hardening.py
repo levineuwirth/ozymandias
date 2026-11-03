@@ -22,7 +22,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route
 
 FILTER_KEY = "search-filter-state-v2"
 ESSAY = route("essay")   # long enough to have collapsible sections
@@ -140,6 +140,7 @@ class Hardening(unittest.TestCase):
             "(n => (n.nodeType === 3 ? n.parentElement : n).id)"
             "(getSelection().getRangeAt(0).commonAncestorContainer)"), selector[1:])
 
+    @requires_switch("selection-toolbar")
     def test_translate_only_for_a_real_language(self) -> None:
         cases = {"german": "de", "english": None, "forged": None, "private": None}
         for browser in BROWSERS:

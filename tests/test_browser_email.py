@@ -11,6 +11,7 @@ from urllib.parse import quote, urlsplit
 
 from tests._browser import BROWSERS, require_playwright, requires_browser
 from tests._helpers import engine_path
+from tests.target import requires_switch
 from tests.test_browser_annotations import SELECT, STUBS
 
 ORIGIN = "http://email.test"
@@ -27,6 +28,7 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 
 
 @requires_browser
+@requires_switch("selection-toolbar")
 class EmailSelection(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

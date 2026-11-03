@@ -263,3 +263,11 @@ new:
     /new.html, everything by its date, newest first, and the mark between
     a page's sections that links it (without the switch the mark is only
     drawn).
+
+selection-toolbar:
+  kind: interface
+  default: false
+  assets: [js/selection-popup.js, css/selection-popup.css]
+  about: >-
+    The toolbar a text selection brings up (copy, cite, search, define,
+    translate and so on: selection-popup.js).

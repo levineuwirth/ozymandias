@@ -38,6 +38,7 @@ from urllib.parse import quote
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, page_styles, require_playwright,
                             requires_browser, site_server)
+from tests.target import requires_switch
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Reading fixture — Levi Neuwirth</title>
@@ -104,6 +105,7 @@ SELECT = """([selector, start, end]) => {
 
 
 @requires_browser
+@requires_switch("selection-toolbar")
 class Annotations(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

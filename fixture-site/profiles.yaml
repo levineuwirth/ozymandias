@@ -31,6 +31,7 @@ full:
     now: true
     pdf-viewer: true
     random: true
+    selection-toolbar: true
     signature-link: true
     signing: true
     source-refs: true
@@ -57,6 +58,7 @@ minimal:
     now: false
     pdf-viewer: false
     random: false
+    selection-toolbar: false
     signature-link: false
     signing: false
     source-refs: false
