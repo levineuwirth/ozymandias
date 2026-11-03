@@ -126,6 +126,11 @@ class MakeTests(unittest.TestCase):
         self.assertEqual((done.returncode, done.stdout.strip()),
                          (0, "archive-suggest: the archive switch is off for this site"), done.stderr)
 
+    def test_the_model_is_fetched_only_with_semantic_search(self):
+        done = self.make("download-model")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("the semantic-search switch is off", done.stdout)
+
     def test_with_switch_runs_the_recipe_only_with_the_switch_on(self):
         probe = "--eval=probe: ; @$(call with_switch,archive,echo ran)"
         self.assertEqual(self.make(probe, "probe").stdout.strip(), "probe: the archive switch is off for this site")

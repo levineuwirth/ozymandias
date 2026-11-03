@@ -124,6 +124,7 @@ INDEX_FAILED = "Semantic search is unavailable right now — its index could not
 
 
 @requires_browser
+@requires_switch("semantic-search")
 class SemanticSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

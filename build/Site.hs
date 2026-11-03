@@ -403,8 +403,9 @@ rules = do
 
     -- Semantic search index — produced by tools/embed.py; fetched at runtime
     -- by static/js/semantic-search.js from /data/semantic-index.bin and
-    -- /data/semantic-meta.json.
-    match ("data/semantic-index.bin" .||. "data/semantic-meta.json") $ do
+    -- /data/semantic-meta.json. Only with the semantic-search switch on.
+    when (switchOn cfg "semantic-search") $
+      match ("data/semantic-index.bin" .||. "data/semantic-meta.json") $ do
         route   idRoute
         compile copyFileCompiler
 

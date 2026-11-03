@@ -171,7 +171,7 @@ build-locked:
 	# above: without it the deploy's rsync --delete would remove the
 	# published model (audit D07). Skips present files after re-checking
 	# their pinned SHA-256.
-	@$(call tool,download-model.sh) >/dev/null
+	@$(call with_switch,semantic-search,$(call tool,download-model.sh) >/dev/null)
 	# Photography pipeline (Phase 3): generate per-photo EXIF + palette
 	# sidecars under content/photography/**/*.{exif,palette}.yaml so the
 	# Hakyll context can merge them with frontmatter at compile time.
@@ -312,7 +312,7 @@ stamp-build-time:
 # Download the quantized ONNX model for client-side semantic search.
 # Run once; files are gitignored. Safe to re-run (skips existing files).
 download-model:
-	@$(call tool,download-model.sh)
+	@$(call with_switch,semantic-search,$(call tool,download-model.sh))
 
 # Vendor Mozilla's prebuilt PDF.js viewer into engine/static/pdfjs/.
 # Runs automatically as part of `build` (skips when already present).

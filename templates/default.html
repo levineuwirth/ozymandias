@@ -9,7 +9,7 @@ $partial("templates/partials/nav.html")$
 $if(search)$
 <script src="/pagefind/pagefind-ui.js" defer></script>
 <script src="/js/search.js" defer></script>
-<script src="/js/semantic-search.js" defer></script>
+$if(switch-semantic-search)$<script src="/js/semantic-search.js" defer></script>$endif$
 $if(switch-search-filters)$<script src="/js/search-filters.js" defer></script>$endif$
 $endif$
 <div class="page-shell">

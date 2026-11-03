@@ -212,8 +212,9 @@ class KeywordSearch(unittest.TestCase):
                 if switch_on("search-filters"):
                     page.click(".library-filter-toggle")
                     self.expect(page.locator("#search-filters")).to_be_visible()
-                page.click("#search-tab-semantic")
-                self.expect(page.locator("#search-panel-semantic")).to_be_visible()
+                if switch_on("semantic-search"):
+                    page.click("#search-tab-semantic")
+                    self.expect(page.locator("#search-panel-semantic")).to_be_visible()
                 self.assertEqual(errors, [])
                 self.assertEqual(net.unexpected, [])
 

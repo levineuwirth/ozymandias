@@ -306,3 +306,14 @@ search-filters:
     reads both data/epistemic-meta.json and data/archive-meta.json, and
     takes a missing one as empty. The panel's markup is the site's, in its
     content/search.md.
+
+semantic-search:
+  kind: interface
+  default: false
+  assets: [js/semantic-search.js, models/**]
+  about: >-
+    Search by meaning on the search page: semantic-search.js, which also
+    runs the page's tabs (their markup is the site's, in content/search.md),
+    the index embed.py writes (data/semantic-index.bin, semantic-meta.json)
+    and the model make download-model fetches. Its need of similar-links,
+    the embedding pass, waits for that switch (A8f).

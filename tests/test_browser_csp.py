@@ -206,9 +206,10 @@ class CspSweep(unittest.TestCase):
                 with check("keyword search", route):
                     self.assertGreater(got[route]["search"].get("keyword_results", 0), 0,
                                        got[route]["search"])
-                with check("semantic search", route):
-                    self.assertGreater(got[route]["search"].get("semantic_results", 0), 0,
-                                       got[route]["search"])
+                if switch_on("semantic-search"):
+                    with check("semantic search", route):
+                        self.assertGreater(got[route]["search"].get("semantic_results", 0), 0,
+                                           got[route]["search"])
             for route in probe("map"):
                 with check("map tiles and markers", route):
                     m = got[route]["map"]

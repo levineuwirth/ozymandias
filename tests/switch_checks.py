@@ -385,6 +385,23 @@ def search_filters_off(site: Path) -> None:
     assert not pages_with, f"the search filters are loaded on {pages_with}"
 
 
+SEMANTIC_INDEX = ("data/semantic-index.bin", "data/semantic-meta.json")
+
+
+def semantic_search_on(site: Path) -> None:
+    assert asset_tag("js/semantic-search.js").search(text(site, "search.html")), \
+        "the search page does not load semantic search"
+    for path in SEMANTIC_INDEX:
+        assert (site / "_site" / path).is_file(), f"/{path} was not published"
+
+
+def semantic_search_off(site: Path) -> None:
+    pages_with = loading(site, "js/semantic-search.js")
+    assert not pages_with, f"semantic search is loaded on {pages_with}"
+    for path in SEMANTIC_INDEX:
+        assert not (site / "_site" / path).exists(), f"/{path} was published"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -567,6 +584,7 @@ CHECKS = {
     "random": (random_on, random_off),
     "search-filters": (search_filters_on, search_filters_off),
     "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
+    "semantic-search": (semantic_search_on, semantic_search_off),
     "signature-link": (signature_link_on, signature_link_off),
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),
