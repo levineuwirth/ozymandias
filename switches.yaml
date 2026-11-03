@@ -317,3 +317,13 @@ semantic-search:
     the index embed.py writes (data/semantic-index.bin, semantic-meta.json)
     and the model make download-model fetches. Its need of similar-links,
     the embedding pass, waits for that switch (A8f).
+
+reading-progress:
+  kind: interface
+  default: true
+  assets: [js/reading.js]
+  about: >-
+    The bar across the top of a reading-mode page (fiction, poetry:
+    reading.js). The contents' own progress line belongs to the contents
+    until Phase B makes one primitive of the two (B4): toc.js and
+    components.css draw it, and neither can change here.

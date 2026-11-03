@@ -33,6 +33,7 @@ full:
     pdf-viewer: true
     popups: true
     random: true
+    reading-progress: true
     search-filters: true
     selection-toolbar: true
     semantic-search: true
@@ -64,6 +65,7 @@ minimal:
     pdf-viewer: false
     popups: true
     random: false
+    reading-progress: true
     search-filters: false
     selection-toolbar: false
     semantic-search: true

@@ -402,6 +402,24 @@ def semantic_search_off(site: Path) -> None:
         assert not (site / "_site" / path).exists(), f"/{path} was published"
 
 
+READING_PAGES = ("poetry/a-poem.html", "fiction/a-story.html")
+
+
+def reading_progress_on(site: Path) -> None:
+    for page in READING_PAGES:
+        html = text(site, page)
+        assert 'id="reading-progress"' in html, f"{page} has no progress bar"
+        assert asset_tag("js/reading.js").search(html), f"{page} does not load reading.js"
+
+
+def reading_progress_off(site: Path) -> None:
+    pages_with = loading(site, "js/reading.js")
+    assert not pages_with, f"reading.js is loaded on {pages_with}"
+    barred = [p.name for p in pages(site) if 'id="reading-progress"' in p.read_text(encoding="utf-8")]
+    assert not barred, f"a progress bar on {barred}"
+    assert 'class="reading-mode' in text(site, READING_PAGES[0]), "the poem is no longer in reading mode"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -582,6 +600,7 @@ CHECKS = {
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
     "popups": (popups_on, popups_off),
     "random": (random_on, random_off),
+    "reading-progress": (reading_progress_on, reading_progress_off),
     "search-filters": (search_filters_on, search_filters_off),
     "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
     "semantic-search": (semantic_search_on, semantic_search_off),
