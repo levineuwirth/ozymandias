@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlsplit
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import SWITCH_OFF, built, route, switch_on
+from tests.target import SWITCH_OFF, built, requires_switch, route, switch_on
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
@@ -211,6 +211,7 @@ def code_ref() -> tuple[str, dict]:
 
 
 @requires_browser
+@requires_switch("popups")
 class LinkPopups(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

@@ -121,6 +121,7 @@ class RelativeDates(unittest.TestCase):
                     finally:
                         context.close()
 
+    @requires_switch("popups")
     def test_phrases_in_each_time_zone(self) -> None:
         for browser in BROWSERS:
             for tz, clock, single, span, stamp in CASES:

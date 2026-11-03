@@ -283,3 +283,14 @@ annotations:
     A reader's highlights and notes, kept in their browser (annotations.js),
     and the settings panel's Clear Annotations. They are made through the
     selection toolbar, so it needs that switch.
+
+popups:
+  kind: interface
+  default: true
+  assets: [js/popups.js, css/popups.css]
+  about: >-
+    Link previews on hover or focus (popups.js), and data/annotations.json,
+    the author's own previews. Which providers they ask is the plan's
+    provider list, which popups.js can read only from A9; until then, with
+    the switch on, every provider is asked, and those the site's server
+    does not proxy show nothing.

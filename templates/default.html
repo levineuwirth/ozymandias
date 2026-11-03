@@ -17,7 +17,7 @@ $body$
 $partial("templates/partials/footer.html")$
 </div>
 <!-- JS — all deferred -->
-<script src="/js/popups.js" defer></script>
+$if(switch-popups)$<script src="/js/popups.js" defer></script>$endif$
 $if(switch-annotations)$<script src="/js/annotations.js" defer></script>$endif$
 $if(switch-selection-toolbar)$<script src="/js/selection-popup.js" defer></script>$endif$
 <script src="/js/settings.js" defer></script>

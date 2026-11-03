@@ -67,7 +67,7 @@ SWEEP_SECONDS = 1800
 # The switch each probe's feature is under (engine/switches.yaml), or None
 # for a feature every site has until its switch is registered.
 PROBE_SWITCHES = {
-    "popups": None, "search": None, "map": None, "slideshow": None, "lightbox": None,
+    "popups": "popups", "search": None, "map": None, "slideshow": None, "lightbox": None,
     "score": "music", "pdf-viewer": "pdf-viewer", "archive-snapshot": "archive",
     "archive-pdf": "archive", "pdf-links": None, "composition": "music",
     "transclusion": None, "commonplace": "commonplace", "math": "math",

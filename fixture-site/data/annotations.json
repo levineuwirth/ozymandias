@@ -1,0 +1,6 @@
+{
+  "https://example.org/annotated": {
+    "title": "An annotated link",
+    "annotation": "The fixture site's own preview of a link."
+  }
+}

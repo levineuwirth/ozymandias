@@ -395,8 +395,9 @@ rules = do
                 dropExtension (toFilePath ident) ++ ".sections.json")
             compile markdownSectionsCompiler
 
-    -- Link annotations — author-defined previews for any URL
-    match "data/annotations.json" $ do
+    -- Link annotations — author-defined previews for any URL, which only
+    -- the popups read.
+    when (switchOn cfg "popups") $ match "data/annotations.json" $ do
         route   idRoute
         compile copyFileCompiler
 

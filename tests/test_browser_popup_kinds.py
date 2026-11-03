@@ -53,6 +53,7 @@ INSIDE = """() => { const r = document.querySelector('.link-popup').getBoundingC
 
 
 @requires_browser
+@requires_switch("popups")
 class PopupKinds(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

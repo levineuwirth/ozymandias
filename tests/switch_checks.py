@@ -362,6 +362,19 @@ def annotations_off(site: Path) -> None:
     assert not offered, f"Clear Annotations on {offered}"
 
 
+def popups_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    for path in ("js/popups.js", "css/popups.css"):
+        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+    assert "An annotated link" in text(site, "data/annotations.json"), "the author's previews are not published"
+
+
+def popups_off(site: Path) -> None:
+    pages_with = loading(site, "js/popups.js", "css/popups.css")
+    assert not pages_with, f"popups are loaded on {pages_with}"
+    assert not (site / "_site/data/annotations.json").exists(), "the author's previews are published"
+
+
 def signing_on(site: Path) -> None:
     # make sign, which test_fixture_site runs for every build.
     assert (site / "_site/index.html.sig").is_file(), "make sign signed no page"
@@ -540,6 +553,7 @@ CHECKS = {
     "new": (new_on, new_off),
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
+    "popups": (popups_on, popups_off),
     "random": (random_on, random_off),
     "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
     "signature-link": (signature_link_on, signature_link_off),
