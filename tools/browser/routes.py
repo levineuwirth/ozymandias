@@ -13,12 +13,14 @@ reader is at <page>score/.
 `kinds` names, from `pages`, one page of each kind the engine builds (KINDS), so
 that axe's and the other sweeps' coverage cannot shrink unnoticed on a small
 site: `uncovered` says which kinds a site has and does not name, or names and
-has off, and `misnamed` which named pages are not of their kind.
+has off, and `misnamed` which named pages are not of their kind, and of it
+alone.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
 import yaml
@@ -35,50 +37,112 @@ DIRECTORIES = ("score", "score-other", "score-silent")
 
 
 class Kind(NamedTuple):
-    switch: str | None          # the switch that builds it; None, every site's
-    marker: str | None = None   # what its template puts on every such page
-    content: tuple[str, ...] = ()   # globs: a site has it only if one matches
+    """A kind of page, as the generator builds it. A page is of this kind if
+    its path fits `route` (a regular expression, whole) and it carries `marker`
+    from its template; `page` is what is left over (`Routes.kinds_of`). A site
+    has the kind if its switch is on and, where a site may have none, a
+    published source fits `content` less `exclude` (Patterns.hs's patterns;
+    test_route_check holds them to the generator) and sets one of `declares`, or
+    site.yaml has a standalone page of `context`, whose route is then the
+    kind's."""
+    switch: str | None
+    route: str | None = None
+    marker: str | None = None
+    content: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
+    context: str | None = None
+    declares: tuple[str, ...] = ()
 
+
+def writing(section: str) -> dict:
+    """Patterns.hs's poetry, fiction and blog: flat entries, and entries in a
+    collection less its landing."""
+    return {"content": (f"content/{section}/*.md", f"content/{section}/*/*.md"),
+            "exclude": (f"content/{section}/*/index.md",)}
+
+
+ESSAYS = ("content/essays/*.md", "content/essays/*/*.md")
+FRAMES = {"content": ("content/photography/*.md", "content/photography/*/*.md"),
+          "exclude": ("content/photography/index.md",)}
+# Paths of the engine's own, which a tag cannot have: a generated index, or a
+# section's page.
+NOT_A_TAG = r"(?!(?:authors|archive|bibliography|music|photography/by-year|photography/map|photography/contact-sheet|stats|build)/)"
 
 KINDS = {
-    "home": Kind(None),
-    "essay": Kind(None, 'class="essay-frontmatter"'),
+    "home": Kind(None, r"/"),
+    "essay": Kind(None, r"/(?!stats/$|build/$).*", 'class="essay-frontmatter"', ESSAYS),
     "page": Kind(None),
-    "section-index": Kind(None, 'class="essay-list"'),
-    "poem": Kind(None, 'class="reading-mode poetry"', ("content/poetry/*.md",)),
-    "story": Kind(None, 'class="reading-mode fiction"', ("content/fiction/*.md",)),
-    "post": Kind(None, "essay-frontmatter--blog", ("content/blog/*.md",)),
-    "search": Kind(None, 'id="search"'),
+    "section-index": Kind(None, r"/(?:essays|poetry|fiction|blog)/"),
+    "poem": Kind(None, None, 'class="reading-mode poetry"', **writing("poetry")),
+    "story": Kind(None, None, 'class="reading-mode fiction"', **writing("fiction")),
+    "post": Kind(None, None, "essay-frontmatter--blog", **writing("blog")),
+    "collection": Kind(None, None, 'class="collection-contents"',
+                       ("content/poetry/*/index.md", "content/fiction/*/index.md")),
+    "search": Kind(None, None, 'id="search"', ("content/search.md",)),
     "not-found": Kind(None),
-    "new": Kind("new", 'class="item-card-list"'),
-    "tag": Kind("tag-pages", 'class="item-card-list"'),
-    "author": Kind("authors", 'class="essay-list"'),
-    "library": Kind("library", "library-see-also"),
-    "bibliography": Kind("bibliography-index", "library-see-also"),
-    "keyword": Kind("bibliography-index", 'class="see-also"', ("_site/bibliography/*/index.html",)),
-    "photo-index": Kind("photography", 'class="photography-grid"'),
-    "photo-series": Kind("photography", "photo-series-frontmatter"),
-    "photo-single": Kind("photography", 'class="photo-entry"'),
-    "photo-map": Kind("photography", 'id="photography-map"'),
-    "photo-contact": Kind("photography", 'class="photography-contact-sheet"'),
-    "photo-years": Kind("photography", "photography-by-year-back"),
-    "photo-year": Kind("photography", "photography-by-year-back"),
-    "music-index": Kind("music", 'class="music-index"'),
-    "composition": Kind("music", 'class="composition"'),
-    "score-reader": Kind("music", 'id="score-reader-bar"'),
-    "archive-index": Kind("archive", "archive-index-header"),
-    "archive-entry": Kind("archive", 'class="archive-entry"'),
-    "commonplace": Kind("commonplace", "cp-view-toggle"),
-    "now": Kind("now", "now-stamp"),
-    "vita": Kind("vita"),
-    "stats": Kind("stats-page", 'id="activity"'),
-    "build": Kind("build-page", "Build Telemetry"),
+    "new": Kind("new", r"/new\.html", 'class="item-card-list"'),
+    "tag": Kind("tag-pages", rf"/{NOT_A_TAG}.+/", 'class="item-card-list"', ESSAYS + FRAMES["content"]),
+    "author": Kind("authors", r"/authors/[^/]+/", 'class="essay-list"',
+                   ESSAYS + writing("blog")["content"], writing("blog")["exclude"]),
+    "library": Kind("library", r"/library\.html", "library-see-also"),
+    "bibliography": Kind("bibliography-index", r"/bibliography/", "library-see-also"),
+    "keyword": Kind("bibliography-index", r"/bibliography/[^/]+/", None, ("_site/bibliography/*/index.html",)),
+    "photo-index": Kind("photography", r"/photography/", 'class="photography-grid"'),
+    "photo-series": Kind("photography", None, "photo-series-frontmatter", ("content/photography/*/*.md",),
+                         ("content/photography/*/index.md",)),
+    "photo-single": Kind("photography", None, 'class="photo-entry"', **FRAMES),
+    "photo-map": Kind("photography", r"/photography/map/", 'id="photography-map"'),
+    "photo-contact": Kind("photography", r"/photography/contact-sheet/", 'class="photography-contact-sheet"'),
+    "photo-years": Kind("photography", r"/photography/by-year/", "photography-by-year-back"),
+    "photo-year": Kind("photography", r"/photography/by-year/[0-9]+/", "photography-by-year-back", **FRAMES),
+    "music-index": Kind("music", r"/music/", 'class="music-index"', ("content/music/index.md",)),
+    "composition": Kind("music", None, 'class="composition"', ("content/music/*/index.md",)),
+    "score-reader": Kind("music", r"/music/[^/]+/score/", 'id="score-reader-bar"', ("content/music/*/index.md",),
+                         declares=("score-pages", "score-dir")),
+    "archive-index": Kind("archive", r"/archive/", "archive-index-header"),
+    "archive-entry": Kind("archive", None, 'class="archive-entry"', ("archive/*/PROVENANCE.json",)),
+    "commonplace": Kind("commonplace", r"/commonplace\.html", "cp-view-toggle", ("content/commonplace.md",)),
+    "now": Kind("now", None, "now-stamp", context="now"),
+    "vita": Kind("vita", context="vita"),
+    "stats": Kind("stats-page", r"/stats/", 'id="activity"'),
+    "build": Kind("build-page", r"/build/", "Build Telemetry"),
 }
+# Withholding a directory-form entry withholds its directory (build/Drafts.hs).
+DIRECTORY_ENTRIES = ("essays", "music", "photography")
+FRONT_MATTER = re.compile(r"\A-{3,}[ \t]*\n(.*?)\n-{3,}[ \t]*(?:\n|\Z)", re.S)
+
+
+def front_matter(path: Path) -> dict:
+    """A Markdown file's front matter, or nothing."""
+    if path.suffix != ".md" or not path.is_file():
+        return {}
+    found = FRONT_MATTER.match(path.read_text(encoding="utf-8", errors="replace"))
+    try:
+        meta = yaml.safe_load(found.group(1)) if found else None
+    except yaml.YAMLError:
+        return {}
+    return meta if isinstance(meta, dict) else {}
+
+
+def is_draft(path: Path) -> bool:
+    """Whether a Markdown file has draft: true, as Drafts.draftFlag reads it."""
+    flag = front_matter(path).get("draft")
+    return flag is True or flag == 1 or (isinstance(flag, str) and flag.strip().lower() in ("true", "yes", "on"))
+
+
+def published(site: Path, rel: Path) -> bool:
+    """Whether `rel`, under `site`, is left to publish by a production build."""
+    if is_draft(site / rel):
+        return False
+    parts = rel.parts
+    return not (len(parts) == 4 and parts[0] == "content" and parts[1] in DIRECTORY_ENTRIES
+                and is_draft(site / "content" / parts[1] / parts[2] / "index.md"))
 
 
 class Routes:
     def __init__(self, site: Path):
-        path = Path(site) / ROUTES_FILE
+        self.site = Path(site)
+        path = self.site / ROUTES_FILE
         document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         unknown = set(document) - {"pages", "kinds", "probes", "roles", *LISTS}
         if unknown:
@@ -107,33 +171,75 @@ class Routes:
         if problems:
             raise ValueError(f"{ROUTES_FILE}: {'; '.join(problems)}")
 
-    def uncovered(self, site: Path, switches: dict[str, bool], shared: bool = False) -> list[str]:
+    def standalone(self) -> dict[str, list[str]]:
+        """site.yaml's standalone pages' paths, by their context."""
+        config = yaml.safe_load((self.site / "site.yaml").read_text(encoding="utf-8")) or {}
+        found: dict[str, list[str]] = {}
+        for page in config.get("standalone") or []:
+            found.setdefault(page["context"], []).append("/" + page["route"].removesuffix("index.html"))
+        return found
+
+    def has(self, name: str, switches: dict[str, bool]) -> bool:
+        """Whether the site has pages of this kind."""
+        kind = KINDS[name]
+        if kind.switch is not None and not switches[kind.switch]:
+            return False
+        if kind.context:
+            return kind.context in self.standalone()
+        return not kind.content or any(
+            published(self.site, rel) and not any(PurePosixPath(rel).match(glob) for glob in kind.exclude)
+            and (not kind.declares or any(front_matter(self.site / rel).get(key) for key in kind.declares))
+            for glob in kind.content
+            for rel in (p.relative_to(self.site) for p in self.site.glob(glob)))
+
+    def fits_path(self, name: str, path: str) -> bool:
+        """Whether `path` can be a page of this kind, before looking at one."""
+        kind = KINDS[name]
+        return ((kind.route is None or re.fullmatch(kind.route, path) is not None)
+                and (kind.context is None or path in self.standalone().get(kind.context, [])))
+
+    def kinds_of(self, path: str, html: str) -> set[str]:
+        """Every kind a built page fits: all of a kind's route, context and
+        mark. `page` is what is left over, for page.html leaves no mark of its
+        own but the title every page.html and many others have."""
+        found = {name for name, kind in KINDS.items() if name not in ("page", "not-found")
+                 and self.fits_path(name, path) and (kind.marker is None or kind.marker in html)
+                 and (kind.route or kind.context or kind.marker)}
+        if not found and 'class="page-title"' in html:
+            found.add("page")
+        return found
+
+    def uncovered(self, switches: dict[str, bool], shared: bool = False) -> list[str]:
         """What is wrong with `kinds` for a site with `switches`: a kind it has
         that names no page, and (unless these routes are `shared`, the fixture's
         between its profiles) one it names but has off."""
-        def has(kind: Kind) -> bool:
-            return not kind.content or any(any(Path(site).glob(glob)) for glob in kind.content)
-
         problems = []
         for name, kind in KINDS.items():
-            on = kind.switch is None or switches[kind.switch]
-            if on and has(kind) and name not in self.kinds:
+            if self.has(name, switches) and name not in self.kinds:
                 problems.append(f"{name}: the site has this kind of page, and tests/routes.yaml's kinds names none")
-            if not on and name in self.kinds and not shared:
+            if (not shared and kind.switch is not None and not switches[kind.switch] and name in self.kinds):
                 problems.append(f"{name}: named, but the {kind.switch} switch is off")
         return problems
 
     def misnamed(self, built, switches: dict[str, bool]) -> list[str]:
-        """Each named page of a kind the site has on that is not of its kind.
-        `built(path)` is the file a URL path serves; one not there is passed
-        over (no build to look at)."""
+        """Each named page of a kind the site has on that is not of its kind,
+        and of it alone. `built(path)` is the file a URL path serves; without
+        one (no build) only its path can be judged."""
         problems = []
         for name, page in self.kinds.items():
             kind = KINDS[name]
-            if kind.marker and (kind.switch is None or switches[kind.switch]):
-                file = built(self.pages[page])
-                if file.is_file() and kind.marker not in file.read_text(encoding="utf-8"):
-                    problems.append(f"{name}: {self.pages[page]} has no {kind.marker}")
+            if kind.switch is not None and not switches[kind.switch]:
+                continue
+            path, file = self.pages[page], built(self.pages[page])
+            if name == "not-found":
+                if path != self.roles.get("not-found") and page != self.roles.get("not-found") or file.is_file():
+                    problems.append(f"not-found: {path} is not the role's path that no page has")
+            elif file.is_file():
+                found = self.kinds_of(path, file.read_text(encoding="utf-8"))
+                if found != {name}:
+                    problems.append(f"{name}: {path} is {sorted(found) or 'no kind'}")
+            elif not self.fits_path(name, path):
+                problems.append(f"{name}: {path} cannot be one")
         return problems
 
     def known(self, entry) -> bool:

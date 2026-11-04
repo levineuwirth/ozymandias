@@ -14,7 +14,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import PHOTOGRAPHY_SECTION, requires_cabal, script_env, site_binary, write_photo_site_config, write_site_config
+from tests._helpers import (PHOTOGRAPHY_SECTION, load_tool, requires_cabal, script_env, site_binary,
+                            write_photo_site_config, write_site_config)
 
 
 def page(path: Path, front: str, body: str = "Body.") -> None:
@@ -78,6 +79,52 @@ class RouteCheckTests(unittest.TestCase):
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertEqual(done.stdout.splitlines(),
                                  [*photo, "photography/denmark", "photography/denmark/harbor", *kept, "notes", "notes/a"])
+
+    def test_the_browser_kinds_read_content_as_the_generator_does(self) -> None:
+        # routes.py's KINDS, for the sweeps (and CI, with no generator), against
+        # the route table: each source alone, and whether a build withholds it.
+        routes_module = load_tool("browser/routes.py", "route_check_kinds")
+        cases = []
+        for section, kind in (("poetry", "poem"), ("fiction", "story"), ("blog", "post")):
+            cases += [([f"content/{section}/a.md"], kind, True), ([f"content/{section}/set/a.md"], kind, True),
+                      ([f"content/{section}/set/index.md"], kind, False),
+                      ([f"content/{section}/a.md!"], kind, False), ([f"content/{section}/set/a.md!"], kind, False)]
+        cases += [(["content/poetry/set/index.md"], "collection", True), (["content/fiction/set/index.md"], "collection", True),
+                  (["content/blog/set/index.md"], "collection", False), (["content/poetry/set/index.md!"], "collection", False),
+                  (["content/essays/a.md"], "essay", True), (["content/essays/d/index.md"], "essay", True),
+                  (["content/essays/d/a.md"], "essay", True), (["content/essays/a.md!"], "essay", False),
+                  (["content/essays/d/index.md!", "content/essays/d/a.md"], "essay", False),
+                  (["content/photography/a.md"], "photo-single", True), (["content/photography/s/a.md"], "photo-single", True),
+                  (["content/photography/index.md"], "photo-single", False),
+                  (["content/photography/s/index.md!", "content/photography/s/a.md"], "photo-single", False),
+                  (["content/photography/s/index.md", "content/photography/s/a.md"], "photo-series", True),
+                  (["content/photography/s/index.md"], "photo-series", False),
+                  (["content/music/w/index.md"], "composition", True), (["content/music/w/index.md!"], "composition", False),
+                  (["content/music/w/index.md"], "score-reader", False)]
+        music = {"dir": "music", "kind": "Composition", "dingbat": None}
+        for sources, kind, expected in cases:
+            with self.subTest(sources=sources, kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "tests").mkdir()
+                (root / "data").mkdir()
+                (root / "tests/routes.yaml").write_text("pages: {home: /}\n")
+                for source in sources:
+                    draft = source.endswith("!")
+                    page(root / source.removesuffix("!"), "title: T\ndate: 2026-01-01" + ("\ndraft: true" if draft else ""))
+                config = write_photo_site_config(root)
+                config = write_site_config(root, switches={**config["switches"], "music": True},
+                                           sections=config["sections"] + [music])
+                done = subprocess.run([str(site_binary()), "list-routes"], cwd=root, env=script_env(SITE_ENV="production"),
+                                      capture_output=True, text=True, timeout=120)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                routed = {line.split("\t")[1] for line in done.stdout.splitlines()}
+                for source in sources:
+                    withheld = source.endswith("!") or any(s.endswith("index.md!") and Path(s).parent == Path(source).parent
+                                                           and "/poetry/" not in s and "/fiction/" not in s and "/blog/" not in s
+                                                           for s in sources)
+                    self.assertEqual(source.removesuffix("!") in routed, not withheld, source)
+                routes = routes_module.Routes(root)
+                self.assertEqual(routes.has(kind, {k.switch: True for k in routes_module.KINDS.values() if k.switch}), expected)
 
     def test_build_refuses_before_writing_anything(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

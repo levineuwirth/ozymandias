@@ -125,28 +125,70 @@ class Routes(unittest.TestCase):
     def test_the_sweeps_cover_every_kind_of_page_the_site_has(self):
         # Plan 7.3.3: so axe's and overflow's coverage cannot shrink quietly.
         routes = target.routes()
-        self.assertEqual(routes.uncovered(target.SITE_ROOT, target.switches()), [])
+        self.assertEqual(routes.uncovered(target.switches()), [])
         self.assertEqual(routes.misnamed(target.built, target.switches()), [])
 
+    def scratch_routes(self, tmp: str, kinds: str = "{home: home}", pages: str = "{home: /}"):
+        """A scratch site's Routes, and every switch off."""
+        site = Path(tmp)
+        (site / "tests").mkdir()
+        (site / "site.yaml").write_text("{}")
+        (site / "tests/routes.yaml").write_text(f"pages: {pages}\nkinds: {kinds}\n")
+        module = load_tool("browser/routes.py", "site_routes_kinds")
+        return site, module.Routes(site), {k.switch: False for k in module.KINDS.values() if k.switch}
+
     def test_a_kind_the_site_has_must_be_named_and_one_it_has_off_not(self):
-        routes_module = load_tool("browser/routes.py", "site_routes_kinds")
         with tempfile.TemporaryDirectory() as tmp:
-            site = Path(tmp)
-            (site / "tests").mkdir()
-            (site / "content/blog").mkdir(parents=True)
-            (site / "tests/routes.yaml").write_text("pages: {home: /, m: /m/}\nkinds: {home: home, music-index: m}\n")
-            routes = routes_module.Routes(site)
-            switches = {kind.switch: False for kind in routes_module.KINDS.values() if kind.switch}
-            problems = routes.uncovered(site, switches)
-            self.assertIn("essay: the site has this kind of page, and tests/routes.yaml's kinds names none", problems)
+            pages, kinds = "{home: /, m: /music/}", "{home: home, music-index: m}"
+            site, routes, switches = self.scratch_routes(tmp, kinds, pages)
+            problems = routes.uncovered(switches)
             self.assertIn("music-index: named, but the music switch is off", problems)
-            self.assertFalse([p for p in problems if p.startswith("post:")], "no post, so no kind to name")
-            (site / "content/blog/a.md").write_text("x")
-            self.assertTrue([p for p in routes.uncovered(site, switches) if p.startswith("post:")])
-            self.assertFalse([p for p in routes.uncovered(site, switches, shared=True) if p.startswith("music-index:")])
-            (site / "m.html").write_text("no marker")
-            self.assertEqual(routes.misnamed(lambda path: site / "m.html", {**switches, "music": True}),
-                             ['music-index: /m/ has no class="music-index"'])
+            self.assertEqual([p for p in routes.uncovered(switches, shared=True) if p.startswith("music-index:")], [])
+            self.assertEqual([p for p in problems if p.startswith("essay:")], [], "no essay, so no kind to name")
+
+    def test_a_collection_s_entries_are_its_section_s_kind_and_its_landing_is_not(self):
+        # The generator's patterns, its exclusions among them.
+        for section, kind in (("poetry", "poem"), ("fiction", "story"), ("blog", "post")):
+            with self.subTest(section=section), tempfile.TemporaryDirectory() as tmp:
+                site, routes, switches = self.scratch_routes(tmp)
+                def named() -> list[str]:
+                    return [p for p in routes.uncovered(switches) if p.startswith(f"{kind}:")]
+
+                landing = site / "content" / section / "a-set/index.md"
+                landing.parent.mkdir(parents=True)
+                landing.write_text("---\ntitle: A set\n---\n")
+                self.assertEqual(named(), [], "a landing alone is not an entry")
+                entry = landing.with_name("first.md")
+                entry.write_text("---\ntitle: First\ndraft: true\n---\n")
+                self.assertEqual(named(), [], "a draft alone is not an entry")
+                entry.write_text("---\ntitle: First\n---\n")
+                self.assertNotEqual(named(), [], "only a nested entry, and no page named")
+
+    def test_a_kind_is_held_to_its_own_route_and_not_another_s(self):
+        # Substitutions that once passed: an author's kind on a section's
+        # index, the by-year index's on one year's page; with a build and
+        # without.
+        built = {"/essays/": 'class="essay-list"', "/photography/by-year/2024/": "photography-by-year-back",
+                 "/stats/": 'class="essay-frontmatter" id="activity"', "/links.html": 'class="page-title"'}
+        pages = ("{index: /essays/, year: /photography/by-year/2024/, stats: /stats/, links: /links.html}")
+        for kinds, problem in (("{author: index}", "author: /essays/ "),
+                               ("{photo-years: year}", "photo-years: /photography/by-year/2024/ "),
+                               ("{essay: stats}", "essay: /stats/ "),
+                               ("{page: index}", "page: /essays/ ")):
+            for with_build in (True, False):
+                if kinds in ("{page: index}",) and not with_build:
+                    continue   # a page's kind is a build's to say
+                with self.subTest(kinds=kinds, build=with_build), tempfile.TemporaryDirectory() as tmp:
+                    site, routes, switches = self.scratch_routes(tmp, kinds, pages)
+                    switches = dict.fromkeys(switches, True)
+
+                    def where(path: str) -> Path:
+                        file = site / "built.html"
+                        file.write_text(built.get(path, "")) if with_build else file.unlink(missing_ok=True)
+                        return file
+
+                    self.assertTrue([p for p in routes.misnamed(where, switches) if p.startswith(problem)],
+                                    routes.misnamed(where, switches))
 
     def test_names_and_paths_resolve_and_strays_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:

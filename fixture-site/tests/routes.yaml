@@ -16,6 +16,7 @@ pages:
   keyword:      /bibliography/fixtures/
   essays-index: /essays/
   poem:         /poetry/a-poem.html
+  collection:   /poetry/a-set/
   story:        /fiction/a-story.html
   post:         /blog/note-01.html
   author:       /authors/example-author/
@@ -40,6 +41,7 @@ kinds:
   page: short-page
   section-index: essays-index
   poem: poem
+  collection: collection
   story: story
   post: post
   search: search

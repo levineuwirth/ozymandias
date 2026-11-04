@@ -413,12 +413,27 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(build=name):
                 site, switches = self.sites[name], {b.name: b for b in self.builds}[name].switches
                 routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
-                self.assertEqual(routes.uncovered(site, switches, shared=True), [])
+                self.assertEqual(routes.uncovered(switches, shared=True), [])
 
                 def built(path: str) -> Path:
                     return site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else "")
 
                 self.assertEqual(routes.misnamed(built, switches), [])
+
+    def test_a_page_of_each_kind_is_of_no_other(self):
+        # So a kind's name can't stand on another's page: each page is one
+        # kind, its own, in the build with the most kinds.
+        site = self.sites["full"]
+        routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
+        for kind, page in sorted(routes.kinds.items()):
+            if kind != "not-found":
+                with self.subTest(kind=kind):
+                    path = routes.pages[page]
+                    file = site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else "")
+                    self.assertEqual(routes.kinds_of(path, file.read_text(encoding="utf-8")), {kind})
+        # An entry in a collection is its section's kind, as the flat one is.
+        first = "/poetry/a-set/first.html"
+        self.assertEqual(routes.kinds_of(first, switch_checks.text(site, first[1:])), {"poem"})
 
     def test_each_page_preloads_the_fonts_site_yaml_names(self):
         # The fixture names none, and a site's list is emitted as written,
