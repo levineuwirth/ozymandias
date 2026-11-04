@@ -2,7 +2,7 @@ cabal-version:      3.0
 name:               levineuwirth
 version:            0.1.0.0
 synopsis:           Build system for levineuwirth.org
-license:            MIT
+license:            GPL-2.0-or-later
 license-file:       LICENSE
 author:             Levi Neuwirth
 build-type:         Simple

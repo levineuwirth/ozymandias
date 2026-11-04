@@ -165,6 +165,15 @@ class IdentityTests(unittest.TestCase):
             (root / "engine/.gitignore").write_text("__pycache__/\n")
             self.assertEqual(checker.inventory(root, policy), [".gitignore", "data/style.csl", "engine.mk"])
             (root / "engine/.gitignore").unlink()
+            # The engine's license notice is its own, beside the site's, and is
+            # not scanned; a file of that name anywhere else is.
+            (root / "LICENSE").write_text("")
+            (root / "engine/LICENSE").write_text("")
+            (root / "engine/data/LICENSE").write_text("")
+            noticed = dict(policy, **{"site-files": policy["site-files"] + ["LICENSE"]})
+            self.assertEqual(checker.inventory(root, noticed), ["data/LICENSE", "data/style.csl", "engine.mk"])
+            for path in ("LICENSE", "engine/LICENSE", "engine/data/LICENSE"):
+                (root / path).unlink()
             # What is under engine/ is the engine's, named by its path there.
             (root / "engine/tools").mkdir()
             (root / "engine/tools/new.py").write_text("")

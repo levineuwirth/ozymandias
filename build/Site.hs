@@ -344,6 +344,11 @@ rules = do
         route $ customRoute $ \ident -> "licenses/" ++
             (if toFilePath ident == "LICENSE" then siteCodeLicense cfg else siteContentLicense cfg) ++ ".txt"
         compile copyFileCompiler
+    -- The engine's own notice, which goes with every site's copies of its
+    -- templates, stylesheets and scripts.
+    match "engine/LICENSE" $ do
+        route $ constRoute "licenses/Ozymandias.txt"
+        compile copyFileCompiler
     match "THIRD-PARTY.md" $ do
         route $ constRoute "licenses.html"
         compile $ pageCompiler

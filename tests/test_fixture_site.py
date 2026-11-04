@@ -247,6 +247,14 @@ class FixtureBuilds(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
         return site
 
+    def test_the_engine_s_notice_ships_with_every_build(self):
+        # Each publishes the engine's templates, stylesheets and scripts.
+        notice = engine_path("LICENSE").read_bytes()
+        for build in self.builds:
+            with self.subTest(build=build.name):
+                self.refused(build.name)
+                self.assertEqual((self.sites[build.name] / "_site/licenses/Ozymandias.txt").read_bytes(), notice)
+
     def test_a_site_that_turns_the_archive_off_keeps_none_of_it(self):
         # The leftover index (data/archive-index.json, from the full
         # build's fetch) must not mark links to /archive/ pages no longer
