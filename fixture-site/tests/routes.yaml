@@ -13,7 +13,60 @@ pages:
   photo-single: /photography/fixture-series/one/
   photo-map:    /photography/map/
   bibliography: /bibliography/
+  keyword:      /bibliography/fixtures/
+  essays-index: /essays/
+  poem:         /poetry/a-poem.html
+  story:        /fiction/a-story.html
+  post:         /blog/note-01.html
+  author:       /authors/example-author/
+  library:      /library.html
+  photo-contact: /photography/contact-sheet/
+  photo-years:  /photography/by-year/
+  photo-year:   /photography/by-year/2026/
+  music-index:  /music/
+  composition:  /music/a-piece/
+  score-reader: /music/a-piece/score/
+  archive-index: /archive/
+  archive-entry: /archive/example-cited-page/
+  commonplace:  /commonplace.html
+  now:          /current.html
+  vita:         /cv.html
+  stats:        /stats/
+  build:        /build/
   '404':        /does-not-exist
+kinds:
+  home: home
+  essay: essay
+  page: short-page
+  section-index: essays-index
+  poem: poem
+  story: story
+  post: post
+  search: search
+  not-found: '404'
+  new: new
+  tag: notes
+  author: author
+  library: library
+  bibliography: bibliography
+  keyword: keyword
+  photo-index: photo-index
+  photo-series: photo-series
+  photo-single: photo-single
+  photo-map: photo-map
+  photo-contact: photo-contact
+  photo-years: photo-years
+  photo-year: photo-year
+  music-index: music-index
+  composition: composition
+  score-reader: score-reader
+  archive-index: archive-index
+  archive-entry: archive-entry
+  commonplace: commonplace
+  now: now
+  vita: vita
+  stats: stats
+  build: build
 keyboard: [home, essay, photo-series, search]
 motion: [home, essay, photo-series, photo-map]
 perf: [home, essay, photo-index, photo-map, new]

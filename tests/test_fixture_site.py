@@ -393,10 +393,27 @@ class FixtureBuilds(unittest.TestCase):
                 routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
                 not_found = routes.role("not-found")   # its own document is meant to 404
                 off = {route for route, owner in owners.items() if not builds[name].switches[owner]}
+                # And a page of a kind the build has off (the fixture's routes
+                # are one list for both profiles).
+                kinds = load_tool("browser/routes.py", "fixture_routes").KINDS
+                off |= {routes.pages[page] for kind, page in routes.kinds.items()
+                        if kinds[kind].switch and not builds[name].switches[kinds[kind].switch]}
                 missing = [path for path in routes.pages.values() if path != not_found and path not in off
                            and not (site / "_site" / path.lstrip("/")
                                     / ("index.html" if path.endswith("/") else "")).is_file()]
                 self.assertEqual(missing, [])
+
+    def test_its_routes_name_a_page_of_every_kind_it_builds(self):
+        for name in ("minimal", "full"):
+            with self.subTest(build=name):
+                site, switches = self.sites[name], {b.name: b for b in self.builds}[name].switches
+                routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
+                self.assertEqual(routes.uncovered(site, switches, shared=True), [])
+
+                def built(path: str) -> Path:
+                    return site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else "")
+
+                self.assertEqual(routes.misnamed(built, switches), [])
 
     def test_its_override_stands_in_for_the_engine_s(self):
         essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")

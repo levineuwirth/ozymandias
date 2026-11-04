@@ -122,6 +122,32 @@ class Routes(unittest.TestCase):
         for role in routes.roles:
             self.assertTrue(target.route(role).startswith("/"), role)
 
+    def test_the_sweeps_cover_every_kind_of_page_the_site_has(self):
+        # Plan 7.3.3: so axe's and overflow's coverage cannot shrink quietly.
+        routes = target.routes()
+        self.assertEqual(routes.uncovered(target.SITE_ROOT, target.switches()), [])
+        self.assertEqual(routes.misnamed(target.built, target.switches()), [])
+
+    def test_a_kind_the_site_has_must_be_named_and_one_it_has_off_not(self):
+        routes_module = load_tool("browser/routes.py", "site_routes_kinds")
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            (site / "tests").mkdir()
+            (site / "content/blog").mkdir(parents=True)
+            (site / "tests/routes.yaml").write_text("pages: {home: /, m: /m/}\nkinds: {home: home, music-index: m}\n")
+            routes = routes_module.Routes(site)
+            switches = {kind.switch: False for kind in routes_module.KINDS.values() if kind.switch}
+            problems = routes.uncovered(site, switches)
+            self.assertIn("essay: the site has this kind of page, and tests/routes.yaml's kinds names none", problems)
+            self.assertIn("music-index: named, but the music switch is off", problems)
+            self.assertFalse([p for p in problems if p.startswith("post:")], "no post, so no kind to name")
+            (site / "content/blog/a.md").write_text("x")
+            self.assertTrue([p for p in routes.uncovered(site, switches) if p.startswith("post:")])
+            self.assertFalse([p for p in routes.uncovered(site, switches, shared=True) if p.startswith("music-index:")])
+            (site / "m.html").write_text("no marker")
+            self.assertEqual(routes.misnamed(lambda path: site / "m.html", {**switches, "music": True}),
+                             ['music-index: /m/ has no class="music-index"'])
+
     def test_names_and_paths_resolve_and_strays_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             site = Path(tmp)
