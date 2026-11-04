@@ -17,6 +17,7 @@ only a machine that has them checks that the fixture passes the gate.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -228,11 +229,15 @@ class FixtureBuilds(unittest.TestCase):
         (not its _site or cache), built again with switch `name` off and
         the switches that need it settled: what a site that turns a feature
         off has."""
-        site = self.sites["full"].with_name(f"full-{name}-turned-off")
+        return self.rebuilt(f"full-{name}-turned-off", lambda config: fixture_variants.switched(
+            config, fixture_variants.settle(dict(config["switches"], **{name: False}), fixture_variants.registry())))
+
+    def rebuilt(self, name: str, change) -> Path:
+        """The full build's copy, as `turned_off` has it, built again with
+        `change` made to its site.yaml's contents."""
+        site = self.sites["full"].with_name(name)
         shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
-        config = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))
-        config = fixture_variants.switched(config, fixture_variants.settle(
-            dict(config["switches"], **{name: False}), fixture_variants.registry()))
+        config = change(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")))
         (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
         env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
@@ -414,6 +419,19 @@ class FixtureBuilds(unittest.TestCase):
                     return site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else "")
 
                 self.assertEqual(routes.misnamed(built, switches), [])
+
+    def test_each_page_preloads_the_fonts_site_yaml_names(self):
+        # The fixture names none, and a site's list is emitted as written,
+        # in order, before the stylesheets (head.html).
+        preload = re.compile(r'<link rel="preload" href="[./]*fonts/([^"]+)" as="font" type="font/woff2" crossorigin>')
+        for page in ("index.html", "essays/long/index.html"):
+            self.assertEqual(preload.findall(switch_checks.text(self.sites["full"], page)), [], page)
+        site = self.rebuilt("full-preloads", lambda config: dict(config, **{"font-preloads": ["/fonts/a.woff2", "/fonts/b.woff2"]}))
+        for page in ("index.html", "essays/long/index.html", "poetry/a-poem.html", "photography/index.html"):
+            with self.subTest(page=page):
+                html = switch_checks.text(site, page)
+                self.assertEqual(preload.findall(html), ["a.woff2", "b.woff2"])
+                self.assertLess(html.index("fonts/b.woff2"), html.index("css/base.css"))
 
     def test_its_override_stands_in_for_the_engine_s(self):
         essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")

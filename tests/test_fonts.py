@@ -72,6 +72,15 @@ class FontTests(unittest.TestCase):
             self.assertIn(href, declared, f"{href} is preloaded but no @font-face uses it")
             self.assertTrue((SITE_ROOT / "static" / href.lstrip("/")).is_file(), href)
 
+    def test_the_built_home_page_preloads_them(self):
+        # What the plan calls the emitted-preload test (7.3): above is what
+        # site.yaml says, this what a reader's browser gets.
+        home = SITE_ROOT / "_site" / "index.html"
+        if not home.is_file():
+            self.skipTest("no _site")
+        emitted = re.findall(r'<link rel="preload" href="([^"]+)" as="font"', home.read_text(encoding="utf-8"))
+        self.assertEqual(["/" + href.lstrip("./") for href in emitted], site_yaml().get("font-preloads") or [])
+
 
 if __name__ == "__main__":
     unittest.main()
