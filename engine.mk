@@ -220,9 +220,9 @@ build-locked:
 	fi
 	# ---- Stage 2: embed --------------------------------------------------
 	#
-	# embed.py reads _site/**/*.html and writes three files back into
-	# data/: similar-links.json and the semantic-index.bin /
-	# semantic-meta.json pair (copied into _site/data/ by a Hakyll match
+	# embed.py, behind the similar-links switch, reads _site/**/*.html and
+	# writes back into data/: similar-links.json and, with semantic-search on,
+	# the semantic-index.bin / semantic-meta.json pair (copied into _site/data/ by a Hakyll match
 	# rule). Then `site footer-data` splits similar-links.json and stage 1's
 	# _site/data/backlinks.json into one file per page under data/footer/,
 	# rewriting only the files whose entries changed (build/FooterData.hs,
@@ -234,7 +234,9 @@ build-locked:
 	# and a new essay's Related section did not appear until the build
 	# after the one that created it. (B01)
 	@touch data/.embed-start
-	@if [ -x $(VENV_PY) ]; then \
+	@if ! $(call switch_on,similar-links); then \
+	  echo "build: the similar-links switch is off for this site: no embedding"; \
+	elif [ -x $(VENV_PY) ]; then \
 	  HF_HUB_DISABLE_IMPLICIT_TOKEN=1 $(VENV_PY) $(call tool,embed.py) || echo "Warning: embedding failed — data/similar-links.json not updated (build continues)"; \
 	else \
 	  echo "Embedding skipped: run 'make venv' to enable similar-links (build continues)"; \

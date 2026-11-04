@@ -311,13 +311,13 @@ search-filters:
 semantic-search:
   kind: interface
   default: false
+  needs: [similar-links]
   assets: [js/semantic-search.js, models/**]
   about: >-
     Search by meaning on the search page: semantic-search.js, which also
     runs the page's tabs (their markup is the site's, in content/search.md),
-    the index embed.py writes (data/semantic-index.bin, semantic-meta.json)
-    and the model make download-model fetches. Its need of similar-links,
-    the embedding pass, waits for that switch (A8f).
+    the index embed.py writes in the similar-links pass (data/semantic-index.bin,
+    semantic-meta.json), and the model make download-model fetches.
 
 reading-progress:
   kind: interface
@@ -351,3 +351,12 @@ bibliography:
     its further-reading list, by citeproc from the .bib files and the CSL
     style. Without it a citation stays as its author wrote it, as text, and
     the page has neither list. /bibliography/ is bibliography-index's.
+
+similar-links:
+  kind: capability
+  default: false
+  about: >-
+    A page's Related list: the build's embedding pass (tools/embed.py), its
+    data/similar-links.json and its share of the footer files, and the list
+    itself. Without it the pass does not run (backlinks' footer files still
+    do), and data/similar-links.json is not read.

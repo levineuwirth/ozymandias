@@ -121,7 +121,8 @@ main = do
         ["footer-data"] -> do
             dev <- isDevBuild
             when dev $ fail "footer-data: production builds only (a dev build's backlinks include drafts)"
-            writeFooterData (outputDirFor False)
+            cfg <- readSiteConfig
+            writeFooterData (switchOn cfg "similar-links") (outputDirFor False)
         _ -> do
             siteThreads >>= setNumCapabilities
             writeBuildStamp

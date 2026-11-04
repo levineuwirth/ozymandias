@@ -39,6 +39,7 @@ full:
     search-filters: true
     selection-toolbar: true
     semantic-search: true
+    similar-links: true
     signature-link: true
     signing: true
     source-refs: true
@@ -73,6 +74,7 @@ minimal:
     search-filters: false
     selection-toolbar: false
     semantic-search: true
+    similar-links: true
     signature-link: false
     signing: false
     source-refs: false

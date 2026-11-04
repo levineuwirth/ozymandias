@@ -134,6 +134,9 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str, signer: d
         return runs
     if build.switches.get("archive"):
         runs["fetch"] = run(sys.executable, str(engine_path("tools/archive.py")), "fetch")
+    # The footer files, as make build's stage 2 writes them; backlinks' from a
+    # first pass, which nothing here checks, so only the Related lists have any.
+    runs["footer"] = run(binary, "footer-data")
     runs["build"] = run(binary, "build")
     runs["index"] = run(str(engine_path("tools/pagefind-index.sh")), "_site", timeout=300)
     runs["stamp"] = run("make", "--no-print-directory", f"PY={sys.executable}", "stamp-build-time")
@@ -194,7 +197,7 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(build=build.name):
                 self.refused(build.name)
                 runs = self.runs[build.name]
-                for stage in ("fetch", "build", "index", "stamp", "sign"):
+                for stage in ("fetch", "footer", "build", "index", "stamp", "sign"):
                     if stage in runs:
                         done = runs[stage]
                         self.assertEqual(done.returncode, 0, f"{stage}: {done.stdout[-3000:]}{done.stderr}")
@@ -297,6 +300,12 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "data/bibliography.bib").is_file())
         switch_checks.bibliography_off(site)
         switch_checks.bibliography_index_off(site)
+
+    def test_a_site_that_turns_similar_links_off_lists_none(self):
+        # data/similar-links.json and the footer files are still there.
+        site = self.turned_off("similar-links")
+        self.assertIn('"related":[{', (site / "data/footer/%2Fessays%2Flong%2F.json").read_text(encoding="utf-8"))
+        switch_checks.similar_links_off(site)
 
     def test_a_site_that_turns_vita_off_renders_no_cv(self):
         # yaml-source/ and content/cv.md are still there.

@@ -1,0 +1,4 @@
+{
+  "/essays/long/": [{"url": "/essays/short.html", "title": "A Short Essay", "score": 0.7}],
+  "/essays/short.html": [{"url": "/essays/long/", "title": "A Long Essay", "score": 0.7}]
+}

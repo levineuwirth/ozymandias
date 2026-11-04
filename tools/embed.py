@@ -19,7 +19,8 @@ Two models, one process:
     browser runs via transformers.js (static/js/semantic-search.js) since
     query vectors are dotted against the shipped index.
 
-Called by `make build` when .venv exists. Failures are non-fatal.
+Called by `make build` when .venv exists, with the similar-links switch on;
+the paragraph index only with semantic-search on too. Failures are non-fatal.
 
 Staleness: both passes are content-hash cached (data/embed-cache-*.npz),
 so an unchanged site re-embeds nothing and loads no model. Extraction is
@@ -486,6 +487,12 @@ def main() -> int:
     print(f"embed.py: wrote {len(similar)} similar-links entries")
 
     # --- Semantic index (paragraph level, MiniLM, content-hash cached) ---
+    # Semantic search's, which needs this pass and not the reverse: a site
+    # without it publishes no index, so it pays for no model.
+    if not sitelib.switch_on("semantic-search"):
+        print("embed.py: the semantic-search switch is off: no semantic index")
+        return 0
+
     if not paragraphs:
         print("embed.py: no paragraphs extracted — skipping semantic index")
         return 0

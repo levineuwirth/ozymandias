@@ -18,6 +18,7 @@ module SimilarLinks (similarLinksField) where
 
 import qualified Data.Aeson                 as Aeson
 import           Hakyll
+import           Config                     (loadConfig, switchOn)
 import           FooterData                 (footerEntries, maxRelated)
 import           Utils                      (isPdfUrl, pdfViewerUrl)
 
@@ -45,9 +46,11 @@ instance Aeson.FromJSON SimilarEntry where
 -- entries in its footer file. The dependency that brings the section back
 -- when entries appear is 'FooterData.footerDepsField'; the URL forms
 -- @tools/embed.py@ emits are normalised when the footer files are written.
+-- Fails too without the switch, whatever a leftover file holds.
 similarLinksField :: Context String
 similarLinksField = field "similar-links" $ \item -> do
-    entries <- footerEntries "related" item
+    cfg     <- loadConfig
+    entries <- if switchOn cfg "similar-links" then footerEntries "related" item else return []
     if null entries
         then fail "no similar links"
         else return (renderSimilarLinks (take maxRelated entries))

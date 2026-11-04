@@ -4,6 +4,7 @@ No model is loaded."""
 
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -207,6 +208,49 @@ class ExtractCacheTests(unittest.TestCase):
     def test_an_unreadable_cache_is_ignored(self):
         self.cache.write_text("{not json")
         self.assertEqual(self.run_site(), 2)
+
+
+class FakeModel:
+    """Vectors of a model's width, in place of the download."""
+    def __init__(self, name, **_):
+        self.dim = {embed.PAGE_MODEL_NAME: embed.PAGE_DIM, embed.PARA_MODEL_NAME: embed.PARA_DIM}[name]
+
+    def encode(self, texts, **_):
+        vectors = embed.np.ones((len(texts), self.dim), dtype=embed.np.float32)
+        return vectors / embed.np.linalg.norm(vectors, axis=1, keepdims=True)
+
+
+@unittest.skipIf(embed is None, "embed.py's dependencies are not installed")
+class SemanticIndexTests(unittest.TestCase):
+    """embed.py is the similar-links pass; the paragraph index in it is
+    semantic search's."""
+
+    def run_embed(self, semantic: bool) -> Path:
+        root = Path(tempfile.mkdtemp(prefix="embed-main-"))
+        self.addCleanup(shutil.rmtree, root)
+        (root / "_site").mkdir()
+        pages = [{"url": f"/{n}.html", "title": n, "text": PROSE} for n in "ab"]
+        paragraphs = [{"url": "/a.html", "title": "a", "heading": "", "excerpt": "e", "text": PROSE}]
+        patches = {"SITE_DIR": root / "_site", "SIMILAR_OUT": root / "similar-links.json",
+                   "SEMANTIC_BIN": root / "semantic-index.bin", "SEMANTIC_META": root / "semantic-meta.json",
+                   "PAGE_CACHE": root / "pages.npz", "PARA_CACHE": root / "paragraphs.npz",
+                   "extract_site": lambda: (pages, paragraphs, 2)}
+        with mock.patch.multiple(embed, **patches), \
+             mock.patch.object(embed.sitelib, "switch_on", lambda name: {"semantic-search": semantic}[name]), \
+             mock.patch.dict(sys.modules, {"sentence_transformers": mock.Mock(SentenceTransformer=FakeModel)}):
+            self.assertEqual(embed.main(), 0)
+        return root
+
+    def test_the_index_is_written_with_semantic_search(self):
+        root = self.run_embed(True)
+        for name in ("similar-links.json", "semantic-index.bin", "semantic-meta.json"):
+            self.assertTrue((root / name).is_file(), name)
+
+    def test_without_semantic_search_only_similar_links_are(self):
+        root = self.run_embed(False)
+        self.assertTrue((root / "similar-links.json").is_file())
+        self.assertFalse((root / "semantic-index.bin").exists())
+        self.assertFalse((root / "semantic-meta.json").exists())
 
 
 if __name__ == "__main__":

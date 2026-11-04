@@ -402,6 +402,18 @@ def semantic_search_off(site: Path) -> None:
         assert not (site / "_site" / path).exists(), f"/{path} was published"
 
 
+def similar_links_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    assert 'id="similar-links"' in essay and re.search(r'class="similar-link" href="[./]*essays/short\.html"', essay), \
+        "the essay has no Related list"
+
+
+def similar_links_off(site: Path) -> None:
+    listed = [p.name for p in pages(site) if 'id="similar-links"' in p.read_text(encoding="utf-8")
+              or 'class="similar-link"' in p.read_text(encoding="utf-8")]
+    assert not listed, f"Related lists on {listed}"
+
+
 READING_PAGES = ("poetry/a-poem.html", "fiction/a-story.html")
 
 
@@ -676,6 +688,7 @@ CHECKS = {
     "selection-toolbar": (selection_toolbar_on, selection_toolbar_off),
     "semantic-search": (semantic_search_on, semantic_search_off),
     "signature-link": (signature_link_on, signature_link_off),
+    "similar-links": (similar_links_on, similar_links_off),
     "signing": (signing_on, signing_off),
     "source-refs": (source_refs_on, source_refs_off),
     "stats-page": (stats_page_on, stats_page_off),

@@ -202,6 +202,7 @@ class ConfigTests(unittest.TestCase):
         for switches, refusal in (({"annotations": True}, "annotations needs selection-toolbar"),
                                   ({"bibliography-index": True}, "bibliography-index needs bibliography"),
                                   ({"search-filters": True}, "search-filters needs one of epistemic, archive"),
+                                  ({"semantic-search": True}, "semantic-search needs similar-links"),
                                   ({"signature-link": True}, "signature-link needs signing"),
                                   ({"source-refs": True}, "source-refs needs code")):
             with self.subTest(switches=switches):

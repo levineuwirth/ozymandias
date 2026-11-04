@@ -195,11 +195,12 @@ footerEntries part item = do
 -- and @data/similar-links.json@ (written by @tools/embed.py@) into the
 -- per-page files. A missing input counts as empty. Prints how many files
 -- it rewrote, which is how many pages the second pass will recompile for
--- their footers.
-writeFooterData :: FilePath -> IO ()
-writeFooterData siteDir = do
+-- their footers. Without the similar-links switch a leftover
+-- @data/similar-links.json@ is not read, and every page's Related empties.
+writeFooterData :: Bool -> FilePath -> IO ()
+writeFooterData similarLinks siteDir = do
     backlinks <- readMap (siteDir </> "data/backlinks.json")
-    similar   <- readMap "data/similar-links.json"
+    similar   <- if similarLinks then readMap "data/similar-links.json" else return Map.empty
     let related = Map.mapKeys (normaliseUrl . T.unpack) similar
         keys    = Set.union (Set.fromList (map T.unpack (Map.keys backlinks)))
                             (Map.keysSet related)

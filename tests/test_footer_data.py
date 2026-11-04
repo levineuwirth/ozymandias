@@ -20,7 +20,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import requires_cabal, script_env, site_binary
+from tests._helpers import requires_cabal, script_env, site_binary, write_site_config
 
 
 def entry(url: str, score: float) -> dict:
@@ -42,6 +42,7 @@ class FooterDataTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.dir)
         (self.dir / "_site" / "data").mkdir(parents=True)
         (self.dir / "data").mkdir()
+        write_site_config(self.dir, switches={"similar-links": True})
         self.backlinks = {"/essays/a": [BACKLINK]}
         self.similar = {
             "/essays/a.html": [entry(f"/essays/{c}/", 0.9 - i / 100) for i, c in enumerate("bcdef")],
@@ -110,6 +111,13 @@ class FooterDataTests(unittest.TestCase):
         del self.similar["/essays/b/"]
         self.split()
         self.assertEqual(self.read("%2Fessays%2Fb%2F.json"), {"backlinks": [], "related": []})
+
+    def test_without_the_switch_a_leftover_file_is_not_read(self) -> None:
+        self.assertEqual(self.split().returncode, 0)
+        self.assertTrue(self.read("%2Fessays%2Fb%2F.json")["related"])
+        write_site_config(self.dir)
+        self.assertEqual(self.split().returncode, 0)
+        self.assertEqual(self.read("%2Fessays%2Fb%2F.json")["related"], [])
 
     def test_missing_inputs_count_as_empty(self) -> None:
         done = subprocess.run([str(self.binary), "footer-data"], cwd=self.dir,
