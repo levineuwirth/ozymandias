@@ -13,8 +13,7 @@ web fonts it has none of.
 Switches are read from site.yaml here, not from the generator: they are
 plain booleans, and ci.py runs where there is no generator (the GitHub
 workflow). engine/tests/test_config.py checks the reading against the
-generator's. Until A8 adds them a site has none, and every feature is on;
-A8's switch registry, a data file both read, supplies the engine's
+generator's. The switch registry, a data file both read, supplies the engine's
 defaults.
 """
 

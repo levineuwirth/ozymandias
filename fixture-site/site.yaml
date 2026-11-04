@@ -1,9 +1,9 @@
 # The engine's fixture site: a small site with the minimal profile's
-# features (essays with sidenotes, citations, wikilinks and transclusion; a
-# figure; lists; a photo series and its map; the bibliography; search) and
-# the full profile's (an archived link, a composition, the capabilities
-# essay), built and gated by engine/tests/test_fixture_site.py. Its identity
-# is example.org's.
+# features (essays with sidenotes, citations and wikilinks; a figure; lists; a
+# photo series and a flat frame, and their map; Related lists; search) and the
+# full profile's (an archived link, a composition, a transclusion, the
+# bibliography's pages, the capabilities essay), built and gated by
+# engine/tests/test_fixture_site.py. Its identity is example.org's.
 title: Example Site
 author: Example Author
 author-sort: Author, Example
