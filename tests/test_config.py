@@ -212,6 +212,22 @@ class ConfigTests(unittest.TestCase):
                 self.assertNotEqual(done.returncode, 0)
                 self.assertIn(refusal, done.stderr)
 
+    def test_a_default_ornament_needs_the_dingbats_switch(self):
+        essays = [dict(s, dingbat="fleuron") if s["dir"] == "essays" else s for s in self.config["sections"]]
+        page = standalone("content/me.md", "me.html", dingbat="memento")
+        for switch, changes, refusal in ((False, {"sections": essays}, "needs the dingbats switch: essays"),
+                                         (False, {"standalone": [page]}, "needs the dingbats switch: content/me.md"),
+                                         (True, {"sections": essays, "standalone": [page]}, None)):
+            with self.subTest(dingbats=switch, changes=sorted(changes)):
+                (self.root / "site.yaml").write_text(json.dumps(dict(self.config, switches={"dingbats": switch}, **changes)),
+                                                     encoding="utf-8")
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
     def test_photography_owns_its_section(self):
         photos = {"dir": "photography", "kind": "Photo", "dingbat": None}
         fed = {"path": "photos.xml", "title": "Photos", "description": "Pictures",
@@ -426,6 +442,7 @@ class ConfigTests(unittest.TestCase):
                 self.assertIn(error, done.stderr)
 
     def test_taxonomy_lists_derive_from_sections_and_portals(self):
+        self.config["switches"] = {"dingbats": True}
         self.config["sections"] = [dict(s, kind="Custom label", dingbat="trefoil")
                                    for s in reversed(self.config["sections"])]
         self.config["portals"] = [{"name": "Walks", "tag": "walks"}]
@@ -476,7 +493,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(links.returncode, 0, links.stderr)
         self.assertEqual(links.stdout.split(), ["/essays/", "/memento-mori.html", "/studio/", "/walks/"])
         # Transclusion resolves the same slugs.
-        self.config["switches"] = {"transclusion": True}
+        self.config["switches"] = {"dingbats": True, "transclusion": True}
         self.write_config()
         fixture = self.root / "transclusions.md"
         fixture.write_text("---\ntitle: Fixture\n---\n{{studio}}\n\n{{people/team}}\n")

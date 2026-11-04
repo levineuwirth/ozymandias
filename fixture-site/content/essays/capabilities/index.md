@@ -6,6 +6,7 @@ abstract: >-
   in a section of its own, from $\pi$ on.
 tags: [notes]
 viz: true
+dingbat: fleuron
 status: Working
 confidence: 70
 importance: 3

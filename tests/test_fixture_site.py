@@ -307,6 +307,10 @@ class FixtureBuilds(unittest.TestCase):
         self.assertIn('"related":[{', (site / "data/footer/%2Fessays%2Flong%2F.json").read_text(encoding="utf-8"))
         switch_checks.similar_links_off(site)
 
+    def test_a_site_that_turns_dingbats_off_names_no_ornament(self):
+        # The essay still sets `dingbat:`.
+        switch_checks.dingbats_off(self.turned_off("dingbats"))
+
     def test_a_site_that_turns_vita_off_renders_no_cv(self):
         # yaml-source/ and content/cv.md are still there.
         switch_checks.vita_off(self.turned_off("vita"))

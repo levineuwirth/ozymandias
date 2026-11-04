@@ -2,6 +2,8 @@
 semantic search, and the vector cache's model pinning (audit T14).
 No model is loaded."""
 
+import contextlib
+import io
 import json
 import shutil
 import sys
@@ -238,7 +240,8 @@ class SemanticIndexTests(unittest.TestCase):
         with mock.patch.multiple(embed, **patches), \
              mock.patch.object(embed.sitelib, "switch_on", lambda name: {"semantic-search": semantic}[name]), \
              mock.patch.dict(sys.modules, {"sentence_transformers": mock.Mock(SentenceTransformer=FakeModel)}):
-            self.assertEqual(embed.main(), 0)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(embed.main(), 0)
         return root
 
     def test_the_index_is_written_with_semantic_search(self):

@@ -368,3 +368,12 @@ transclusion:
   about: >-
     A {{slug}} or {{slug#section}} line as another page's passage, filled in
     by transclude.js. Without it the line is a link to that passage.
+
+dingbats:
+  kind: capability
+  default: false
+  about: >-
+    A section break's ornament by page: data-dingbat on <body>, from a page's
+    dingbat: or its section's or standalone entry's default. Without it every
+    page has the stylesheet's asterism, a page's dingbat: is ignored, and a
+    default in site.yaml is refused.

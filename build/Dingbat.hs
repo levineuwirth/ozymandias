@@ -18,6 +18,10 @@
 -- Best practice: set @dingbat:@ explicitly in frontmatter. The section
 -- defaults are a safety net, not a substitute.
 --
+-- The template asks the dingbats switch: without it no page names an
+-- ornament (a page's @dingbat:@ would reach @$dingbat$@ from its metadata,
+-- whatever this field answered), and the stylesheet's fallback serves them.
+--
 -- Adding a new ornament:
 --
 --   1. Add its name to 'knownDingbats' ("Config").

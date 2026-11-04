@@ -187,6 +187,7 @@ main = hakyll $ do
             root = Path(tmp)
             copy_engine_tree("templates", root / "templates")
             config = write_site_config(root)
+            config["switches"] = {"dingbats": True}
             config["sections"][0]["dingbat"] = "fleuron"  # essays
             page = {"template": "essay.html", "context": "essay", "scores": False, "flags": []}
             # A standalone page's own ornament is more specific than its

@@ -23,6 +23,7 @@ full:
     code: true
     code-refs: true
     commonplace: true
+    dingbats: true
     epistemic: true
     footer-build-time: true
     library: true
@@ -59,6 +60,7 @@ minimal:
     code: false
     code-refs: false
     commonplace: false
+    dingbats: false
     epistemic: false
     footer-build-time: false
     library: false

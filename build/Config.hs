@@ -27,7 +27,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map.Strict as Map
 import Data.Char (isControl, isSpace, toLower, toUpper)
 import Data.List (find, intercalate, isPrefixOf, isSuffixOf, nub, sortOn, stripPrefix)
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time.Clock (getCurrentTime)
@@ -576,6 +576,10 @@ decodeConfig registryBytes siteBytes = do
         Left "site.yaml: the signing switch needs a signing-fingerprint"
     when (Map.findWithDefault False "library" resolved && isNothing (siteLibrary cfg)) $
         Left "site.yaml: the library switch needs a library block"
+    let ornamented = [ sectionDir s | s <- siteSections cfg, isJust (sectionDingbat s) ]
+                  ++ [ standaloneSource p | p <- siteStandalone cfg, isJust (standaloneDingbat p) ]
+    unless (null ornamented || Map.findWithDefault False "dingbats" resolved) $
+        Left ("site.yaml: a default ornament needs the dingbats switch: " ++ intercalate ", " ornamented)
     let scored = [ standaloneSource p | p <- siteStandalone cfg, standaloneScores p ]
     unless (null scored || Map.findWithDefault False "music" resolved) $
         Left ("site.yaml: standalone scores need the music switch: " ++ intercalate ", " scored)

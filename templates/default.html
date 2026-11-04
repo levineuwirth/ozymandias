@@ -3,7 +3,7 @@
 <head>
 $partial("templates/partials/head.html")$
 </head>
-<body$if(reading)$ class="reading-mode$if(poetry)$ poetry$endif$$if(fiction)$ fiction$endif$"$endif$$if(photography)$ data-page-type="photography"$endif$$if(dingbat)$ data-dingbat="$dingbat$"$endif$$if(list-page)$ data-portal$endif$$if(portal)$ data-portal$endif$$if(home)$ data-portal$endif$>
+<body$if(reading)$ class="reading-mode$if(poetry)$ poetry$endif$$if(fiction)$ fiction$endif$"$endif$$if(photography)$ data-page-type="photography"$endif$$if(switch-dingbats)$$if(dingbat)$ data-dingbat="$dingbat$"$endif$$endif$$if(list-page)$ data-portal$endif$$if(portal)$ data-portal$endif$$if(home)$ data-portal$endif$>
 <a class="skip-link" href="#markdownBody">Skip to content</a>
 $partial("templates/partials/nav.html")$
 $if(search)$

@@ -433,6 +433,16 @@ def transclusion_off(site: Path) -> None:
     assert not loading(site, "js/transclude.js"), f"transclude.js is loaded on {loading(site, 'js/transclude.js')}"
 
 
+def dingbats_on(site: Path) -> None:
+    assert 'data-dingbat="fleuron"' in text(site, CAPABILITIES), "the essay's own ornament is not named"
+    assert 'data-dingbat="asterism"' in text(site, "essays/long/index.html"), "the fallback ornament is not named"
+
+
+def dingbats_off(site: Path) -> None:
+    named = [p.name for p in pages(site) if "data-dingbat=" in p.read_text(encoding="utf-8")]
+    assert not named, f"an ornament named on {named}"
+
+
 READING_PAGES = ("poetry/a-poem.html", "fiction/a-story.html")
 
 
@@ -690,6 +700,7 @@ CHECKS = {
     "code": (code_on, code_off),
     "code-refs": (code_refs_on, code_refs_off),
     "commonplace": (commonplace_on, commonplace_off),
+    "dingbats": (dingbats_on, dingbats_off),
     "epistemic": (epistemic_on, epistemic_off),
     "footer-build-time": (footer_build_time_on, footer_build_time_off),
     "library": (library_on, library_off),
