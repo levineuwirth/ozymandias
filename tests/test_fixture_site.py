@@ -109,15 +109,7 @@ def build_site(build: fixture_variants.Build, site: Path, binary: str, signer: d
     and the gate; then `make sign`, as deploy runs it. The two make stages
     run through the engine's make, which runs each only with its switch on
     (signing with `signer`'s throwaway key). Each stage's result, by name."""
-    shutil.copytree(FIXTURE, site)
-    for rel in build.without:
-        shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
-    config = fixture_variants.switched(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")),
-                                       build.switches)
-    # JSON, which YAML reads as written: a dumped string "y" would come back
-    # as a boolean.
-    (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
-    (site / "engine").symlink_to(ENGINE)
+    fixture_variants.copy_site(build, site, ENGINE)
     (site / "Makefile").write_text("include engine/engine.mk\n")
     # The commit ignores the user's signing and hooks, which could fail it.
     git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",

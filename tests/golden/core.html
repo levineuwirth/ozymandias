@@ -1,0 +1,65 @@
+<!-- render-fixture: body -->
+<h2 id="opening-section">Opening section</h2>
+<p>Plain prose with “smart quotes” – an en dash — an em dash, and an
+ellipsis… Abbreviations: <abbr title="exempli gratia">e.g.</abbr> this, <abbr title="id est">i.e.</abbr> that (<abbr title="confer">cf.</abbr> the other), and one
+ending a line, <abbr title="exempli gratia">e.g.</abbr>
+here, and one with a comma, <abbr title="id est">i.e.</abbr>, like so. Then
+here. <abbr class="smallcaps">NASA</abbr> and
+<abbr class="smallcaps">HTML</abbr> go to small caps, and so does <span class="smallcaps">explicit</span> text.</p>
+<p>A cited claim <sup class="cite-marker" id="cite-back-1"><a href="#ref-alpha2001" class="cite-link" data-cite-keys="ref-alpha2001">[1]</a></sup> and a cluster <sup class="cite-marker" id="cite-back-2"><a href="#ref-delta2015" class="cite-link" data-cite-keys="ref-delta2015 ref-alpha2001">[2,1]</a></sup>, then the
+first book again <sup class="cite-marker" id="cite-back-1-2"><a href="#ref-alpha2001" class="cite-link" data-cite-keys="ref-alpha2001">[1]</a></sup>. The book is also listed for further
+reading, which is the case that once cost its first citation its anchor.</p>
+<p>A note.<sup class="sidenote-ref" id="snref-a"><a href="#fn-a" role="doc-noteref">a</a></sup>
+A second note.<sup class="sidenote-ref" id="snref-b"><a href="#fn-b" role="doc-noteref">b</a></sup></p>
+<h3 id="links">Links</h3>
+<ul>
+<li>external with an icon: <a href="https://en.wikipedia.org/wiki/Typography" class="link-external" target="_blank" rel="noopener noreferrer" data-link-icon="wikipedia" data-link-icon-type="svg">Wikipedia</a></li>
+<li>external without one: <a href="https://example.net/page" class="link-external" target="_blank" rel="noopener noreferrer" data-link-icon="external" data-link-icon-type="svg">Example</a></li>
+<li>internal: <a href="/colophon.html" class="link-internal" data-link-icon="internal" data-link-icon-type="svg">the colophon</a>, and <a href="#links">a section</a></li>
+<li>mail: <a href="mailto:someone@example.org">write</a></li>
+<li>wikilinks: <a href="/golden-page.html" class="link-internal" data-link-icon="internal" data-link-icon-type="svg">Golden Page</a> and <a href="/golden-page.html" class="link-internal" data-link-icon="internal" data-link-icon-type="svg">shown differently</a></li>
+</ul>
+<h3 id="what-consumed-means-e.g.-for-this">What “consumed” means, <abbr title="exempli gratia">e.g.</abbr> for this</h3>
+<p>A heading with quotation marks and an abbreviation Typography wraps in
+<code>&lt;abbr&gt;</code>: the <abbr class="smallcaps">TOC</abbr> entry must keep both (audit H03).</p>
+<h3 id="figures">Figures</h3>
+<figure id="fig-plate">
+<picture><source srcset="plate.webp" type="image/webp"><img src="plate.png" alt="A plate with a WebP companion and recorded dimensions." width="4" height="3" loading="lazy" decoding="async" data-lightbox="true"></picture>
+<figcaption aria-hidden="true"><span class="figure-number">Figure 1.</span> A plate with a WebP companion and recorded dimensions.</figcaption>
+</figure>
+<p>An inline image <img src="plain.png" decoding="async" data-lightbox="true" loading="lazy" alt="a small square" /> without a WebP companion, and
+one with: <picture><source srcset="plate.webp" type="image/webp"><img src="plate.png" alt="the “plate” in ‘quotes’, e.g. this one" width="4" height="3" loading="lazy" decoding="async" data-lightbox="true"></picture>.</p>
+<p>A decorative one, <img src="plain.png" class="decorative" decoding="async" data-lightbox="true" loading="lazy" alt="" />, and one in a picture, <picture><source srcset="plate.webp" type="image/webp"><img class="decorative" src="plate.png" alt="" width="4" height="3" loading="lazy" decoding="async" data-lightbox="true"></picture>.</p>
+<p>As <a href="#fig-plate">Figure 1</a> shows, and as <a href="#fig-plate">the plate</a> says in other words.</p>
+<div class="aftermatter-divider"><a href="/new.html" class="aftermatter-logo"><span class="visually-hidden">New</span></a></div>
+<div class="aftermatter">
+<p>Closing matter.</p>
+</div>
+<section class="footnotes" role="doc-endnotes"><ol class="footnotes-list"><li id="fn-a" class="footnote-item"><span class="footnote-label" aria-hidden="true">a</span><p>A sidenote with a <a href="https://en.wikipedia.org/wiki/Footnote" class="link-external" target="_blank" rel="noopener noreferrer" data-link-icon="wikipedia" data-link-icon-type="svg">link</a>.<a href="#snref-a" class="footnote-back" role="doc-backlink" aria-label="Back to reference a">↩︎</a></p></li><li id="fn-b" class="footnote-item"><span class="footnote-label" aria-hidden="true">b</span><p>The second note cites <sup class="cite-marker" id="cite-back-2-2"><a href="#ref-delta2015" class="cite-link" data-cite-keys="ref-delta2015">[2]</a></sup>.<a href="#snref-b" class="footnote-back" role="doc-backlink" aria-label="Back to reference b">↩︎</a></p></li></ol></section>
+<!-- render-fixture: toc -->
+<ol>
+<li><a href="#opening-section" data-target="opening-section" data-label="Opening section">Opening section</a><ol>
+<li><a href="#links" data-target="links" data-label="Links">Links</a></li>
+<li><a href="#what-consumed-means-e.g.-for-this" data-target="what-consumed-means-e.g.-for-this" data-label="What “consumed” means, e.g. for this">What “consumed” means, <abbr title="exempli gratia">e.g.</abbr> for this</a></li>
+<li><a href="#figures" data-target="figures" data-label="Figures">Figures</a></li>
+</ol>
+</li>
+</ol>
+
+<!-- render-fixture: bibliography -->
+<div class="csl-bib-body cite-refs" role="list">
+<div id="ref-alpha2001" class="csl-entry" role="listitem">
+<a class="ref-num" href="#cite-back-1">[1]</a>
+Alpha, Ada. <em>A book cited twice</em>. Fixture Press, 2001.
+</div>
+<div id="ref-delta2015" class="csl-entry" role="listitem">
+<a class="ref-num" href="#cite-back-2">[2]</a>
+Delta, Dora. <em>A book with no file</em>. Fixture Press, 2015.
+</div></div>
+
+<!-- render-fixture: further-reading -->
+<div class="csl-bib-body further-reading-refs" role="list">
+<div id="ref-gamma2020" class="csl-entry" role="listitem">
+Gamma, Gil. <span>“Listed for further reading only.”</span> 2020 <a href="https://example.org/gamma">https://example.org/gamma</a>.
+</div></div>
+

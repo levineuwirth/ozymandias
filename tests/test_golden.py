@@ -15,6 +15,12 @@ without Hakyll, and compared with tests/golden/<name>.html. A fixture is
 never published, and its sources never change, so a difference is always
 the pipeline's.
 
+Each renders from a copy of the engine's fixture site, full profile: never
+from a real site's directory, whose identity and switches would be in the
+page. core.md and initials.md are what every site has; the others are one
+switch's feature each (SWITCHED), and leave no markup under the minimal
+profile.
+
 When a difference is intended, review it, then regenerate:
 
     UPDATE_GOLDEN=1 .venv/bin/python3 -m unittest tests.test_golden
@@ -31,16 +37,36 @@ so the render is never from a stale binary.
 from __future__ import annotations
 
 import difflib
+import functools
 import html
 import os
 import re
 import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import SITE_ROOT, engine_path, requires_cabal, site_binary
+
+from tests import fixture_variants
+from tests._helpers import ENGINE, engine_path, requires_cabal, script_env, site_binary
 
 GOLDEN_DIR = engine_path("tests/golden")
 UPDATE = os.environ.get("UPDATE_GOLDEN") == "1"
+
+# Each fixture of one switch's feature, and the markup that feature leaves.
+SWITCHED = {
+    "archive": 'archive-affordance',
+    "code": 'class="language-',
+    "code-refs": 'data-code-ref',
+    "math": 'class="math',
+    "pdf": 'pdf-embed',
+    "score": 'data-exhibit-type="score"',
+    "source-refs": 'class="source-ref"',
+    "transclusion": 'class="transclude"',
+    "viz": 'class="viz-figure"',
+}
+# What every site has: the same page under any profile.
+CORE = ("core", "initials")
 
 ID_RE = re.compile(r"""(?<![\w-])id\s*=\s*["']([^"']+)["']""")
 LOCAL_HREF_RE = re.compile(r"""(?<![\w-])href\s*=\s*["']#([^"']*)["']""")
@@ -51,10 +77,26 @@ def fixtures() -> list[Path]:
     return sorted(GOLDEN_DIR.glob("*.md"))
 
 
-def render(binary: Path, fixture: Path) -> str:
+@functools.cache
+def profile_site(profile: str) -> Path:
+    """A copy of the fixture site with `profile`'s switches, whose archive
+    index the build's fetch stage has written."""
+    tmp = tempfile.TemporaryDirectory(prefix=f"golden-{profile}-")
+    unittest.addModuleCleanup(tmp.cleanup)
+    build = next(b for b in fixture_variants.builds() if b.name == profile)
+    site = Path(tmp.name) / "site"
+    fixture_variants.copy_site(build, site, ENGINE)
+    if build.switches["archive"]:
+        subprocess.run([sys.executable, str(engine_path("tools/archive.py")), "fetch"], cwd=site,
+                       env=script_env(SITE_ROOT=str(site)), check=True, capture_output=True, timeout=120)
+    return site
+
+
+def render(binary: Path, fixture: Path, profile: str = "full") -> str:
+    site = profile_site(profile)
     done = subprocess.run(
-        [str(binary), "render-fixture", os.path.relpath(fixture, SITE_ROOT)],
-        cwd=SITE_ROOT, capture_output=True, text=True,
+        [str(binary), "render-fixture", f"engine/tests/golden/{fixture.name}"],
+        cwd=site, env=script_env(SITE_ROOT=str(site)), capture_output=True, text=True,
     )
     if done.returncode:
         raise AssertionError(f"render-fixture {fixture.name} failed:\n{done.stderr}")
@@ -108,11 +150,13 @@ class GoldenTests(unittest.TestCase):
     def test_rendering_writes_nothing(self) -> None:
         # render-fixture must stay outside the build: no build stamp, no
         # cache, no _site.
-        stamp = SITE_ROOT / "data" / "build-stamp.txt"
+        site = profile_site("full")
+        stamp = site / "data" / "build-stamp.txt"
         before = stamp.stat().st_mtime_ns if stamp.exists() else None
         render(self.binary, fixtures()[0])
         after = stamp.stat().st_mtime_ns if stamp.exists() else None
         self.assertEqual(before, after, "render-fixture touched data/build-stamp.txt")
+        self.assertFalse((site / "_site").exists(), "render-fixture wrote _site")
 
 
 @requires_cabal
@@ -159,6 +203,36 @@ class InvariantTests(unittest.TestCase):
                 self.assertNotIn("{{", prose, "a transclusion or PDF directive survived")
                 self.assertNotIn("score-fragment--error", prose)
                 self.assertNotIn("viz-error", prose)
+
+
+@requires_cabal
+class ProfileTests(unittest.TestCase):
+    """The minimal profile against the full one, fixture by fixture."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        binary = site_binary()
+        cls.full = {f.stem: render(binary, f) for f in fixtures()}
+        cls.minimal = {f.stem: render(binary, f, "minimal") for f in fixtures()}
+
+    def test_every_fixture_is_the_core_s_or_one_switch_s(self):
+        self.assertEqual(set(self.full), set(CORE) | set(SWITCHED))
+
+    def test_the_core_is_the_same_page_under_both_profiles(self):
+        for name in CORE:
+            with self.subTest(fixture=name):
+                self.assertEqual(self.minimal[name], self.full[name])
+
+    def test_a_switched_feature_shows_under_the_full_profile(self):
+        # So its absence below isn't a misspelt mark's.
+        for name, mark in SWITCHED.items():
+            with self.subTest(fixture=name):
+                self.assertIn(mark, self.full[name])
+
+    def test_a_switched_feature_leaves_no_markup_under_the_minimal_profile(self):
+        for name, mark in SWITCHED.items():
+            with self.subTest(fixture=name):
+                self.assertNotIn(mark, self.minimal[name])
 
 
 if __name__ == "__main__":

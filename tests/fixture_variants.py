@@ -15,7 +15,10 @@ one first, and a set it refuses is this module's mistake.
 
 from __future__ import annotations
 
+import json
+import shutil
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -62,6 +65,20 @@ def switched(config: dict, switches: dict[str, bool]) -> dict:
                           if s["dir"] not in sections or switches[sections[s["dir"]]]],
                 standalone=[p for p in config["standalone"]
                             if p["context"] not in contexts or switches[contexts[p["context"]]]])
+
+
+def copy_site(build: "Build", site: Path, engine: Path) -> None:
+    """The fixture site in a copy of its own at `site`, as `build` has it: its
+    `without` left out, its switches written into its site.yaml, the engine
+    beside it."""
+    shutil.copytree(FIXTURE, site)
+    for rel in build.without:
+        shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
+    config = switched(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")), build.switches)
+    # JSON, which YAML reads as written: a dumped string "y" would come back
+    # as a boolean.
+    (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
+    (site / "engine").symlink_to(engine)
 
 
 def settle(switches: dict[str, bool], terms: dict[str, dict]) -> dict[str, bool]:
