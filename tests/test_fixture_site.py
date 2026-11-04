@@ -290,6 +290,14 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue((site / "_site/photography/lone-frame.html").is_file(), "the flat file was not built")
         switch_checks.photography_off(site)
 
+    def test_a_site_that_turns_the_bibliography_off_shows_citations_as_written(self):
+        # The essay still cites and names its further reading, and the
+        # .bib is still there; /bibliography/ goes with it.
+        site = self.turned_off("bibliography")
+        self.assertTrue((site / "data/bibliography.bib").is_file())
+        switch_checks.bibliography_off(site)
+        switch_checks.bibliography_index_off(site)
+
     def test_a_site_that_turns_vita_off_renders_no_cv(self):
         # yaml-source/ and content/cv.md are still there.
         switch_checks.vita_off(self.turned_off("vita"))

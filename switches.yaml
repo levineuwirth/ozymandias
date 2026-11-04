@@ -229,6 +229,7 @@ authors:
 bibliography-index:
   kind: generated
   default: false
+  needs: [bibliography]
   routes: [/bibliography/]
   about: >-
     /bibliography/, every work the site cites, and a page per keyword
@@ -341,3 +342,12 @@ photography:
     site's lists (the tag pages, the library, /stats/), and the build's
     stages for it (variants, EXIF and palette sidecars, Leaflet). Without it
     a flat file under content/photography/ is an ordinary page.
+
+bibliography:
+  kind: capability
+  default: false
+  about: >-
+    Citations: a page's [@key]s as numbered markers, its bibliography and
+    its further-reading list, by citeproc from the .bib files and the CSL
+    style. Without it a citation stays as its author wrote it, as text, and
+    the page has neither list. /bibliography/ is bibliography-index's.

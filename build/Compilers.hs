@@ -253,8 +253,8 @@ trackInitials (Initials dirs _) = do
 --   filtered one, outside Hakyll, so that @site render-fixture@ (build/Golden.hs,
 --   tests/test_golden.py) runs the same code a page does.
 --
---   Citeproc first: it turns citations into numbered markers and pulls the
---   bibliography out. Then score fragments and visualizations (each with
+--   Citeproc first, with its switch on: it turns citations into numbered
+--   markers and pulls the bibliography out. Then score fragments and visualizations (each with
 --   its switch on), which read files relative to @srcDir@. Then the remaining AST filters (sidenotes,
 --   smallcaps, links, …); 'applyAll' probes the filesystem for @.webp@
 --   companions, so it is IO too.
@@ -264,7 +264,10 @@ trackInitials (Initials dirs _) = do
 transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Initials -> Pandoc
                   -> IO (Pandoc, T.Text, T.Text)
 transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
-    (withCites, bibHtml, furtherHtml) <- Citations.applyCitations cfg frKeys bibPath doc
+    (withCites, bibHtml, furtherHtml) <-
+        if switchOn cfg "bibliography"
+            then Citations.applyCitations cfg frKeys bibPath doc
+            else return (Citations.plainCitations doc, T.empty, T.empty)
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
     withViz    <- if switchOn cfg "viz"

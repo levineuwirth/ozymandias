@@ -28,6 +28,7 @@
 --   NOTE: Does not import Contexts to avoid cycles.
 module Citations
     ( applyCitations
+    , plainCitations
       -- * For synthetic bibliography pages (Phase 6b)
     , renderBibliographyHtml
       -- * The style, for dependency tracking
@@ -58,6 +59,17 @@ import qualified Filters.Links       (pdfViewerTarget)
 -- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
+
+-- | A page's citations without the bibliography switch: each as its author
+--   wrote it, plain text, with no marker and no list. Left as they are they
+--   would render with the class the artifact gate refuses (a citation
+--   showing its source syntax).
+plainCitations :: Pandoc -> Pandoc
+plainCitations = walk (concatMap plain)
+  where
+    plain :: Inline -> [Inline]
+    plain (Cite _ written) = written
+    plain inline           = [inline]
 
 -- | Process citations in a Pandoc document.
 --   @frKeys@: further-reading citation keys (read from Hakyll metadata by

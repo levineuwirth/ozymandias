@@ -17,6 +17,7 @@ full:
     annotations: true
     archive: true
     authors: true
+    bibliography: true
     bibliography-index: true
     build-page: true
     code: true
@@ -50,6 +51,7 @@ minimal:
     annotations: false
     archive: false
     authors: true
+    bibliography: true
     bibliography-index: false
     build-page: false
     code: false

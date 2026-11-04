@@ -440,6 +440,23 @@ def signature_link_off(site: Path) -> None:
     assert not linked, f"signature links on {linked}"
 
 
+def bibliography_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    assert 'id="bibliography"' in essay and 'id="ref-alpha2001"' in essay, "the essay has no bibliography"
+    assert 'class="cite-link"' in essay, "the essay's citations are not markers"
+    assert 'id="further-reading"' in essay and "ref-gamma2020" in essay, "the essay lists no further reading"
+    assert 'href="#bibliography"' in essay, "the essay's metadata does not link its bibliography"
+
+
+def bibliography_off(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    assert "[@alpha2001]" in essay, "the essay's citation is not shown as written"
+    marks = ('class="citation"', 'class="cite-link"', 'id="bibliography"', 'id="further-reading"',
+             'id="ref-', 'href="#bibliography"', 'href="#further-reading"')
+    marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")] for mark in marks}
+    assert not any(marked.values()), f"citations on pages: {marked}"
+
+
 KEYWORD = "fixtures"   # the long essay's, and alpha2001's in the .bib
 
 
@@ -465,7 +482,8 @@ def bibliography_index_off(site: Path) -> None:
     linked = [p.name for p in pages(site) if re.search(r'href="[./]*bibliography/', p.read_text(encoding="utf-8"))]
     assert not linked, f"links to the bibliography's pages on {linked}"
     essay = text(site, "essays/long/index.html")
-    for cls in ("meta-keyword", "bib-keyword"):
+    # A work's keywords are in the bibliography, if there is one.
+    for cls in ("meta-keyword", *(("bib-keyword",) if 'id="bibliography"' in essay else ())):
         assert f'<span class="{cls}">{KEYWORD}</span>' in essay, f"the essay's {cls} is not shown"
 
 
@@ -635,6 +653,7 @@ CHECKS = {
     "annotations": (annotations_on, annotations_off),
     "archive": (archive_on, archive_off),
     "authors": (authors_on, authors_off),
+    "bibliography": (bibliography_on, bibliography_off),
     "bibliography-index": (bibliography_index_on, bibliography_index_off),
     "build-page": (build_page_on, build_page_off),
     "code": (code_on, code_off),

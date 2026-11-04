@@ -197,6 +197,20 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
 
+    def test_the_loader_enforces_the_registry_s_dependencies(self):
+        # Plan 3.4's, in the real registry.
+        for switches, refusal in (({"annotations": True}, "annotations needs selection-toolbar"),
+                                  ({"bibliography-index": True}, "bibliography-index needs bibliography"),
+                                  ({"search-filters": True}, "search-filters needs one of epistemic, archive"),
+                                  ({"signature-link": True}, "signature-link needs signing"),
+                                  ({"source-refs": True}, "source-refs needs code")):
+            with self.subTest(switches=switches):
+                self.config["switches"] = switches
+                self.write_config()
+                done = self.run_site("config")
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn(refusal, done.stderr)
+
     def test_photography_owns_its_section(self):
         photos = {"dir": "photography", "kind": "Photo", "dingbat": None}
         fed = {"path": "photos.xml", "title": "Photos", "description": "Pictures",
@@ -592,7 +606,7 @@ class ConfigTests(unittest.TestCase):
                    "build": "build-page", "stats": "stats-page"}
         for on in (False, True):
             with self.subTest(on=on):
-                self.config = dict(self.config, switches={switch: on for switch in indexes.values()})
+                self.config = dict(self.config, switches={"bibliography": on, **{switch: on for switch in indexes.values()}})
                 self.write_config()
                 done = self.run_site("shared-rules")
                 self.assertEqual(done.returncode, 0, done.stderr)
