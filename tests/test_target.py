@@ -164,31 +164,58 @@ class Routes(unittest.TestCase):
                 entry.write_text("---\ntitle: First\n---\n")
                 self.assertNotEqual(named(), [], "only a nested entry, and no page named")
 
+    def problems(self, kinds: str, pages: str, built: dict[str, str] | None, off: tuple[str, ...] = ()) -> list[str]:
+        """`misnamed` for a scratch site with every switch on but `off`, and an
+        essay, so an author's kind is one it has; with `built`'s pages by path,
+        or no build at all."""
+        with tempfile.TemporaryDirectory() as tmp:
+            site, routes, switches = self.scratch_routes(tmp, kinds, pages)
+            (site / "content/essays").mkdir(parents=True)
+            (site / "content/essays/a.md").write_text("---\ntitle: A\n---\n")
+            switches = {name: name not in off for name in switches}
+
+            def where(path: str) -> Path:
+                file = site / "built.html"
+                if built is None:
+                    file.unlink(missing_ok=True)
+                else:
+                    file.write_text(built.get(path, ""))
+                return file
+
+            return routes.misnamed(where, switches)
+
     def test_a_kind_is_held_to_its_own_route_and_not_another_s(self):
         # Substitutions that once passed: an author's kind on a section's
         # index, the by-year index's on one year's page; with a build and
         # without.
-        built = {"/essays/": 'class="essay-list"', "/photography/by-year/2024/": "photography-by-year-back",
+        built = {"/essays/": 'class="essay-list" class="page-title"', "/photography/by-year/2024/": "photography-by-year-back",
                  "/stats/": 'class="essay-frontmatter" id="activity"', "/links.html": 'class="page-title"'}
-        pages = ("{index: /essays/, year: /photography/by-year/2024/, stats: /stats/, links: /links.html}")
+        pages = "{index: /essays/, year: /photography/by-year/2024/, stats: /stats/, links: /links.html}"
         for kinds, problem in (("{author: index}", "author: /essays/ "),
                                ("{photo-years: year}", "photo-years: /photography/by-year/2024/ "),
                                ("{essay: stats}", "essay: /stats/ "),
-                               ("{page: index}", "page: /essays/ ")):
-            for with_build in (True, False):
-                if kinds in ("{page: index}",) and not with_build:
-                    continue   # a page's kind is a build's to say
-                with self.subTest(kinds=kinds, build=with_build), tempfile.TemporaryDirectory() as tmp:
-                    site, routes, switches = self.scratch_routes(tmp, kinds, pages)
-                    switches = dict.fromkeys(switches, True)
+                               ("{page: index}", "page: /essays/ "),
+                               ("{poem: index}", "poem: /essays/ ")):
+            for build in (built, None):
+                with self.subTest(kinds=kinds, build=build is not None):
+                    found = self.problems(kinds, pages, build)
+                    self.assertTrue([p for p in found if p.startswith(problem)], found)
 
-                    def where(path: str) -> Path:
-                        file = site / "built.html"
-                        file.write_text(built.get(path, "")) if with_build else file.unlink(missing_ok=True)
-                        return file
-
-                    self.assertTrue([p for p in routes.misnamed(where, switches) if p.startswith(problem)],
-                                    routes.misnamed(where, switches))
+    def test_a_path_is_kept_only_by_a_kind_the_site_has(self):
+        # With stats-page off a tag `stats` has /stats/ (test_route_check), and
+        # likewise each generated index and namespace: the kinds that yield a
+        # path to these are free to have it once their switch is off.
+        for path, switch in (("/stats/", "stats-page"), ("/build/", "build-page"), ("/archive/", "archive"),
+                             ("/bibliography/", "bibliography-index"), ("/authors/a/", "authors"),
+                             ("/photography/by-year/", "photography")):
+            for kind, mark in (("tag", 'class="item-card-list" class="page-title"'),
+                               ("essay", 'class="essay-frontmatter" class="page-title"'),
+                               ("page", 'class="page-title"')):
+                for build in ({path: mark}, None):
+                    with self.subTest(path=path, kind=kind, build=build is not None):
+                        pages, kinds = f"{{p: {path}}}", f"{{{kind}: p}}"
+                        self.assertEqual(self.problems(kinds, pages, build, off=(switch,)), [])
+                        self.assertTrue(self.problems(kinds, pages, build), "the switch on keeps the path")
 
     def test_names_and_paths_resolve_and_strays_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -19,6 +19,7 @@ alone.
 
 from __future__ import annotations
 
+import functools
 import re
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple
@@ -39,7 +40,8 @@ DIRECTORIES = ("score", "score-other", "score-silent")
 class Kind(NamedTuple):
     """A kind of page, as the generator builds it. A page is of this kind if
     its path fits `route` (a regular expression, whole) and it carries `marker`
-    from its template; `page` is what is left over (`Routes.kinds_of`). A site
+    from its template, and no kind the site has claims the path (`Routes.claims`);
+    `page` is what is left over (`Routes.kinds_of`). A site
     has the kind if its switch is on and, where a site may have none, a
     published source fits `content` less `exclude` (Patterns.hs's patterns;
     test_route_check holds them to the generator) and sets one of `declares`, or
@@ -64,13 +66,9 @@ def writing(section: str) -> dict:
 ESSAYS = ("content/essays/*.md", "content/essays/*/*.md")
 FRAMES = {"content": ("content/photography/*.md", "content/photography/*/*.md"),
           "exclude": ("content/photography/index.md",)}
-# Paths of the engine's own, which a tag cannot have: a generated index, or a
-# section's page.
-NOT_A_TAG = r"(?!(?:authors|archive|bibliography|music|photography/by-year|photography/map|photography/contact-sheet|stats|build)/)"
-
 KINDS = {
     "home": Kind(None, r"/"),
-    "essay": Kind(None, r"/(?!stats/$|build/$).*", 'class="essay-frontmatter"', ESSAYS),
+    "essay": Kind(None, None, 'class="essay-frontmatter"', ESSAYS),
     "page": Kind(None),
     "section-index": Kind(None, r"/(?:essays|poetry|fiction|blog)/"),
     "poem": Kind(None, None, 'class="reading-mode poetry"', **writing("poetry")),
@@ -81,7 +79,7 @@ KINDS = {
     "search": Kind(None, None, 'id="search"', ("content/search.md",)),
     "not-found": Kind(None),
     "new": Kind("new", r"/new\.html", 'class="item-card-list"'),
-    "tag": Kind("tag-pages", rf"/{NOT_A_TAG}.+/", 'class="item-card-list"', ESSAYS + FRAMES["content"]),
+    "tag": Kind("tag-pages", r"/.+/", 'class="item-card-list"', ESSAYS + FRAMES["content"]),
     "author": Kind("authors", r"/authors/[^/]+/", 'class="essay-list"',
                    ESSAYS + writing("blog")["content"], writing("blog")["exclude"]),
     "library": Kind("library", r"/library\.html", "library-see-also"),
@@ -107,6 +105,9 @@ KINDS = {
     "stats": Kind("stats-page", r"/stats/", 'id="activity"'),
     "build": Kind("build-page", r"/build/", "Build Telemetry"),
 }
+# A tag may have any directory path nothing else claims: its route says nothing
+# about it, as no route says nothing about a kind with none.
+OPEN_ROUTE = ("tag",)
 # Withholding a directory-form entry withholds its directory (build/Drafts.hs).
 DIRECTORY_ENTRIES = ("essays", "music", "photography")
 FRONT_MATTER = re.compile(r"\A-{3,}[ \t]*\n(.*?)\n-{3,}[ \t]*(?:\n|\Z)", re.S)
@@ -171,7 +172,8 @@ class Routes:
         if problems:
             raise ValueError(f"{ROUTES_FILE}: {'; '.join(problems)}")
 
-    def standalone(self) -> dict[str, list[str]]:
+    @functools.cached_property
+    def standalone_paths(self) -> dict[str, list[str]]:
         """site.yaml's standalone pages' paths, by their context."""
         config = yaml.safe_load((self.site / "site.yaml").read_text(encoding="utf-8")) or {}
         found: dict[str, list[str]] = {}
@@ -185,27 +187,45 @@ class Routes:
         if kind.switch is not None and not switches[kind.switch]:
             return False
         if kind.context:
-            return kind.context in self.standalone()
+            return kind.context in self.standalone_paths
         return not kind.content or any(
             published(self.site, rel) and not any(PurePosixPath(rel).match(glob) for glob in kind.exclude)
             and (not kind.declares or any(front_matter(self.site / rel).get(key) for key in kind.declares))
             for glob in kind.content
             for rel in (p.relative_to(self.site) for p in self.site.glob(glob)))
 
-    def fits_path(self, name: str, path: str) -> bool:
-        """Whether `path` can be a page of this kind, before looking at one."""
-        kind = KINDS[name]
-        return ((kind.route is None or re.fullmatch(kind.route, path) is not None)
-                and (kind.context is None or path in self.standalone().get(kind.context, [])))
+    def claims(self, switches: dict[str, bool]) -> list[str]:
+        """The kinds with a route or standalone context of their own that this
+        site has. Only they keep a path from the other kinds: with stats-page
+        off, /stats/ is free for a tag or a standalone essay (RouteCheck refuses
+        two pages on one path)."""
+        return [name for name, kind in KINDS.items()
+                if (kind.route or kind.context) and name not in OPEN_ROUTE and self.has(name, switches)]
 
-    def kinds_of(self, path: str, html: str) -> set[str]:
-        """Every kind a built page fits: all of a kind's route, context and
-        mark. `page` is what is left over, for page.html leaves no mark of its
-        own but the title every page.html and many others have."""
+    def fits_path(self, name: str, path: str, claims: list[str]) -> bool:
+        """Whether `path` can be a page of this kind, before looking at one,
+        on a site whose `claims` these are."""
+        kind = KINDS[name]
+
+        def own(k: Kind) -> bool:
+            return ((k.route is None or re.fullmatch(k.route, path) is not None)
+                    and (k.context is None or path in self.standalone_paths.get(k.context, [])))
+
+        if not own(kind):
+            return False
+        return name in claims or not any(own(KINDS[other]) for other in claims)
+
+    def kinds_of(self, path: str, html: str, switches: dict[str, bool]) -> set[str]:
+        """Every kind a built page fits: its switch, route or context, and
+        mark, on a path nothing the site has claims from it. `page` is what is
+        left over, for page.html leaves no mark of its own but the title every
+        page.html and many others have."""
+        claims = self.claims(switches)
         found = {name for name, kind in KINDS.items() if name not in ("page", "not-found")
-                 and self.fits_path(name, path) and (kind.marker is None or kind.marker in html)
-                 and (kind.route or kind.context or kind.marker)}
-        if not found and 'class="page-title"' in html:
+                 and (kind.switch is None or switches[kind.switch])
+                 and (kind.route or kind.context or kind.marker)
+                 and self.fits_path(name, path, claims) and (kind.marker is None or kind.marker in html)}
+        if not found and 'class="page-title"' in html and self.fits_path("page", path, claims):
             found.add("page")
         return found
 
@@ -226,6 +246,7 @@ class Routes:
         and of it alone. `built(path)` is the file a URL path serves; without
         one (no build) only its path can be judged."""
         problems = []
+        claims = self.claims(switches)
         for name, page in self.kinds.items():
             kind = KINDS[name]
             if kind.switch is not None and not switches[kind.switch]:
@@ -235,10 +256,10 @@ class Routes:
                 if path != self.roles.get("not-found") and page != self.roles.get("not-found") or file.is_file():
                     problems.append(f"not-found: {path} is not the role's path that no page has")
             elif file.is_file():
-                found = self.kinds_of(path, file.read_text(encoding="utf-8"))
+                found = self.kinds_of(path, file.read_text(encoding="utf-8"), switches)
                 if found != {name}:
                     problems.append(f"{name}: {path} is {sorted(found) or 'no kind'}")
-            elif not self.fits_path(name, path):
+            elif not self.fits_path(name, path, claims):
                 problems.append(f"{name}: {path} cannot be one")
         return problems
 

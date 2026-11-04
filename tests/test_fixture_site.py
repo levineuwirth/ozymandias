@@ -232,11 +232,13 @@ class FixtureBuilds(unittest.TestCase):
         return self.rebuilt(f"full-{name}-turned-off", lambda config: fixture_variants.switched(
             config, fixture_variants.settle(dict(config["switches"], **{name: False}), fixture_variants.registry())))
 
-    def rebuilt(self, name: str, change) -> Path:
+    def rebuilt(self, name: str, change, files: dict[str, str] | None = None) -> Path:
         """The full build's copy, as `turned_off` has it, built again with
-        `change` made to its site.yaml's contents."""
+        `change` made to its site.yaml's contents, and `files` written."""
         site = self.sites["full"].with_name(name)
         shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
+        for rel, text in (files or {}).items():
+            (site / rel).write_text(text, encoding="utf-8")
         config = change(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")))
         (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
@@ -424,16 +426,31 @@ class FixtureBuilds(unittest.TestCase):
         # So a kind's name can't stand on another's page: each page is one
         # kind, its own, in the build with the most kinds.
         site = self.sites["full"]
+        switches = {b.name: b for b in self.builds}["full"].switches
         routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
         for kind, page in sorted(routes.kinds.items()):
             if kind != "not-found":
                 with self.subTest(kind=kind):
                     path = routes.pages[page]
                     file = site / "_site" / path.lstrip("/") / ("index.html" if path.endswith("/") else "")
-                    self.assertEqual(routes.kinds_of(path, file.read_text(encoding="utf-8")), {kind})
+                    self.assertEqual(routes.kinds_of(path, file.read_text(encoding="utf-8"), switches), {kind})
         # An entry in a collection is its section's kind, as the flat one is.
         first = "/poetry/a-set/first.html"
-        self.assertEqual(routes.kinds_of(first, switch_checks.text(site, first[1:])), {"poem"})
+        self.assertEqual(routes.kinds_of(first, switch_checks.text(site, first[1:]), switches), {"poem"})
+
+    def test_a_path_a_switch_leaves_free_is_a_tag_s(self):
+        # With stats-page off a tag `stats` has /stats/ (test_route_check): its
+        # page is a tag's, with the generator's own route table agreeing.
+        tagged = "---\ntitle: Tagged\ndate: 2026-01-01\ntags: [stats]\n---\n\nBody.\n"
+        routes_yaml = "pages: {stats-tag: /stats/}\nkinds: {tag: stats-tag}\n"
+        site = self.rebuilt("full-stats-tag", lambda config: fixture_variants.switched(config, fixture_variants.settle(
+                                dict(config["switches"], **{"stats-page": False}), fixture_variants.registry())),
+                            files={"content/essays/tagged-stats.md": tagged, "tests/routes.yaml": routes_yaml})
+        switches = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))["switches"]
+        routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
+        html = switch_checks.text(site, "stats/index.html")
+        self.assertEqual(routes.kinds_of("/stats/", html, switches), {"tag"})
+        self.assertEqual(routes.misnamed(lambda path: site / "_site" / path.lstrip("/") / "index.html", switches), [])
 
     def test_each_page_preloads_the_fonts_site_yaml_names(self):
         # The fixture names none, and a site's list is emitted as written,
