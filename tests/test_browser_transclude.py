@@ -26,6 +26,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, page_styles,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.target import requires_switch
 
 HOST = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Transclusion fixture</title>
@@ -72,6 +73,7 @@ NOTES_HOST = """<!doctype html>
 """
 
 
+@requires_switch("transclusion")
 @requires_browser
 class Transclusion(unittest.TestCase):
     @classmethod

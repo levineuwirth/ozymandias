@@ -18,6 +18,8 @@
 --     {{essays/deep-dive}}      → /essays/deep-dive.html (full body)
 --     {{my-essay#introduction}} → section "introduction" of /my-essay.html
 --     {{build/}}                → /build/ (explicit directory form)
+--
+--   Without the transclusion switch a directive is a link to the passage.
 module Filters.Transclusion (preprocess) where
 
 import Data.List (isSuffixOf, isPrefixOf, stripPrefix)
@@ -26,16 +28,18 @@ import qualified Utils as U
 
 -- | Apply transclusion substitution to the raw Markdown source string,
 --   skipping lines inside fenced code blocks.
-preprocess :: [String] -> String -> String
-preprocess slugs = mapOutsideFences (processLine slugs)
+preprocess :: Bool -> [String] -> String -> String
+preprocess transclusion slugs = mapOutsideFences (processLine transclusion slugs)
 
-processLine :: [String] -> String -> String
-processLine slugs line =
+processLine :: Bool -> [String] -> String -> String
+processLine transclusion slugs line =
     case parseDirective slugs (U.trim line) of
         Nothing             -> line
-        Just (url, secAttr) ->
-            "<div class=\"transclude\" data-src=\"" ++ U.escapeHtml url ++ "\""
-            ++ secAttr ++ ">" ++ noscriptFallback url secAttr ++ "</div>"
+        Just (url, secAttr)
+            | transclusion ->
+                "<div class=\"transclude\" data-src=\"" ++ U.escapeHtml url ++ "\""
+                ++ secAttr ++ ">" ++ noscriptFallback url secAttr ++ "</div>"
+            | otherwise -> "<p>" ++ passageLink url secAttr ++ "</p>"
 
 -- | No-JavaScript fallback for a transclusion placeholder.
 --
@@ -53,8 +57,13 @@ processLine slugs line =
 noscriptFallback :: String -> String -> String
 noscriptFallback url secAttr =
     "<noscript><p class=\"transclude-noscript-note\">"
-    ++ "<a href=\"" ++ href ++ "\">"
-    ++ "Read this passage on its own page</a>.</p></noscript>"
+    ++ passageLink url secAttr ++ "</p></noscript>"
+
+-- | The link to a directive's passage, with its section fragment if it
+--   named one.
+passageLink :: String -> String -> String
+passageLink url secAttr =
+    "<a href=\"" ++ href ++ "\">Read this passage on its own page</a>."
   where
     -- secAttr is either "" or ` data-section="…"`; recover the section so
     -- the fallback link lands on the same heading the transclusion would

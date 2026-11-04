@@ -70,7 +70,7 @@ PROBE_SWITCHES = {
     "popups": "popups", "search": None, "map": "photography", "slideshow": "photography", "lightbox": None,
     "score": "music", "pdf-viewer": "pdf-viewer", "archive-snapshot": "archive",
     "archive-pdf": "archive", "pdf-links": None, "composition": "music",
-    "transclusion": None, "commonplace": "commonplace", "math": "math",
+    "transclusion": "transclusion", "commonplace": "commonplace", "math": "math",
 }
 
 
@@ -176,7 +176,7 @@ class CspSweep(unittest.TestCase):
                 self.assertEqual(bad, [])
 
     def test_images_math_and_transclusions_render(self) -> None:
-        math = switch_on("math")
+        math, transclusion = switch_on("math"), switch_on("transclusion")
         for browser, route, rec in self.visited():
             f = rec.get("features")
             if f is None:
@@ -189,7 +189,10 @@ class CspSweep(unittest.TestCase):
                 else:
                     self.assertEqual((f["katex"], f["math_raw"], f["katex_css"]), (0, 0, False),
                                      "math on a site without the switch")
-                self.assertEqual(f["transclude_unfilled"], 0)
+                if transclusion:
+                    self.assertEqual(f["transclude_unfilled"], 0)
+                else:
+                    self.assertEqual(f["transclude_total"], 0, "a transclusion on a site without the switch")
 
     def test_features(self) -> None:
         """What the Promotion note in nginx/security-headers.conf says to

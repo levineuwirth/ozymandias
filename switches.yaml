@@ -360,3 +360,11 @@ similar-links:
     data/similar-links.json and its share of the footer files, and the list
     itself. Without it the pass does not run (backlinks' footer files still
     do), and data/similar-links.json is not read.
+
+transclusion:
+  kind: capability
+  default: false
+  assets: [js/transclude.js]
+  about: >-
+    A {{slug}} or {{slug#section}} line as another page's passage, filled in
+    by transclude.js. Without it the line is a link to that passage.

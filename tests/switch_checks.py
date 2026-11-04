@@ -414,6 +414,25 @@ def similar_links_off(site: Path) -> None:
     assert not listed, f"Related lists on {listed}"
 
 
+PASSAGE = "short-page.html"   # the long essay's {{short-page#a-passage}}
+
+
+def transclusion_on(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    assert re.search(rf'<div class="transclude" data-src="[./]*{PASSAGE}" data-section="a-passage">', essay), \
+        "the essay's directive is not a placeholder"
+    assert asset_tag("js/transclude.js").search(essay), "the essay does not load transclude.js"
+
+
+def transclusion_off(site: Path) -> None:
+    essay = text(site, "essays/long/index.html")
+    assert re.search(rf'<p>\s*<a href="[./]*{PASSAGE}#a-passage">Read this passage on its own page</a>\.\s*</p>', essay), \
+        "the essay's directive is not a link to its passage"
+    placed = [p.name for p in pages(site) if 'class="transclude"' in p.read_text(encoding="utf-8")]
+    assert not placed, f"placeholders on {placed}"
+    assert not loading(site, "js/transclude.js"), f"transclude.js is loaded on {loading(site, 'js/transclude.js')}"
+
+
 READING_PAGES = ("poetry/a-poem.html", "fiction/a-story.html")
 
 
@@ -693,6 +712,7 @@ CHECKS = {
     "source-refs": (source_refs_on, source_refs_off),
     "stats-page": (stats_page_on, stats_page_off),
     "tag-pages": (tag_pages_on, tag_pages_off),
+    "transclusion": (transclusion_on, transclusion_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),
 }

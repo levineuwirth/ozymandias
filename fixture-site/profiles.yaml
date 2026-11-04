@@ -45,6 +45,7 @@ full:
     source-refs: true
     stats-page: true
     tag-pages: true
+    transclusion: true
     vita: true
     viz: true
 minimal:
@@ -80,6 +81,7 @@ minimal:
     source-refs: false
     stats-page: false
     tag-pages: true
+    transclusion: false
     vita: false
     viz: false
   without: [archive/, code-refs/, content/commonplace.md, content/current.md, content/cv.md, data/commonplace.yaml, data/now.yaml, content/music/, content/essays/capabilities/, yaml-source/]

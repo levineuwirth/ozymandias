@@ -476,6 +476,8 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(links.returncode, 0, links.stderr)
         self.assertEqual(links.stdout.split(), ["/essays/", "/memento-mori.html", "/studio/", "/walks/"])
         # Transclusion resolves the same slugs.
+        self.config["switches"] = {"transclusion": True}
+        self.write_config()
         fixture = self.root / "transclusions.md"
         fixture.write_text("---\ntitle: Fixture\n---\n{{studio}}\n\n{{people/team}}\n")
         rendered = self.run_site("render-fixture", str(fixture))

@@ -119,5 +119,5 @@ $if(switch-viz)$$if(viz)$
 $endif$$endif$
 $if(list-page)$<script src="/js/list-pagination.js" defer></script>$endif$
 <script src="/js/collapse.js" defer></script>
-<script src="/js/transclude.js" defer></script>
+$if(switch-transclusion)$<script src="/js/transclude.js" defer></script>$endif$
 $if(switch-code)$<script src="/js/copy.js" defer></script>$endif$
