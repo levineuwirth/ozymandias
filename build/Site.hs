@@ -744,9 +744,11 @@ rules = do
 
     -- ---------------------------------------------------------------------------
     -- Photography — single-photo entries, asset copy, and section landing.
-    -- See build/Photography.hs and PHOTOGRAPHY.md for the design.
+    -- See build/Photography.hs and PHOTOGRAPHY.md for the design. With the
+    -- photography switch on: without it a flat file under content/photography
+    -- is an ordinary page, and nothing there is a frame or a series.
     -- ---------------------------------------------------------------------------
-    photographyRules cfg
+    when (switchOn cfg "photography") $ photographyRules cfg
 
     -- ---------------------------------------------------------------------------
     -- Archive — link-archiving system: per-entry /archive/<slug>/ pages and
@@ -926,7 +928,9 @@ rules = do
             fiction <- loadAll (P.fictionPattern     .&&. hasNoVersion)
             poetry  <- loadAll (P.poetryPattern      .&&. hasNoVersion)
             music   <- loadAll (P.musicPattern       .&&. hasNoVersion)
-            photos  <- loadAll (P.photographyPattern .&&. hasNoVersion)
+            photos  <- if switchOn current "photography"
+                           then loadAll (P.photographyPattern .&&. hasNoVersion)
+                           else pure []
             let allContent = essays ++ posts ++ fiction ++ poetry ++ music ++ photos
                                 :: [Item String]
             tagged <- mapM (\i -> (,i) <$> primaryPortalOf i) allContent

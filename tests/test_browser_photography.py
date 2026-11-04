@@ -33,13 +33,11 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import route
+from tests.target import requires_switch, route
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
                        "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
 
-PHOTO = route("photo")
-ESSAY_WITH_FIGURE = route("essay-figure")
 
 # Four places far apart, so no two cluster at the zoom that frames them.
 PINS = [
@@ -115,6 +113,7 @@ class Photography(unittest.TestCase):
 
     # -- view modes --------------------------------------------------------
 
+    @requires_switch("photography")
     def test_view_modes(self) -> None:
         grid = ".photography-grid"
         for browser in BROWSERS:
@@ -139,6 +138,7 @@ class Photography(unittest.TestCase):
                 page.wait_for_url(re.compile(r"/photography/map/$"))
                 self.assertEqual(page.evaluate("localStorage.getItem('photography-mode')"), "masonry")
 
+    @requires_switch("photography")
     def test_masonry_cards_hold_their_photographs(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -206,6 +206,7 @@ class Photography(unittest.TestCase):
         page.mouse.wheel(0, -480)
         page.wait_for_timeout(900)
 
+    @requires_switch("photography")
     def test_markers(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -229,6 +230,7 @@ class Photography(unittest.TestCase):
                 page.click(".leaflet-marker-icon[title='Copenhagen — 2 photographs']")
                 page.wait_for_url(re.compile(r"/photography/alpha/$"))
 
+    @requires_switch("photography")
     def test_wheel_zoom_on_every_focus(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -251,6 +253,7 @@ class Photography(unittest.TestCase):
                 [(url, init)] = [f for f in page.evaluate("window.__fetches") if f[0].endswith("map.json")]
                 self.assertNotEqual((init or {}).get("cache"), "force-cache")
 
+    @requires_switch("photography")
     def test_map_states(self) -> None:
         cases = {
             "data missing": ({"map": answer("", "text/plain", 404)},
@@ -272,11 +275,12 @@ class Photography(unittest.TestCase):
 
     # -- the lightbox ------------------------------------------------------
 
+    @requires_switch("photography")
     def test_lightbox_on_a_photograph(self) -> None:
         overlay = ".lightbox-overlay"
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.open(browser, PHOTO, height=1000)
+                page, _ = self.open(browser, route("photo"), height=1000)
                 trigger = page.locator("img[data-lightbox]").first
                 self.expect(trigger).to_have_attribute("role", "button")
                 trigger.focus()
@@ -307,6 +311,7 @@ class Photography(unittest.TestCase):
                 # Released once the fade is over.
                 self.expect(big).not_to_have_attribute("src", re.compile(".*"))
 
+    @requires_switch("photography")
     def test_slideshow_takes_focus(self) -> None:
         # The slideshow shares the lightbox's overlay styles: with them,
         # focus has to reach Play/Pause as it does on the bare fixture
@@ -323,7 +328,7 @@ class Photography(unittest.TestCase):
     def test_lightbox_on_an_essay_figure(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.open(browser, ESSAY_WITH_FIGURE)
+                page, _ = self.open(browser, route("essay-figure"))
                 trigger = page.locator("img[data-lightbox]").first
                 trigger.scroll_into_view_if_needed()
                 trigger.click()

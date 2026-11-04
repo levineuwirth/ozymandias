@@ -327,3 +327,17 @@ reading-progress:
     reading.js). The contents' own progress line belongs to the contents
     until Phase B makes one primitive of the two (B4): toc.js and
     components.css draw it, and neither can change here.
+
+photography:
+  kind: capability
+  default: false
+  section: photography
+  assets: [js/photography-modes.js, js/photography-slideshow.js, js/photography-map.js,
+           css/photography.css, leaflet/**]
+  about: >-
+    Photographs: /photography/, a page per frame and series under
+    content/photography/, their images and sidecars, the by-year, contact-sheet
+    and map views and the map's data, photography feeds; the section in the
+    site's lists (the tag pages, the library, /stats/), and the build's
+    stages for it (variants, EXIF and palette sidecars, Leaflet). Without it
+    a flat file under content/photography/ is an ordinary page.

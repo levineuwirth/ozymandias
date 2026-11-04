@@ -162,26 +162,28 @@ build-locked:
 	# Responsive photo variants (P01). Must come BEFORE convert-images so
 	# each .w480/.w960/.w1440 file gets a .webp companion of its own, and
 	# before the dimension sidecars below (which skip variants outright).
-	@$(MAKE) -s thumbnails
+	@$(call with_switch,photography,$(MAKE) -s thumbnails)
 	@$(call tool,convert-images.sh)
 	@$(MAKE) -s pdf-thumbs
 	@$(call with_switch,pdf-viewer,$(call tool,download-pdfjs.sh))
-	@$(call tool,download-leaflet.sh)
+	@$(call with_switch,photography,$(call tool,download-leaflet.sh))
 	# The semantic-search model (engine/static/models/, gitignored), like the two
 	# above: without it the deploy's rsync --delete would remove the
 	# published model (audit D07). Skips present files after re-checking
 	# their pinned SHA-256.
 	@$(call with_switch,semantic-search,$(call tool,download-model.sh) >/dev/null)
-	# Photography pipeline (Phase 3): generate per-photo EXIF + palette
-	# sidecars under content/photography/**/*.{exif,palette}.yaml so the
-	# Hakyll context can merge them with frontmatter at compile time.
+	# Photography pipeline (Phase 3), behind its switch: generate per-photo
+	# EXIF + palette sidecars under content/photography/**/*.{exif,palette}.yaml
+	# so the Hakyll context can merge them with frontmatter at compile time.
 	# Plus per-image dimension sidecars across static/images/ and
 	# content/** so build/Filters/Images.hs can attach width / height
 	# attrs to body images for CLS prevention.
 	# Gated on .venv presence, same as embed.py — failures are non-fatal.
 	@if [ -x $(VENV_PY) ]; then \
-	  $(VENV_PY) $(call tool,extract-exif.py)       || echo "Warning: EXIF extraction failed (build continues with frontmatter only)"; \
-	  $(VENV_PY) $(call tool,extract-palette.py)    || echo "Warning: palette extraction failed (build continues with frontmatter only)"; \
+	  if $(call switch_on,photography); then \
+	    $(VENV_PY) $(call tool,extract-exif.py)     || echo "Warning: EXIF extraction failed (build continues with frontmatter only)"; \
+	    $(VENV_PY) $(call tool,extract-palette.py)  || echo "Warning: palette extraction failed (build continues with frontmatter only)"; \
+	  fi; \
 	  $(VENV_PY) $(call tool,extract-dimensions.py) || echo "Warning: dimension extraction failed (build continues without width/height attrs)"; \
 	else \
 	  echo "Photography sidecars skipped: run 'make venv' to enable EXIF + palette + dimension extraction (build continues with frontmatter only)"; \
@@ -325,7 +327,7 @@ download-pdfjs:
 # (skips when already present). Files are gitignored; sha256-verified
 # against engine/tools/leaflet-checksums.sha256.
 download-leaflet:
-	@$(call tool,download-leaflet.sh)
+	@$(call with_switch,photography,$(call tool,download-leaflet.sh))
 
 # Generate .gz and .br sidecars for compressible text assets in _site/.
 # Runs automatically as part of `build`. Pairs with `gzip_static` /
@@ -377,7 +379,7 @@ convert-images:
 # correct, just heavier. tools/check-site.py is what makes a genuinely
 # missing srcset target fatal.
 thumbnails:
-	@$(WITH_LOCK) $(MAKE) --no-print-directory thumbnails-locked
+	@$(call with_switch,photography,$(WITH_LOCK) $(MAKE) --no-print-directory thumbnails-locked)
 
 thumbnails-locked:
 	@$(PY) $(call tool,generate-thumbnails.py) $(THUMBNAIL_FLAGS)

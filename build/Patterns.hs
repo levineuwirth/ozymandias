@@ -30,7 +30,7 @@ module Patterns
     ) where
 
 import Hakyll
-import Config (SiteConfig (..), Standalone (..))
+import Config (SiteConfig (..), Standalone (..), switchOn)
 import Drafts (currentUnpublished, unpublishedPattern)
 import Sections (reservedSectionDirs)
 
@@ -196,8 +196,9 @@ authorIndexable = (essayPattern .||. blogPattern) .&&. hasNoVersion
 --   …) generate proper @/<sub-tag>/@ pages from this pattern; the
 --   bare @photography@ top-level tag is filtered out in
 --   'Tags.getExpandedTags' to avoid colliding with the section
---   landing's route at @/photography/@.
-tagIndexable :: Pattern
-tagIndexable =
-    (essayPattern .||. allPhotoEntries)
+--   landing's route at @/photography/@. A frame is one only with the
+--   photography switch on.
+tagIndexable :: SiteConfig -> Pattern
+tagIndexable cfg =
+    (if switchOn cfg "photography" then essayPattern .||. allPhotoEntries else essayPattern)
     .&&. hasNoVersion

@@ -131,6 +131,13 @@ class MakeTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("the semantic-search switch is off", done.stdout)
 
+    def test_leaflet_and_the_photo_variants_are_made_only_with_photography(self):
+        for target in ("download-leaflet", "thumbnails"):
+            with self.subTest(target=target):
+                done = self.make(target)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertIn("the photography switch is off", done.stdout)
+
     def test_with_switch_runs_the_recipe_only_with_the_switch_on(self):
         probe = "--eval=probe: ; @$(call with_switch,archive,echo ran)"
         self.assertEqual(self.make(probe, "probe").stdout.strip(), "probe: the archive switch is off for this site")

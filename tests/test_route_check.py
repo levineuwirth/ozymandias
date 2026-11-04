@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import requires_cabal, script_env, site_binary, write_site_config
+from tests._helpers import PHOTOGRAPHY_SECTION, requires_cabal, script_env, site_binary, write_photo_site_config, write_site_config
 
 
 def page(path: Path, front: str, body: str = "Body.") -> None:
@@ -40,7 +40,7 @@ def scratch_site(root: Path) -> None:
 @requires_cabal
 class RouteCheckTests(unittest.TestCase):
     def run_site(self, root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        write_site_config(root)
+        write_photo_site_config(root)
         return subprocess.run([str(site_binary()), *args], cwd=root, env=script_env(),
                               capture_output=True, text=True, timeout=120)
 
@@ -63,21 +63,21 @@ class RouteCheckTests(unittest.TestCase):
 
     def test_expand_tags_is_the_build_expansion(self) -> None:
         # Ancestors added, empty segments dropped, section names left out:
-        # the sections' landings come from site.yaml, and music is one only
-        # with its switch on.
+        # the sections' landings come from site.yaml, and music and
+        # photography are ones only with their switches on.
         music = {"dir": "music", "kind": "Composition", "dingbat": None}
-        for on, kept in ((False, ["music"]), (True, [])):
-            with self.subTest(music=on), tempfile.TemporaryDirectory() as directory:
+        for on, kept, photo in ((False, ["music"], ["photography"]), (True, [], [])):
+            with self.subTest(on=on), tempfile.TemporaryDirectory() as directory:
                 config = write_site_config(Path(directory))
                 if on:
-                    write_site_config(Path(directory), switches={"music": True},
-                                      sections=config["sections"] + [music])
+                    write_site_config(Path(directory), switches={"music": True, "photography": True},
+                                      sections=config["sections"] + [music, PHOTOGRAPHY_SECTION])
                 done = subprocess.run([str(site_binary()), "expand-tags"], cwd=directory,
                                       input="photography//denmark/harbor\nmusic\nnotes/a/\n",
                                       env=script_env(), capture_output=True, text=True, timeout=60)
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertEqual(done.stdout.splitlines(),
-                                 ["photography/denmark", "photography/denmark/harbor", *kept, "notes", "notes/a"])
+                                 [*photo, "photography/denmark", "photography/denmark/harbor", *kept, "notes", "notes/a"])
 
     def test_build_refuses_before_writing_anything(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

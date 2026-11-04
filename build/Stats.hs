@@ -668,15 +668,15 @@ tocOf = H.ol . mapM_ item
                    H.! customAttr "data-target" id_
                  $ txt title
 
-statsTOC :: H.Html
-statsTOC = tocOf
+statsTOC :: Bool -> H.Html
+statsTOC photography = tocOf $
               [ ("activity",    "Writing activity")
               , ("volume",      "Monthly volume")
               , ("corpus",      "Corpus")
               , ("notable",     "Notable")
-              , ("photography", "Photography")
-              , ("tags",        "Tags")
               ]
+           ++ [ ("photography", "Photography") | photography ]
+           ++ [ ("tags",        "Tags") ]
 
 -- ---------------------------------------------------------------------------
 -- IO: output directory walk
@@ -1040,9 +1040,12 @@ loadCorpus = do
     -- for a roll, not a frame in it, and counting both would inflate every
     -- figure by one per series. Patterns.hs owns the enumeration; this
     -- only narrows it.
-    frames <- loadAll (P.allPhotoEntries
+    cfg <- loadConfig
+    frames <- if switchOn cfg "photography"
+        then loadAll (P.allPhotoEntries
                   .&&. complement "content/photography/*/index.md"
                   .&&. hasNoVersion) :: Compiler [Item String]
+        else pure []
     photos <- map toPhotoInfo <$> mapM (getMetadata . itemIdentifier) frames
     return (Corpus kinds photos)
   where
@@ -1268,7 +1271,8 @@ statsRules site tags = do
                     Just d  -> Just (d, wc)
             let wordsByDay = Map.fromListWith (+) datePairs
 
-            let tagFreqs   = map (\(t, ids) -> (t, length ids)) (tagsMap tags)
+            let photography = switchOn cfg "photography"
+                tagFreqs   = map (\(t, ids) -> (t, length ids)) (tagsMap tags)
                 topTags    = take 15 (sortBy (comparing (Down . snd)) tagFreqs)
                 uniqueTags = length tagFreqs
 
@@ -1286,6 +1290,9 @@ statsRules site tags = do
             -- portal row on the home page). The page stopped being about the
             -- writing alone once the photographs were counted.
             statsPage "Statistics"
-                "Writing activity, corpus breakdown, photography, and tag \
-                \distribution — computed at build time."
-                "content/stats.mark.svg" statsTOC htmlContent
+                (if photography
+                    then "Writing activity, corpus breakdown, photography, and tag \
+                         \distribution — computed at build time."
+                    else "Writing activity, corpus breakdown, and tag distribution \
+                         \— computed at build time.")
+                "content/stats.mark.svg" (statsTOC photography) htmlContent

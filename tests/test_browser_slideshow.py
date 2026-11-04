@@ -21,6 +21,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
+from tests.target import requires_switch
 
 CARD = """<figure class="photo-card"><a class="photo-card-link" href="/photography/">
 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'%3E%3Crect width='40' height='30' fill='%23{fill}'/%3E%3C/svg%3E" alt="{title}"></a>
@@ -41,6 +42,7 @@ PLAY = ".slideshow-play"
 OPEN = re.compile(r"\bis-open\b")
 
 
+@requires_switch("photography")
 @requires_browser
 class SlideshowKeyboard(unittest.TestCase):
     @classmethod

@@ -31,6 +31,7 @@ full:
     new: true
     now: true
     pdf-viewer: true
+    photography: true
     popups: true
     random: true
     reading-progress: true
@@ -63,6 +64,7 @@ minimal:
     new: true
     now: false
     pdf-viewer: false
+    photography: true
     popups: true
     random: false
     reading-progress: true

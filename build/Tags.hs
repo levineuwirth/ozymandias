@@ -125,7 +125,7 @@ sidecarIdentifier tag = fromFilePath ("content/tag-meta/" ++ tag ++ ".md")
 -- | Scan all essays and blog posts and build the Tags index.
 buildAllTags :: SiteConfig -> Rules Tags
 buildAllTags cfg =
-    buildTagsWith (getExpandedTags cfg) tagIndexable tagIdentifier
+    buildTagsWith (getExpandedTags cfg) (tagIndexable cfg) tagIdentifier
 
 
 -- ---------------------------------------------------------------------------

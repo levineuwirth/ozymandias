@@ -117,9 +117,11 @@ class ConfigTests(unittest.TestCase):
         entry = "{kind: capability, default: false, about: x"
         registry.write_text(f"a: {entry}}}\nb: {entry}}}\nc: {entry}, needs: [a]}}\n"
                             f"d: {entry}, needs-any: [a, b]}}\n")
-        # No switch here owns music's section, so the site lists it.
+        # No switch here owns music's or photography's section, so the site
+        # lists them.
         self.config["sections"] = self.config["sections"] + [
-            {"dir": "music", "kind": "Composition", "dingbat": None}]
+            {"dir": "music", "kind": "Composition", "dingbat": None},
+            {"dir": "photography", "kind": "Photo", "dingbat": None}]
         for switches, refusal in (({"c": True}, "switches: c needs a"),
                                   ({"d": True}, "switches: d needs one of a, b"),
                                   ({"a": True, "c": True, "d": True}, None),
@@ -187,6 +189,27 @@ class ConfigTests(unittest.TestCase):
             with self.subTest(music=switch, changes=sorted(changes)):
                 self.config = dict(self.config, sections=sections, feeds=[], standalone=[],
                                    switches={"music": switch}) | changes
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
+    def test_photography_owns_its_section(self):
+        photos = {"dir": "photography", "kind": "Photo", "dingbat": None}
+        fed = {"path": "photos.xml", "title": "Photos", "description": "Pictures",
+               "sections": ["photography"], "limit": 5}
+        sections = self.config["sections"]
+        for switch, changes, refusal in (
+                (False, {}, None),
+                (False, {"sections": sections + [photos]}, "photography (the photography switch is off)"),
+                (False, {"feeds": [fed]}, "photography (the photography switch is off)"),
+                (True, {}, "sections must include the engine's routed sections: photography"),
+                (True, {"sections": sections + [photos], "feeds": [fed]}, None)):
+            with self.subTest(photography=switch, changes=sorted(changes)):
+                self.config = dict(self.config, sections=sections, feeds=[], switches={"photography": switch}) | changes
                 self.write_config()
                 done = self.run_site("config")
                 if refusal is None:
@@ -520,6 +543,9 @@ class ConfigTests(unittest.TestCase):
             {"path": "photos.xml", "title": "Photos", "description": "Pictures",
              "sections": ["photography"], "limit": 5},
         ]
+        self.config["switches"] = {"photography": True}
+        self.config["sections"] = self.config["sections"] + [
+            {"dir": "photography", "kind": "Photo", "dingbat": None}]
         self.write_config()
         done = self.run_site("list-routes")
         self.assertEqual(done.returncode, 0, done.stderr)

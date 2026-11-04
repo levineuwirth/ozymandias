@@ -283,6 +283,13 @@ class FixtureBuilds(unittest.TestCase):
         # The essay's mark.svg is still beside it.
         switch_checks.marks_off(self.turned_off("marks"))
 
+    def test_a_site_that_turns_photography_off_has_no_frames_in_its_lists(self):
+        # content/photography/ is still there, its flat file an ordinary
+        # page, and its sidecars and the full build's stats still left.
+        site = self.turned_off("photography")
+        self.assertTrue((site / "_site/photography/lone-frame.html").is_file(), "the flat file was not built")
+        switch_checks.photography_off(site)
+
     def test_a_site_that_turns_vita_off_renders_no_cv(self):
         # yaml-source/ and content/cv.md are still there.
         switch_checks.vita_off(self.turned_off("vita"))

@@ -580,6 +580,57 @@ def new_off(site: Path) -> None:
 
 
 # Each registered switch: (its on check, its off check).
+SERIES, FRAME, LONE = "fixture-series", "fixture-series/one", "lone-frame"
+PHOTO_ASSETS = ("js/photography-modes.js", "js/photography-slideshow.js", "js/photography-map.js",
+                "css/photography.css", "leaflet/leaflet.js")
+
+
+def photography_on(site: Path) -> None:
+    landing = text(site, "photography/index.html")
+    assert f"/photography/{SERIES}/" in landing and f"/photography/{LONE}.html" in landing, \
+        "the landing lists neither the series nor the flat frame"
+    assert 'data-page-type="photography"' in text(site, f"photography/{FRAME}/index.html"), \
+        "a frame in the series is not a photograph's page"
+    assert 'data-page-type="photography"' in text(site, f"photography/{LONE}.html"), \
+        "the flat frame is not a photograph's page"
+    for rel in (f"{FRAME}.jpg", f"{LONE}.jpg", "by-year/index.html", "contact-sheet/index.html"):
+        assert (site / "_site/photography" / rel).is_file(), f"/photography/{rel} was not published"
+    pins = json.loads(text(site, "photography/map.json"))
+    assert len(pins) == 4, f"map.json has {len(pins)} pins, not the three frames in the series and the flat one"
+    assert loading(site, "leaflet/leaflet.js") == ["photography/map/index.html"], "the map page does not load Leaflet"
+    assert f"/photography/{LONE}" in text(site, "sitemap.xml"), "the sitemap does not list the flat frame"
+    if (site / "_site" / TAGGED / "index.html").is_file():
+        assert LONE in text(site, f"{TAGGED}/index.html"), "the frame is not on its tag's page"
+    if (site / "_site/library.html").is_file():
+        assert LONE in text(site, "library.html"), "the library does not shelve the frame"
+    if (site / "_site/stats/index.html").is_file():
+        stats = text(site, "stats/index.html")
+        assert 'href="#photography"' in stats and 'id="photography"' in stats, "/stats/ has no photography section"
+        assert "Photographs" in stats, "/stats/ counts no photographs"
+
+
+def photography_off(site: Path) -> None:
+    # /photography/ may still be built, like /music/: without the switch a
+    # flat file under content/photography/ is an ordinary page.
+    for rel in ("map.json", "map", "by-year", "contact-sheet", "feed.xml", SERIES, f"{LONE}.jpg"):
+        assert not (site / "_site/photography" / rel).exists(), f"/photography/{rel} was published"
+    if (site / "_site/photography" / f"{LONE}.html").is_file():
+        assert 'data-page-type="photography"' not in text(site, f"photography/{LONE}.html"), \
+            "the flat file is a photograph's page"
+    assert not loading(site, *PHOTO_ASSETS), f"photography's assets load on {loading(site, *PHOTO_ASSETS)}"
+    framed = [p.name for p in pages(site) if 'data-page-type="photography"' in p.read_text(encoding="utf-8")]
+    assert not framed, f"a photograph's page: {framed}"
+    assert f"/photography/{SERIES}/" not in text(site, "sitemap.xml"), "the sitemap lists the series"
+    if (site / "_site/stats/index.html").is_file():
+        stats = text(site, "stats/index.html")
+        for mark in ('href="#photography"', 'id="photography"', "Photographs", "photography, and"):
+            assert mark not in stats, f"/stats/ still has {mark}"
+    if (site / "_site/library.html").is_file():
+        assert LONE not in text(site, "library.html"), "the library shelves the flat file as a photograph"
+    if (site / "_site" / TAGGED / "index.html").is_file():
+        assert LONE not in text(site, f"{TAGGED}/index.html"), "a tag's page lists the flat file as a photograph"
+
+
 CHECKS = {
     "annotations": (annotations_on, annotations_off),
     "archive": (archive_on, archive_off),
@@ -598,6 +649,7 @@ CHECKS = {
     "new": (new_on, new_off),
     "now": (now_on, now_off),
     "pdf-viewer": (pdf_viewer_on, pdf_viewer_off),
+    "photography": (photography_on, photography_off),
     "popups": (popups_on, popups_off),
     "random": (random_on, random_off),
     "reading-progress": (reading_progress_on, reading_progress_off),

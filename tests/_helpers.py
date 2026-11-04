@@ -124,6 +124,17 @@ def interrupt_when(args: list[str], env: dict[str, str], marker: Path,
             process.communicate(timeout=5)
 
 
+PHOTOGRAPHY_SECTION = {"dir": "photography", "kind": "Photo", "dingbat": None}
+
+
+def write_photo_site_config(root: Path, **overrides) -> dict:
+    """`write_site_config` for a scratch site with photographs: their switch
+    on, and the section it owns listed."""
+    base = write_site_config(root)
+    return write_site_config(root, sections=base["sections"] + [PHOTOGRAPHY_SECTION],
+                             switches={"photography": True}, **overrides)
+
+
 def write_site_config(root: Path, **overrides) -> dict:
     """Explicit neutral identity for scratch builds that evaluate Site.rules."""
     import json
@@ -140,10 +151,9 @@ def write_site_config(root: Path, **overrides) -> dict:
                      "description": "An example site.", "theme-color": "#16140f",
                      "background-color": "#16140f"},
         # The sections the engine routes with its default switches; music's
-        # is the music switch's.
+        # and photography's are their switches'.
         "sections": [{"dir": d, "kind": k, "dingbat": None} for d, k in (
-            ("essays", "Essay"), ("blog", "Post"), ("poetry", "Poem"), ("fiction", "Fiction"),
-            ("photography", "Photo"))],
+            ("essays", "Essay"), ("blog", "Post"), ("poetry", "Poem"), ("fiction", "Fiction"))],
         "standalone": [],
         "portals": [{"name": "Notes", "tag": "notes"}],
         "nav-primary": [{"label": "Home", "href": "/"}],
