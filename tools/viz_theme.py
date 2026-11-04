@@ -1,5 +1,5 @@
 """
-viz_theme.py — Shared matplotlib setup for levineuwirth.org figures.
+viz_theme.py — Shared matplotlib setup for the site's figures.
 
 Usage in a figure script:
 

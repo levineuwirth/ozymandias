@@ -618,7 +618,10 @@ class ConfigTests(unittest.TestCase):
         self.assertIn('data-link-icon="forgejo"', done.stdout)
         self.assertEqual(done.stdout.count('class="source-ref"'), 3)
         self.assertIn('href="https://git.example.org/author/site/src/branch/next/docs/Makefile"', done.stdout)
-        self.assertNotIn("levineuwirth", done.stdout)
+        # Nothing but the site's own hosts and the probe's links: no filter
+        # writes a host of its own.
+        self.assertLessEqual(set(re.findall(r'https?://([^/"]+)', done.stdout)),
+                             {"example.org", "www.example.org", "example.org.attacker.invalid", "git.example.org"})
 
     def test_a_generated_index_is_a_slug_only_with_its_switch(self):
         # Nor does it keep a top-level tag from its page without it.

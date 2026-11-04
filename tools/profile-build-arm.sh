@@ -23,7 +23,7 @@
 # is gone; --disarm removes the unit itself.
 #
 # Escape hatch: Ctrl+Alt+F2 gives a text console; log in there and run
-#   sudo systemctl stop levineuwirth-build-profile
+#   sudo systemctl stop site-build-profile
 # and the login screen appears.
 #
 # See BUILD_PROFILE_RUNBOOK.local.md for the whole procedure.
@@ -33,7 +33,7 @@ set -euo pipefail
 # shellcheck source=tools/site-paths.sh
 source "$(dirname "$0")/site-paths.sh"
 REPO=$SITE_ROOT
-UNIT=levineuwirth-build-profile.service
+UNIT=site-build-profile.service
 UNIT_PATH=/etc/systemd/system/$UNIT
 FLAG=$REPO/.build-profiles/ARMED
 TIMEOUT_MIN=${TIMEOUT_MIN:-90}          # the whole run; greetd waits at most this long
@@ -61,7 +61,7 @@ cat <<EOF
 # Written by tools/profile-build-arm.sh on $(date -Iseconds). Inert unless
 # $FLAG exists; remove with: tools/profile-build-arm.sh --disarm
 [Unit]
-Description=Profile the levineuwirth.org build once, before login
+Description=Profile the $(site_config host) build once, before login
 Documentation=file://$REPO/BUILD_PROFILE_RUNBOOK.local.md
 Wants=network-online.target
 After=network-online.target local-fs.target

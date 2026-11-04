@@ -41,7 +41,7 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, page_styles, re
 from tests.target import requires_switch
 
 PAGE = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Reading fixture — Levi Neuwirth</title>
+<html lang="en"><head><meta charset="utf-8"><title>Reading fixture — Example Author</title>
 {styles}
 <script src="/js/utils.js"></script>
 <script src="/js/annotations.js" defer></script>

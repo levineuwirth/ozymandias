@@ -29,7 +29,7 @@ PAGE = """---
 title: An Essay
 date: 2026-01-01
 tags: [graph-theory, systems]
-author: Levi Neuwirth
+author: Example Author
 status: draft
 ---
 
@@ -184,7 +184,7 @@ class BuildFreshnessTestCase(unittest.TestCase):
 
     def test_removing_an_author_forces_a_clean(self):
         self.write(
-            "content/essays/one.md", PAGE.replace("author: Levi Neuwirth\n", "")
+            "content/essays/one.md", PAGE.replace("author: Example Author\n", "")
         )
         self.assertIn("route metadata changed", self.check())
         self.assertTrue(self.cleaned())

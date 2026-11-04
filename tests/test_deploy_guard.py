@@ -28,11 +28,11 @@ def guard(*args: str, **env: str) -> subprocess.CompletedProcess:
 
 class Docroot(unittest.TestCase):
     def test_accepted_and_normalised(self):
-        for raw in ("/srv/http/levineuwirth.org", "/srv/http/levineuwirth.org/",
-                    "  /srv/http/levineuwirth.org  "):
+        for raw in ("/srv/http/example.org", "/srv/http/example.org/",
+                    "  /srv/http/example.org  "):
             done = guard("docroot", raw)
             self.assertEqual((done.returncode, done.stdout.strip()),
-                             (0, "/srv/http/levineuwirth.org"), raw)
+                             (0, "/srv/http/example.org"), raw)
 
     def test_refused(self):
         for raw in ("", "/", "/var/www/", "/var/www", "/srv/http", "/home/levi",

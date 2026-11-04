@@ -20,7 +20,7 @@ global.CustomEvent = class {};
 global.Event = class {};
 global.dispatchEvent = () => {};
 global.document = {
-  baseURI: 'https://levineuwirth.org/',
+  baseURI: 'https://example.org/',
   addEventListener() {},
   querySelectorAll: () => links,
   createElement: tag => ({tagName: tag, remove() { this.removed = true; }}),

@@ -23,7 +23,7 @@ except ImportError as exc:          # faiss, numpy or bs4 missing: no .venv
 PROSE = "A sentence about random regular graphs and their domination numbers. " * 3
 
 
-def page(body, title="Essay — Levi Neuwirth", portal=False):
+def page(body, title="Essay — Example Author", portal=False):
     attr = " data-portal" if portal else ""
     return (f"<html><head><title>{title}</title></head><body{attr}>"
             f"<nav>Home Library</nav><main id=\"markdownBody\">{body}</main>"

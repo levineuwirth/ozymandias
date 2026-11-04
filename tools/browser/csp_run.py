@@ -2,7 +2,7 @@
 
 usage: python csp_run.py <chromium|firefox> <port> <outname> [--base=URL] [route-name ...]
 
-With --base (e.g. https://levineuwirth.org) it sweeps that site instead of
+With --base (e.g. https://example.org) it sweeps that site instead of
 serve.py on <port>, the site's own CSP in force, and sends no CSP report
 (lib.suppress_reports): test traffic must never reach the production
 report log. Violations are still recorded, from the page's
@@ -132,7 +132,7 @@ def hover_popups(page):
         ('arxiv', 'a[href*="arxiv.org/abs/"]'),
         ('github-code', 'a[href^="https://github.com/"][href*="/blob/"]'),
         ('github-repo', 'a[href^="https://github.com/"]:not([href*="/blob/"]):not([href*="/tree/"])'),
-        ('forge', 'a[href*="git.levineuwirth.org"]'),
+        ('forge', f'a[href*="{sitelib.site_config()["forge-host"]}"]'),
         ('citation', 'a.cite-link, a[href^="#ref-"]'),
         ('internal', '#markdownBody a[href^="/"]:not([href*="#"]), #markdownBody a[href^="./"], #markdownBody a[href^="../"]'),
         ('pdf', 'a.pdf-link[data-pdf-src]'),

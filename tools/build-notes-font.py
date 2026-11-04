@@ -153,7 +153,7 @@ def main(src: str) -> None:
         "styleName": "Regular",
         "copyright": copyright,
         "description": "Note values and accidentals from Leland Text, for "
-                       "levineuwirth.org (tools/build-notes-font.py).",
+                       f"{sitelib.site_config()['host']} (tools/build-notes-font.py).",
         "licenseDescription": "This Font Software is licensed under the "
                               "SIL Open Font License, Version 1.1.",
         "licenseInfoURL": "https://openfontlicense.org",

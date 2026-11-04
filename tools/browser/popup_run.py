@@ -11,7 +11,7 @@ PAGES = [SITE_ROUTES.path(e) for e in SITE_ROUTES.names('popup-sweep')]
 PROV = [
     ('wikipedia', r'wikipedia\.org/wiki/'), ('doi', r'doi\.org/'), ('arxiv', r'arxiv\.org/(abs|pdf)/'),
     ('github-code', r'github\.com/[^/]+/[^/]+/(blob|tree|commit)/'), ('github-repo', r'^https://github\.com/[^/]+/[^/]+/?$'),
-    ('forge', r'git\.levineuwirth\.org/'), ('openlibrary', r'openlibrary\.org'), ('youtube', r'youtube\.com|youtu\.be'),
+    ('forge', re.escape(sitelib.site_config()['forge-host']) + '/'), ('openlibrary', r'openlibrary\.org'), ('youtube', r'youtube\.com|youtu\.be'),
     ('biorxiv', r'biorxiv|medrxiv'), ('ia', r'archive\.org/details'), ('pubmed', r'pubmed'),
     ('citation', r'^#ref-'), ('pdf', r'pdfjs/web/viewer'), ('internal', r'^(\.\.?/|/)(?!pdfjs)'),
 ]

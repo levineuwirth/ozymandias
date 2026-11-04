@@ -75,7 +75,7 @@ const window = {addEventListener: noop, matchMedia: () => ({matches: false, addE
 window.window = window;
 const ctx = vm.createContext({window, URL, console, navigator: {},
     document: {addEventListener: noop, readyState: 'loading', documentElement: {}},
-    location: {href: 'https://levineuwirth.org/essays/x/', origin: 'https://levineuwirth.org'}});
+    location: {href: 'https://example.org/essays/x/', origin: 'https://example.org'}});
 vm.runInContext(src, ctx);
 const out = {};
 for (const href of cases) {
