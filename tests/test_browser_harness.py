@@ -88,6 +88,23 @@ def target(name: str) -> str:
     return "#t-" + name.replace(",", "").replace(" ", "-")
 
 
+def load_lib(out: Path):
+    """The harness's lib, which makes its output directories on import: in
+    `out`, not the repo."""
+    saved = os.environ.get("BROWSER_OUT")
+    os.environ["BROWSER_OUT"] = str(out)
+    try:
+        spec = importlib.util.spec_from_file_location("browser_lib", HARNESS / "lib.py")
+        lib = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(lib)
+        return lib
+    finally:
+        if saved is None:
+            del os.environ["BROWSER_OUT"]
+        else:
+            os.environ["BROWSER_OUT"] = saved
+
+
 @requires_browser
 class FocusProbe(unittest.TestCase):
     @classmethod
@@ -133,6 +150,41 @@ VIOLATING = """<!doctype html>
 
 
 @requires_browser
+class ScrollThrough(unittest.TestCase):
+    """csp_run clicks and hovers right after lib.scroll_through. On a page with
+    scroll-behavior: smooth (base.css) it used to return with the page still
+    travelling home, and now and then a click landed beside the slideshow's
+    button: a failure of the probe that read as one of the slideshow."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        check_site()
+        require_playwright()
+        from playwright.sync_api import sync_playwright
+        tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-scroll-")))
+        (tmp / "fixtures").mkdir()
+        (tmp / "fixtures" / "tall.html").write_text(
+            '<!doctype html><html style="scroll-behavior: smooth"><body><div style="height: 12000px">Tall</div></body></html>',
+            encoding="utf-8")
+        cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
+        cls.lib = load_lib(tmp / "out")
+        playwright = cls.enterClassContext(sync_playwright())
+        cls.browsers = {}
+        for browser in BROWSERS:
+            cls.browsers[browser] = getattr(playwright, browser).launch()
+            cls.addClassCleanup(cls.browsers[browser].close)
+
+    def test_it_returns_with_the_page_at_rest_at_the_top(self) -> None:
+        for browser, launched in self.browsers.items():
+            with self.subTest(browser=browser):
+                page = launched.new_page(viewport={"width": 1000, "height": 700})
+                page.goto(self.base + "/__fixture/tall.html", wait_until="load")
+                self.lib.scroll_through(page, step=2000)
+                self.assertEqual(page.evaluate("scrollY"), 0, "still travelling when it returned")
+                page.close()
+
+
+@requires_browser
 class ReportGuard(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -144,18 +196,7 @@ class ReportGuard(unittest.TestCase):
         (tmp / "fixtures" / "violating.html").write_text(VIOLATING, encoding="utf-8")
         cls.log = tmp / "csp-reports.jsonl"
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
-        # lib makes its output directories on import: in tmp, not the repo.
-        saved = os.environ.get("BROWSER_OUT")
-        os.environ["BROWSER_OUT"] = str(tmp / "out")
-        try:
-            spec = importlib.util.spec_from_file_location("browser_lib", HARNESS / "lib.py")
-            cls.lib = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(cls.lib)
-        finally:
-            if saved is None:
-                del os.environ["BROWSER_OUT"]
-            else:
-                os.environ["BROWSER_OUT"] = saved
+        cls.lib = load_lib(tmp / "out")
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
         for name in BROWSERS:

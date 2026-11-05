@@ -154,6 +154,9 @@ def scroll_through(page, step=900, max_steps=60):
             page.evaluate(f'window.scrollTo(0, {y})')
             page.wait_for_timeout(60)
             h = page.evaluate('document.scrollingElement.scrollHeight')
-        page.evaluate('window.scrollTo(0, 0)')
+        # Instantly: with the page's scroll-behavior: smooth it would still be
+        # travelling home when this returns, and a caller's next click would
+        # land beside its moving target.
+        page.evaluate("window.scrollTo({top: 0, behavior: 'instant'})")
     except Exception:
         pass
