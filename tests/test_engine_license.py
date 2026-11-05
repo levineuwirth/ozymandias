@@ -16,6 +16,10 @@ RULE = "\n" + "-" * 72 + "\n\n"
 
 
 class EngineLicense(unittest.TestCase):
+    def test_the_package_is_ozymandias(self):
+        self.assertEqual([p.name for p in ENGINE.glob("*.cabal")], ["ozymandias.cabal"])
+        self.assertRegex((ENGINE / "ozymandias.cabal").read_text(encoding="utf-8"), r"(?m)^name:\s+ozymandias$")
+
     def test_the_cabal_file_declares_it_and_names_the_notice(self):
         cabal = next(ENGINE.glob("*.cabal")).read_text(encoding="utf-8")
         self.assertRegex(cabal, r"(?m)^license:\s+GPL-2\.0-or-later$")

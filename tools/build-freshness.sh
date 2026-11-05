@@ -96,7 +96,7 @@ DRAFT_HASH_FILE="$STATE_DIR/unpublished-hash.txt"
 rules_hash() {
     local build cabal
     build=$(engine_path build)
-    cabal=$(engine_path levineuwirth.cabal)
+    cabal=$(engine_path ozymandias.cabal)
     {
         (cd "$build/.." && find build -name '*.hs' -print0 | sort -z | xargs -0 sha256sum)
         sha256sum cabal.project cabal.project.freeze

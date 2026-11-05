@@ -80,7 +80,7 @@ class BuildFreshnessTestCase(unittest.TestCase):
         # The inputs rules_hash() digests.
         self.write("site.yaml", "title: Example\n")
         self.write("build/Site.hs", "main = pure ()\n")
-        self.write("levineuwirth.cabal", "name: site\n")
+        self.write("ozymandias.cabal", "name: site\n")
         self.write("switches.yaml", "archive: {default: false}\n")
         self.write("cabal.project", "packages: .\n")
         self.write("cabal.project.freeze", "constraints: base\n")
