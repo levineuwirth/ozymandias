@@ -42,4 +42,14 @@ for var in "${keep[@]}"; do
 done
 
 env -i "${clean_env[@]}" make --no-print-directory -C "$work/repo" test
+
+# Then the GitHub workflow's selection, as it runs there: no built site and no
+# Haskell toolchain, where ci.py fails on any skip. A test that needs a build
+# passes everywhere else and is only caught here (c9bd151).
+if [ -x "$work/repo/.venv/bin/python" ]; then
+    ci_path=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -e ghcup -e cabal | paste -sd: -)
+    (cd "$work/repo" && env -i "${clean_env[@]}" PATH="$ci_path" .venv/bin/python engine/tests/ci.py)
+else
+    echo "test-clean: no .venv to borrow, so the CI selection did not run" >&2
+fi
 status=0
