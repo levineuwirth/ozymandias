@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import glob
 import html
 import importlib.util
 import os
@@ -743,7 +744,7 @@ def check_search_model(site_dir: str, report: Report) -> None:
     site whose semantic search has no model, and the deploy's rsync --delete
     then removes the model from the server."""
     report.check("search-model")
-    if not os.path.exists(os.path.join(site_dir, "js", "semantic-search.js")):
+    if not glob.glob(os.path.join(glob.escape(site_dir), "assets", "*", "js", "semantic-search.js")):
         return
     missing = [f for f in SEARCH_MODEL_FILES
                if not os.path.isfile(os.path.join(site_dir, "models", f))]

@@ -97,6 +97,15 @@ def page_styles(path: str | None = None) -> str:
                      for href, media in links)
 
 
+def asset_root() -> str:
+    """Where this build's first-party JS and CSS are: /assets/<version>
+    (EngineFiles.staticRules), as its home page names it."""
+    found = re.search(r'<meta name="ozy:assets" content="([^"]+)">', (SITE / "index.html").read_text(encoding="utf-8"))
+    if not found:
+        raise AssertionError("the built home page names no asset version")
+    return found.group(1)
+
+
 def require_playwright() -> None:
     try:
         import playwright.sync_api  # noqa: F401
@@ -118,19 +127,23 @@ def enforcing_csp() -> str:
 
 @contextmanager
 def site_server(workdir: Path, csp: str | None = None,
-                fixtures: Path | None = None, compress: bool = False) -> Iterator[str]:
-    """tools/browser/serve.py over _site on a free port, with `csp`
-    enforcing (no policy at all when None), `fixtures`, if given, served
-    under /__fixture/, and the .br/.gz sidecars served when `compress`, as
-    nginx does; yields its base URL. CSP reports go to
+                fixtures: Path | None = None, compress: bool = False,
+                root: Path | None = None, cache: bool = False) -> Iterator[str]:
+    """tools/browser/serve.py over `root` (by default _site) on a free port,
+    with `csp` enforcing (no policy at all when None), `fixtures`, if given,
+    served under /__fixture/, the .br/.gz sidecars served when `compress`, and
+    the headers that drive a browser's cache when `cache`, as nginx does; yields
+    its base URL. CSP reports, and with `cache` each request, go to
     workdir/csp-reports.jsonl."""
-    args = [sys.executable, str(HARNESS / "serve.py"), "--root", str(SITE), "--port", "0",
+    args = [sys.executable, str(HARNESS / "serve.py"), "--root", str(root or SITE), "--port", "0",
             "--csp", csp or "", "--mode", "enforce" if csp else "none",
             "--log", str(workdir / "csp-reports.jsonl")]
     if fixtures:
         args += ["--fixtures", str(fixtures)]
     if compress:
         args += ["--compress"]
+    if cache:
+        args += ["--cache"]
     with open(workdir / "serve.stderr", "w") as stderr, \
          subprocess.Popen(args, stdout=subprocess.PIPE, stderr=stderr, text=True) as server:
         try:

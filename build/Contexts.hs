@@ -70,6 +70,7 @@ import Hakyll       hiding (escapeHtml, trim)
 import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
 import Backlinks    (backlinksField)
 import Dingbat      (dingbatField)
+import EngineFiles  (assetsField)
 import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, peerStatusValues)
 import Sections     (Section (..), sectionOfRoute, tagPageUrl)
 import SimilarLinks (similarLinksField)
@@ -711,6 +712,7 @@ metadataReaderOpts = do
 siteCtx :: Context String
 siteCtx =
     identityContext
+    <> assetsField
     <> navigationContext
     <> seasonContext
     <> switchContext

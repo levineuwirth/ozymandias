@@ -348,6 +348,8 @@ class ConfigTests(unittest.TestCase):
                 {"from": "10-1"}, {"from": "13-01"}, {"from": "02-30"}, {"to": "00-10"},
                 {"to": "1031"}, {"stylesheet": "css/autumn.css"}, {"stylesheet": "/css/autumn.js"},
                 {"stylesheet": '/css/a"utumn.css'}, {"stylesheet": "/css/../autumn.css"},
+                {"stylesheet": "/autumn.css"}, {"stylesheet": "/images/autumn.css"},
+                {"script": "/autumn.js"}, {"script": "/images/autumn.js"},
                 {"script": "/js/autumn.css"}, {"script": "js/autumn.js"}, {"script": "/js/a b.js"},
                 {"order": 1},
             )],

@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="ozy:assets" content="$assets$">
 $if(home)$<title>$site-title$</title>$else$$if(title)$<title>$plain(title)$ — $site-title$</title>$else$<title>$site-title$</title>$endif$$endif$
 $if(description)$<meta name="description" content="$description$">$endif$
 $if(noindex)$<meta name="robots" content="noindex">$endif$
@@ -26,17 +27,17 @@ $if(description)$<meta name="twitter:description" content="$description$">$endif
 <link rel="manifest" href="/site.webmanifest">
 <!-- V20: the faces of the first screen (site.yaml's font-preloads), fetched beside the stylesheets rather than after them -->
 $for(font-preloads)$<link rel="preload" href="$href$" as="font" type="font/woff2" crossorigin>
-$endfor$<link rel="stylesheet" href="/css/base.css">
-<link rel="stylesheet" href="/css/layout.css">
-<link rel="stylesheet" href="/css/typography.css">
-$if(has-sidenotes)$<link rel="stylesheet" href="/css/sidenotes.css">$endif$
-$if(has-code)$<link rel="stylesheet" href="/css/syntax.css">$endif$
-<link rel="stylesheet" href="/css/components.css">
-<link rel="stylesheet" href="/css/gallery.css">
-$if(switch-popups)$<link rel="stylesheet" href="/css/popups.css">$endif$
-$if(switch-selection-toolbar)$<link rel="stylesheet" href="/css/selection-popup.css">$endif$
-$if(switch-annotations)$<link rel="stylesheet" href="/css/annotations.css">$endif$
-<link rel="stylesheet" href="/css/images.css">
+$endfor$<link rel="stylesheet" href="$assets$/css/base.css">
+<link rel="stylesheet" href="$assets$/css/layout.css">
+<link rel="stylesheet" href="$assets$/css/typography.css">
+$if(has-sidenotes)$<link rel="stylesheet" href="$assets$/css/sidenotes.css">$endif$
+$if(has-code)$<link rel="stylesheet" href="$assets$/css/syntax.css">$endif$
+<link rel="stylesheet" href="$assets$/css/components.css">
+<link rel="stylesheet" href="$assets$/css/gallery.css">
+$if(switch-popups)$<link rel="stylesheet" href="$assets$/css/popups.css">$endif$
+$if(switch-selection-toolbar)$<link rel="stylesheet" href="$assets$/css/selection-popup.css">$endif$
+$if(switch-annotations)$<link rel="stylesheet" href="$assets$/css/annotations.css">$endif$
+<link rel="stylesheet" href="$assets$/css/images.css">
 <!-- viz.css is deliberately ungated by page, unlike the Vega scripts further
      down: only by the viz switch, whose stylesheet it is. Static .figure
      divs need it and, per WRITING.md, do not set viz: true, so gating it by
@@ -46,32 +47,32 @@ $if(switch-annotations)$<link rel="stylesheet" href="/css/annotations.css">$endi
      entry rendered black on #121212 in dark mode. A few hundred bytes.
      NB: template syntax is parsed inside HTML comments too - never write a
      conditional here, even as prose, or it opens a real one. -->
-$if(switch-viz)$<link rel="stylesheet" href="/css/viz.css">$endif$
-<link rel="stylesheet" href="/css/marks.css">
-$if(home)$<link rel="stylesheet" href="/css/home.css">$endif$
-$if(library)$<link rel="stylesheet" href="/css/library.css">$endif$
-$if(library)$<link rel="stylesheet" href="/css/item-card.css">$endif$
-$if(links)$<link rel="stylesheet" href="/css/links.css">$endif$
-$if(search)$<link rel="stylesheet" href="/css/library.css">$endif$
-$if(list-page)$<link rel="stylesheet" href="/css/item-card.css">$endif$
-$if(memento-mori)$<link rel="stylesheet" href="/css/memento-mori.css">$endif$
-$if(catalog)$<link rel="stylesheet" href="/css/catalog.css">$endif$
-$if(commonplace)$<link rel="stylesheet" href="/css/commonplace.css">$endif$
-$if(now)$<link rel="stylesheet" href="/css/item-card.css">$endif$
-$if(now)$<link rel="stylesheet" href="/css/now.css">$endif$
-$if(vita)$<link rel="stylesheet" href="/css/item-card.css">$endif$
-$if(vita)$<link rel="stylesheet" href="/css/vita.css">$endif$
-$if(work)$<link rel="stylesheet" href="/css/work.css">$endif$
-$if(build)$<link rel="stylesheet" href="/css/build.css">$endif$
-$if(reading)$<link rel="stylesheet" href="/css/reading.css">$endif$
-$if(composition)$<link rel="stylesheet" href="/css/composition.css">$endif$
-$if(photography)$<link rel="stylesheet" href="/css/photography.css">$endif$
-$if(archive)$<link rel="stylesheet" href="/css/archive.css">$endif$
+$if(switch-viz)$<link rel="stylesheet" href="$assets$/css/viz.css">$endif$
+<link rel="stylesheet" href="$assets$/css/marks.css">
+$if(home)$<link rel="stylesheet" href="$assets$/css/home.css">$endif$
+$if(library)$<link rel="stylesheet" href="$assets$/css/library.css">$endif$
+$if(library)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
+$if(links)$<link rel="stylesheet" href="$assets$/css/links.css">$endif$
+$if(search)$<link rel="stylesheet" href="$assets$/css/library.css">$endif$
+$if(list-page)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
+$if(memento-mori)$<link rel="stylesheet" href="$assets$/css/memento-mori.css">$endif$
+$if(catalog)$<link rel="stylesheet" href="$assets$/css/catalog.css">$endif$
+$if(commonplace)$<link rel="stylesheet" href="$assets$/css/commonplace.css">$endif$
+$if(now)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
+$if(now)$<link rel="stylesheet" href="$assets$/css/now.css">$endif$
+$if(vita)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
+$if(vita)$<link rel="stylesheet" href="$assets$/css/vita.css">$endif$
+$if(work)$<link rel="stylesheet" href="$assets$/css/work.css">$endif$
+$if(build)$<link rel="stylesheet" href="$assets$/css/build.css">$endif$
+$if(reading)$<link rel="stylesheet" href="$assets$/css/reading.css">$endif$
+$if(composition)$<link rel="stylesheet" href="$assets$/css/composition.css">$endif$
+$if(photography)$<link rel="stylesheet" href="$assets$/css/photography.css">$endif$
+$if(archive)$<link rel="stylesheet" href="$assets$/css/archive.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/leaflet.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.css">$endif$
 $if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.Default.css">$endif$
-$for(seasons)$<link rel="stylesheet" href="$season-stylesheet$" media="screen">
-$endfor$<link rel="stylesheet" href="/css/print.css" media="print">
+$for(seasons)$<link rel="stylesheet" href="$assets$$season-stylesheet$" media="screen">
+$endfor$<link rel="stylesheet" href="$assets$/css/print.css" media="print">
 $if(math)$
 <!-- KaTeX 0.16.11, self-hosted under static/katex/ (audit X6): the npm
      package's katex.min.js unchanged (its SHA-384 is the SRI these tags
@@ -87,9 +88,9 @@ $endif$
 $if(search)$
 <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
 $endif$
-$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$season-script$"$endif$>
-$endfor$<script src="/js/utils.js"></script>
-<script src="/js/theme.js"></script>
+$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
+$endfor$<script src="$assets$/js/utils.js"></script>
+<script src="$assets$/js/theme.js"></script>
 $if(switch-viz)$$if(viz)$
 <!-- Pinned to exact versions with Subresource Integrity (audit S08). The old
      @5 / @5 / @6 major-range URLs let jsDelivr ship new code into every visitor
@@ -115,9 +116,9 @@ $if(switch-viz)$$if(viz)$
 <script src="https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js" integrity="sha384-NMXhl2TbCXxcN7o4ROC56Funm78m4AylL8gMg/7Kn4YU+wrm23K9l7cY8lDRXQ9d" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js" integrity="sha384-D9LYH0esGjcxQJsBuxOuXtCDJGXRWW1+KhluzWPqi0rLJmiR/ygPChefaD+rFFDQ" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js" integrity="sha384-M+Ax7e/WFJpxSOF09HzI+Sj4wg9ottVd/uxmV2ItGGh02fLH28t2FAOJx3TJBap5" crossorigin="anonymous" defer></script>
-<script src="/js/viz.js" defer></script>
+<script src="$assets$/js/viz.js" defer></script>
 $endif$$endif$
-$if(list-page)$<script src="/js/list-pagination.js" defer></script>$endif$
-<script src="/js/collapse.js" defer></script>
-$if(switch-transclusion)$<script src="/js/transclude.js" defer></script>$endif$
-$if(switch-code)$<script src="/js/copy.js" defer></script>$endif$
+$if(list-page)$<script src="$assets$/js/list-pagination.js" defer></script>$endif$
+<script src="$assets$/js/collapse.js" defer></script>
+$if(switch-transclusion)$<script src="$assets$/js/transclude.js" defer></script>$endif$
+$if(switch-code)$<script src="$assets$/js/copy.js" defer></script>$endif$

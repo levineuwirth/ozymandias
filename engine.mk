@@ -270,6 +270,9 @@ build-locked:
 	# pages are gitignored, so build-freshness never sees them go: remove
 	# published score files that no longer have a source (audit M02).
 	@$(call with_switch,music,python3 $(call tool,prune-site.py) _site)
+	# Nor an earlier version of the first-party assets: only this build's ships
+	# from here. The deploy keeps the earlier ones on the server.
+	@python3 $(call tool,asset-versions.py) prune _site
 	# ---- Stage 4: index --------------------------------------------------
 	# Runs after stage 3 so the keyword index covers the Related sections.
 	# Indexed into a scratch directory and copied over by content, so

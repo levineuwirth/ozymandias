@@ -342,6 +342,10 @@
         highlightCode(container);
     }
 
+    /* This page's version of the first-party assets: what this script loads on
+       demand comes from there, so an old tab stays on its old set. */
+    var ASSETS = (document.querySelector('meta[name="ozy:assets"]') || {content: ''}).content;
+
     function ensureStyle(href) {
         var present = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
             .some(function (el) {
@@ -376,9 +380,9 @@
         var codes = Array.from(container.querySelectorAll(selector));
         if (container.matches && container.matches(selector)) codes.unshift(container);
         if (!codes.length) return Promise.resolve();
-        ensureStyle('/css/syntax.css');
+        ensureStyle(ASSETS + '/css/syntax.css');
         if (!codeLoading) codeLoading = window.Prism
-            ? Promise.resolve() : loadScript('/js/prism.min.js');
+            ? Promise.resolve() : loadScript(ASSETS + '/js/prism.min.js');
         return codeLoading.then(function () {
             codes.forEach(function (code) {
                 var lang = /(?:^|\s)lang(?:uage)?-([\w-]+)/i.exec(code.className);
@@ -402,7 +406,7 @@
         if (!container.querySelector('.math') && !container.classList.contains('math')) return;
         ensureStyle('/katex/katex.min.css');
         mathLoading = (window.katex ? Promise.resolve() : loadScript('/katex/katex.min.js'))
-            .then(function () { return loadScript('/js/katex-bootstrap.js'); })
+            .then(function () { return loadScript(ASSETS + '/js/katex-bootstrap.js'); })
             .catch(function () { mathLoading = null; });
     }
 

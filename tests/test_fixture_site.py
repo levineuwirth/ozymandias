@@ -212,17 +212,36 @@ class FixtureBuilds(unittest.TestCase):
                     on, off = switch_checks.CHECKS[name]
                     (on if state else off)(self.sites[build.name])
 
+    def test_first_party_assets_are_only_under_this_build_s_version(self):
+        for build in self.builds:
+            site = self.sites[build.name] / "_site"
+            versions = sorted(p.name for p in (site / "assets").iterdir())
+            with self.subTest(build=build.name):
+                self.assertEqual(len(versions), 1, versions)
+                self.assertFalse((site / "js").exists())
+                self.assertFalse((site / "css").exists())
+                root = f"/assets/{versions[0]}"
+                for page in switch_checks.pages(self.sites[build.name]):
+                    # Snapshots of other people's pages, and PDF.js's viewer.
+                    if page.relative_to(site).parts[0] in ("archive", "pdfjs"):
+                        continue
+                    html = page.read_text(encoding="utf-8")
+                    self.assertIn(f'<meta name="ozy:assets" content="{root}">', html, page)
+                    self.assertEqual(re.findall(r'(?:src|href)="[./]*(?:js|css)/[^"]*"', html), [], page)
+
     def test_a_switch_s_assets_ship_only_with_it(self):
         # A download a fresh checkout lacks (PDF.js) has nothing to ship.
         for build in self.builds:
             site = self.sites[build.name] / "_site"
             for name, spec in sorted(fixture_variants.registry().items()):
                 for glob in spec.get("assets") or []:
+                    # First-party JS and CSS are published under their version.
+                    published = f"assets/*/{glob}" if glob.startswith(("js/", "css/")) else glob
                     with self.subTest(build=build.name, switch=name, asset=glob):
                         if build.switches[name] and list(engine_path("static").glob(glob)):
-                            self.assertTrue(list(site.glob(glob)), f"{glob} was not published")
+                            self.assertTrue(list(site.glob(published)), f"{published} was not published")
                         else:
-                            self.assertEqual(list(site.glob(glob)), [], f"{glob} was published")
+                            self.assertEqual(list(site.glob(published)), [], f"{published} was published")
 
     def turned_off(self, name: str) -> Path:
         """The full build's copy, its inputs and the data its build left

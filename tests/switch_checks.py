@@ -327,7 +327,7 @@ def now_off(site: Path) -> None:
 
 def asset_tag(path: str) -> re.Pattern:
     """The tag that loads an engine asset, as a page's relative URLs have it."""
-    return re.compile(rf'''(?:src|href)="[./]*{re.escape(path)}"''')
+    return re.compile(rf'''(?:src|href)="[./]*(?:assets/[0-9a-f]+/)?{re.escape(path)}"''')
 
 
 def loading(site: Path, *paths: str) -> list[str]:
@@ -601,7 +601,7 @@ def authors_off(site: Path) -> None:
         "the essay's byline does not name its author"
 
 
-RANDOM_SCRIPT = re.compile(r'<script src="[./]*js/random\.js"')
+RANDOM_SCRIPT = re.compile(r'<script src="[./]*(?:assets/[0-9a-f]+/)?js/random\.js"')
 
 
 def random_on(site: Path) -> None:

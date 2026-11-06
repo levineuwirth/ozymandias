@@ -43,7 +43,7 @@ SITE_ROOT = Path(os.environ.get("SITE_ROOT") or os.getcwd()).resolve()
 ENGINE = Path(__file__).resolve().parents[1]
 
 MODULES = [
-    "test_annotations", "test_engine_license", "test_archive_fetch", "test_archive_probe", "test_build_inputs",
+    "test_annotations", "test_asset_versions", "test_engine_license", "test_archive_fetch", "test_archive_probe", "test_build_inputs",
     "test_build_time", "test_check_site", "test_deploy_guard", "test_dynamic_assets",
     "test_embed_extract", "test_font_sources", "test_fonts", "test_front_matter",
     "test_js_dates", "test_override_review", "test_photo_tools", "test_pin_check",

@@ -82,6 +82,7 @@ executable site
         vector               >= 0.12  && < 0.14,
         yaml                 >= 0.11  && < 0.12,
         bytestring           >= 0.11  && < 0.13,
+        crypton              >= 1.0   && < 1.1,
         process              >= 1.6   && < 1.7,
         data-default         >= 0.7   && < 0.8,
         mtl                  >= 2.3   && < 2.4,

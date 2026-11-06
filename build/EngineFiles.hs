@@ -34,11 +34,15 @@ module EngineFiles
     , fromEngine
     , templateRules
     , staticRules
+    , assetsField
     , staticImageDimensions
     ) where
 
 import           Control.Exception (IOException, catch)
-import           Control.Monad     (forM_)
+import           Control.Monad     (forM, forM_)
+import           Crypto.Hash       (Digest, SHA256, hash)
+import qualified Data.ByteString   as BS
+import qualified Data.ByteString.Char8 as BC
 import           Data.List         (sort, stripPrefix)
 import           Data.Maybe        (fromMaybe)
 import qualified Data.Set          as Set
@@ -127,19 +131,38 @@ staticRules twins withheld = do
     let inBoth glob = fromGlob glob .||. fromGlob (engineDir ++ "/" ++ glob)
         unused      = foldr ((.||.) . inBoth . ("static/" ++)) (fromList []) withheld
         served glob = (fromGlob glob .||. twins glob) .&&. complement unused
+        firstParty  = served "static/js/**" .||. served "static/css/**"
 
-    -- CSS — must be matched before the broad static/** rule to avoid
-    -- double-matching (compressCssCompiler vs. copyFileCompiler).
-    match (served "static/css/*") $ do
-        route   $ fromEngine (stripPrefixRoute "static/")
-        compile compressCssCompiler
+    -- First-party JS and CSS, published under a hash of the whole set
+    -- (/assets/<hash>/js/…), so a page gets the scripts it was built with
+    -- and any new one a new URL: they call each other through globals, so
+    -- they move together. Any change to the set moves all of them, and every
+    -- page ('assetsField').
+    assets  <- getMatches firstParty
+    current <- preprocess (assetVersion assets)
+    changed <- makePatternDependency firstParty
+    let versioned = fromEngine (stripPrefixRoute "static/")
+            `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
 
-    -- All other static files (fonts, JS, images, …). Build-time
+    rulesExtraDependencies [changed] $ do
+        create [assetVersionId] $ compile (makeItem current)
+
+        -- CSS — must be matched before the broad rule to avoid
+        -- double-matching (compressCssCompiler vs. copyFileCompiler).
+        match (served "static/css/*") $ do
+            route   versioned
+            compile compressCssCompiler
+
+        match (firstParty .&&. complement (inBoth "static/css/*")) $ do
+            route   versioned
+            compile copyFileCompiler
+
+    -- All other static files (fonts, images, …). Build-time
     -- sidecars produced by the Python tooling (.dims.yaml, .exif.yaml,
     -- .palette.yaml) are excluded — they're consumed by Hakyll at
     -- compile time and have no role in the deployed site.
     match (   served "static/**"
-        .&&. complement (inBoth "static/css/*")
+        .&&. complement (inBoth "static/js/**" .||. inBoth "static/css/**")
         .&&. complement (inBoth "static/**/*.dims.yaml")
         .&&. complement (inBoth "static/**/*.exif.yaml")
         .&&. complement (inBoth "static/**/*.palette.yaml")
@@ -158,6 +181,30 @@ staticRules twins withheld = do
     -- Claim shadowed sidecars too: the dependency pattern covers both
     -- roots, and every identifier it sees must have an unversioned rule.
     match staticImageDimensions $ compile getResourceLBS
+
+-- | The item holding the first-party assets' version.
+assetVersionId :: Identifier
+assetVersionId = fromFilePath "asset-version"
+
+-- | A hash of the files' paths as served, and their contents.
+assetVersion :: [Identifier] -> IO String
+assetVersion ids = do
+    parts <- forM (sort [(siteRelative (toFilePath i), toFilePath i) | i <- ids]) $ \(served, path) -> do
+        bytes <- BS.readFile path
+        pure (BC.pack served <> "\0" <> BC.pack (sha bytes))
+    pure (take 12 (sha (BS.concat parts)))
+  where
+    sha :: BS.ByteString -> String
+    sha = show . (hash :: BS.ByteString -> Digest SHA256)
+
+-- | @$assets$@, the root-relative path of this build's first-party JS and
+--   CSS. Loading the version is what recompiles a page when it changes.
+assetsField :: Context a
+assetsField = field "assets" $ \_ -> do
+    known <- getMatches (fromList [assetVersionId])
+    if null known
+        then pure "/assets/none"   -- a probe site without 'staticRules'
+        else ("/assets/" ++) . itemBody <$> (load assetVersionId :: Compiler (Item String))
 
 -- | Dimension inputs read outside Hakyll by Filters.Images. Both roots
 -- are tracked, including new sidecars and site overrides.

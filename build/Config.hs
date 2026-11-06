@@ -16,6 +16,7 @@ module Config
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
+import EngineFiles (assetsField)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
@@ -115,10 +116,10 @@ instance FromJSON Season where
         forM_ [("from", seasonFrom s), ("to", seasonTo s)] $ \(key, day) ->
             unless (monthDay day) $
                 fail ("season " ++ key ++ " must be a day of the year as MM-DD: " ++ day)
-        unless (siteAsset ".css" (seasonStylesheet s)) $
-            fail ("season stylesheet must be the site's .css path: " ++ seasonStylesheet s)
-        forM_ (seasonScript s) $ \path -> unless (siteAsset ".js" path) $
-            fail ("season script must be the site's .js path: " ++ path)
+        unless (siteAsset ".css" (seasonStylesheet s) && "/css/" `isPrefixOf` seasonStylesheet s) $
+            fail ("season stylesheet must be the site's .css path under /css/: " ++ seasonStylesheet s)
+        forM_ (seasonScript s) $ \path -> unless (siteAsset ".js" path && "/js/" `isPrefixOf` path) $
+            fail ("season script must be the site's .js path under /js/: " ++ path)
         pure s
 
 instance ToJSON Season where
@@ -800,7 +801,8 @@ navigationContext =
 seasonContext :: Context String
 seasonContext = listField "seasons" fields (loadConfig >>= mapM makeItem . siteSeasons)
   where
-    fields = mconcat
+    -- A loop's context is its own: the season's paths need the version too.
+    fields = assetsField <> mconcat
         [ field name (pure . escapeHtml . get . itemBody)
         | (name, get) <- [ ("season-id", seasonId), ("season-label", seasonLabel)
                          , ("season-base", seasonBase), ("season-from", seasonFrom)

@@ -67,7 +67,7 @@ class FontTests(unittest.TestCase):
         # site.yaml's font-preloads, which head.html loops over.
         preloads = site_yaml().get("font-preloads") or []
         self.assertTrue(preloads)
-        declared = {"/fonts/" + p for p in re.findall(r'url\("\.\./fonts/([^"]+)"\)', self.css)}
+        declared = {"/fonts/" + p for p in re.findall(r'url\("/fonts/([^"]+)"\)', self.css)}
         for href in preloads:
             self.assertIn(href, declared, f"{href} is preloaded but no @font-face uses it")
             self.assertTrue((SITE_ROOT / "static" / href.lstrip("/")).is_file(), href)

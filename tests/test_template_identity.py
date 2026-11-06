@@ -25,6 +25,7 @@ class TemplateIdentityTests(unittest.TestCase):
 import Config
 import Contexts (contentKindField)
 import Dingbat (dingbatField)
+import EngineFiles (assetsField)
 import qualified Patterns as P
 import qualified Tags as T
 import Hakyll
@@ -40,7 +41,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> seasonContext <> switchContext <> constField "home" "true"
+    let ctx = identityContext <> navigationContext <> seasonContext <> switchContext <> assetsField <> constField "home" "true"
               <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"
@@ -132,11 +133,11 @@ main = hakyll $ do
                 # stylesheet each, for the screen; a hidden button each. The
                 # score reader names no script and loads no stylesheet.
                 self.assertIn('<meta name="ozy:season" content="dusk" data-base="dark" data-from="12-20"'
-                              ' data-to="01-02" data-script="/js/dusk.js">', head)
+                              ' data-to="01-02" data-script="/assets/none/js/dusk.js">', head)
                 self.assertIn('<meta name="ozy:season" content="noon" data-base="light" data-from="06-21"'
                               ' data-to="06-21">', head)
                 self.assertLess(head.index('name="ozy:season"'), head.index('/js/theme.js'))
-                self.assertIn('<link rel="stylesheet" href="/css/dusk.css" media="screen">', head)
+                self.assertIn('<link rel="stylesheet" href="/assets/none/css/dusk.css" media="screen">', head)
                 nav_html = read("partials/nav.html")
                 self.assertIn('data-action="season-dusk" hidden>Dusk &amp; &lt;Dawn&gt;</button>', nav_html)
                 self.assertIn('data-action="season-noon" hidden>Noon</button>', nav_html)

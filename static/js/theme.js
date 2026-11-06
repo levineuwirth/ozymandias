@@ -84,7 +84,8 @@
         root.setAttribute('data-season', worn.getAttribute('content'));
         if (worn.hasAttribute('data-script')) {
             var stage = document.createElement('script');
-            stage.src = '/js/stage.js';
+            /* From this page's version: an old tab stays on its old set. */
+            stage.src = (document.querySelector('meta[name="ozy:assets"]') || {content: ''}).content + '/js/stage.js';
             document.head.appendChild(stage);
         }
     }

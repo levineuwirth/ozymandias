@@ -47,6 +47,9 @@ main = getArgs >>= \\args -> case args of
                 route idRoute
                 compile $ makeItem ("" :: String)
                     >>= loadAndApplyTemplate (fromFilePath ("templates/" ++ name)) defaultContext
+        create ["stamped.html"] $ do
+            route idRoute
+            compile $ makeItem ("$assets$" :: String) >>= applyAsTemplate assetsField
 '''
 
 
@@ -91,6 +94,18 @@ class EngineFilesTests(unittest.TestCase):
     def built(self, rel):
         return (self.root / "_site" / rel).read_text()
 
+    def versions(self):
+        return {p.name for p in (self.root / "_site/assets").iterdir()}
+
+    def version(self):
+        """The version the build's pages name; its files are under it."""
+        stamped = self.built("stamped.html")
+        self.assertTrue(stamped.startswith("/assets/"), stamped)
+        return stamped.removeprefix("/assets/")
+
+    def asset(self, rel):
+        return self.built(f"assets/{self.version()}/{rel}")
+
     def test_engine_templates_answer_to_their_site_names_and_site_templates_win(self):
         self.write("engine/templates/plain.html",
                    '<!-- an editor\'s note -->engine plain, $partial("templates/partials/p.html")$')
@@ -133,12 +148,60 @@ class EngineFilesTests(unittest.TestCase):
         self.write("engine/static/images/a.png.dims.yaml", "width: 1\n")
         self.write("static/css/site.css", "b { color: blue; }\n")
         self.run_probe("build")
-        self.assertEqual(self.built("css/base.css"), "a{color:red}")
-        self.assertEqual(self.built("css/site.css"), "b{color:blue}")
-        self.assertEqual(self.built("js/engine.js"), "engine();\n")
-        self.assertEqual(self.built("js/shared.js"), "site();\n")
+        self.assertEqual(self.asset("css/base.css"), "a{color:red}")
+        self.assertEqual(self.asset("css/site.css"), "b{color:blue}")
+        self.assertEqual(self.asset("js/engine.js"), "engine();\n")
+        self.assertEqual(self.asset("js/shared.js"), "site();\n")
         self.assertFalse((self.root / "_site/images/a.png.dims.yaml").exists())
         self.assertFalse((self.root / "_site/engine").exists())
+        # First-party JS and CSS are only under their version.
+        self.assertFalse((self.root / "_site/js").exists())
+        self.assertFalse((self.root / "_site/css").exists())
+
+    def test_the_version_follows_the_files_and_every_file_and_page_follow_it(self):
+        self.write("engine/static/css/base.css", "a {\n  color: red;\n}\n", mtime=1000)
+        self.write("engine/static/js/engine.js", "one();\n", mtime=1000)
+        self.write("engine/static/css/seasons/dusk.css", "b {\n  color: blue;\n}\n", mtime=1000)
+        self.write("engine/static/images/a.txt", "one", mtime=1000)
+        self.run_probe("build")
+        first = self.version()
+        self.assertEqual(self.versions(), {first})
+        self.assertRegex(first, r"^[0-9a-f]{12}$")
+        # A file of another kind, and no change at all, leave it.
+        self.write("engine/static/images/a.txt", "two", mtime=2000)
+        self.run_probe("build")
+        self.assertEqual(self.version(), first)
+        # An edit moves every file, not only that one, and the page with them;
+        # what is left of the old version is untouched here (engine.mk prunes).
+        self.write("engine/static/js/engine.js", "two();\n", mtime=3000)
+        self.run_probe("build")
+        second = self.version()
+        self.assertEqual(self.versions(), {first, second})
+        self.assertEqual(self.asset("js/engine.js"), "two();\n")
+        self.assertEqual(self.asset("css/base.css"), "a{color:red}")
+        # Below the top directory a stylesheet is copied, not compressed.
+        self.assertEqual(self.asset("css/seasons/dusk.css"), "b {\n  color: blue;\n}\n")
+        self.assertEqual(self.built(f"assets/{first}/js/engine.js"), "one();\n")
+        # A site's own file counts, and an override of an engine file.
+        self.write("static/css/site.css", "c{}", mtime=4000)
+        self.run_probe("build")
+        third = self.version()
+        self.assertNotIn(third, (first, second))
+        self.assertEqual(self.asset("css/site.css"), "c{}")
+        self.write("static/js/engine.js", "site();\n", mtime=5000)
+        self.run_probe("build")
+        fourth = self.version()
+        self.assertNotIn(fourth, (first, second, third))
+        self.assertEqual(self.asset("js/engine.js"), "site();\n")
+        # So does a file's going, and its coming back restores the version.
+        (self.root / "static/css/site.css").unlink()
+        self.run_probe("build")
+        fifth = self.version()
+        self.assertNotIn(fifth, (first, second, third, fourth))
+        self.assertFalse((self.root / f"_site/assets/{fifth}/css/site.css").exists())
+        self.write("static/css/site.css", "c{}", mtime=6000)
+        self.run_probe("build")
+        self.assertEqual(self.version(), fourth)
 
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.

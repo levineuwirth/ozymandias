@@ -26,7 +26,7 @@
    and without an italic face the browser would slant the notes. */
 @font-face {
     font-family: "Tempo Notes";
-    src: url("../fonts/tempo-notes.woff2") format("woff2");
+    src: url("/fonts/tempo-notes.woff2") format("woff2");
     font-style: normal;
     unicode-range: U+2669-266A, U+266D-266F, U+1D157-1D161, U+1D165, U+1D16D-1D16F, U+ECA0-ECBF;
     font-display: swap;
@@ -34,7 +34,7 @@
 
 @font-face {
     font-family: "Tempo Notes";
-    src: url("../fonts/tempo-notes.woff2") format("woff2");
+    src: url("/fonts/tempo-notes.woff2") format("woff2");
     font-style: italic;
     unicode-range: U+2669-266A, U+266D-266F, U+1D157-1D161, U+1D165, U+1D16D-1D16F, U+ECA0-ECBF;
     font-display: swap;

@@ -6,42 +6,42 @@
 
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-regular.woff2") format("woff2");
+    src: url("/fonts/spectral-regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-italic.woff2") format("woff2");
+    src: url("/fonts/spectral-italic.woff2") format("woff2");
     font-weight: 400;
     font-style: italic;
     font-display: swap;
 }
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-semibold.woff2") format("woff2");
+    src: url("/fonts/spectral-semibold.woff2") format("woff2");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-semibold-italic.woff2") format("woff2");
+    src: url("/fonts/spectral-semibold-italic.woff2") format("woff2");
     font-weight: 600;
     font-style: italic;
     font-display: swap;
 }
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-bold.woff2") format("woff2");
+    src: url("/fonts/spectral-bold.woff2") format("woff2");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Spectral";
-    src: url("../fonts/spectral-bold-italic.woff2") format("woff2");
+    src: url("/fonts/spectral-bold-italic.woff2") format("woff2");
     font-weight: 700;
     font-style: italic;
     font-display: swap;
@@ -49,14 +49,14 @@
 
 @font-face {
     font-family: "Fira Sans";
-    src: url("../fonts/fira-sans-regular.woff2") format("woff2");
+    src: url("/fonts/fira-sans-regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "Fira Sans";
-    src: url("../fonts/fira-sans-semibold.woff2") format("woff2");
+    src: url("/fonts/fira-sans-semibold.woff2") format("woff2");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
@@ -64,14 +64,14 @@
 
 @font-face {
     font-family: "JetBrains Mono";
-    src: url("../fonts/jetbrains-mono-regular.woff2") format("woff2");
+    src: url("/fonts/jetbrains-mono-regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: "JetBrains Mono";
-    src: url("../fonts/jetbrains-mono-italic.woff2") format("woff2");
+    src: url("/fonts/jetbrains-mono-italic.woff2") format("woff2");
     font-weight: 400;
     font-style: italic;
     font-display: swap;

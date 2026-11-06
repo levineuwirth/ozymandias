@@ -22,6 +22,7 @@ global.dispatchEvent = () => {};
 global.document = {
   baseURI: 'https://example.org/',
   addEventListener() {},
+  querySelector: sel => sel === 'meta[name="ozy:assets"]' ? {content: '/assets/abc123'} : null,
   querySelectorAll: () => links,
   createElement: tag => ({tagName: tag, remove() { this.removed = true; }}),
   head: {appendChild(el) { added.push(el); if (el.tagName === 'link') links.push(el); }}
@@ -49,7 +50,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 const a = root(), b = root();
 const first = lnHighlightCode(a), second = lnHighlightCode(b);
 global.Prism = {languages: {python: {}}, highlightElement(c) { c.highlighted = true; }};
-added.find(e => e.src === '/js/prism.min.js').onload();
+added.find(e => e.src === '/assets/abc123/js/prism.min.js').onload();
 await Promise.all([first, second]);
 console.log(JSON.stringify({scripts: added.filter(e => e.src).length,
   styles: links.length, a: a.node.highlighted, b: b.node.highlighted}));

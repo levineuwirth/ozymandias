@@ -28,7 +28,7 @@ import unittest
 from pathlib import Path
 
 from tests import target
-from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
+from tests._browser import (BROWSERS, asset_root, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server)
 from tests.target import route
 
@@ -151,7 +151,7 @@ class Seasons(unittest.TestCase):
                     self.expect(self.season_button(page)).to_be_visible()
                     self.expect(self.season_button(page)).to_have_attribute("aria-pressed", "false")
                     page.wait_for_timeout(500)
-                    self.assertFalse(self.loaded(page, "/js/stage.js"))
+                    self.assertFalse(self.loaded(page, asset_root() + "/js/stage.js"))
                     self.assertEqual(page.locator(LAYER).count(), 0)
 
     def test_its_buttons_put_it_on_and_take_it_off(self) -> None:
@@ -192,7 +192,7 @@ class Seasons(unittest.TestCase):
                 self.open_panel(page)
                 self.expect(self.season_button(page)).to_be_hidden()
                 page.wait_for_timeout(500)
-                self.assertFalse(self.loaded(page, "/js/stage.js"))
+                self.assertFalse(self.loaded(page, asset_root() + "/js/stage.js"))
             with self.subTest(browser=browser, stored=self.season["id"]):
                 page = self.open_page(browser, self.outside, theme=self.season["id"])
                 self.assertEqual(self.html(page, "data-theme"), self.season["base"])
@@ -360,7 +360,7 @@ class Seasons(unittest.TestCase):
                 page = self.open_page(browser, self.inside, path=READER)
                 self.assert_worn(page)
                 page.wait_for_timeout(500)
-                self.assertFalse(self.loaded(page, "/js/stage.js"))
+                self.assertFalse(self.loaded(page, asset_root() + "/js/stage.js"))
                 self.assertFalse(self.loaded(page, self.season["stylesheet"]))
 
 

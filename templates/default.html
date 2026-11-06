@@ -8,38 +8,38 @@ $partial("templates/partials/head.html")$
 $partial("templates/partials/nav.html")$
 $if(search)$
 <script src="/pagefind/pagefind-ui.js" defer></script>
-<script src="/js/search.js" defer></script>
-$if(switch-semantic-search)$<script src="/js/semantic-search.js" defer></script>$endif$
-$if(switch-search-filters)$<script src="/js/search-filters.js" defer></script>$endif$
+<script src="$assets$/js/search.js" defer></script>
+$if(switch-semantic-search)$<script src="$assets$/js/semantic-search.js" defer></script>$endif$
+$if(switch-search-filters)$<script src="$assets$/js/search-filters.js" defer></script>$endif$
 $endif$
 <div class="page-shell">
 $body$
 $partial("templates/partials/footer.html")$
 </div>
 <!-- JS — all deferred -->
-$if(switch-popups)$<script src="/js/popups.js" defer></script>$endif$
-$if(switch-annotations)$<script src="/js/annotations.js" defer></script>$endif$
-$if(switch-selection-toolbar)$<script src="/js/selection-popup.js" defer></script>$endif$
-<script src="/js/settings.js" defer></script>
-$if(has-code)$<script src="/js/prism.min.js" defer></script>$endif$
-<script src="/js/toc.js" defer></script>
-<script src="/js/nav.js" defer></script>
-$if(has-exhibits)$<script src="/js/gallery.js" defer></script>$endif$
-$if(has-sidenotes)$<script src="/js/sidenotes.js" defer></script>$endif$
-<script src="/js/lightbox.js" defer></script>
-$if(home)$$if(switch-random)$<script src="/js/random.js" defer></script>$endif$$endif$
-$if(reading)$$if(switch-reading-progress)$<script src="/js/reading.js" defer></script>$endif$$endif$
-$if(now)$<script src="/js/now.js" defer></script>$endif$
-$if(commonplace)$<script src="/js/commonplace.js" defer></script>$endif$
-$if(photography)$<script src="/js/photography-modes.js" defer></script>$endif$
-$if(photography)$<script src="/js/photography-slideshow.js" defer></script>$endif$
+$if(switch-popups)$<script src="$assets$/js/popups.js" defer></script>$endif$
+$if(switch-annotations)$<script src="$assets$/js/annotations.js" defer></script>$endif$
+$if(switch-selection-toolbar)$<script src="$assets$/js/selection-popup.js" defer></script>$endif$
+<script src="$assets$/js/settings.js" defer></script>
+$if(has-code)$<script src="$assets$/js/prism.min.js" defer></script>$endif$
+<script src="$assets$/js/toc.js" defer></script>
+<script src="$assets$/js/nav.js" defer></script>
+$if(has-exhibits)$<script src="$assets$/js/gallery.js" defer></script>$endif$
+$if(has-sidenotes)$<script src="$assets$/js/sidenotes.js" defer></script>$endif$
+<script src="$assets$/js/lightbox.js" defer></script>
+$if(home)$$if(switch-random)$<script src="$assets$/js/random.js" defer></script>$endif$$endif$
+$if(reading)$$if(switch-reading-progress)$<script src="$assets$/js/reading.js" defer></script>$endif$$endif$
+$if(now)$<script src="$assets$/js/now.js" defer></script>$endif$
+$if(commonplace)$<script src="$assets$/js/commonplace.js" defer></script>$endif$
+$if(photography)$<script src="$assets$/js/photography-modes.js" defer></script>$endif$
+$if(photography)$<script src="$assets$/js/photography-slideshow.js" defer></script>$endif$
 $if(photography-map)$<script src="/leaflet/leaflet.js" defer></script>$endif$
 $if(photography-map)$<script src="/leaflet/leaflet.markercluster.js" defer></script>$endif$
-$if(photography-map)$<script src="/js/photography-map.js" defer></script>$endif$
+$if(photography-map)$<script src="$assets$/js/photography-map.js" defer></script>$endif$
 $for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
 $if(math)$
 <script defer src="/katex/katex.min.js"></script>
-<script defer src="/js/katex-bootstrap.js"></script>
+<script defer src="$assets$/js/katex-bootstrap.js"></script>
 $endif$
 </body>
 </html>

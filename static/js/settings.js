@@ -130,9 +130,11 @@
         html.setAttribute('data-season', id);
         store.set('theme', id);
         syncThemeButtons();
-        if (meta.hasAttribute('data-script') && !document.querySelector('script[src="/js/stage.js"]')) {
+        /* From this page's version: an old tab stays on its old set. */
+        var stageSrc = (document.querySelector('meta[name="ozy:assets"]') || {content: ''}).content + '/js/stage.js';
+        if (meta.hasAttribute('data-script') && !document.querySelector('script[src="' + stageSrc + '"]')) {
             var stage = document.createElement('script');
-            stage.src = '/js/stage.js';
+            stage.src = stageSrc;
             document.head.appendChild(stage);
         }
     }

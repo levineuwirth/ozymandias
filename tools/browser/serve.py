@@ -11,7 +11,13 @@
 - Range support (nginx serves ranges for static files)
 - --fixtures DIR: /__fixture/<name> serves DIR/<name>, with the same
   headers, for pages written to exercise one behavior (tools/browser/fixture/,
-  or a test's own)
+  or a test's own). Such a page names the engine's files as /js/... and
+  /css/..., which no published page does; it is served with the build's version
+  in those paths, and the tag on-demand loads read it from.
+- --cache: the Cache-Control nginx sends (the vhost and
+  static-assets.conf), for a test of what a warm cache does, which also logs
+  each request here, since the browser's own view of one doesn't say whether it
+  reached the server
 """
 import argparse, json, os, re, sys, threading, time, urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -24,6 +30,7 @@ ap.add_argument('--mode', choices=['enforce', 'report-only', 'none'], default='e
 ap.add_argument('--compress', action='store_true')
 ap.add_argument('--log', required=True)
 ap.add_argument('--fixtures', help='directory served under /__fixture/')
+ap.add_argument('--cache', action='store_true', help="send nginx's Cache-Control, and log each request")
 args = ap.parse_args()
 ROOT = os.path.realpath(args.root)
 os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)
@@ -70,6 +77,29 @@ def fixture(name):
     top = os.path.realpath(args.fixtures)
     fs = os.path.realpath(os.path.join(top, name))
     return fs if fs.startswith(top + os.sep) and os.path.isfile(fs) else None
+
+def cache_control(path):
+    """What nginx says of a path's freshness: a version's files never change,
+    other assets last an hour, and a page is always asked for again."""
+    if path.startswith('/assets/'):
+        return 'public, max-age=31536000, immutable'
+    if path.startswith('/fonts/'):
+        return 'public, max-age=604800, must-revalidate'
+    if re.search(r'\.(?:css|js|mjs|woff2?|svg|webp|png|jpg|jpeg|ico)$', path, re.I):
+        return 'public, max-age=3600, must-revalidate'
+    return 'no-cache'
+
+def versioned_fixture(page):
+    """A fixture page, with the version of the build being served."""
+    with open(os.path.join(ROOT, 'index.html'), encoding='utf-8') as f:
+        found = re.search(r'<meta name="ozy:assets" content="([^"]+)">', f.read())
+    if not found:
+        raise SystemExit('the home page names no asset version')
+    root = found.group(1)
+    page = re.sub(r'((?:src|href)=")/(js|css)/', rf'\g<1>{root}/\g<2>/', page)
+    if 'ozy:assets' not in page:
+        page = re.sub(r'(<head[^>]*>)', rf'\g<1><meta name="ozy:assets" content="{root}">', page, count=1)
+    return page
 
 class H(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
@@ -122,6 +152,8 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self, head=False):
         sp = urllib.parse.urlsplit(self.path)
         path = urllib.parse.unquote(sp.path)
+        if args.cache:
+            log('get', path=path)
         if path.startswith('/proxy/'):
             log('proxy', path=self.path)
             self.serve_404(head)
@@ -133,6 +165,10 @@ class H(BaseHTTPRequestHandler):
             fs = fixture(path[len('/__fixture/'):])
             if fs is None:
                 self.serve_404(head)
+            elif fs.endswith('.html'):
+                with open(fs, encoding='utf-8') as f:
+                    body = versioned_fixture(f.read()).encode('utf-8')
+                self.send_body(200, self.sec_headers(path) + [('Content-Type', MIME['.html'])], body, head)
             else:
                 self.serve_file(fs, path, head)
             return
@@ -154,6 +190,8 @@ class H(BaseHTTPRequestHandler):
         ext = os.path.splitext(fs)[1].lower()
         ctype = MIME.get(ext, 'application/octet-stream')
         hs = self.sec_headers(path) + [('Content-Type', ctype)]
+        if args.cache:
+            hs.append(('Cache-Control', cache_control(path)))
         enc = None
         ae = self.headers.get('Accept-Encoding', '')
         rng = self.headers.get('Range')

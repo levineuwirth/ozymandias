@@ -56,7 +56,7 @@ server, and `BROWSER_OFFLINE=1` refuses every request that would leave it.
 
 | script | checks |
 |---|---|
-| `serve.py` | serves `_site/` as the production vhost does: `try_files`, the internal 404 page, `.gz`/`.br` sidecars and Range, the security and framing headers, a given CSP (enforcing or report-only), `/proxy/*` → 404, `/csp-report` logged; with `--fixtures DIR` (e.g. `fixture/`), also `/__fixture/` from that directory |
+| `serve.py` | serves `_site/` as the production vhost does: `try_files`, the internal 404 page, `.gz`/`.br` sidecars and Range, nginx's Cache-Control with `--cache`, the security and framing headers, a given CSP (enforcing or report-only), `/proxy/*` → 404, `/csp-report` logged; with `--fixtures DIR` (e.g. `fixture/`), also `/__fixture/` from that directory |
 | `csp_run.py` | per route: CSP violations, console and page errors, element load errors, failed requests, feature probes (PDF.js pages, thumbnails and print among them); with `--base=URL`, a live site, sending no CSP report (`lib.suppress_reports`) |
 | `interact_run.py` | keyboard interaction: settings, lightbox, slideshow, math gallery, popups, portals, filters |
 | `kbd_run.py` | tab order, focus visibility, skip link, traps, Escape, on the `keyboard` pages |
