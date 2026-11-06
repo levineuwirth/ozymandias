@@ -38,6 +38,8 @@ EXCLUDE = (
     "data/.compress-cache",        # compress-assets.sh's cache of compressed outputs
     "data/.site-build.lock",       # truncated by tools/with-lock.sh on every locked target
     "data/sign-manifest.txt",      # written by `make sign`, after the build
+    "data/deployed-assets.json",   # written by a deploy (tools/asset-versions.py)
+    "data/deploy-filter.txt",      # written by a deploy, for its rsync
     "nginx",                       # served configuration; the browser tests read it as it is
     "tools/browser",               # the site's check of the live site,
     "engine/tools/browser",        # the browser harness

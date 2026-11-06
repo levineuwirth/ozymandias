@@ -56,6 +56,17 @@ class Target(unittest.TestCase):
     def dest(self, path: Path) -> str:
         return f"{path}/"
 
+    def test_it_counts_deletions_under_the_filter_the_transfer_will_use(self):
+        for name in ("a", "b", "c"):
+            (self.live / f"{name}.old").write_text("old")
+        filter_file = self.root / "filter.txt"
+        filter_file.write_text("P /a.old\nP /b.old\n")
+        done = guard("target", str(self.site), self.dest(self.live), str(filter_file))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("deletes 1 file(s)", done.stdout)
+        done = guard("target", str(self.site), self.dest(self.live))
+        self.assertIn("deletes 3 file(s)", done.stdout)
+
     def test_live_docroot_passes_and_nothing_is_deleted(self):
         (self.live / "stale.txt").write_text("old")
         done = guard("target", str(self.site), self.dest(self.live))

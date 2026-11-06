@@ -13,8 +13,9 @@
 #       The Makefile's VPS_DOCROOT derives the same string for any path
 #       this accepts.
 #
-#   deploy-guard.sh target <site-dir> <rsync-destination/>
-#       Dry-run the transfer the deploy is about to make and refuse it when
+#   deploy-guard.sh target <site-dir> <rsync-destination/> [<rsync-filter-file>]
+#       Dry-run the transfer the deploy is about to make, under the filter it
+#       will transfer with, and refuse it when
 #       the destination has no index.html (it is not the live site: a typo,
 #       or a fresh directory — DEPLOY_NEW_DOCROOT=1 for a deliberate first
 #       deploy), or when it would delete more than DEPLOY_MAX_DELETE files
@@ -45,9 +46,9 @@ docroot)
     printf '%s\n' "$p"
     ;;
 target)
-    site="${2:?site directory}"; dest="${3:?rsync destination}"
+    site="${2:?site directory}"; dest="${3:?rsync destination}"; filter="${4-}"
     [ -s "$site/index.html" ] || refuse "$site/index.html is missing or empty — refusing to rsync"
-    out=$(rsync -an --delete --itemize-changes "$site/" "$dest")
+    out=$(rsync -an --delete --itemize-changes ${filter:+"--filter=merge $filter"} "$site/" "$dest")
     deletions=$(printf '%s\n' "$out" | grep -c '^\*deleting' || true)
     if printf '%s\n' "$out" | grep -Eq '^[<>]f\+{9,} index\.html$' \
        && [ "${DEPLOY_NEW_DOCROOT:-0}" != 1 ]; then
@@ -62,7 +63,7 @@ target)
     echo "deploy: the transfer to $dest deletes $deletions file(s)"
     ;;
 *)
-    echo "usage: $0 docroot <VPS_PATH> | target <site-dir> <dest/>" >&2
+    echo "usage: $0 docroot <VPS_PATH> | target <site-dir> <dest/> [<filter>]" >&2
     exit 2
     ;;
 esac
