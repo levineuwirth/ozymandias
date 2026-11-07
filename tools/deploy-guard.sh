@@ -20,7 +20,8 @@
 #       or a fresh directory — DEPLOY_NEW_DOCROOT=1 for a deliberate first
 #       deploy), or when it would delete more than DEPLOY_MAX_DELETE files
 #       (default 1000; DEPLOY_ALLOW_DELETE=1 for a deliberate re-layout).
-#       Costs one extra rsync connection and deletes nothing.
+#       Costs one extra rsync connection and deletes nothing. The deploy runs
+#       this before it sends anything, the new asset version included.
 
 set -euo pipefail
 

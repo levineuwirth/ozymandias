@@ -221,6 +221,8 @@ class Deploys(Case):
         rules = self.root / "deploy-filter.txt"
         rules.write_text(self.tool("filter", on).stdout)
         self.assertEqual(self.tool("attempt", on).returncode, 0)
+        subprocess.run(["rsync", "-aR", f"{self.site}/./assets/{version}/", f"{self.server}/"],
+                       check=True, capture_output=True, text=True)
         subprocess.run(["rsync", "-a", "--delete", f"--filter=merge {rules}", f"{self.site}/", f"{self.server}/"],
                        check=True, capture_output=True, text=True)
 

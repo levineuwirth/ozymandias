@@ -14,10 +14,12 @@ tests use.
 
 Checked: a page opened after the deploy, with scripts and stylesheets cached
 from before, runs only the new version; a tab open across the deploy goes on
-loading its own; and the same deploy without versions does mix them, silently (the
-scripts are written to survive their utilities missing): the now page's relative
-date is gone. That is why any of this exists, and how this test knows it can see
-that failure.
+loading its own; a reader during the deploy, with the new version on its way and
+then some pages of it arrived, gets whole pages of either; and the same deploy
+without versions does mix them, silently (the scripts are written to survive their
+utilities missing): the now page's relative date is gone. That is why any of this
+exists, and how this test knows it can see that failure. A page ahead of its
+version, which the order of the deploy's transfers prevents, has a control too.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_deploy -v
 """
@@ -133,9 +135,16 @@ class AcrossADeploy(unittest.TestCase):
         rules = cls.tmp / "deploy-filter.txt"
         rules.write_text(tool("filter"))
         tool("attempt")
+        cls.send_assets(site)
         subprocess.run(["rsync", "-a", "--delete", f"--filter=merge {rules}", f"{site}/", f"{cls.docroot}/"],
                        check=True, capture_output=True, text=True)
         tool("deployed")
+
+    @classmethod
+    def send_assets(cls, site: Path) -> None:
+        """The first of the deploy's two transfers: its version, before any page."""
+        subprocess.run(["rsync", "-aR", f"{site}/./assets/{cls.version(site)}/", f"{cls.docroot}/"],
+                       check=True, capture_output=True, text=True)
 
     @staticmethod
     def version(site: Path) -> str:
@@ -149,6 +158,18 @@ class AcrossADeploy(unittest.TestCase):
         """What the server has been asked for, since `start` lines of its log."""
         lines = log.read_text(encoding="utf-8").splitlines()[start:]
         return [entry["path"] for entry in map(json.loads, lines) if entry.get("kind") == "get"]
+
+    def missing(self, log: Path, start: int = 0) -> list[str]:
+        """What the server could not find since `start` lines of its log, fonts
+        aside, which the fixture site has none of. Only the server can say: under
+        nosniff, Chromium reports no response at all for a stylesheet answered
+        with the 404 page."""
+        lines = log.read_text(encoding="utf-8").splitlines()[start:]
+        return [entry["path"] for entry in map(json.loads, lines)
+                if entry.get("kind") == "404" and "/fonts/" not in entry["path"]]
+
+    def assert_untroubled(self, trouble: list[str]) -> None:
+        self.assertEqual(trouble + self.missing(self.log, self.opened), [])
 
     @property
     def log(self) -> Path:
@@ -168,6 +189,7 @@ class AcrossADeploy(unittest.TestCase):
         # The fixture site has no font files.
         page.on("response", lambda r: trouble.append(f"{r.status}: {r.url}")
                 if r.status >= 400 and r.url.startswith(self.base) and "/fonts/" not in r.url else None)
+        self.opened = self.lines()
         return page, trouble
 
     def test_the_server_caches_as_nginx_says(self) -> None:
@@ -187,7 +209,7 @@ class AcrossADeploy(unittest.TestCase):
                 asked = self.served(self.log, start)
                 self.assertEqual(asked.count(f"/assets/{version}/js/utils.js"), 1, asked)
                 self.assertEqual(asked.count(f"/assets/{version}/css/base.css"), 1, asked)
-                self.assertEqual(trouble, [])
+                self.assert_untroubled(trouble)
 
     def test_a_page_opened_after_the_deploy_runs_only_the_new_version(self) -> None:
         old, new = self.version(self.before), self.version(self.after)
@@ -208,7 +230,7 @@ class AcrossADeploy(unittest.TestCase):
                 asked = self.served(self.log, start)
                 self.assertIn(f"/assets/{new}/js/utils.js", asked)
                 self.assertEqual([p for p in asked if p.startswith(f"/assets/{old}/")], [])
-                self.assertEqual(trouble, [])
+                self.assert_untroubled(trouble)
 
     def test_a_script_new_to_the_cache_finds_the_utilities_it_was_built_with(self) -> None:
         for browser in BROWSERS:
@@ -219,7 +241,7 @@ class AcrossADeploy(unittest.TestCase):
                 self.deploy(self.after)
                 page.goto(self.base + NOW, wait_until="load")
                 page.wait_for_function(f"({RELATIVE_DATE}) !== ''")
-                self.assertEqual(trouble, [])
+                self.assert_untroubled(trouble)
 
     def test_a_tab_open_across_the_deploy_goes_on_loading_its_own_version(self) -> None:
         old, new = self.version(self.before), self.version(self.after)
@@ -246,7 +268,67 @@ class AcrossADeploy(unittest.TestCase):
                 self.assertIn(f"/assets/{old}/js/prism.min.js", asked)
                 self.assertIn(f"/assets/{old}/css/syntax.css", asked)
                 self.assertEqual([p for p in asked if p.startswith(f"/assets/{new}/")], [])
-                self.assertEqual(trouble, [])
+                self.assert_untroubled(trouble)
+
+    def start_over(self) -> None:
+        """A server that has only ever had the first build."""
+        for entry in self.docroot.iterdir():
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+        self.ledger.unlink(missing_ok=True)
+        self.deploy(self.before)
+
+    def test_a_reader_during_the_deploy_gets_whole_pages_of_either_version(self) -> None:
+        # rsync sends a directory's files before its subdirectories, so a deploy
+        # that stops partway leaves the new home page beside old essays.
+        old, new = self.version(self.before), self.version(self.after)
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                self.start_over()
+                self.assertFalse((self.docroot / f"assets/{new}").exists())
+                page, trouble = self.open(browser)
+                page.goto(self.base + ESSAY, wait_until="load")
+                self.send_assets(self.after)
+                start = self.lines()
+                page.goto(self.base + ESSAY, wait_until="load")
+                self.assertEqual(page.evaluate(f"typeof window.{OLD}"), "object")
+                self.assertEqual([p for p in self.served(self.log, start) if p.startswith(f"/assets/{new}/")], [])
+                shutil.copy2(self.after / "index.html", self.docroot / "index.html")
+                for path, name, other in ((HOME, NEW, OLD), (ESSAY, OLD, NEW), (HOME, NEW, OLD)):
+                    page.goto(self.base + path, wait_until="load")
+                    self.assertEqual(page.evaluate(f"typeof window.{name}"), "object", path)
+                    self.assertEqual(page.evaluate(f"typeof window.{other}"), "undefined", path)
+                self.assertTrue((self.docroot / f"assets/{old}/js/utils.js").is_file())
+                self.assert_untroubled(trouble)
+                # A reader with nothing cached asks the server for all of both.
+                page, trouble = self.open(browser)
+                for path, name in ((ESSAY, OLD), (HOME, NEW)):
+                    page.goto(self.base + path, wait_until="load")
+                    self.assertEqual(page.evaluate(f"typeof window.{name}"), "object", path)
+                self.assert_untroubled(trouble)
+
+    def test_a_page_ahead_of_its_version_is_what_going_first_prevents(self) -> None:
+        # The control: the same moment, had the pages gone first.
+        new = self.version(self.after)
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                tmp = self.tmp / f"ahead-{browser}"
+                docroot = tmp / "www"
+                docroot.mkdir(parents=True)
+                subprocess.run(["rsync", "-a", "--delete", f"{self.before}/", f"{docroot}/"],
+                               check=True, capture_output=True, text=True)
+                shutil.copy2(self.after / "index.html", docroot / "index.html")
+                with site_server(tmp, self.csp, root=docroot, cache=True) as base:
+                    context = self.browsers[browser].new_context()
+                    self.addCleanup(context.close)
+                    page = context.new_page()
+                    page.goto(base + HOME, wait_until="load")
+                    missing = self.missing(tmp / "csp-reports.jsonl")
+                    self.assertIn(f"/assets/{new}/css/base.css", missing)
+                    self.assertIn(f"/assets/{new}/js/utils.js", missing)
+                    self.assertEqual(page.evaluate(f"typeof window.{NEW}"), "undefined")
 
     def test_without_versions_the_same_deploy_mixes_them(self) -> None:
         tmp = self.tmp / "control"
