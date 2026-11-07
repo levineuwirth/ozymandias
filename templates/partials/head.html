@@ -1,7 +1,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="ozy:assets" content="$assets$">
-$if(home)$<title>$site-title$</title>$else$$if(title)$<title>$plain(title)$ — $site-title$</title>$else$<title>$site-title$</title>$endif$$endif$
+<!-- What site.yaml tells the scripts: utils.js reads these as it loads, so they come before it. -->
+<meta name="ozy:author" content="$site-author$">
+<meta name="ozy:author-sort" content="$site-author-sort$">
+<meta name="ozy:host" content="$site-host$">
+$if(switch-popups)$$if(popup-providers)$<meta name="ozy:popup-providers" content="$popup-providers$">
+$endif$$if(switch-epistemic)$$if(epistemic-about)$<meta name="ozy:epistemic-about" content="$epistemic-about$" data-label="$epistemic-about-label$">
+$endif$$endif$$endif$$if(home)$<title>$site-title$</title>$else$$if(title)$<title>$plain(title)$ — $site-title$</title>$else$<title>$site-title$</title>$endif$$endif$
 $if(description)$<meta name="description" content="$description$">$endif$
 $if(noindex)$<meta name="robots" content="noindex">$endif$
 <link rel="canonical" href="$site-url$$canonical-url$">

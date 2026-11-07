@@ -19,7 +19,7 @@
         </div>
         $endif$
         <div class="meta-row meta-authors">
-            <span class="meta-label">by</span>$for(author-links)$$if(author-url)$<a href="$author-url$">$author-name$</a>$else$$author-name$$endif$$sep$, $endfor$
+            <span class="meta-label">by</span>$for(author-links)$$if(author-url)$<a href="$author-url$">$author-name$</a>$else$<span class="meta-author">$author-name$</span>$endif$$sep$, $endfor$
         </div>
         $if(captured-display)$
         <div class="meta-row photo-captured">

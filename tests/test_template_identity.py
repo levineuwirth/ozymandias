@@ -15,6 +15,23 @@ from tests._helpers import (ENGINE, SITE_ROOT, copy_engine_tree, engine_path, lo
 
 
 @requires_cabal
+class SiteMetaTags(unittest.TestCase):
+    """utils.js reads the tags as it loads, so a tag after it reads as nothing."""
+
+    def test_each_template_s_tags_come_before_utils_js(self):
+        for rel in ("templates/partials/head.html", "templates/score-reader-default.html"):
+            with self.subTest(template=rel):
+                text = engine_path(rel).read_text(encoding="utf-8")
+                self.assertLess(text.rindex('<meta name="ozy:'), text.index("/js/utils.js"))
+
+    def test_what_utils_js_reads_is_what_head_html_writes(self):
+        utils = engine_path("static/js/utils.js").read_text(encoding="utf-8")
+        head = engine_path("templates/partials/head.html").read_text(encoding="utf-8")
+        read = set(re.findall(r"siteValue\('([a-z-]+)'", utils))
+        written = set(re.findall(r'<meta name="ozy:([a-z-]+)"', head)) - {"assets", "season"}
+        self.assertEqual(read, written)
+
+
 class TemplateIdentityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -41,7 +58,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> seasonContext <> switchContext <> assetsField <> constField "home" "true"
+    let ctx = identityContext <> navigationContext <> scriptContext <> seasonContext <> switchContext <> assetsField <> constField "home" "true"
               <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"

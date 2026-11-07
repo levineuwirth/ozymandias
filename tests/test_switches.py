@@ -59,7 +59,7 @@ class RegistryTests(unittest.TestCase):
             with self.subTest(switch=name):
                 self.assertRegex(name, r"^[a-z][a-z0-9-]*$")
                 self.assertLessEqual(set(spec), {"kind", "default", "needs", "needs-any", "section", "contexts",
-                                                 "routes", "assets", "about"})
+                                                 "routes", "assets", "providers", "about"})
                 self.assertIn(spec["kind"], KINDS)
                 self.assertIsInstance(spec["default"], bool)
                 self.assertTrue(isinstance(spec["about"], str) and spec["about"].strip())

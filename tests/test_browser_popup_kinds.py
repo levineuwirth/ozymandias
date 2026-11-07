@@ -36,7 +36,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import requires_switch, route
+from tests.target import requires_switch, route, site_yaml
 
 ESSAY = route("essay")
 LIST = route("list")
@@ -100,6 +100,7 @@ class PopupKinds(unittest.TestCase):
 
     @requires_switch("epistemic")
     def test_every_term_has_its_definition(self) -> None:
+        about, label = site_yaml().get("epistemic-about"), site_yaml().get("epistemic-about-label", "About")
         for browser in BROWSERS:
             # The second carries a peer-status.
             for path in (ESSAY, route("essay-peer-reviewed")):
@@ -114,7 +115,10 @@ class PopupKinds(unittest.TestCase):
                             term.replace("-", " ").capitalize())
                         # textContent: innerText is empty while the popup still fades in.
                         self.assertGreater(len(popup.locator(".popup-abstract").text_content()), 40)
-                        self.expect(popup.locator('a[href="/colophon.html#living-documents"]')).to_have_count(1)
+                        link = popup.locator(f'.popup-source a[href="{about}"]')
+                        self.expect(link).to_have_count(1 if about else 0)
+                        if about:
+                            self.expect(link).to_have_text(label)
             with self.subTest(browser=browser, part="peer status is among them"):
                 self.assertIn("peer-status", terms)
 

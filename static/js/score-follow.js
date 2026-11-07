@@ -501,7 +501,7 @@
             var back = document.querySelector('.score-reader-back');
             navigator.mediaSession.metadata = new window.MediaMetadata({
                 title:  back ? back.textContent.replace(/^\s*←\s*/, '') : document.title,
-                artist: 'Levi Neuwirth',
+                artist: window.ozySite.author,
                 album:  t.label || 'Realization'
             });
             navigator.mediaSession.setActionHandler('play',  play);

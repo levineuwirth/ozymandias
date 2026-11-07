@@ -219,6 +219,8 @@ EPISTEMIC_MARKS = ("meta-epistemic-strip", "data-ep-term=", "frontmatter-mark--e
 
 def epistemic_on(site: Path) -> None:
     essay = text(site, CAPABILITIES)
+    assert '<meta name="ozy:epistemic-about" content="/search.html" data-label="About these">' in essay, \
+        "a term's popup is not told what explains it"
     for mark in EPISTEMIC_MARKS:
         assert mark in essay, f"the essay's epistemic profile has no {mark}"
     assert 'data-ep-term="peer-status"' in essay, "the essay's peer status is not shown"
@@ -231,6 +233,8 @@ def epistemic_off(site: Path) -> None:
     marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
               for mark in EPISTEMIC_MARKS}
     assert not any(marked.values()), f"epistemic profiles on pages: {marked}"
+    told = [p.name for p in pages(site) if "ozy:epistemic-about" in p.read_text(encoding="utf-8")]
+    assert not told, f"term popups are told what explains them on {told}"
     assert not (site / "_site/data/epistemic-meta.json").exists(), "epistemic-meta.json was built"
     if (site / "_site/build/index.html").is_file():
         build = text(site, "build/index.html")
@@ -372,6 +376,8 @@ def popups_on(site: Path) -> None:
 def popups_off(site: Path) -> None:
     pages_with = loading(site, "js/popups.js", "css/popups.css")
     assert not pages_with, f"popups are loaded on {pages_with}"
+    listing = [p.name for p in pages(site) if "ozy:popup-providers" in p.read_text(encoding="utf-8")]
+    assert not listing, f"popup providers are listed on {listing}"
     assert not (site / "_site/data/annotations.json").exists(), "the author's previews are published"
 
 
@@ -586,6 +592,7 @@ AUTHOR, AUTHOR_SLUG = "Example Author", "example-author"   # site.yaml's author
 
 
 def authors_on(site: Path) -> None:
+    assert 'class="meta-author"' not in text(site, "essays/long/index.html"), "the byline names an author alone"
     listing = sorted((site / "_site/authors" / AUTHOR_SLUG).rglob("index.html"))   # and its later pages
     assert any("/essays/long/" in p.read_text(encoding="utf-8") for p in listing), \
         "the author's pages do not list the essay"
@@ -597,7 +604,7 @@ def authors_off(site: Path) -> None:
     assert not (site / "_site/authors").exists(), "/authors/ was built"
     linked = [p.name for p in pages(site) if re.search(r'href="[./]*authors/', p.read_text(encoding="utf-8"))]
     assert not linked, f"links to author pages on {linked}"
-    assert re.search(rf'<span class="meta-label">by</span>{AUTHOR}\s', text(site, "essays/long/index.html")), \
+    assert re.search(rf'<span class="meta-label">by</span><span class="meta-author">{AUTHOR}</span>\s', text(site, "essays/long/index.html")), \
         "the essay's byline does not name its author"
 
 

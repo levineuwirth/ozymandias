@@ -296,7 +296,7 @@
     margin: 0.3rem 0 0;
     line-height: 1.55;
     /* Abstracts carry bare hostnames and long identifiers
-       ("levineuwirth.github.io/icd_embeddings"). In a card column that
+       ("example.github.io/some_long_identifier"). In a card column that
        is ~200px wide at 375px those are wider than the column and used
        to push /current.html to a 452px document. */
     overflow-wrap: anywhere;

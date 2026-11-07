@@ -10,7 +10,7 @@ module Config
     , Standalone (..), PageKind (..), Season (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
-    , siteOwnHosts, identityContext, identityFields, navigationContext, seasonContext
+    , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext
     , manifestRules
     , knownDingbats
     ) where
@@ -65,6 +65,8 @@ data SiteConfig = SiteConfig
       -- | Where the site explains its epistemic profile (a path, with its
       --   anchor), which the footer's Epistemic heading links to; none, unlinked.
     , siteEpistemicAbout :: String
+    , siteEpistemicAboutLabel :: String
+    , sitePopupProviders :: [String]
     , siteSeasons :: [Season]
     , siteSwitches :: Map.Map String Bool
       -- | The engine's static files (globs as served) of the switches the
@@ -440,7 +442,7 @@ instance FromJSON SiteConfig where
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
-                      "seasons", "switches"]) o
+                      "epistemic-about-label", "popup-providers", "seasons", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -452,9 +454,12 @@ instance FromJSON SiteConfig where
                         <*> o .: "nav-primary" <*> o .:? "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
+                        <*> o .:? "epistemic-about-label" .!= "About"
+                        <*> o .:? "popup-providers" .!= []
                         <*> o .:? "seasons" .!= []
                         <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
+        singleLine "epistemic-about-label" (siteEpistemicAboutLabel c)
         forM_ (siteFontPreloads c) $ \href ->
             unless (siteAsset ".woff2" href) $
                 fail ("font-preloads must be the site's .woff2 paths: " ++ href)
@@ -503,6 +508,8 @@ instance ToJSON SiteConfig where
                            "standalone" .= siteStandalone c,
                            "font-preloads" .= siteFontPreloads c,
                            "epistemic-about" .= siteEpistemicAbout c,
+                           "epistemic-about-label" .= siteEpistemicAboutLabel c,
+                           "popup-providers" .= sitePopupProviders c,
                            "seasons" .= siteSeasons c,
                            "switches" .= siteSwitches c])
 
@@ -571,6 +578,10 @@ decodeConfig registryBytes siteBytes = do
     resolved <- first ("site.yaml: " ++) (resolveSwitches registry (siteSwitches cfg))
     first ("site.yaml: " ++) (switchedSections registry resolved cfg)
     first ("site.yaml: " ++) (switchedContexts registry resolved cfg)
+    let providers = maybe [] switchProviders (Map.lookup "popups" registry)
+        noProvider = filter (`notElem` providers) (sitePopupProviders cfg)
+    unless (null noProvider) $
+        Left ("site.yaml: popup-providers: popups.js has no " ++ intercalate ", " noProvider)
     let withheld = [ glob | (name, spec) <- Map.toList registry
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
@@ -626,18 +637,19 @@ data SwitchSpec = SwitchSpec
     , switchContexts :: [String]
     , switchRoutes   :: [String]
     , switchAssets   :: [String]
+    , switchProviders :: [String]
     }
 
 instance FromJSON SwitchSpec where
     parseJSON = withObject "switch" $ \o -> do
-        onlyKeys ["kind", "default", "needs", "needs-any", "section", "contexts", "routes", "assets", "about"] o
+        onlyKeys ["kind", "default", "needs", "needs-any", "section", "contexts", "routes", "assets", "providers", "about"] o
         kind <- o .: "kind"
         unless (kind `elem` ["capability", "generated", "interface" :: String]) $
             fail ("a switch's kind is capability, generated or interface, not " ++ kind)
         _ <- o .: "about" :: Parser String
         spec <- SwitchSpec <$> o .: "default" <*> o .:? "needs" .!= [] <*> o .:? "needs-any" .!= []
                            <*> o .:? "section" <*> o .:? "contexts" .!= [] <*> o .:? "routes" .!= []
-                           <*> o .:? "assets" .!= []
+                           <*> o .:? "assets" .!= [] <*> o .:? "providers" .!= []
         forM_ (switchSection spec) $ \dir -> unless (dir `elem` sectionRoutes) $
             fail ("a switch's section is one the engine routes, not " ++ dir)
         forM_ (switchContexts spec) $ \name -> unless (name `elem` map pageKindName [minBound .. maxBound]) $
@@ -763,7 +775,8 @@ identityContext = mconcat [context | (_, _, context) <- identityFields]
 identityFields :: [(String, [String], Context String)]
 identityFields =
     [ (name, [], configField name (escapeHtml . get))
-    | (name, get) <- [("site-title", siteTitle), ("site-url", siteUrl),
+    | (name, get) <- [("site-title", siteTitle), ("site-author", siteAuthor),
+                     ("site-author-sort", siteAuthorSort), ("site-url", siteUrl),
                      ("site-host", siteHost), ("site-email", siteEmail),
                      ("site-contact-email", siteContactEmail), ("site-source-repo", siteSourceRepo),
                      ("site-code-license", siteCodeLicense),
@@ -777,6 +790,17 @@ identityFields =
   where
     list name fields items =
         (name, map fst fields, listField name (mconcat [field n f | (n, f) <- fields]) items)
+
+-- | What head.html's meta tags tell the scripts, beyond identity: the other
+--   sites popups.js may ask for a preview, each name checked against the
+--   registry by the loader, and what a term's popup calls the page that
+--   explains the terms.
+scriptContext :: Context String
+scriptContext =
+       field "popup-providers" (\_ -> do
+           providers <- sitePopupProviders <$> loadConfig
+           if null providers then noResult "no popup-providers" else return (unwords providers))
+    <> configField "epistemic-about-label" (escapeHtml . siteEpistemicAboutLabel)
 
 -- | The navigation the templates loop over, escaped like 'identityContext':
 --   @nav-primary@ (@$label$@, @$href$@) and @nav-portals@ (@$portal-name$@,

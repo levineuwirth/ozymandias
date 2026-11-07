@@ -33,6 +33,7 @@ class Build:
     name: str
     switches: dict[str, bool]
     without: tuple[str, ...] = field(default=())
+    config: dict = field(default_factory=dict)
 
 
 def registry() -> dict[str, dict]:
@@ -75,6 +76,7 @@ def copy_site(build: "Build", site: Path, engine: Path) -> None:
     for rel in build.without:
         shutil.rmtree(site / rel) if (site / rel).is_dir() else (site / rel).unlink()
     config = switched(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")), build.switches)
+    config.update(build.config)
     # JSON, which YAML reads as written: a dumped string "y" would come back
     # as a boolean.
     (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
@@ -100,7 +102,7 @@ def settle(switches: dict[str, bool], terms: dict[str, dict]) -> dict[str, bool]
 def builds() -> list[Build]:
     """The profiles, then the variants, each named for what it shows."""
     terms, profile = registry(), profiles()
-    found = [Build(name, dict(spec["switches"]), tuple(spec.get("without") or ()))
+    found = [Build(name, dict(spec["switches"]), tuple(spec.get("without") or ()), dict(spec.get("config") or {}))
              for name, spec in profile.items()]
     minimal = next(b for b in found if b.name == "minimal")
     full = next(b for b in found if b.name == "full")
@@ -112,5 +114,5 @@ def builds() -> list[Build]:
         for alternative in spec.get("needs-any") or []:
             only = {other: other == alternative for other in spec["needs-any"]}
             found.append(Build(f"{name}-by-{alternative}",
-                               settle(dict(full.switches, **only), terms), full.without))
+                               settle(dict(full.switches, **only), terms), full.without, full.config))
     return found

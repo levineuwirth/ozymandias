@@ -39,7 +39,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
-from tests.target import requires_switch, route
+from tests.target import requires_switch, route, site_yaml
 
 
 def timing(work: str) -> dict:
@@ -134,6 +134,12 @@ class ScoreReader(unittest.TestCase):
 
     def unfocus(self, page) -> None:
         page.evaluate("document.activeElement && document.activeElement.blur()")
+
+    def test_the_media_session_names_the_site_s_author(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.reader(browser, self.other)
+                self.assertEqual(page.evaluate("navigator.mediaSession.metadata.artist"), site_yaml()["author"])
 
     # -- M03 ----------------------------------------------------------------
 

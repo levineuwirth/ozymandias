@@ -43,6 +43,7 @@ from urllib.parse import parse_qs, urlsplit
 from tests._browser import (BROWSERS, SITE, FakeNetwork, check_site, enforcing_csp,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
+from tests.fixture_variants import registry
 from tests.target import SWITCH_OFF, built, requires_switch, route, switch_on
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
@@ -164,6 +165,9 @@ PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Popups fixture</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/popups.css">
+<meta name="ozy:host" content="fixture.example">
+<meta name="ozy:popup-providers" content="{providers}">
+<meta name="ozy:epistemic-about" content="/about.html#terms" data-label="About these terms">
 <script src="/js/utils.js"></script>
 <script src="/js/popups.js" defer></script>
 </head><body><main id="markdownBody">
@@ -179,7 +183,9 @@ PAGE = """<!doctype html>
 <p><a id="archive" href="https://archive.org/details/someitem">Internet Archive</a></p>
 <p><a id="pubmed" href="https://pubmed.ncbi.nlm.nih.gov/12345678/">PubMed</a></p>
 <p><a id="annotated" href="https://example.org/annotated">annotated</a></p>
-<p><a id="forge" href="https://git.levineuwirth.org/neuwirth/levineuwirth.org">Forgejo</a></p>
+<p><a id="forge" href="https://git.example.org/owner/repo">Forgejo</a></p>
+<p><a id="alone" href="/__fixture/author-alone.html">authors named alone</a></p>
+<p><span id="term" data-ep-term="status">a term</span></p>
 <p><a id="internal" href="{essay}">an essay</a></p>
 <p><a id="pdf" class="pdf-link" data-pdf-src="/cv.pdf" href="/pdfjs/web/viewer.html?file=/cv.pdf">CV</a></p>
 <p><a id="source" class="source-ref" data-source-path="data/similar-links.json"
@@ -187,6 +193,15 @@ PAGE = """<!doctype html>
 <p>{code_ref}</p>
 <p>A claim<a id="cite" class="cite-link" href="#ref-knuth">[1]</a>.</p>
 <div id="refs"><div id="ref-knuth">Knuth, D. <em>The Art of Computer Programming</em>.</div></div>
+</main></body></html>
+"""
+
+
+# A byline as metadata-header.html writes it on a site without author pages.
+AUTHOR_ALONE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Named alone</title></head><body><main id="markdownBody">
+<h1 class="page-title">Named Alone</h1>
+<div class="metadata metadata-header"><div class="meta-row meta-authors"><span class="meta-label">by</span><span class="meta-author">Ada Lovelace</span>, <span class="meta-author">Grace Hopper</span></div></div>
 </main></body></html>
 """
 
@@ -223,7 +238,14 @@ class LinkPopups(unittest.TestCase):
         (tmp / "fixtures").mkdir()
         # A site without the code-refs switch has no snapshot to link.
         link, cls.code = code_ref() if switch_on("code-refs") else ("", {})
-        (tmp / "fixtures" / "popups.html").write_text(PAGE.format(code_ref=link, essay=route("essay")), encoding="utf-8")
+        def page(providers: str) -> str:
+            return PAGE.format(code_ref=link, essay=route("essay"), providers=providers)
+
+        listed = page(" ".join(registry()["popups"]["providers"]))
+        told_nothing = re.sub(r'<meta name="ozy:(?:popup-providers|epistemic-about)"[^>]*>\n', "", page(""))
+        for name, content in (("popups.html", listed), ("popups-wikipedia.html", page("wikipedia")),
+                              ("popups-none.html", told_nothing), ("author-alone.html", AUTHOR_ALONE)):
+            (tmp / "fixtures" / name).write_text(content, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         essay = built(route("essay")).read_text(encoding="utf-8")
         title = re.search(r'<h1 class="page-title"[^>]*>(.*?)</h1>', essay, re.S)
@@ -234,7 +256,7 @@ class LinkPopups(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def fixture(self, browser: str, **answers):
+    def fixture(self, browser: str, path: str = "popups.html", **answers):
         """The fixture page and its FakeNetwork, with `answers` replacing the
         default ones. At cleanup: no page errors, no CSP violations, no
         request that no route answers."""
@@ -249,9 +271,9 @@ class LinkPopups(unittest.TestCase):
         page = context.new_page()
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto(self.base + "/__fixture/popups.html", wait_until="load")
+        page.goto(self.base + f"/__fixture/{path}", wait_until="load")
         # popups.js binds its targets once annotations.json is in.
-        self.expect(page.locator("#wikipedia[data-popup-bound]")).to_have_count(1)
+        self.expect(page.locator("#internal[data-popup-bound]")).to_have_count(1)
         # Every link in view: base.css scrolls smoothly, and a hover that
         # has to scroll aims at where its link was, landing on another.
         self.assertLessEqual(page.evaluate("document.documentElement.scrollHeight"), 1600,
@@ -349,6 +371,52 @@ class LinkPopups(unittest.TestCase):
             with self.subTest(browser=browser, link="citation"):
                 entry = self.shown(page, "cite").locator(".popup-citation-entry")
                 self.assertEqual(self.text(entry), "Knuth, D. The Art of Computer Programming.")
+
+    def test_a_provider_the_site_does_not_list_asks_nothing(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, net = self.fixture(browser, "popups-wikipedia.html")
+                self.expect(self.shown(page, "wikipedia").locator(".popup-title")).to_have_text("Graph theory")
+                for link in ("doi", "github"):
+                    self.nothing_shown(page, net, link, None)
+                    self.assertEqual(net.hits[link], 0, link)
+
+    def test_a_site_that_lists_none_keeps_its_own_previews(self) -> None:
+        external = list(registry()["popups"]["providers"])
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, net = self.fixture(browser, "popups-none.html")
+                for link in external:
+                    self.nothing_shown(page, net, link, None)
+                self.assertEqual({link: net.hits[link] for link in external if net.hits[link]}, {})
+                for link in ("annotated", "internal", "cite"):
+                    self.shown(page, link)
+
+    def test_an_internal_preview_names_the_site(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.fixture(browser)
+                popup = self.shown(page, "internal")
+                self.expect(popup.locator('.popup-source[data-popup-source="internal"]')).to_have_text("fixture.example")
+
+    def test_an_internal_preview_names_authors_without_author_pages(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.fixture(browser)
+                popup = self.shown(page, "alone")
+                self.expect(popup.locator(".popup-authors")).to_have_text("Ada Lovelace, Grace Hopper")
+
+    def test_a_term_links_the_page_the_site_says_explains_it(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.fixture(browser)
+                link = self.shown(page, "term").locator('.popup-source a[href="/about.html#terms"]')
+                self.expect(link).to_have_text("About these terms")
+            with self.subTest(browser=browser, part="a site that names none"):
+                page, _ = self.fixture(browser, "popups-none.html")
+                popup = self.shown(page, "term")
+                self.expect(popup.locator(".popup-ep-term .popup-title")).to_have_text("Status")
+                self.expect(popup.locator(".popup-source")).to_have_count(0)
 
     def test_forge_links_ask_nothing(self) -> None:
         # J05: the forge sits behind Anubis and sends no CORS headers.

@@ -15,7 +15,11 @@
      11. Internet Archive   — archive.org/metadata, title + description
      12. PubMed             — NCBI esummary, title + authors + journal
 
-   Production nginx CSP must add to connect-src:
+   A site asks only the providers its site.yaml lists in popup-providers
+   (ozySite.popupProviders, 4 to 12 above); local annotations, citations and
+   internal pages need no listing.
+
+   For those it lists, production nginx CSP must add to connect-src:
      https://*.wikipedia.org  https://api.crossref.org
      https://api.github.com   https://openlibrary.org
      https://api.biorxiv.org  https://www.youtube.com
@@ -93,12 +97,12 @@
         });
     }
 
-    /* Epistemic term definitions — concise summaries from the colophon,
+    /* Epistemic term definitions — concise summaries,
        shown on hover for filter labels, metadata strip items, etc. */
     var EP_DEFS = {
         status:       'A controlled vocabulary describing where the work stands: Draft, Working model, Durable, Refined, Superseded, or Deprecated.',
         /* templates/partials/metadata-header.html tags this one too; it
-           had no entry, so hovering it showed nothing. After the colophon. */
+           had no entry, so hovering it showed nothing. */
         'peer-status': 'The external review state: unreviewed, under review, peer reviewed, published, or retracted. Distinct from status, the author\u2019s own position: a piece can be Durable and unreviewed at the same time.',
         confidence:   'An integer from 0\u2013100, representing the author\u2019s credence in the central thesis.',
         importance:   'How much the author thinks this matters, on a 1\u20135 dot scale. Useful for orienting a reader who has limited time.',
@@ -133,9 +137,8 @@
            element's first binding, and a source reference with a
            same-origin href (../source/data/x.json) used to be claimed as
            an internal page, which showed nothing (audit J08). Other
-           git.levineuwirth.org links get no popup: the forge sits behind
-           Anubis, which refuses anonymous API requests, and Forgejo sends
-           no CORS headers in any case. */
+           links to a forge get no popup: Forgejo sends no CORS headers, and
+           an Anubis in front of one refuses anonymous API requests. */
         root.querySelectorAll('a.source-ref[data-source-path]').forEach(function (el) {
             bind(el, sourceContent);
         });
@@ -235,16 +238,17 @@
     /* Returns the appropriate provider function for a given URL, or null.
        Local annotations win over the table; otherwise the first entry in
        PROVIDERS whose `host` regex matches the link's hostname and whose
-       `match` regex hits the href is selected. The host comes first, as
-       for the link icons (build/Filters/Links.hs): `match` alone is
-       unanchored, and took gist.github.com/user/id for a repository and
-       a path containing doi.org/10.… for a DOI. */
+       `match` regex hits the href is selected, among those the site lists.
+       The host comes first, as for the link icons (build/Filters/Links.hs):
+       `match` alone is unanchored, and took gist.github.com/user/id for a
+       repository and a path containing doi.org/10.… for a DOI. */
     function getProvider(href) {
         if (!href) return null;
         if (annotations && annotations[href]) return annotationContent;
         var host = hostOf(href);
         for (var i = 0; i < PROVIDERS.length; i++) {
-            if (PROVIDERS[i].host.test(host) && PROVIDERS[i].match.test(href)) {
+            if (window.ozySite.popupProviders.indexOf(PROVIDERS[i].name) !== -1
+                && PROVIDERS[i].host.test(host) && PROVIDERS[i].match.test(href)) {
                 var entry = PROVIDERS[i];
                 return function (target) { return providerContent(target, entry); };
             }
@@ -537,8 +541,8 @@
                 if (abstract.length > 300)
                     abstract = abstract.slice(0, 300).replace(/\s\S+$/, '') + '\u2026';
 
-                /* Authors */
-                var authorEls = doc.querySelectorAll('.meta-authors a');
+                /* Authors: linked, or named alone on a site without author pages */
+                var authorEls = doc.querySelectorAll('.meta-authors a, .meta-authors .meta-author');
                 var authors   = Array.from(authorEls).map(function (a) {
                     return a.textContent.trim();
                 }).join(', ');
@@ -559,7 +563,7 @@
 
                 return store(href,
                     '<div class="popup-internal' + (mono ? ' has-monogram' : '') + '">'
-                    + srcHtml('internal', 'levineuwirth.org')
+                    + srcHtml('internal', window.ozySite.host)
                     + (mono    ? '<div class="popup-monogram" aria-hidden="true">' + mono + '</div>' : '')
                     + '<div class="popup-internal-body">'
                     + (tags    ? '<div class="popup-tags">'     + esc(tags)     + '</div>' : '')
@@ -1044,19 +1048,23 @@
         return Promise.resolve(wrap);
     }
 
-    /* Epistemic term definition — shows a concise description from the
-       colophon for any element tagged with data-ep-term="<field>". */
+    /* Epistemic term definition — shows a concise description for any
+       element tagged with data-ep-term="<field>", and a link to the page that
+       explains them all, if the site names one. */
     function epistemicTermContent(target) {
         var term = target.dataset.epTerm;
         var def  = term && EP_DEFS[term];
         if (!def) return Promise.resolve(null);
         var words = term.replace(/-/g, ' ');           /* peer-status: "Peer status" */
         var label = words.charAt(0).toUpperCase() + words.slice(1);
+        var site  = window.ozySite;
         return Promise.resolve(
             '<div class="popup-ep-term">'
-            + '<div class="popup-source" data-popup-source="colophon">'
-            +   '<a href="/colophon.html#living-documents">Colophon</a>'
-            + '</div>'
+            + (site.epistemicAbout
+                ? '<div class="popup-source" data-popup-source="about">'
+                  + '<a href="' + esc(site.epistemicAbout) + '">' + esc(site.epistemicAboutLabel) + '</a>'
+                  + '</div>'
+                : '')
             + '<div class="popup-title">' + esc(label) + '</div>'
             + '<div class="popup-abstract">' + esc(def) + '</div>'
             + '</div>'

@@ -66,7 +66,7 @@ class Profiles(unittest.TestCase):
             with self.subTest(profile=name):
                 self.assertEqual(set(profile["switches"]), registered_switches())
                 self.assertTrue(all(isinstance(v, bool) for v in profile["switches"].values()))
-                self.assertLessEqual(set(profile), {"switches", "without"})
+                self.assertLessEqual(set(profile), {"switches", "without", "config"})
 
     def test_variants_turn_off_what_needs_what_they_turn_off(self):
         terms = {"a": {}, "b": {"needs": ["a"]}, "c": {"needs-any": ["a", "d"]}, "d": {}}
@@ -280,6 +280,23 @@ class FixtureBuilds(unittest.TestCase):
         # built.
         self.assertTrue((self.sites["full"] / "data/archive-index.json").is_file())
         switch_checks.archive_off(self.turned_off("archive"))
+
+    def test_the_meta_tags_say_what_site_yaml_does(self):
+        for name in ("full", "minimal"):
+            self.refused(name)
+        config = yaml.safe_load((self.sites["full"] / "site.yaml").read_text(encoding="utf-8"))
+        full = (self.sites["full"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
+        for tag in (f'<meta name="ozy:author" content="{config["author"]}">',
+                    f'<meta name="ozy:author-sort" content="{config["author-sort"]}">',
+                    f'<meta name="ozy:host" content="{config["host"]}">',
+                    '<meta name="ozy:popup-providers" content="wikipedia doi">'):
+            self.assertIn(tag, full)
+        # A site that lists none has only its own previews: the engine's default.
+        minimal = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
+        self.assertNotIn("ozy:popup-providers", minimal)
+
+    def test_a_site_that_turns_popups_off_lists_no_provider(self):
+        switch_checks.popups_off(self.turned_off("popups"))
 
     def test_a_site_that_turns_code_off_has_neither_highlighting_nor_copy_buttons(self):
         switch_checks.code_off(self.turned_off("code"))

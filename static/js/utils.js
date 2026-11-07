@@ -10,6 +10,25 @@
 
     var lnUtils = global.lnUtils || {};
 
+    /* What site.yaml tells the scripts, by the page's meta tags: no fetch and
+       no CSP change. Read once, here, so the tags come before this script in
+       <head> (templates/partials/head.html). */
+    function siteMeta(name) {
+        return global.document.querySelector('meta[name="ozy:' + name + '"]');
+    }
+    function siteValue(name, attribute) {
+        var meta = siteMeta(name);
+        return (meta && meta.getAttribute(attribute || 'content')) || '';
+    }
+    global.ozySite = {
+        author:              siteValue('author'),
+        authorSort:          siteValue('author-sort'),
+        host:                siteValue('host'),
+        epistemicAbout:      siteValue('epistemic-about'),
+        epistemicAboutLabel: siteValue('epistemic-about', 'data-label'),
+        popupProviders:      siteValue('popup-providers').split(' ').filter(Boolean)
+    };
+
     /* Escape a string for safe interpolation into HTML text content or
        double-quoted attribute values. The order of replacements matters:
        `&` MUST come first, otherwise the `&amp;` injected by other rules

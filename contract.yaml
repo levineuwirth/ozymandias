@@ -21,6 +21,8 @@
 contexts:
   identity:
     site-title: Example Site
+    site-author: Example Author
+    site-author-sort: "Author, Example"
     site-url: https://example.org
     site-host: example.org
     site-email: author@example.org

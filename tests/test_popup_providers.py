@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import unittest
 
+import yaml
+
 from tests._helpers import engine_path
 
 POPUPS_JS = engine_path("static/js/popups.js")
@@ -56,14 +58,29 @@ class PopupProviderTests(unittest.TestCase):
             with self.subTest(provider=name):
                 self.assertRegex(host, r"^/\^.*\$/$", "host must be anchored at both ends")
 
+    def test_the_registry_has_exactly_these(self) -> None:
+        # What a site.yaml may list: the generator refuses a name not there.
+        registry = yaml.safe_load(engine_path("switches.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(registry["popups"]["providers"]), sorted(name for name, _, _ in self.providers))
+
     def test_provider_for_each_link(self) -> None:
+        self.assertEqual(self.chosen(list(CASES), [name for name, _, _ in self.providers]), CASES)
+
+    def test_a_provider_the_site_does_not_list_is_not_chosen(self) -> None:
+        wikipedia, doi = "https://en.wikipedia.org/wiki/Graph_theory", "https://doi.org/10.1000/xyz"
+        self.assertEqual(self.chosen([wikipedia, doi], ["wikipedia"]), {wikipedia: "wikipedia", doi: None})
+
+    def test_a_site_that_lists_none_chooses_none(self) -> None:
+        self.assertEqual(set(self.chosen(list(CASES), []).values()), {None})
+
+    def chosen(self, links: list[str], listed: list[str]) -> dict:
         # popups.js runs whole in a bare sandbox (it waits for
         # DOMContentLoaded, which never comes). Two lines are put in
         # before bind(): one hands out getProvider, the other makes the
         # provider it returns name its entry instead of fetching.
         script = r"""
 const fs = require('fs'), vm = require('vm');
-const [file, cases] = [process.argv[1], JSON.parse(process.argv[2])];
+const [file, cases, providers] = [process.argv[1], JSON.parse(process.argv[2]), JSON.parse(process.argv[3])];
 let src = fs.readFileSync(file, 'utf8');
 const at = src.indexOf('    function bind(el, provider)');
 if (at < 0) throw new Error('popups.js has no bind()');
@@ -71,7 +88,8 @@ src = src.slice(0, at)
     + '    providerContent = function (target, entry) { return entry.name; };\n'
     + '    window.__getProvider = getProvider;\n' + src.slice(at);
 const noop = () => {};
-const window = {addEventListener: noop, matchMedia: () => ({matches: false, addEventListener: noop})};
+const window = {addEventListener: noop, matchMedia: () => ({matches: false, addEventListener: noop}),
+                ozySite: {popupProviders: providers}};
 window.window = window;
 const ctx = vm.createContext({window, URL, console, navigator: {},
     document: {addEventListener: noop, readyState: 'loading', documentElement: {}},
@@ -84,9 +102,9 @@ for (const href of cases) {
 }
 console.log(JSON.stringify(out));
 """
-        done = subprocess.run(["node", "-e", script, str(POPUPS_JS), json.dumps(list(CASES))],
+        done = subprocess.run(["node", "-e", script, str(POPUPS_JS), json.dumps(links), json.dumps(listed)],
                               capture_output=True, text=True, check=True)
-        self.assertEqual(json.loads(done.stdout), CASES)
+        return json.loads(done.stdout)
 
 if __name__ == "__main__":
     unittest.main()

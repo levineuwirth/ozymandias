@@ -13,6 +13,11 @@
 # tests/fixture_variants.py derives the builds that turn each remaining
 # switch the other way.
 full:
+  # What it tells the scripts, beyond the engine's defaults.
+  config:
+    epistemic-about: /search.html
+    epistemic-about-label: About these
+    popup-providers: [wikipedia, doi]
   switches:
     annotations: true
     archive: true

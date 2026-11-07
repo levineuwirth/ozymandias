@@ -6,8 +6,8 @@
      code  (unknown)    → Copy
      inline code email → Copy · Email
      math               → Copy · nLab · OEIS · Wolfram
-     prose (multi-word) → Annotate · BibTeX · Copy · DuckDuckGo · Here · Wikipedia
-     prose (one word)   → Annotate · BibTeX · Copy · Define · DuckDuckGo · Here · Wikipedia
+     prose (multi-word) → [Annotate] · BibTeX · Copy · DuckDuckGo · Here · Wikipedia
+     prose (one word)   → [Annotate] · BibTeX · Copy · Define · DuckDuckGo · Here · Wikipedia
 
    When the selection sits inside a [lang] subtree whose primary subtag
    differs from the document root (e.g. the ::: {lang="es"} blocks in
@@ -225,7 +225,8 @@
            the contents or the footer is not offered one (it used to
            highlight the same words in the body instead). */
         var body = document.getElementById('markdownBody');
-        var annotatable = !!body && body.contains(range.commonAncestorContainer);
+        /* Annotate needs annotations.js, which the annotations switch ships. */
+        var annotatable = !!window.Annotations && !!body && body.contains(range.commonAncestorContainer);
 
         popup.innerHTML = buildHTML(context, oneWord, codeLang, selLang, annotatable, emailHref);
         popup.style.visibility = 'hidden';
@@ -374,7 +375,7 @@
             .replace(/\^/g,  '\\textasciicircum{}');
     }
 
-    /* "Levi Neuwirth" → "Neuwirth, Levi" */
+    /* "Ada Lovelace" → "Lovelace, Ada" */
     function toBibAuthor(name) {
         var parts = name.trim().split(/\s+/);
         if (parts.length < 2) return name;
@@ -382,19 +383,23 @@
     }
 
     function buildBibTeX(selectedText) {
-        /* Title — h1.page-title is most reliable; fall back to document.title */
+        /* Title — h1.page-title is most reliable; then og:title, since
+           document.title has the site's own title after a separator a page's
+           title may contain as well. */
         var titleEl = document.querySelector('h1.page-title');
+        var ogTitle = document.querySelector('meta[property="og:title"]');
         var title   = titleEl
             ? titleEl.textContent.trim()
-            : document.title.split(' \u2014 ')[0].trim();
+            : (ogTitle ? ogTitle.getAttribute('content') : document.title).trim();
 
-        /* Author(s) — read from .meta-authors, default to site owner */
-        var authorEls = document.querySelectorAll('.meta-authors a');
+        /* Author(s) — read from .meta-authors, linked or named alone on a site
+           without author pages; default to the site's author */
+        var authorEls = document.querySelectorAll('.meta-authors a, .meta-authors .meta-author');
         var authors   = authorEls.length
             ? Array.from(authorEls).map(function (a) {
                 return toBibAuthor(a.textContent.trim());
               }).join(' and ')
-            : 'Neuwirth, Levi';
+            : window.ozySite.authorSort;
 
         /* Year — scrape from the first version-history entry ("14 March 2026 · Created"),
            fall back to current year. */

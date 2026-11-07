@@ -289,12 +289,13 @@ popups:
   kind: interface
   default: true
   assets: [js/popups.js, css/popups.css]
+  # What site.yaml's popup-providers may list: popups.js's PROVIDERS.
+  providers: [wikipedia, arxiv, doi, github, openlibrary, biorxiv, medrxiv, youtube, archive, pubmed]
   about: >-
     Link previews on hover or focus (popups.js), and data/annotations.json,
-    the author's own previews. Which providers they ask is the plan's
-    provider list, which popups.js can read only from A9; until then, with
-    the switch on, every provider is asked, and those the site's server
-    does not proxy show nothing.
+    the author's own previews. Previews from other sites are asked of the
+    providers site.yaml's popup-providers lists, by default none; the site's
+    server has to allow or proxy each one, as popups.js's first comment says.
 
 search-filters:
   kind: interface

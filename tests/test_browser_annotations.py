@@ -43,6 +43,7 @@ from tests.target import requires_switch
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Reading fixture — Example Author</title>
 {styles}
+<meta name="ozy:author-sort" content="Author, Example">
 <script src="/js/utils.js"></script>
 <script src="/js/annotations.js" defer></script>
 <script src="/js/selection-popup.js" defer></script>
@@ -60,6 +61,27 @@ accounts are given of the same event, each of them partial.</p>
 <footer id="outside"><p>Serendipity, outside the text.</p></footer>
 </div></body></html>
 """
+
+HEADING = '<h1 class="page-title">Reading Fixture</h1>'
+SCRIPT = '<script src="/js/annotations.js" defer></script>\n'
+
+
+def variants(page: str) -> dict[str, str]:
+    """The reading page, and as sites and pages have it otherwise: each file's
+    name and content."""
+    linked = ('<div class="meta-row meta-authors"><span class="meta-label">by</span>'
+              '<a href="/authors/ada-lovelace/">Ada Lovelace</a>, <a href="/authors/grace-hopper/">Grace Hopper</a></div>')
+    alone = ('<div class="meta-row meta-authors"><span class="meta-label">by</span>'
+             '<span class="meta-author">Ada Lovelace</span>, <span class="meta-author">Grace Hopper</span></div>')
+    found = {"reading.html": page,
+             "no-annotations.html": page.replace(SCRIPT, ""),
+             "authors-linked.html": page.replace(HEADING, HEADING + linked),
+             "authors-alone.html": page.replace(HEADING, HEADING + alone),
+             "no-heading.html": page.replace(HEADING, "").replace(
+                 "</title>", '</title>\n<meta property="og:title" content="A Title — With Its Dash">')}
+    assert len(set(found.values())) == len(found), "a variant is the page itself"
+    return found
+
 
 KEY = "site-annotations"
 
@@ -115,8 +137,8 @@ class Annotations(unittest.TestCase):
         cls.expect = staticmethod(expect)
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-annotations-")))
         (tmp / "fixtures").mkdir()
-        (tmp / "fixtures" / "reading.html").write_text(PAGE.format(styles=page_styles()),
-                                                       encoding="utf-8")
+        for name, content in variants(PAGE.format(styles=page_styles())).items():
+            (tmp / "fixtures" / name).write_text(content, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
@@ -125,7 +147,7 @@ class Annotations(unittest.TestCase):
             cls.addClassCleanup(cls.browsers[name].close)
 
     def fixture(self, browser: str, stored: str | None = None, width: int = 1280,
-                height: int = 900):
+                height: int = 900, path: str = "reading.html"):
         """The reading fixture, with `stored` as the saved highlights if
         given; the page's errors are checked at cleanup."""
         context = self.browsers[browser].new_context(viewport={"width": width, "height": height})
@@ -139,7 +161,7 @@ class Annotations(unittest.TestCase):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         self.addCleanup(lambda: self.assertEqual(errors, [], "page errors"))
-        page.goto(self.base + "/__fixture/reading.html", wait_until="load")
+        page.goto(self.base + f"/__fixture/{path}", wait_until="load")
         return page
 
     def select(self, page, selector: str, start: str, end: str) -> str:
@@ -430,6 +452,32 @@ class Annotations(unittest.TestCase):
                 page.keyboard.press("Escape")
                 self.expect(page.locator(".selection-popup.is-visible")).to_have_count(0)
 
+    def test_without_annotations_no_annotate_is_offered(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.fixture(browser, path="no-annotations.html")
+                self.select(page, "#plain", "favours", "prepared")
+                self.assertEqual(self.toolbar(page), ["BibTeX", "Copy", "DuckDuckGo", "Here", "Wikipedia"])
+
+    def bibtex(self, browser: str, path: str) -> list[str]:
+        page = self.fixture(browser, path=path)
+        self.select(page, "#plain", "favours", "prepared")
+        page.click(".selection-popup [data-action=cite]")
+        return page.evaluate("window.__copied.pop()").splitlines()
+
+    def test_a_citation_names_the_page_s_authors_with_or_without_author_pages(self) -> None:
+        for browser in BROWSERS:
+            for path in ("authors-linked.html", "authors-alone.html"):
+                with self.subTest(browser=browser, page=path):
+                    bib = self.bibtex(browser, path)
+                    self.assertIn("  author  = {Lovelace, Ada and Hopper, Grace},", bib)
+                    self.assertRegex(bib[0], r"^@online\{lovelace\d{4}reading,$")
+
+    def test_a_citation_of_a_page_without_a_heading_keeps_its_whole_title(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                self.assertIn("  title   = {A Title — With Its Dash},", self.bibtex(browser, "no-heading.html"))
+
     def test_the_toolbar_fits_a_phone(self) -> None:
         # At 375px the one-word toolbar ran from x=10 to x=559.
         boxes = """els => els.map(e => { const r = e.getBoundingClientRect();
@@ -494,9 +542,9 @@ class Annotations(unittest.TestCase):
                 self.select(page, "#plain", "favours", "prepared")
                 page.click(".selection-popup [data-action=cite]")
                 bib = page.evaluate("window.__copied.pop()").splitlines()
-                self.assertRegex(bib[0], r"^@online\{neuwirth\d{4}reading,$")
+                self.assertRegex(bib[0], r"^@online\{author\d{4}reading,$")
                 self.assertIn("  title   = {Reading Fixture},", bib)
-                self.assertIn("  author  = {Neuwirth, Levi},", bib)
+                self.assertIn("  author  = {Author, Example},", bib)
                 self.assertIn("  url     = {" + self.base + "/__fixture/reading.html},", bib)
                 self.assertIn("  note    = {\\enquote{" + phrase + "}},", bib)
 

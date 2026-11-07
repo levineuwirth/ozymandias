@@ -340,6 +340,8 @@ class ConfigTests(unittest.TestCase):
             {"font-preloads": ["fonts/a.woff2"]}, {"font-preloads": ["/fonts/a.ttf"]},
             {"font-preloads": ['/fonts/a".woff2']}, {"font-preloads": "/fonts/a.woff2"},
             {"epistemic-about": "colophon.html"}, {"epistemic-about": "/a page.html"},
+            {"epistemic-about-label": "one\ntwo"},
+            {"popup-providers": ["nosuch"]}, {"popup-providers": "wikipedia"},
             {"font-preloads": ["/fonts/../a.woff2"]},
             {"seasons": season}, {"seasons": [season, season]},
             *[{"seasons": [dict(season, **change)]} for change in (

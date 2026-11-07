@@ -21,7 +21,7 @@ UTILS = engine_path("static/js/utils.js")
 
 RUN = """
 const vm = require('vm'), fs = require('fs');
-const sandbox = {window: {}};
+const sandbox = {window: {document: {querySelector: () => null}}};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
 const u = sandbox.window.lnUtils;

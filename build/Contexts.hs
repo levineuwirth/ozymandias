@@ -81,7 +81,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext,
-                     switchContext, switchOn)
+                     scriptContext, switchContext, switchOn)
 import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
@@ -716,6 +716,7 @@ siteCtx =
     <> navigationContext
     <> seasonContext
     <> switchContext
+    <> scriptContext
     <> hasEpistemicField
     <> epistemicAboutField
     <> plainField
