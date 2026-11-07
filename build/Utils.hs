@@ -20,6 +20,7 @@ module Utils
     , authorSlugify
     , authorNameOf
     , itemAuthors
+    , itemCredit
     , authorUrl
     , metadataKeywords
     , exposureISO
@@ -235,6 +236,15 @@ itemAuthors defaultAuthor meta =
         usable  = filter (\n -> not (null n) && not (null (authorSlugify n)))
                          (map authorNameOf entries)
     in  if null usable then [defaultAuthor] else usable
+
+-- | Whom an item credits as its maker: its @poet:@ when it has one (a poem
+-- the site publishes and didn't write), and otherwise its authors. The byline
+-- asks in the same order. The author index pages keep to 'itemAuthors': poems
+-- aren't among what they list.
+itemCredit :: String -> Metadata -> [String]
+itemCredit defaultAuthor meta = case trim <$> lookupString "poet" meta of
+    Just poet | not (null poet) -> [poet]
+    _                           -> itemAuthors defaultAuthor meta
 
 -- | An author's index page.
 authorUrl :: String -> String

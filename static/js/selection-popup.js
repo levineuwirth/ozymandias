@@ -401,11 +401,15 @@
               }).join(' and ')
             : window.ozySite.authorSort;
 
-        /* Year — scrape from the first version-history entry ("14 March 2026 · Created"),
-           fall back to current year. */
+        /* Year — a poem's own, when the byline has it; otherwise scrape from the
+           first version-history entry ("14 March 2026 · Created"), fall back to
+           current year. */
+        var workYear = document.querySelector('.meta-authors [data-cite-year]');
         var year = String(new Date().getFullYear());
         var vhEl = document.querySelector('#version-history li');
-        if (vhEl) {
+        if (workYear) {
+            year = workYear.getAttribute('data-cite-year');
+        } else if (vhEl) {
             var ym = vhEl.textContent.match(/\b(\d{4})\b/);
             if (ym) year = ym[1];
         }

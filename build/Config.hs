@@ -36,7 +36,7 @@ import Data.Time.Format (defaultTimeLocale, formatTime)
 import qualified Data.Yaml as Yaml
 import Hakyll hiding (escapeHtml)
 import System.FilePath (splitDirectories)
-import Utils (escapeHtml)
+import Utils (escapeHtml, itemCredit)
 
 data SiteConfig = SiteConfig
     { siteTitle :: String
@@ -865,15 +865,34 @@ atomConfig c f = FeedConfiguration
 --   is kept and given the build time: honest, well formed, and it stops
 --   changing the moment the first entry lands and a real date takes over.
 --   A populated feed is never restamped.
+--
+--   The templates are Hakyll's own (@data\/templates\/atom.xml@ and
+--   @atom-item.xml@, which it doesn't export), the entry's with its own
+--   authors added ('entryAuthorsField'); an entry with none comes out as
+--   Hakyll's would.
 renderSiteFeed :: SiteConfig -> FeedSpec -> Context String -> [Item String]
                -> Compiler (Item String)
 renderSiteFeed c f ctx items = do
-    feed <- renderAtom (atomConfig c f) ctx items
+    feedTemplate  <- loadBody "templates/atom.xml"
+    entryTemplate <- loadBody "templates/atom-entry.xml"
+    feed <- renderAtomWithTemplates feedTemplate entryTemplate (atomConfig c f)
+                (ctx <> entryAuthorsField c) items
     if not (null items) then pure feed else do
         stamp <- unsafeCompiler $
             formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" <$> getCurrentTime
         pure (fmap (replaceFirst "<updated>Unknown</updated>"
                                  ("<updated>" ++ stamp ++ "</updated>")) feed)
+
+-- | An entry's own authors, which 'renderSiteFeed' adds to its caller's
+--   context. An Atom entry with no author has the feed's (RFC 4287, 4.1.2),
+--   which is the site's author, so one whose credit is anyone else names
+--   them. An entry the site's author wrote alone has none, and comes out as
+--   it did before there were any.
+entryAuthorsField :: SiteConfig -> Context String
+entryAuthorsField c = listFieldWith "entry-authors"
+    (field "entry-author" (return . escapeHtml . itemBody)) $ \item -> do
+        credit <- itemCredit (siteAuthor c) <$> getMetadata (itemIdentifier item)
+        return [Item (fromFilePath "") name | credit /= [siteAuthor c], name <- credit]
 
 -- | Replace the first occurrence of a literal substring. Returns the
 --   input unchanged when the needle is absent.

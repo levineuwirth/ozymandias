@@ -73,10 +73,17 @@ def variants(page: str) -> dict[str, str]:
               '<a href="/authors/ada-lovelace/">Ada Lovelace</a>, <a href="/authors/grace-hopper/">Grace Hopper</a></div>')
     alone = ('<div class="meta-row meta-authors"><span class="meta-label">by</span>'
              '<span class="meta-author">Ada Lovelace</span>, <span class="meta-author">Grace Hopper</span></div>')
+    # What metadata-header.html writes for a poem's `poet:`, and a history whose
+    # year is neither the poem's nor this year's.
+    poem = ('<div class="meta-row meta-authors"><span class="meta-label">by</span>'
+            '<span class="meta-author" data-cite-year="1609">William Shakespeare</span></div>')
+    history = '<div id="version-history"><ul><li>3 October 1999</li></ul></div>'
     found = {"reading.html": page,
              "no-annotations.html": page.replace(SCRIPT, ""),
              "authors-linked.html": page.replace(HEADING, HEADING + linked),
              "authors-alone.html": page.replace(HEADING, HEADING + alone),
+             "poem.html": page.replace(HEADING, HEADING + poem + history),
+             "history.html": page.replace(HEADING, HEADING + history),
              "no-heading.html": page.replace(HEADING, "").replace(
                  "</title>", '</title>\n<meta property="og:title" content="A Title — With Its Dash">')}
     assert len(set(found.values())) == len(found), "a variant is the page itself"
@@ -472,6 +479,19 @@ class Annotations(unittest.TestCase):
                     bib = self.bibtex(browser, path)
                     self.assertIn("  author  = {Lovelace, Ada and Hopper, Grace},", bib)
                     self.assertRegex(bib[0], r"^@online\{lovelace\d{4}reading,$")
+
+    def test_a_citation_of_a_poem_has_its_poet_and_its_year(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                bib = self.bibtex(browser, "poem.html")
+                self.assertEqual(bib[0], "@online{shakespeare1609reading,")
+                self.assertIn("  author  = {Shakespeare, William},", bib)
+                self.assertIn("  year    = {1609},", bib)
+
+    def test_a_citation_of_any_other_page_has_its_history_s_year(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                self.assertIn("  year    = {1999},", self.bibtex(browser, "history.html"))
 
     def test_a_citation_of_a_page_without_a_heading_keeps_its_whole_title(self) -> None:
         for browser in BROWSERS:

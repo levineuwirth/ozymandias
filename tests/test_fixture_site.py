@@ -26,8 +26,10 @@ import unittest
 import unittest.mock
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from xml.etree import ElementTree
 
 import yaml
+from bs4 import BeautifulSoup
 
 from tests import fixture_variants, switch_checks
 from tests._helpers import ENGINE, engine_path, load_tool, requires_cabal, script_env, site_binary
@@ -294,6 +296,30 @@ class FixtureBuilds(unittest.TestCase):
         # A site that lists none has only its own previews: the engine's default.
         minimal = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
         self.assertNotIn("ozy:popup-providers", minimal)
+
+    def test_a_poem_by_someone_else_names_them_and_its_year(self):
+        self.refused("full")
+        site = self.sites["full"] / "_site/poetry"
+        poem = BeautifulSoup((site / "an-old-poem.html").read_text(encoding="utf-8"), "html.parser")
+        names = poem.select(".meta-authors .meta-author")
+        self.assertEqual([n.get_text() for n in names], ["Ada Lovelace & Lord Byron"])
+        self.assertEqual(names[0]["data-cite-year"], "1843")
+        # Any other page's dates are its own, and its citation reads its history.
+        other = (site / "a-poem.html").read_text(encoding="utf-8")
+        self.assertNotIn("data-cite-year", other)
+
+    def test_a_feed_credits_an_entry_s_own_authors(self):
+        self.refused("full")
+        atom = "{http://www.w3.org/2005/Atom}"
+        config = yaml.safe_load((self.sites["full"] / "site.yaml").read_text(encoding="utf-8"))
+        feed = ElementTree.parse(self.sites["full"] / "_site/feed.xml").getroot()
+        own = {entry.findtext(f"{atom}title"): [a.findtext(f"{atom}name") for a in entry.findall(f"{atom}author")]
+               for entry in feed.findall(f"{atom}entry")}
+        self.assertEqual(own["An Old Poem"], ["Ada Lovelace & Lord Byron"])
+        self.assertEqual(own["Written Together"], ["Ada Lovelace", "Grace Hopper"])
+        # The site's author alone: the feed's, which an entry without one has.
+        self.assertEqual(own["A Poem"], [])
+        self.assertEqual(feed.findtext(f"{atom}author/{atom}name"), config["author"])
 
     def test_a_site_that_turns_popups_off_lists_no_provider(self):
         switch_checks.popups_off(self.turned_off("popups"))

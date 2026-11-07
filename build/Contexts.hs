@@ -312,6 +312,16 @@ authorLinksField = listFieldWith "author-links" ctx $ \item -> do
     ctx = field "author-name" (return . fst . itemBody)
        <> field "author-url"  (maybe (noResult "no author pages") return . snd . itemBody)
 
+-- | @$poet-year$@: the year of a @poet:@ page's @date:@. The dates a page
+--   shows are when it came here and changed; this is the poem's own, and a
+--   citation takes it (@data-cite-year@, read by selection-popup.js).
+poetYearField :: Context String
+poetYearField = field "poet-year" $ \item -> do
+    meta <- getMetadata (itemIdentifier item)
+    case (lookupString "poet" meta, lookupString "date" meta >>= parseIsoDate) of
+        (Just _, Just (day :: UTCTime)) -> return (formatTime defaultTimeLocale "%Y" day)
+        _                               -> noResult "no poet, or no date"
+
 -- ---------------------------------------------------------------------------
 -- Abstract field
 -- ---------------------------------------------------------------------------
@@ -720,6 +730,8 @@ siteCtx =
     <> hasEpistemicField
     <> epistemicAboutField
     <> plainField
+    <> poetYearField
+    <> licenseUrlField
     <> canonicalUrlField
     <> pageScriptsField
     <> pageFeatureFields
@@ -2088,6 +2100,23 @@ resolveLicenseUrl :: Maybe String -> String -> Maybe String
 resolveLicenseUrl (Just u) _ | not (null (trim u)) = Just (trim u)
 resolveLicenseUrl _ name = canonicalLicenseUrl name
 
+-- | @$license-url-resolved$@: an explicit @license-url:@ frontmatter value
+--   when present, otherwise a canonical URL looked up from the @license:@
+--   string for known licenses (CC variants, CC0, public domain). Returns
+--   @noResult@ when neither is set, so @$if(license-url-resolved)$@ gates the
+--   link wrapper.
+--
+--   Frontmatter @license:@ itself flows through @defaultContext@ as
+--   @$license$@; a template renders the license name as link text and uses
+--   @$license-url-resolved$@ as @href@.
+licenseUrlField :: Context String
+licenseUrlField = field "license-url-resolved" $ \item -> do
+    meta <- getMetadata (itemIdentifier item)
+    case resolveLicenseUrl (lookupString "license-url" meta)
+            (fromMaybe "" (lookupString "license" meta)) of
+        Just u -> return u
+        Nothing -> noResult "no license URL"
+
 -- | Context for photography pages and photo cards.
 --
 --   Phase 1: frontmatter-only. Auto-extracted EXIF + palette sidecars
@@ -2161,7 +2190,6 @@ photographyCtx =
     <> capturedDisplayField
     <> capturedIsoField
     <> paletteSwatchesField
-    <> licenseUrlField
     <> photoLinksField
     -- Backlinks. A photograph is a link *target* like any other page: a
     -- poem or essay that references the frame produces an entry keyed to
@@ -2357,23 +2385,6 @@ photographyCtx =
                 swatches
       where
         swCtx = field "swatch" (return . itemBody)
-
-    -- @$license-url-resolved$@: an explicit @license-url:@ frontmatter
-    -- value when present, otherwise a canonical URL looked up from the
-    -- @license:@ string for known licenses (CC variants, CC0, public
-    -- domain). Returns @noResult@ when neither is set, so
-    -- @$if(license-url-resolved)$@ gates the link wrapper.
-    --
-    -- Frontmatter @license:@ itself flows through @defaultContext@ as
-    -- @$license$@; the template renders the license name as link text
-    -- and uses @$license-url-resolved$@ as @href@.
-    licenseUrlField :: Context String
-    licenseUrlField = field "license-url-resolved" $ \item -> do
-        meta <- getMetadata (itemIdentifier item)
-        case resolveLicenseUrl (lookupString "license-url" meta)
-                (fromMaybe "" (lookupString "license" meta)) of
-            Just u -> return u
-            Nothing -> noResult "no license URL"
 
     -- @links:@ frontmatter — outbound links to other surfaces where
     -- the photograph appears or can be acquired (Wikimedia Commons,

@@ -672,9 +672,15 @@ class FeedRenderingTests(unittest.TestCase):
 PROBE = '''{-# LANGUAGE OverloadedStrings #-}
 import Config
 import Hakyll
+import Utils (stripHtmlComments)
 main :: IO ()
 main = hakyll $ do
     configRules
+    -- The feed's templates, compiled as the build compiles them (EngineFiles.templateRules).
+    match "templates/*" $ compile $ do
+        item <- getResourceBody
+        tpl  <- compileTemplateItem (fmap stripHtmlComments item)
+        return (itemSetBody tpl item)
     match "posts/*" $ do
         route $ setExtension "html"
         compile getResourceBody
@@ -697,7 +703,7 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 @requires_cabal
 class FeedProbeTests(unittest.TestCase):
     """Config.renderSiteFeed, driven by a small Hakyll program built against
-    the real Config module."""
+    the real Config module and given the engine's feed templates."""
 
     @classmethod
     def setUpClass(cls):
@@ -721,6 +727,9 @@ class FeedProbeTests(unittest.TestCase):
                                            dict(feed, path="full.xml", title=title)], **config)
             (root / "posts").mkdir()
             (root / "posts/a.md").write_text("---\ntitle: A\ndate: 2026-01-02\n---\nText.\n")
+            (root / "templates").mkdir()
+            for name in ("atom.xml", "atom-entry.xml"):
+                (root / "templates" / name).write_bytes(engine_path(f"templates/{name}").read_bytes())
             done = subprocess.run([str(self.binary), "build"], cwd=root, env=script_env(),
                                   capture_output=True, text=True, timeout=60)
             self.assertEqual(done.returncode, 0, done.stderr)
