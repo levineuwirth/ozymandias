@@ -130,11 +130,12 @@ class AcrossADeploy(unittest.TestCase):
         def tool(command: str) -> str:
             return subprocess.run([sys.executable, str(TOOL), command, str(site), "--ledger", str(cls.ledger)],
                                   check=True, capture_output=True, text=True).stdout
-        tool("record")
         rules = cls.tmp / "deploy-filter.txt"
         rules.write_text(tool("filter"))
+        tool("attempt")
         subprocess.run(["rsync", "-a", "--delete", f"--filter=merge {rules}", f"{site}/", f"{cls.docroot}/"],
                        check=True, capture_output=True, text=True)
+        tool("deployed")
 
     @staticmethod
     def version(site: Path) -> str:

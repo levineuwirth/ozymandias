@@ -9,23 +9,28 @@ earlier versions on the server, which rsync --delete would remove.
 
     asset-versions.py current [SITE]    the version SITE (_site) was built with
     asset-versions.py prune [SITE]      remove the others from SITE
-    asset-versions.py record [SITE]     SITE's version goes live today
     asset-versions.py retained [SITE]   what else to keep on the server, a path each
     asset-versions.py filter [SITE]     the same, as rsync filter rules
+    asset-versions.py attempt [SITE]    a deploy of SITE's version is starting
+    asset-versions.py deployed [SITE]   it finished: SITE's version is live today
 
-data/deployed-assets.json holds the version live on the server and the day each
-earlier one was replaced. An earlier version is kept for KEEP_DAYS from that
-day, however long it was live. The paths assets lived at before they were
-versioned (LEGACY), which tabs open across the first such deploy still load
-from, are kept the same way from that deploy.
+data/deployed-assets.json holds the version live on the server, the versions
+attempted since, and the day each earlier one was replaced. An earlier version
+is kept for KEEP_DAYS from that day, however long it was live. The paths assets
+lived at before they were versioned (LEGACY), which tabs open across the first
+such deploy still load from, are kept the same way from that deploy.
 
-A deploy records before its transfer. If the transfer then fails, a version
-that never arrived is kept for nothing and a clock starts early; the other order
-could lose a version that had arrived, at the next deploy.
+Only a deploy that finishes moves any of this. One that fails may leave pages of
+its version on the server beside pages of the live one, or none at all, and the
+live one goes on being served for as long as it takes to deploy again. So until
+a deploy finishes, the live version and every attempted one stay and no clock
+runs; when one does, all their clocks start that day, since any of them may have
+served a page until then. A deploy notes its attempt before the transfer: if it
+stops in between, or between the transfer and the note that it finished, a
+version is kept for longer than it needed, and nothing is lost.
 
 The ledger is local, as a deploy is: lost, the server's earlier versions go at
-the next deploy, and tabs that old lose their on-demand loads. It costs no extra
-connection to the server: everything goes through the deploy's one rsync.
+the next deploy, and tabs that old lose their on-demand loads.
 """
 
 from __future__ import annotations
@@ -65,8 +70,13 @@ def prune(site: Path) -> list[str]:
 
 def load(ledger: Path) -> dict:
     if not ledger.is_file():
-        return {"live": None, "replaced": {}, "legacy": None}
+        return {"live": None, "attempted": [], "replaced": {}, "legacy": None}
     return json.loads(ledger.read_text(encoding="utf-8"))
+
+
+def save(ledger: Path, state: dict) -> None:
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text(json.dumps(state, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def fresh(day: str, today: dt.date) -> bool:
@@ -74,10 +84,11 @@ def fresh(day: str, today: dt.date) -> bool:
 
 
 def retained(ledger: Path, today: dt.date, building: str) -> list[str]:
-    """Paths on the server to keep beyond the version `building`. Before the
-    first deploy that records a version, the legacy paths are still in use."""
+    """Paths on the server to keep beyond the version `building`. Until a deploy
+    has finished, the legacy paths are still in use."""
     state = load(ledger)
     versions = {version for version, day in state["replaced"].items() if fresh(day, today)}
+    versions.update(state["attempted"])
     if state["live"]:
         versions.add(state["live"])
     paths = [f"assets/{version}" for version in sorted(versions - {building})]
@@ -86,24 +97,34 @@ def retained(ledger: Path, today: dt.date, building: str) -> list[str]:
     return paths
 
 
-def record(ledger: Path, site: Path, today: dt.date) -> None:
-    """SITE's version goes live today, which is the day the one before it was
-    replaced. What no longer stays leaves the ledger."""
+def attempt(ledger: Path, site: Path) -> None:
+    """A deploy of SITE's version is starting. It moves nothing yet."""
+    state = load(ledger)
+    now = current(site)
+    if now != state["live"] and now not in state["attempted"]:
+        state["attempted"] = sorted([*state["attempted"], now])
+    save(ledger, state)
+
+
+def deployed(ledger: Path, site: Path, today: dt.date) -> None:
+    """SITE's version is live as of today, which is the day everything else that
+    was or might have been live was replaced. What no longer stays leaves the
+    ledger."""
     state = load(ledger)
     now = current(site)
     day = today.isoformat()
-    if state["live"] and state["live"] != now:
-        state["replaced"][state["live"]] = day
+    for version in {state["live"], *state["attempted"]} - {now, None}:
+        state["replaced"][version] = day
     state["replaced"] = {v: d for v, d in state["replaced"].items() if v != now and fresh(d, today)}
+    state["attempted"] = []
     state["live"] = now
     state["legacy"] = state["legacy"] or day
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger.write_text(json.dumps(state, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    save(ledger, state)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=("current", "prune", "record", "retained", "filter"))
+    parser.add_argument("command", choices=("current", "prune", "attempt", "deployed", "retained", "filter"))
     parser.add_argument("site", nargs="?", type=Path, default=Path("_site"))
     parser.add_argument("--ledger", type=Path, default=LEDGER)
     parser.add_argument("--today", type=dt.date.fromisoformat, default=dt.date.today())
@@ -113,8 +134,10 @@ def main() -> int:
     elif args.command == "prune":
         for path in prune(args.site):
             print(f"asset-versions: removed {path} from {args.site}")
-    elif args.command == "record":
-        record(args.ledger, args.site, args.today)
+    elif args.command == "attempt":
+        attempt(args.ledger, args.site)
+    elif args.command == "deployed":
+        deployed(args.ledger, args.site, args.today)
     else:
         for path in retained(args.ledger, args.today, current(args.site)):
             print(path if args.command == "retained" else f"P /{path}/***")
