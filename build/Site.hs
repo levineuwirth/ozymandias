@@ -23,7 +23,7 @@ import Hakyll hiding (escapeHtml)
 import Config     (SiteConfig (..), FeedSpec (..), FeedSection (..), LibraryConfig (..),
                    NavLink (..), Portal (..), Standalone (..), PageKind (..),
                    engineSources, standaloneDir, configRules, manifestRules,
-                   readSiteConfig, loadConfig, loadFeed, renderSiteFeed, photoFeed, switchOn)
+                   readSiteConfig, loadConfig, loadFeed, renderSiteFeed, photoFeed, switchOn, sourcePreviewPattern)
 import Archive    (archiveRules)
 import Authors    (buildAllAuthors, applyAuthorRules)
 import Backlinks  (backlinkRules)
@@ -368,7 +368,7 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Only with the source-refs switch on, which links prose to it.
     when (switchOn cfg "source-refs" && not (null (siteSourcePreview cfg))) $ do
-        let sourcePreviewable = foldr1 (.||.) (map fromGlob (siteSourcePreview cfg))
+        let sourcePreviewable = sourcePreviewPattern cfg
         match sourcePreviewable $ version "source-preview" $ do
             route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident))
             compile copyFileCompiler

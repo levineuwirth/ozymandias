@@ -41,7 +41,7 @@ module Filters.SourceRefs
     , engineSourceGlobs
     ) where
 
-import           Config               (SiteConfig (..))
+import           Config               (SiteConfig (..), sourcePreviewPattern)
 import           EngineFiles          (engineDir, existingFile)
 import           Data.IORef           (IORef, atomicModifyIORef', newIORef, readIORef)
 import qualified Data.Map.Strict      as Map
@@ -54,9 +54,9 @@ import           Text.Pandoc.Definition
 import           Text.Pandoc.Walk     (walk, walkM)
 
 -- | Two passes: lift Forgejo source URLs in existing Markdown links
---   first, then wrap inline-code source paths. Both passes only add
---   the @source-ref@ class when it is not already present, so re-runs
---   are idempotent.
+--   first, then wrap inline-code source paths. Author-marked links keep
+--   their popup only if its file is published; repeated passes are
+--   idempotent.
 --
 --   Runs in 'IO' because the heuristic confirms each candidate is a
 --   real on-disk file before wrapping. This rules out paths like
@@ -65,7 +65,7 @@ import           Text.Pandoc.Walk     (walk, walkM)
 --   link whose popup is guaranteed to 404.
 apply :: SiteConfig -> Pandoc -> IO Pandoc
 apply cfg doc = do
-    let published = map fromGlob (siteSourcePreview cfg)
+    let published = [sourcePreviewPattern cfg]
     afterLinks <- walkM (classifyExistingLink cfg published) doc
     walkM (wrapInlineCode cfg published) afterLinks
 
@@ -164,8 +164,16 @@ isGeneratedPath path = path `elem` [ "data/similar-links.json" ]
 --   engine's, which the site's repository does not hold.
 classifyExistingLink :: SiteConfig -> [Pattern] -> Inline -> IO Inline
 classifyExistingLink cfg published orig@(Link (ident, classes, kvs) ils (url, title))
-    | "source-ref" `notElem` classes
-    , Just path <- forgejoSourcePath cfg url = do
+    | "source-ref" `elem` classes = do
+        let path = lookup "data-source-path" kvs
+            attr = (ident, filter (/= "source-ref") classes,
+                    filter ((/= "data-source-path") . fst) kvs)
+        found <- maybe (pure Nothing) (owner cfg published) path
+        pure $ case (found, path) of
+            (Just Site, _) -> orig
+            (Just Engine, Just rel) -> Link attr ils (engineSourceUrl cfg rel, title)
+            _ -> Link attr ils (url, title)
+    | Just path <- forgejoSourcePath cfg url = do
         found <- owner cfg published path
         pure $ case found of
             Just Site -> Link

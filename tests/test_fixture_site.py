@@ -268,6 +268,31 @@ class FixtureBuilds(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
         return site
 
+    def test_source_preview_wildcards_never_publish_engine_files(self):
+        # Neither raw sources nor sectioned Markdown may escape via a
+        # wildcard spelling of engine/. The site's own matches still ship.
+        page = (FIXTURE / "content/essays/capabilities/index.md").read_text(encoding="utf-8")
+        site = self.rebuilt("source-preview-wildcards", lambda c: dict(c, **{
+            "source-preview": ["e*/build/**.hs", "e*/tests/golden/**.md", "preview.md", "example.hs"],
+        }), {"preview.md": "# Preview\n\nSite prose.\n", "example.hs": "main = pure ()\n",
+             "content/essays/capabilities/index.md": page + "\n`engine/build/Config.hs`\n"})
+        source = site / "_site/source"
+        self.assertEqual(sorted(p.relative_to(source).as_posix()
+                                for p in source.rglob("*") if p.is_file()),
+                         ["example.hs", "preview.md", "preview.md.sections.json"])
+        for page in switch_checks.pages(site):
+            self.assertNotIn('data-source-path="engine/', page.read_text(encoding="utf-8"))
+
+    def test_empty_source_preview_passes_the_generic_source_checks(self):
+        site = self.rebuilt("source-preview-empty", lambda c: dict(c, **{"source-preview": []}))
+        self.assertTrue(yaml.safe_load((site / "site.yaml").read_text())["switches"]["source-refs"])
+        switch_checks.source_refs_off(site)
+        done = subprocess.run([sys.executable, "-m", "unittest", "tests.test_source_refs"],
+                              cwd=site, env=script_env(SITE_ROOT=str(site), PYTHONPATH=str(ENGINE)),
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("Ran 2 tests", done.stderr)
+
     def test_the_engine_s_notice_ships_with_every_build(self):
         # Each publishes the engine's templates, stylesheets and scripts.
         notice = engine_path("LICENSE").read_bytes()

@@ -12,7 +12,7 @@ module Config
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
     , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext
     , manifestRules
-    , knownDingbats
+    , knownDingbats, sourcePreviewPattern
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
@@ -547,6 +547,14 @@ onlyKeys allowed o = unless (null unknown) $
 singleLine :: String -> String -> Parser ()
 singleLine name value = when (null value || any isControl value) $
     fail (name ++ " must be a nonempty single-line string")
+
+-- | The publication and link filters share this boundary. A wildcard in
+--   the first component can match engine/ even when the configuration
+--   never names that directory literally. An empty list matches nothing.
+sourcePreviewPattern :: SiteConfig -> Pattern
+sourcePreviewPattern cfg =
+    foldr (.||.) (fromList []) (map fromGlob (siteSourcePreview cfg))
+        .&&. complement (fromGlob (engineDir ++ "/**"))
 
 -- | A glob over a site path: relative, without traversal or a stray
 --   character, and not under @engine/@, whose files the site never publishes.

@@ -662,6 +662,32 @@ class ConfigTests(unittest.TestCase):
         self.assertIn('href="https://git.example.org/author/site/src/branch/main/tools/probe.py"', done.stdout)
         self.assertNotRegex(done.stdout, r'<a [^>]*><code>(tools/probe\.py|Makefile)</code></a>')
 
+    def test_author_marked_source_links_need_a_published_file(self):
+        (self.root / "notes.md").write_text("# Notes\n")
+        (self.root / "engine/tools").mkdir(parents=True, exist_ok=True)
+        (self.root / "engine/tools/probe.py").write_text("")
+        (self.root / "probe.md").write_text(
+            '[own](/notes.md){#own .extra .source-ref data-source-path="notes.md"}\n\n'
+            '[engine](/old){.source-ref data-source-path="tools/probe.py"}\n\n'
+            '[missing](/missing){.source-ref data-source-path="missing.md"}\n\n'
+            '[unqualified](/notes.md){.source-ref}\n')
+        self.config["switches"] = {"code": True, "source-refs": True}
+        self.config["engine-repo"] = "https://git.example.org/author/engine"
+        for published in (["notes.md"], []):
+            with self.subTest(published=published):
+                self.config["source-preview"] = published
+                self.write_config()
+                done = self.run_site("render-fixture", "probe.md")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertIn('href="/notes.md"', done.stdout)
+                self.assertIn('id="own"', done.stdout)
+                self.assertRegex(done.stdout, r'class="extra(?: [^"]*)?"')
+                self.assertEqual(len(re.findall(r'class="[^"]*\bsource-ref\b', done.stdout)),
+                                 int(bool(published)))
+                self.assertEqual(done.stdout.count('data-source-path='), int(bool(published)))
+                self.assertIn('href="https://git.example.org/author/engine/src/branch/main/tools/probe.py"',
+                              done.stdout)
+
     def test_a_generated_index_is_a_slug_only_with_its_switch(self):
         # Nor does it keep a top-level tag from its page without it.
         indexes = {"archive": "archive", "bibliography": "bibliography-index",

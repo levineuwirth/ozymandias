@@ -30,7 +30,8 @@ class SourceRefTargets(unittest.TestCase):
                 continue
             for path in SOURCE_PATH_RE.findall(page.read_text(encoding="utf-8")):
                 wrapped.setdefault(path, str(page.relative_to(SITE)))
-        self.assertTrue(wrapped, "no source-ref links found")
+        # A site may publish no source files, or never mention them in prose.
+        # The fixture switch checks require positive examples where promised.
         missing = [f"{path} (on {page})" for path, page in sorted(wrapped.items())
                    if not (SITE / "source" / path).is_file()]
         self.assertEqual(missing, [])
@@ -40,7 +41,6 @@ class SourceRefTargets(unittest.TestCase):
         # them for the site, and go stale against the engine it builds with.
         source = SITE / "source"
         published = [p.relative_to(source).as_posix() for p in source.rglob("*") if p.is_file()]
-        self.assertTrue(published, "nothing under /source/")
         foreign = [p for p in published if not (SITE_ROOT / SIDECAR.sub("", p)).is_file()]
         self.assertEqual(foreign, [])
 
