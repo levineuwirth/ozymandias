@@ -107,7 +107,7 @@ class SiteConfig(unittest.TestCase):
         self.built.write_text("#!/bin/sh\necho '{\"host\": \"example.org\"}'\n")
         self.built.chmod(0o755)
         stub = stub_bin(self.dir / "bin", ["cabal"],
-                        f'#!/bin/sh\necho "$1" >> "{self.log}"\n'
+                        f'#!/bin/sh\necho "$1" >> "{self.log}"\necho "$PWD" >> "{self.dir}/cwd.log"\n'
                         f'case "$1" in\n'
                         f'  build) cp "{self.built}" "{self.binary}" ;;\n'
                         f'  list-bin) echo "{self.binary}" ;;\n'
@@ -139,6 +139,20 @@ class SiteConfig(unittest.TestCase):
     def test_builds_only_when_there_is_none(self):
         self.assertEqual(sitelib.site_config()["host"], "example.org")
         self.assertEqual(self.calls(), ["list-bin", "build", "list-bin"])
+
+    def test_cabal_runs_from_the_site_s_project(self):
+        # An engine checked out on its own has no cabal.project: the site's
+        # builds it, with the engine's dependency set. Inside a site, cabal
+        # finds that project above the engine.
+        site = self.dir / "site-root"
+        site.mkdir()
+        (site / "cabal.project").write_text("packages: engine\n")
+        for root, where in ((site, site), (self.dir, sitelib.ENGINE)):
+            with self.subTest(root=root), mock.patch.object(sitelib, "SITE_ROOT", root):
+                sitelib.site_binary.cache_clear()
+                (self.dir / "cwd.log").unlink(missing_ok=True)
+                sitelib.site_binary()
+                self.assertEqual(set((self.dir / "cwd.log").read_text().split()), {str(where)})
 
     def test_a_check_may_ask_for_a_fresh_one(self):
         shutil.copy(self.built, self.binary)

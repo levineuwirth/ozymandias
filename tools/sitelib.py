@@ -123,16 +123,20 @@ def site_binary(build: bool = True) -> str:
     if binary := os.environ.get("SITE_BINARY"):
         return binary
 
-    # From the engine, wherever it is: cabal finds the cabal.project above
-    # it, which names the engine's package (from A6b, `packages: engine`).
+    # From the site's project, which builds its engine (`packages: engine`)
+    # with the engine's dependency set: an engine checked out on its own has
+    # no project. Inside a site (engine/ a directory, before A10b), cabal
+    # finds the same project above the engine.
+    project = SITE_ROOT if (SITE_ROOT / "cabal.project").is_file() else ENGINE
+
     def listed() -> str:
         return subprocess.check_output(
-            ["cabal", "list-bin", "-v0", "exe:site"], cwd=ENGINE, text=True,
+            ["cabal", "list-bin", "-v0", "exe:site"], cwd=project, text=True,
         ).strip()
 
     if not build and Path(found := listed()).is_file():
         return found
-    subprocess.run(["cabal", "build", "-v0", "exe:site"], cwd=ENGINE, check=True)
+    subprocess.run(["cabal", "build", "-v0", "exe:site"], cwd=project, check=True)
     return listed()
 
 

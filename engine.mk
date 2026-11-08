@@ -421,7 +421,8 @@ watch:
 
 watch-locked: export SITE_ENV = dev
 watch-locked:
-	cabal run site -- watch
+	# Hakyll's watcher doesn't look inside a linked engine; a second one does.
+	python3 $(call tool,watch-engine.py) -- cabal run site -- watch
 
 clean:
 	@$(WITH_LOCK) cabal run site -- clean

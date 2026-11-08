@@ -16,14 +16,23 @@
 # a module missing from the cabal file fails here too. This checkout's
 # .venv is borrowed (the Python environment is not what this checks), and
 # tests that need a built _site skip, as they would in any fresh checkout.
+#
+# The engine is cloned too once it is a repository of its own, the site's
+# engine a link to it (A10b): both at HEAD as committed, side by side, so
+# that the clone's Makefile links the engine's clone as ../ozymandias.
+# Until then it is the site's engine/ and comes with the site.
 set -euo pipefail
 
 repo=$(git rev-parse --show-toplevel)
+engine=$(git -C "$repo/engine" rev-parse --show-toplevel 2>/dev/null || true)
+if [ -n "$engine" ] && [ "$(cd "$engine" && pwd -P)" = "$(cd "$repo" && pwd -P)" ]; then
+    engine=""
+fi
 work=$(mktemp -d "${TMPDIR:-/tmp}/test-clean.XXXXXX")
 status=1
 cleanup() {
     if [ "$status" -ne 0 ] || [ "${KEEP:-0}" = 1 ]; then
-        echo "test-clean: the clone is kept at $work/repo"
+        echo "test-clean: the clones are kept in $work"
     else
         rm -rf "$work"
     fi
@@ -33,6 +42,12 @@ trap cleanup EXIT
 git clone --quiet "$repo" "$work/repo"
 if [ -d "$repo/.venv" ]; then ln -s "$repo/.venv" "$work/repo/.venv"; fi
 echo "test-clean: $(git -C "$work/repo" log -1 --format='%h %s')"
+if [ -n "$engine" ]; then
+    git clone --quiet "$engine" "$work/ozymandias"
+    echo "test-clean: engine $(git -C "$work/ozymandias" log -1 --format='%h %s')"
+else
+    echo "test-clean: engine in this repository"
+fi
 
 keep=(HOME PATH LANG LC_ALL TMPDIR CABAL_DIR GHCUP_INSTALL_BASE_PREFIX
       XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME)
