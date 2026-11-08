@@ -96,9 +96,11 @@ source-refs:
   needs: [code]
   about: >-
     Links from prose to the site's own files (Filters.SourceRefs): inline
-    code naming a file the /source/ mirror publishes, and links to the
-    source repository, each previewed in a popup from that mirror, with
-    Prism (so it needs code). Without it inline code is just code, an
+    code naming a file the /source/ mirror publishes (site.yaml's
+    source-preview), and links to the source repository, each previewed in
+    a popup from that mirror, with Prism (so it needs code). Inline code
+    naming one of the engine's files links to its repository (site.yaml's
+    engine-repo), with no popup. Without it inline code is just code, an
     authored .source-ref link is an ordinary one, and nothing is published
     under /source/.
 

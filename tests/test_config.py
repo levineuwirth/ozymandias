@@ -342,6 +342,12 @@ class ConfigTests(unittest.TestCase):
             {"epistemic-about": "colophon.html"}, {"epistemic-about": "/a page.html"},
             {"epistemic-about-label": "one\ntwo"},
             {"popup-providers": ["nosuch"]}, {"popup-providers": "wikipedia"},
+            {"source-preview": "Makefile"}, {"source-preview": ["/Makefile"]},
+            {"source-preview": ["../outside/**"]}, {"source-preview": ["data/../site.yaml"]},
+            {"source-preview": ["engine/**"]}, {"source-preview": [""]},
+            {"source-preview": ["data/{a,b}.yaml"]}, {"source-preview": ["data/a b.yaml"]},
+            {"engine-repo": "git.example.org/author/engine"},
+            {"engine-repo": "https://git.example.org/author/engine/"},
             {"font-preloads": ["/fonts/../a.woff2"]},
             {"seasons": season}, {"seasons": [season, season]},
             *[{"seasons": [dict(season, **change)]} for change in (
@@ -605,6 +611,12 @@ class ConfigTests(unittest.TestCase):
 
     def check_link_filters(self):
         (self.root / "Makefile").write_text("all:;@:\n")
+        (self.root / "engine/tools").mkdir(parents=True, exist_ok=True)
+        (self.root / "engine/tools/probe.py").write_text("")
+        # The site's own file at an engine file's path, which it doesn't publish.
+        (self.root / "tools").mkdir(exist_ok=True)
+        (self.root / "tools/own.py").write_text("")
+        (self.root / "engine/tools/own.py").write_text("")
         (self.root / "probe.md").write_text(
             "[own](https://example.org/page)\n\n"
             "[www](https://www.example.org/page)\n\n"
@@ -612,20 +624,43 @@ class ConfigTests(unittest.TestCase):
             "[forge](https://git.example.org/author/other)\n\n"
             "[source](https://git.example.org/author/site/src/branch/main/Makefile)\n\n"
             "[configured](https://git.example.org/author/site/raw/branch/next/docs/Makefile)\n\n"
-            "`Makefile`\n")
+            "`Makefile`\n\n"
+            "[engine's](https://git.example.org/author/site/src/branch/main/tools/probe.py)\n\n"
+            "`tools/probe.py`\n\n"
+            "`tools/own.py`\n")
         self.config["source-branch"] = "next/docs"
+        self.config["source-preview"] = ["Makefile"]
+        self.config["engine-repo"] = "https://git.example.org/author/engine"
         self.config["switches"] = {"code": True, "source-refs": True}
         self.write_config()
         done = self.run_site("render-fixture", "probe.md")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(done.stdout.count('class="link-external"'), 2)
+        self.assertEqual(done.stdout.count('class="link-external"'), 4)
         self.assertIn('data-link-icon="forgejo"', done.stdout)
         self.assertEqual(done.stdout.count('class="source-ref"'), 3)
         self.assertIn('href="https://git.example.org/author/site/src/branch/next/docs/Makefile"', done.stdout)
+        # The engine's file, in its repository, both ways, and no popup.
+        self.assertEqual(done.stdout.count(
+            'href="https://git.example.org/author/engine/src/branch/main/tools/probe.py"'), 2)
+        self.assertNotIn('data-source-path="tools/probe.py"', done.stdout)
+        # Not the engine's, which differs from what the site has, nor a popup.
+        self.assertIn("<code>tools/own.py</code>", done.stdout)
+        self.assertNotRegex(done.stdout, r'<a [^>]*><code>tools/own\.py</code></a>')
         # Nothing but the site's own hosts and the probe's links: no filter
         # writes a host of its own.
         self.assertLessEqual(set(re.findall(r'https?://([^/"]+)', done.stdout)),
                              {"example.org", "www.example.org", "example.org.attacker.invalid", "git.example.org"})
+        # Without an engine repository, its files are left as written; and
+        # what the site doesn't list, it doesn't publish or link.
+        self.config["engine-repo"] = ""
+        self.config["source-preview"] = []
+        self.write_config()
+        done = self.run_site("render-fixture", "probe.md")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("author/engine", done.stdout)
+        self.assertNotIn('class="source-ref"', done.stdout)
+        self.assertIn('href="https://git.example.org/author/site/src/branch/main/tools/probe.py"', done.stdout)
+        self.assertNotRegex(done.stdout, r'<a [^>]*><code>(tools/probe\.py|Makefile)</code></a>')
 
     def test_a_generated_index_is_a_slug_only_with_its_switch(self):
         # Nor does it keep a top-level tag from its page without it.

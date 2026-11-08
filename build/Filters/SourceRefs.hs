@@ -5,12 +5,12 @@
 --
 --   Two trigger forms:
 --
---   * Inline @\`build\/Filters\/Links.hs\`@ — Markdown inline code whose
+--   * Inline @\`data\/bibliography.bib\`@ — Markdown inline code whose
 --     text passes a conservative source-path heuristic.
 --   * A Markdown link to
 --     the configured source repository, under @(src|raw)/branch/<branch>/<path>@.
 --
---   Both produce
+--   A path the site publishes (site.yaml's @source-preview@) becomes
 --   @\<a class="source-ref" data-source-path="…" href="…">@. The href
 --   points to the Forgejo source viewer so a click without JS — or a
 --   popup that fails to fetch — still resolves to a useful target.
@@ -21,30 +21,34 @@
 --   source-preview rule in 'Site.rules') and renders a
 --   syntax-highlighted snippet via Prism.
 --
+--   A path naming one of the engine's own files, which no site publishes,
+--   links to the engine's repository (site.yaml's @engine-repo@) as an
+--   ordinary link, without a popup; a link to the site's repository naming
+--   one is pointed there too. A site with no @engine-repo@ leaves them as
+--   they are.
+--
 --   Conservative-by-design: the trigger only fires on paths the
---   @/source/@ serving rule actually publishes ('sourcePreviewGlobs',
---   from which that rule builds its pattern). This keeps the parser
+--   @/source/@ serving rule actually publishes (the site's
+--   @source-preview@, from which that rule builds its pattern), or on the
+--   engine's files 'engineSourceGlobs' names. This keeps the parser
 --   cheap, avoids false positives on words that happen to contain a
 --   slash and a dot, and guarantees every wrapped path has a fetchable
 --   @/source/…@ copy.
 module Filters.SourceRefs
     ( apply
     , plain
-    , isSourcePath
     , forgejoSourceUrl
-      -- * Shared with 'Site.rules'
-    , sourcePreviewGlobs
+    , engineSourceGlobs
     ) where
 
 import           Config               (SiteConfig (..))
-import           EngineFiles          (existingFile)
-import           Control.Monad        (when)
+import           EngineFiles          (engineDir, existingFile)
 import           Data.IORef           (IORef, atomicModifyIORef', newIORef, readIORef)
 import qualified Data.Map.Strict      as Map
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Hakyll               (Pattern, fromFilePath, fromGlob, matches)
-import           Data.Maybe           (isJust)
+import           System.FilePath      ((</>))
 import           System.IO.Unsafe     (unsafePerformIO)
 import           Text.Pandoc.Definition
 import           Text.Pandoc.Walk     (walk, walkM)
@@ -61,8 +65,9 @@ import           Text.Pandoc.Walk     (walk, walkM)
 --   link whose popup is guaranteed to 404.
 apply :: SiteConfig -> Pandoc -> IO Pandoc
 apply cfg doc = do
-    afterLinks <- walkM (classifyExistingLink cfg) doc
-    walkM (wrapInlineCode cfg) afterLinks
+    let published = map fromGlob (siteSourcePreview cfg)
+    afterLinks <- walkM (classifyExistingLink cfg published) doc
+    walkM (wrapInlineCode cfg published) afterLinks
 
 -- | For a site without the source-refs switch, which publishes no
 --   @/source/@ copies: a link an author marked @.source-ref@ (with its
@@ -76,16 +81,43 @@ plain = walk unmark
                   filter ((/= "data-source-path") . fst) kvs) ils target
     unmark x = x
 
--- | Inline @`path`@ → @\<a class="source-ref" data-source-path="path"\>\<code\>path\<\/code\>\<\/a\>@.
---   The original 'Code' node is preserved as the link's body so the
---   inline-code chrome (mono font, background) survives unchanged.
-wrapInlineCode :: SiteConfig -> Inline -> IO Inline
-wrapInlineCode cfg orig@(Code (cIdent, cClasses, cKvs) txt)
-    | "source-ref" `notElem` cClasses
-    , isSourcePath txt = do
-        exists <- existsCached txt
-        if exists
-            then pure $ Link
+-- | Whose file a path in prose names, if it is one to link.
+data Owner
+    = Site    -- ^ the site's, published under @/source/@
+    | Engine  -- ^ the engine's, in the engine's repository
+
+-- | A path the site publishes is the site's even when the engine has a
+--   file there too (an override); a path with a site file the site does
+--   not publish is not linked at all, so it never leads to the engine's
+--   different file. Only a path with no site file is the engine's.
+--   Only a path one of the two lists names is looked for on disk.
+owner :: SiteConfig -> [Pattern] -> Text -> IO (Maybe Owner)
+owner cfg published path
+    | not (plausible path) || not (bySite || byEngine) = pure Nothing
+    | otherwise = do
+        found <- existsCached rel
+        pure $ case found of
+            Just file
+                | file == rel, bySite -> Just Site
+                | file == engineDir </> rel, byEngine -> Just Engine
+            _ -> Nothing
+  where
+    rel        = T.unpack path
+    matchesAny = any (`matches` fromFilePath rel)
+    bySite     = matchesAny published
+    byEngine   = not (null (siteEngineRepo cfg)) && matchesAny engineSourcePatterns
+
+-- | Inline @`path`@ → @\<a class="source-ref" data-source-path="path"\>\<code\>path\<\/code\>\<\/a\>@
+--   for the site's file, or a plain link to the engine's repository for
+--   one of the engine's. The original 'Code' node is preserved as the
+--   link's body so the inline-code chrome (mono font, background) survives
+--   unchanged.
+wrapInlineCode :: SiteConfig -> [Pattern] -> Inline -> IO Inline
+wrapInlineCode cfg published orig@(Code (_, cClasses, _) txt)
+    | "source-ref" `notElem` cClasses = do
+        found <- owner cfg published txt
+        pure $ case found of
+            Just Site -> Link
                     ( ""
                     , ["source-ref"]
                     , [ ("data-source-path", txt)
@@ -93,10 +125,12 @@ wrapInlineCode cfg orig@(Code (cIdent, cClasses, cKvs) txt)
                       , ("rel",              "noopener noreferrer")
                       ]
                     )
-                    [Code (cIdent, cClasses, cKvs) txt]
+                    [orig]
                     (sourceHref cfg txt, "")
-            else pure orig
-wrapInlineCode _ x = pure x
+            -- Filters.Links makes it external, as any link to the forge.
+            Just Engine -> Link nullAttr [orig] (engineSourceUrl cfg txt, "")
+            Nothing -> orig
+wrapInlineCode _ _ x = pure x
 
 -- | Click-through target for a wrapped source path.
 --
@@ -116,47 +150,48 @@ sourceHref cfg path
     | isGeneratedPath path = "/source/" <> path
     | otherwise            = forgejoSourceUrl cfg path
 
--- | Paths that exist on disk during a build but are not tracked by Git —
---   the @data\/@ artifacts named in @.gitignore@'s \"generated at build
---   time\" block that are also in 'sourcePreviewGlobs' (anything not in
---   that allowlist is never wrapped in the first place).
+-- | Paths that exist on disk during a build but are not tracked by Git:
+--   what the engine's own tools write into a site's @data\/@, which a site
+--   may publish (anything not in its @source-preview@ is never wrapped in
+--   the first place).
 isGeneratedPath :: Text -> Bool
 isGeneratedPath path = path `elem` [ "data/similar-links.json" ]
 
 -- | Existing Markdown link to a Forgejo source URL on this site's git
 --   host → tagged @source-ref@ and given a @data-source-path@ pointing
---   at the same path the popup provider expects.
-classifyExistingLink :: SiteConfig -> Inline -> IO Inline
-classifyExistingLink cfg orig@(Link (ident, classes, kvs) ils (url, title))
+--   at the same path the popup provider expects, for a file the site
+--   publishes; pointed at the engine's repository, for one of the
+--   engine's, which the site's repository does not hold.
+classifyExistingLink :: SiteConfig -> [Pattern] -> Inline -> IO Inline
+classifyExistingLink cfg published orig@(Link (ident, classes, kvs) ils (url, title))
     | "source-ref" `notElem` classes
-    , Just path <- forgejoSourcePath cfg url
-    , isSourcePath path = do
-        exists <- existsCached path
-        if exists
-            then pure $ Link
+    , Just path <- forgejoSourcePath cfg url = do
+        found <- owner cfg published path
+        pure $ case found of
+            Just Site -> Link
                     ( ident
                     , classes ++ ["source-ref"]
                     , kvs ++ [("data-source-path", path)]
                     )
                     ils (url, title)
-            else pure orig
-classifyExistingLink _ x = pure x
+            Just Engine -> Link (ident, classes, kvs) ils (engineSourceUrl cfg path, title)
+            Nothing -> orig
+classifyExistingLink _ _ x = pure x
 
 -- ---------------------------------------------------------------------------
 -- Heuristic
 -- ---------------------------------------------------------------------------
 
--- | True when the text looks like a repo-relative path that the
---   @/source/@ serving rule actually publishes, ends in a known source
---   extension (a root file such as @Makefile@ need not), and contains
---   only safe path characters. Conservative by design — the goal is no
---   false positives on prose that incidentally contains a slash and a
---   dot, and no wrapped path whose popup fetch would 404.
-isSourcePath :: Text -> Bool
-isSourcePath t = and
+-- | True when the text looks like a repo-relative path: it ends in a
+--   known source extension (a root file such as @Makefile@ need not), and
+--   contains only safe path characters. Conservative by design — the goal
+--   is no false positives on prose that incidentally contains a slash and
+--   a dot. Which files are linked at all is the site's @source-preview@'s
+--   and 'engineSourceGlobs''s to say.
+plausible :: Text -> Bool
+plausible t = and
     [ not (T.null t)
     , T.all safeChar t
-    , any (`matches` fromFilePath (T.unpack t)) sourcePreviewPatterns
     , hasKnownExt t || not ("/" `T.isInfixOf` t)
     ]
   where
@@ -166,55 +201,28 @@ isSourcePath t = and
         || ('0' <= c && c <= '9')
         || c == '/' || c == '.' || c == '_' || c == '-' || c == '+'
 
--- | Everything the source-preview rule in 'Site.rules' copies to
---   @/source/<path>@, as Hakyll globs. The rule builds its pattern from
---   this list and 'isSourcePath' wraps only what it matches, so every
---   link the filter emits has a target for the popup to fetch; the two
---   used to keep separate copies. Content is not copied wholesale: only
---   the explicitly listed public Crawler Chronicles analysis code is
---   included. Anything unmatched stays unwrapped.
---
---   The JSON under @data\/@ is named file by file rather than globbed:
---   @data\/@ also holds build state and generated indexes that nothing
---   should link to (the former @data\/*.json@ published
---   @archive-state.json@ and the search metadata), and a future tool
---   dropping private JSON there must not become publishable by accident.
---
---   checklist.md is deliberately absent, and must stay absent: audit S01
---   removed it because .gitignore calls it a local planning document and
---   it was being served in full at /source/checklist.md.
-sourcePreviewGlobs :: [String]
-sourcePreviewGlobs =
+-- | The engine's files prose may name, as Hakyll globs over the engine's
+--   own paths: its code, its templates, scripts and stylesheets, its tools
+--   and its packaging. They link to its repository, which holds them;
+--   files it downloads or generates are not in these directories.
+engineSourceGlobs :: [String]
+engineSourceGlobs =
     [ "build/**.hs"
     , "static/js/**"
     , "static/css/**"
     , "templates/**"
     , "tools/**.sh"
     , "tools/**.py"
-    , "content/essays/crawler_chronicles/data/*.py"
-    , "content/essays/crawler_chronicles/data/commit-response/source/*.py"
-    , "content/essays/crawler_chronicles/data/commit-response/source/*.sh"
-    , "nginx/**.conf"
-    , "data/*.yaml"
-    , "data/*.md"
-    , "data/*.bib"
-    , "data/annotations.json"      -- author-written link previews; also served at /data/
-    , "data/similar-links.json"    -- generated by tools/embed.py; referenced in prose
     , "*.cabal"
-    , "cabal.project"
-    , "cabal.project.freeze"
-    , "Makefile"
     , "engine.mk"
     , "pyproject.toml"
     , "uv.lock"
     , "LICENSE"
-    , "WRITING.md"
-    , "PHOTOGRAPHY.md"
     , "README.md"
     ]
 
-sourcePreviewPatterns :: [Pattern]
-sourcePreviewPatterns = map fromGlob sourcePreviewGlobs
+engineSourcePatterns :: [Pattern]
+engineSourcePatterns = map fromGlob engineSourceGlobs
 
 hasKnownExt :: Text -> Bool
 hasKnownExt t =
@@ -231,34 +239,32 @@ hasKnownExt t =
 -- File existence cache
 -- ---------------------------------------------------------------------------
 
--- | Process-wide memo of /positive/ @doesFileExist@ results, keyed by
---   the same path the popup will fetch. Hakyll runs this filter once
---   per compiled page and the same source-file references recur across
---   many pages (e.g. @build\/Filters\/Links.hs@ in the Links page,
---   the Colophon, several essays); the cache turns N stats into one
---   per distinct path. Only existence is memoized: a missing file is
---   re-stat'ed on every miss, so a source file created during a
---   long-lived @make watch@ session is picked up on the next rebuild
---   instead of staying "absent" for the process lifetime. (A file
+-- | Process-wide memo of /positive/ 'existingFile' results, keyed by the
+--   path prose names. Hakyll runs this filter once per compiled page and
+--   the same source-file references recur across many pages; the cache
+--   turns N stats into one per distinct path. Only existence is memoized:
+--   a missing file is re-stat'ed on every miss, so a source file created
+--   during a long-lived @make watch@ session is picked up on the next
+--   rebuild instead of staying "absent" for the process lifetime. (A file
 --   /deleted/ mid-watch stays cached as present until restart — the
 --   benign direction: the popup fetch 404s and simply never appears.)
 --   The build's working directory is the site, and a path names the
---   site's file or, failing that, the engine's ("EngineFiles"), as the
---   @/source/@ rule serves it.
+--   site's file or, failing that, the engine's ("EngineFiles").
 {-# NOINLINE existsCacheRef #-}
-existsCacheRef :: IORef (Map.Map Text Bool)
+existsCacheRef :: IORef (Map.Map FilePath FilePath)
 existsCacheRef = unsafePerformIO (newIORef Map.empty)
 
-existsCached :: Text -> IO Bool
+existsCached :: FilePath -> IO (Maybe FilePath)
 existsCached path = do
     cache <- readIORef existsCacheRef
     case Map.lookup path cache of
-        Just b  -> pure b
+        Just file -> pure (Just file)
         Nothing -> do
-            b <- isJust <$> existingFile (T.unpack path)
-            when b $
-                atomicModifyIORef' existsCacheRef (\m -> (Map.insert path b m, ()))
-            pure b
+            found <- existingFile path
+            case found of
+                Just file -> atomicModifyIORef' existsCacheRef (\m -> (Map.insert path file m, ()))
+                Nothing   -> pure ()
+            pure found
 
 -- ---------------------------------------------------------------------------
 -- Forgejo URL helpers
@@ -269,6 +275,11 @@ forgejoSourceUrl :: SiteConfig -> Text -> Text
 forgejoSourceUrl cfg path =
     T.pack (siteSourceRepo cfg ++ "/src/branch/" ++ siteSourceBranch cfg ++ "/")
     <> path
+
+-- | The engine's repository's source-viewer URL for one of its files, on
+--   its main branch, which every site builds from (no pins).
+engineSourceUrl :: SiteConfig -> Text -> Text
+engineSourceUrl cfg path = T.pack (siteEngineRepo cfg ++ "/src/branch/main/") <> path
 
 -- | Inverse of 'forgejoSourceUrl': extract the repo-relative path from
 --   a Forgejo URL on this site's git host. Recognises both the

@@ -41,7 +41,6 @@ import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCt
                    contentKindField, declaresScore, recentFirstByDisplay,
                    tagLinksFieldExcludingTopSegment,
                    canonicalUrlPath, feedMetaFields, identifierDisplayUTC)
-import qualified Filters.SourceRefs as SR
 import MarkdownSections (markdownSectionsCompiler)
 import Marks      (monogramPattern)
 import qualified Patterns as P
@@ -359,17 +358,17 @@ rules = do
     -- @/source/<path>@, fetched on hover by the popup provider in
     -- @static/js/popups.js@ (sourceContent → Prism highlighting).
     --
-    -- The whitelist is 'Filters.SourceRefs.sourcePreviewGlobs', which is
-    -- also what 'isSourcePath' matches, so every link the filter emits has
-    -- a @/source/…@ target. Files in @static/@ are also served under their
-    -- normal /js/, /css/ paths via a separate rule above; the
-    -- @"source-preview"@ version lets Hakyll compile the same identifier
-    -- twice without conflict. An engine file is served at its site path,
-    -- unless a site file there overrides it.
+    -- The whitelist is site.yaml's @source-preview@, which is also what
+    -- "Filters.SourceRefs" wraps, so every link the filter emits has a
+    -- @/source/…@ target. It names the site's own files only: the engine's
+    -- are its repository's, where prose naming one links. Files in
+    -- @static/@ are also served under their normal /js/, /css/ paths via a
+    -- separate rule above; the @"source-preview"@ version lets Hakyll
+    -- compile the same identifier twice without conflict.
     -- ---------------------------------------------------------------------------
     -- Only with the source-refs switch on, which links prose to it.
-    when (switchOn cfg "source-refs") $ do
-        let sourcePreviewable = foldr1 (.||.) [fromGlob g .||. twins g | g <- SR.sourcePreviewGlobs]
+    when (switchOn cfg "source-refs" && not (null (siteSourcePreview cfg))) $ do
+        let sourcePreviewable = foldr1 (.||.) (map fromGlob (siteSourcePreview cfg))
         match sourcePreviewable $ version "source-preview" $ do
             route   $ customRoute (\ident -> "source/" ++ siteRelative (toFilePath ident))
             compile copyFileCompiler
@@ -582,8 +581,7 @@ rules = do
     -- (Core/Runtime.hs), and the universe is the identifiers some rule
     -- claims — so an unclaimed file can never enter it, and a dependency
     -- pointing at one can never fire. tools/viz_theme.py works in that same
-    -- dependency only because "tools/**.py" is claimed by the source-preview
-    -- rule above.
+    -- dependency only because its own rule above claims it.
     --
     -- Compiling with no route registers them as tracked inputs and writes
     -- nothing.

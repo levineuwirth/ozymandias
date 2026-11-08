@@ -14,6 +14,8 @@ host: example.org
 source-repo: https://git.example.org/author/site
 source-branch: main
 forge-host: git.example.org
+engine-repo: https://git.example.org/author/engine
+source-preview: [data/*.bib]
 content-license: CC-BY-NC-SA-4.0
 code-license: MIT
 # A key's fingerprint for the signing switch; the fixture's builds sign with a

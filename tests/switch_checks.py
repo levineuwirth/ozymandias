@@ -181,6 +181,10 @@ def pdf_viewer_off(site: Path) -> None:
 
 
 SOURCED = "data/bibliography.bib"   # the file the essay names, three ways
+ENGINE_SOURCE = "build/Site.hs"     # one of the engine's, which it names twice
+# What the build writes beside a published file: compressed copies, a
+# signature, a Markdown file's sections.
+SIDECAR = re.compile(r"(\.sections\.json)?(\.br|\.gz|\.sig)?$")
 
 
 def source_refs_on(site: Path) -> None:
@@ -188,6 +192,13 @@ def source_refs_on(site: Path) -> None:
     marked = essay.count(f'class="source-ref" data-source-path="{SOURCED}"')
     assert marked >= 2, f"{marked} of the inline code and the links are source references"
     assert (site / "_site/source" / SOURCED).is_file(), "/source/ has no copy of the file"
+    engine = f'href="https://git.example.org/author/engine/src/branch/main/{ENGINE_SOURCE}"'
+    assert essay.count(engine) == 2, "the engine's file does not link to the engine's repository"
+    assert f'data-source-path="{ENGINE_SOURCE}"' not in essay, "the engine's file is a source reference"
+    published = [p.relative_to(site / "_site/source").as_posix()
+                 for p in (site / "_site/source").rglob("*") if p.is_file()]
+    foreign = [p for p in published if not (site / SIDECAR.sub("", p)).is_file()]
+    assert not foreign, f"/source/ publishes what isn't the site's: {foreign[:5]}"
 
 
 def source_refs_off(site: Path) -> None:

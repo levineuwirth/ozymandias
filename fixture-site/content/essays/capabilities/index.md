@@ -49,6 +49,9 @@ An interactive one, which loads Vega:
 Inline code naming a file the site publishes, `data/bibliography.bib`, links
 to it, and so does [its link to the repository](https://git.example.org/author/site/src/branch/main/data/bibliography.bib),
 and one an author marked, [the same file](https://git.example.org/author/site/src/branch/main/data/bibliography.bib){.source-ref data-source-path="data/bibliography.bib"}.
+Inline code naming one of the engine's files, `build/Site.hs`, links to the
+engine's repository instead, which holds it, and so does [a link to the
+site's](https://git.example.org/author/site/src/branch/main/build/Site.hs).
 
 ## A code reference
 

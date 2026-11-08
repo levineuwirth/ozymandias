@@ -16,7 +16,7 @@ module Config
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
-import EngineFiles (assetsField)
+import EngineFiles (assetsField, engineDir)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
@@ -68,6 +68,14 @@ data SiteConfig = SiteConfig
     , siteEpistemicAboutLabel :: String
     , sitePopupProviders :: [String]
     , siteSeasons :: [Season]
+      -- | What @/source/@ publishes of the site's own files, as Hakyll globs
+      --   over its paths (with the source-refs switch); inline code naming
+      --   one, or a link to source-repo, previews it ("Filters.SourceRefs").
+      --   Never the engine's: they are its repository's.
+    , siteSourcePreview :: [String]
+      -- | The engine's repository, which prose naming one of its files
+      --   links to; none, and those stay unlinked.
+    , siteEngineRepo :: String
     , siteSwitches :: Map.Map String Bool
       -- | The engine's static files (globs as served) of the switches the
       --   site has off, which it does not publish; set with the switches.
@@ -442,7 +450,8 @@ instance FromJSON SiteConfig where
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
-                      "epistemic-about-label", "popup-providers", "seasons", "switches"]) o
+                      "epistemic-about-label", "popup-providers", "seasons", "source-preview",
+                      "engine-repo", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
@@ -457,6 +466,7 @@ instance FromJSON SiteConfig where
                         <*> o .:? "epistemic-about-label" .!= "About"
                         <*> o .:? "popup-providers" .!= []
                         <*> o .:? "seasons" .!= []
+                        <*> o .:? "source-preview" .!= [] <*> o .:? "engine-repo" .!= ""
                         <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
         singleLine "epistemic-about-label" (siteEpistemicAboutLabel c)
@@ -473,7 +483,11 @@ instance FromJSON SiteConfig where
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
             fail (name ++ " must be an absolute HTTP(S) URL without a trailing slash"))
-            [("url", siteUrl c), ("source-repo", siteSourceRepo c)]
+            ([("url", siteUrl c), ("source-repo", siteSourceRepo c)]
+             ++ [("engine-repo", siteEngineRepo c) | not (null (siteEngineRepo c))])
+        forM_ (siteSourcePreview c) $ \glob ->
+            unless (sourceGlob glob) $
+                fail ("source-preview must be globs over the site's own paths: " ++ glob)
         mapM_ (\value -> unless (all (`elem` (['a'..'z'] ++ ['0'..'9'] ++ ".-")) value) $
             fail "host and forge-host must be lowercase hostnames") [siteHost c, siteForgeHost c]
         -- Links to the host, with or without www., are this site's own; a
@@ -511,6 +525,8 @@ instance ToJSON SiteConfig where
                            "epistemic-about-label" .= siteEpistemicAboutLabel c,
                            "popup-providers" .= sitePopupProviders c,
                            "seasons" .= siteSeasons c,
+                           "source-preview" .= siteSourcePreview c,
+                           "engine-repo" .= siteEngineRepo c,
                            "switches" .= siteSwitches c])
 
 identityKeys :: [String]
@@ -531,6 +547,14 @@ onlyKeys allowed o = unless (null unknown) $
 singleLine :: String -> String -> Parser ()
 singleLine name value = when (null value || any isControl value) $
     fail (name ++ " must be a nonempty single-line string")
+
+-- | A glob over a site path: relative, without traversal or a stray
+--   character, and not under @engine/@, whose files the site never publishes.
+sourceGlob :: String -> Bool
+sourceGlob glob = safePath glob && all globChar glob
+    && take 1 (splitDirectories glob) /= [engineDir]
+  where
+    globChar ch = ch `elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "/._-+*")
 
 safePath :: FilePath -> Bool
 safePath path = not (null path) && not ("/" `isPrefixOf` path)
