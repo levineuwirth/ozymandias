@@ -84,7 +84,7 @@ class Dropcaps(unittest.TestCase):
     def fixture_page() -> str:
         """The fixture's body, through the real pipeline, in a page with the
         site's stylesheets."""
-        done = subprocess.run([str(site_binary()), "render-fixture", str(FIXTURE.relative_to(SITE_ROOT))],
+        done = subprocess.run([str(site_binary()), "render-fixture", str(FIXTURE)],
                               cwd=SITE_ROOT, capture_output=True, text=True, check=True)
         body = done.stdout.split("<!-- render-fixture: body -->", 1)[1].split("<!-- render-fixture:", 1)[0]
         return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Initials</title>'
