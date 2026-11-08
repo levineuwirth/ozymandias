@@ -99,8 +99,8 @@ rules_hash() {
     cabal=$(engine_path ozymandias.cabal)
     {
         (cd "$build/.." && find build -name '*.hs' -print0 | sort -z | xargs -0 sha256sum)
-        sha256sum cabal.project cabal.project.freeze
-        (cd "$(dirname "$cabal")" && sha256sum "$(basename "$cabal")" switches.yaml)
+        sha256sum cabal.project
+        (cd "$(dirname "$cabal")" && sha256sum "$(basename "$cabal")" cabal.project.freeze switches.yaml)
         sha256sum site.yaml
         file_rules
     } | sha256sum | cut -d' ' -f1
@@ -116,7 +116,11 @@ file_rules() {
                     -o \( -type f -o -type l \) -print) |
         sed 's|^\./||' | LC_ALL=C sort |
         while IFS= read -r file; do
-            if [ -e "$file" ] || [ -L "$file" ]; then
+            # A link to the engine's own file (cabal.project.freeze) is that
+            # file, where a tool looks for it, and overrides nothing.
+            if [ -L "$file" ] && [ "$(readlink -f "$file")" = "$(readlink -f "engine/$file")" ]; then
+                continue
+            elif [ -e "$file" ] || [ -L "$file" ]; then
                 printf 'override %s\n' "$file"
             elif [[ "$file" == templates/* ]]; then
                 printf 'template-alias %s\n' "$file"

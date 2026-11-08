@@ -312,14 +312,22 @@ class BuildFreshnessTestCase(unittest.TestCase):
         # it is run from, wherever it sits.
         (self.root / "engine").mkdir()
         cabal = next(self.root.glob("*.cabal")).name
-        for name in ("build", cabal, "switches.yaml", "tools"):
+        for name in ("build", cabal, "switches.yaml", "tools", "cabal.project.freeze"):
             self.git("mv", name, f"engine/{name}")
+        # The freeze is the engine's from A10a; the site links to it.
+        (self.root / "cabal.project.freeze").symlink_to("engine/cabal.project.freeze")
+        self.git("add", "cabal.project.freeze")
         self.git("commit", "-q", "-m", "move the engine")
         self.assertIn("incremental build OK", self.check("engine/tools"))
         self.assertFalse(self.cleaned())
         self.write("engine/build/Site.hs", "main = print 1\n")
         self.assertIn("build rules changed", self.check("engine/tools"))
         self.assertTrue(self.cleaned())
+        # Built since: the engine's dependency set is a rule too.
+        self.run_script("stamp", "engine/tools")
+        self.assertIn("incremental build OK", self.check("engine/tools"))
+        self.write("engine/cabal.project.freeze", "constraints: base ==4.18.2.1\n")
+        self.assertIn("build rules changed", self.check("engine/tools"))
 
     def test_an_override_added_or_removed_forces_a_clean(self):
         # Which file wins is settled as the rules are evaluated

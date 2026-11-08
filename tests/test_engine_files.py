@@ -317,14 +317,31 @@ class ProviderWalkTests(unittest.TestCase):
 
 @requires_cabal
 class RefreezeTests(unittest.TestCase):
-    def test_refreeze_verifies_a_package_below_the_site_root(self):
+    def test_a_site_s_freeze_is_the_engine_s(self):
+        # cabal reads cabal.project.freeze beside the site's cabal.project;
+        # the engine's, through a link, is one dependency set for every site.
+        if not (SITE_ROOT / "cabal.project").is_file():
+            self.skipTest("the site has no cabal.project")
+        freeze = SITE_ROOT / "cabal.project.freeze"
+        self.assertTrue(freeze.is_symlink(), "cabal.project.freeze is not a link")
+        self.assertEqual(freeze.resolve(), (SITE_ROOT / "engine/cabal.project.freeze").resolve())
+
+    def test_refreeze_writes_the_engine_s_freeze_and_verifies_the_build(self):
+        # The engine the script runs from is not the scratch site's.
+        own = engine_path("cabal.project.freeze")
+        before = own.read_bytes() if own.is_file() else None
+        self.addCleanup(lambda: self.assertEqual(own.read_bytes() if own.is_file() else None, before,
+                                                 "refreeze wrote the engine it runs from"))
         with tempfile.TemporaryDirectory(prefix="refreeze-engine-") as tmp:
             root = Path(tmp)
             engine = root / "engine"
             engine.mkdir()
             # A real, minimal Cabal package: no network or external libraries.
-            (root / "cabal.project").write_text(
-                "packages: engine\nactive-repositories: :none\n")
+            # The site's freeze is a link to the engine's, here a stale one
+            # that no resolution could satisfy.
+            (root / "cabal.project").write_text("packages: engine\nactive-repositories: :none\n")
+            (engine / "cabal.project.freeze").write_text("constraints: any.base ==1.0\n")
+            (root / "cabal.project.freeze").symlink_to("engine/cabal.project.freeze")
             (engine / "example-engine.cabal").write_text(
                 "cabal-version: 3.0\nname: example-engine\nversion: 0.1.0.0\n"
                 "build-type: Simple\nexecutable site\n  main-is: Main.hs\n"
@@ -334,7 +351,14 @@ class RefreezeTests(unittest.TestCase):
                                   cwd=root, env=script_env(), capture_output=True,
                                   text=True, timeout=120)
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-            self.assertTrue((root / "cabal.project.freeze").is_file())
+            self.assertRegex((engine / "cabal.project.freeze").read_text(), r"any\.base ==[1-9]")
+            # Nothing left beside the site's project but its link: no scratch
+            # project, no backup.
+            self.assertEqual(sorted(p.name for p in root.iterdir() if p.is_file()),
+                             ["cabal.project", "cabal.project.freeze"])
+            self.assertTrue((root / "cabal.project.freeze").is_symlink())
+            self.assertEqual(sorted(p.name for p in engine.iterdir() if p.is_file()),
+                             ["Main.hs", "cabal.project.freeze", "example-engine.cabal"])
             binary = subprocess.check_output(["cabal", "list-bin", "-v0", "exe:site"],
                                              cwd=root, env=script_env(), text=True).strip()
             self.assertEqual(subprocess.check_output([binary], text=True).strip(), "built")

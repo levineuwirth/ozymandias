@@ -174,6 +174,29 @@ class IdentityTests(unittest.TestCase):
             self.assertEqual(checker.inventory(root, noticed), ["data/LICENSE", "data/style.csl", "engine.mk"])
             for path in ("LICENSE", "engine/LICENSE", "engine/data/LICENSE"):
                 (root / path).unlink()
+            # Nor is the engine's README beside the site's, though it is scanned;
+            # one anywhere else under engine/ is the engine's like any file.
+            (root / "engine/README.md").write_text("")
+            self.assertEqual(checker.inventory(root, policy), ["README.md", "data/style.csl", "engine.mk"])
+            (root / "engine/data/README.md").write_text("")
+            (root / "data/README.md").write_text("")
+            with self.assertRaisesRegex(ValueError, r"conflicting=\['data/README.md'\]"):
+                checker.inventory(root, policy)
+            for path in ("engine/README.md", "engine/data/README.md", "data/README.md"):
+                (root / path).unlink()
+            # A site file that is a link to the engine's at the same path is
+            # that file, not an override; the site still names it. A link to
+            # anything else there is a conflict like any file.
+            (root / "engine.mk").symlink_to("engine/engine.mk")
+            linking = dict(policy, **{"site-files": policy["site-files"] + ["engine.mk"]})
+            self.assertEqual(checker.inventory(root, linking), ["data/style.csl", "engine.mk"])
+            with self.assertRaisesRegex(ValueError, r"unclassified=\['engine.mk'\]"):
+                checker.inventory(root, policy)
+            (root / "engine.mk").unlink()
+            (root / "engine.mk").symlink_to("engine/data/style.csl")
+            with self.assertRaisesRegex(ValueError, r"conflicting=\['engine.mk'\]"):
+                checker.inventory(root, linking)
+            (root / "engine.mk").unlink()
             # What is under engine/ is the engine's, named by its path there.
             (root / "engine/tools").mkdir()
             (root / "engine/tools/new.py").write_text("")

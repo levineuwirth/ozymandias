@@ -35,6 +35,10 @@ GIT_FILES = {".gitignore", ".gitattributes"}
 # the engine where a person's name belongs. It is the engine's own, beside the
 # site's, and is not scanned. No other file is exempt by that name.
 NOTICE = "LICENSE"
+# What each repository has of its own at its root: the engine's beside the
+# site's, neither standing in for the other, so neither is an override. Only
+# the notice goes unscanned.
+REPOSITORY_FILES = {NOTICE, "README.md"}
 FONTS = "tools/fonts.yaml"
 
 
@@ -209,6 +213,14 @@ def visible_files(directory: Path) -> set[str]:
     return {p for p in listing.decode().split("\0") if p and (directory / p).is_file()}
 
 
+def linked(root: Path, engine: set[str]) -> set[str]:
+    """Site paths that are links to the engine's file at the same path: the
+    engine's file where a tool looks for it beside the site's own (cabal
+    reads cabal.project.freeze beside cabal.project), not an override."""
+    return {p for p in engine if (root / p).is_symlink()
+            and (root / p).resolve() == (root / ENGINE / p).resolve()}
+
+
 def inventory(root: Path, policy: dict) -> list[str]:
     """The engine's files to scan, once every file has its one owner.
 
@@ -218,7 +230,9 @@ def inventory(root: Path, policy: dict) -> list[str]:
     and those entries must exist. A site file at an engine file's path
     overrides it, which overrides.yaml must declare and site-files name
     exactly; the engine's copy must then exist too. Git's own files are not
-    overrides (GIT_FILES), nor is a license notice (NOTICE).
+    overrides (GIT_FILES), nor are a repository's own (REPOSITORY_FILES),
+    nor a link to the engine's file at that path, which site-files still
+    names (`linked`).
     """
     site, vendored = policy["site-files"], policy["vendored-files"]
     files = {e for e in site if not e.endswith("/")}
@@ -226,12 +240,12 @@ def inventory(root: Path, policy: dict) -> list[str]:
     engine = visible_files(root / ENGINE)
     seen = {p for p in visible_files(root) if not p.startswith(ENGINE)}
     overrides = overridden(root)
-    paired = overrides & files & engine
+    paired = (overrides & files & engine) | (linked(root, engine) & files)
     unclassified = sorted(p for p in seen if p not in files and not any(p.startswith(d) for d in directories))
     # Each list names its own kind of path, the site's and the engine's, so a
     # string in both is no duplicate: a site file overriding a vendored one.
     conflicting = sorted({e for entries in (site, vendored) for e in entries if entries.count(e) > 1}
-                         | {p for p in (seen & engine) - paired if Path(p).name not in GIT_FILES and p != NOTICE}
+                         | {p for p in (seen & engine) - paired if Path(p).name not in GIT_FILES and p not in REPOSITORY_FILES}
                          | (overrides - files))
     missing = sorted((files - seen)
                      | {d for d in directories if not any(p.startswith(d) for p in seen)}
