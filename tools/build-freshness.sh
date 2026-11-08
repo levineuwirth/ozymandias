@@ -76,6 +76,7 @@ MAX_AGE_DAYS="${MAX_FULL_REBUILD_AGE_DAYS:-7}"
 
 RULES_HASH_FILE="$STATE_DIR/rules-hash.txt"
 LAST_BUILD_COMMIT_FILE="$STATE_DIR/last-build-commit.txt"
+LAST_BUILD_ENGINE_FILE="$STATE_DIR/last-build-engine.txt"
 LAST_FULL_REBUILD_FILE="$STATE_DIR/last-full-rebuild.txt"
 PENDING_MARKER="$STATE_DIR/.full-rebuild-pending"
 DRAFT_HASH_FILE="$STATE_DIR/unpublished-hash.txt"
@@ -293,6 +294,15 @@ stamp() {
     mv "$DRAFT_HASH_FILE.tmp" "$DRAFT_HASH_FILE"
     rules_hash > "$RULES_HASH_FILE"
     git rev-parse HEAD > "$LAST_BUILD_COMMIT_FILE"
+    # The engine it was built from: its commit, and `dirty` on a second line
+    # when that held uncommitted changes (a build with ENGINE_DEV=1), which a
+    # deploy refuses to publish as that commit.
+    if [ -d engine ]; then
+        {
+            git -C engine rev-parse HEAD
+            [ -z "$(git -C engine status --porcelain --untracked-files=normal -- .)" ] || echo dirty
+        } > "$LAST_BUILD_ENGINE_FILE"
+    fi
     if [ -f "$PENDING_MARKER" ]; then
         date +%s > "$LAST_FULL_REBUILD_FILE"
         rm -f "$PENDING_MARKER"

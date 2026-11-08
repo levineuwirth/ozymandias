@@ -306,6 +306,20 @@ class BuildFreshnessTestCase(unittest.TestCase):
         self.assertIn("build rules changed", self.check())
         self.assertTrue(self.cleaned())
 
+    def test_the_build_records_the_engine_it_was_built_from(self):
+        # Its commit, and whether it held uncommitted changes (ENGINE_DEV=1),
+        # for the deploy to check; a tree without engine/ records none.
+        record = self.root / "data" / "last-build-engine.txt"
+        self.assertFalse(record.exists())
+        self.write("engine/marker", "committed\n")
+        self.git("add", "engine")
+        self.git("commit", "-q", "-m", "an engine")
+        self.run_script("stamp")
+        self.assertEqual(record.read_text(), self.git("rev-parse", "HEAD"))
+        self.write("engine/marker", "edited\n")
+        self.run_script("stamp")
+        self.assertEqual(record.read_text().splitlines()[1:], ["dirty"])
+
     def test_rules_moved_under_engine_are_the_same_rules(self):
         # A6 moves the generator and the tools under engine/: the rules are
         # the same until one changes there, and the script works on the site

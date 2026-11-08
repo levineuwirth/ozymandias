@@ -7,7 +7,7 @@
 #
 # and adds its own targets, its deploy among them.
 
-.PHONY: build build-locked sign stamp-build-time download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
+.PHONY: build build-locked engine-committed engine-published sign stamp-build-time download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
 .DEFAULT_GOAL := build
 
 # Prerequisite orders (deploy: build -> sign; deploy-clean: clean ->
@@ -79,6 +79,15 @@ switch_on = { $(PY) $(call tool,sitelib.py) switch $(1); s=$$?; [ $$s -le 1 ] ||
 # on, else a line saying it is off.
 with_switch = if $(call switch_on,$(1)); then $(2); else echo "$@: the $(1) switch is off for this site"; fi
 
+# The engine's provenance (plan §3.7). engine_separate, for a recipe's `if`:
+# whether the engine is a repository of its own (a checkout linked as engine,
+# from A10b) rather than this site's engine/, whose files the site's own
+# checks already cover. engine_dirty: its uncommitted changes, one per line,
+# tracked modifications and untracked files (its downloads are ignored by its
+# own .gitignore).
+engine_separate = { top=$$(git -C engine rev-parse --show-toplevel 2>/dev/null) && [ "$$(cd "$$top" && pwd -P)" != "$$(pwd -P)" ]; }
+engine_dirty = git -C engine status --porcelain --untracked-files=normal -- . | sed 's|^|engine: |'
+
 # Flags handed to the post-build artifact gate (tools/check-site.py).
 #
 # Empty by default: every check is an error, including a missing /404.html
@@ -117,8 +126,36 @@ build: export SITE_ENV = production
 build:
 	@$(WITH_LOCK) $(MAKE) --no-print-directory build-locked
 
+# A production build is of a committed engine (plan §3.7), so that the
+# commit it records (tools/build-freshness.sh) is the engine it was built
+# from. ENGINE_DEV=1 builds an engine being edited anyway, and the record
+# says so; make dev and make watch are for that and need neither.
+engine-committed:
+	@dirty=$$($(engine_dirty)); \
+	 if [ -n "$$dirty" ] && [ "$(ENGINE_DEV)" != 1 ]; then \
+	   echo "build: the engine has uncommitted changes:" >&2; \
+	   printf '%s\n' "$$dirty" | sed 's/^/    /' >&2; \
+	   echo "       Commit them, or build with ENGINE_DEV=1 to build them anyway." >&2; \
+	   exit 1; \
+	 fi
+
+# Whether the engine's HEAD is on its remote's main, for a site's deploy
+# that does not push the engine itself: what it publishes was built from an
+# engine anyone can fetch. An engine inside the site is the site's to push.
+engine-published:
+	@if $(engine_separate); then \
+	   head=$$(git -C engine rev-parse HEAD); \
+	   git -C engine fetch --quiet origin main || { echo "deploy: could not fetch the engine's origin" >&2; exit 1; }; \
+	   if ! git -C engine merge-base --is-ancestor "$$head" origin/main; then \
+	     echo "deploy: the engine's HEAD ($$(echo $$head | cut -c1-12)) is not on its origin's main." >&2; \
+	     echo "        The site would say it was built from a commit nobody can fetch: push it first." >&2; \
+	     exit 1; \
+	   fi; \
+	   echo "deploy: the engine's $$(echo $$head | cut -c1-12) is on its origin's main"; \
+	 fi
+
 build-locked: export SITE_ENV = production
-build-locked:
+build-locked: engine-committed
 	# ---- Stage 0: snapshot, freshness decision, asset prerequisites -------
 	#
 	# Auto-snapshot any uncommitted content/ changes BEFORE the build
