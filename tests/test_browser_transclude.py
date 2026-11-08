@@ -12,7 +12,10 @@ request is not kept: it was, for the life of the page, so a later
 transclusion of the same URL (B's) failed too without asking again; and a
 transcluded section brings its own notes, and only those, from the list at
 the end of its page, renamed with it, so its references still open them
-(the script paired them by a hardcoded id prefix the renaming defeated).
+(the script paired them by a hardcoded id prefix the renaming defeated); and
+what arrives is announced to the page's other scripts, under the name they
+listen for: a code block in a passage gets copy.js's button, which nothing
+else gives it.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_transclude -v
 """
@@ -72,6 +75,21 @@ NOTES_HOST = """<!doctype html>
 </main></div></body></html>
 """
 
+# A passage with a code block, and a host that also runs copy.js.
+CODE_SOURCE = """<!doctype html><html lang="en"><head><title>Code</title></head><body>
+<main id="markdownBody"><pre><code class="language-python">print("arrived")</code></pre>
+</main></body></html>
+"""
+CODE_HOST = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Transcluded code</title>
+<script src="/js/utils.js"></script>
+<script src="/js/transclude.js" defer></script>
+<script src="/js/copy.js" defer></script>
+</head><body><main id="markdownBody">
+<div class="transclude" id="t-code" data-src="/__fixture/code-source.html"></div>
+</main></body></html>
+"""
+
 
 @requires_switch("transclusion")
 @requires_browser
@@ -88,6 +106,8 @@ class Transclusion(unittest.TestCase):
         (tmp / "fixtures" / "notes-source.html").write_text(NOTES_SOURCE, encoding="utf-8")
         (tmp / "fixtures" / "notes-host.html").write_text(
             NOTES_HOST.format(styles=page_styles()), encoding="utf-8")
+        (tmp / "fixtures" / "code-source.html").write_text(CODE_SOURCE, encoding="utf-8")
+        (tmp / "fixtures" / "code-host.html").write_text(CODE_HOST, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
@@ -153,6 +173,24 @@ class Transclusion(unittest.TestCase):
                 self.expect(error.locator("a")).to_have_attribute("href", "/__fixture/a.html")
                 self.expect(page.locator("#t-b .from-a")).to_have_text("Passage A.")
                 self.assertEqual(net.hits["a"], 2)
+
+    @requires_switch("code")
+    def test_what_arrives_is_announced_to_the_page_s_other_scripts(self) -> None:
+        # copy.js has run before the passage arrives; only the announcement,
+        # under the name copy.js listens for, gives the block its button.
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                context = self.browsers[browser].new_context()
+                self.addCleanup(context.close)
+                page = context.new_page()
+                errors = []
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                page.goto(self.base + "/__fixture/code-host.html", wait_until="load")
+                passage = page.locator("#t-code")
+                self.expect(passage).to_have_class("transclude transclude--loaded")
+                self.expect(passage.locator("pre code.language-python")).to_be_visible()
+                self.expect(passage.locator(".copy-btn")).to_have_count(1)
+                self.assertEqual(errors, [])
 
     def test_a_transcluded_section_brings_its_notes(self) -> None:
         for browser in BROWSERS:

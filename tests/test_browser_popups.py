@@ -24,7 +24,8 @@ as markup (CrossRef's JATS, an Archive description) reads as text, its
 entities decoded once and its paragraphs apart; the arXiv lead
 figure, on time and late; Escape (audit A03); Forgejo links, which get no
 popup and make no request (J05); a same-origin source reference, which
-gets its source preview (J08).
+gets its source preview (J08), its code highlighted by the loader
+transclude.js publishes, as on any page that loads both.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_popups -v
 """
@@ -79,6 +80,7 @@ ROUTES = {
     "archive":         r"/proxy/archive/metadata/",
     "pubmed":          r"/proxy/pubmed/entrez/eutils/esummary\.fcgi\?",
     "annotations":     r"/data/annotations\.json$",
+    "fixture-source":  r"/source/__fixture/increment\.py$",
 }
 
 # The real APIs' shapes, cut down to what the parsers read.
@@ -115,6 +117,7 @@ ANSWERS = {
         "fulljournalname": "Journal of Medicine", "pubdate": "2020 Jan"}}}),
     "annotations": answer({"https://example.org/annotated": {
         "title": "Annotated link", "annotation": "The author's own note."}}),
+    "fixture-source": answer("def increment(x):\n    return x + 1\n", "text/plain"),
 }
 
 # link id -> (provider answering it, popup class, title, (selector, text) more)
@@ -196,6 +199,23 @@ PAGE = """<!doctype html>
 </main></body></html>
 """
 
+# A page with no code of its own, which loads transclude.js as every page
+# with popups does, and a source reference to a Python file.
+CODE_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Highlighted popup fixture</title>
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/popups.css">
+<meta name="ozy:host" content="fixture.example">
+<script src="/js/utils.js"></script>
+<script src="/js/transclude.js" defer></script>
+<script src="/js/popups.js" defer></script>
+</head><body><main id="markdownBody">
+<p><a id="internal" href="{essay}">an essay</a></p>
+<p><a id="code-source" class="source-ref" data-source-path="__fixture/increment.py"
+      href="../source/__fixture/increment.py">increment.py</a></p>
+</main></body></html>
+"""
+
 
 # A byline as metadata-header.html writes it on a site without author pages.
 AUTHOR_ALONE = """<!doctype html>
@@ -244,7 +264,8 @@ class LinkPopups(unittest.TestCase):
         listed = page(" ".join(registry()["popups"]["providers"]))
         told_nothing = re.sub(r'<meta name="ozy:(?:popup-providers|epistemic-about)"[^>]*>\n', "", page(""))
         for name, content in (("popups.html", listed), ("popups-wikipedia.html", page("wikipedia")),
-                              ("popups-none.html", told_nothing), ("author-alone.html", AUTHOR_ALONE)):
+                              ("popups-none.html", told_nothing), ("author-alone.html", AUTHOR_ALONE),
+                              ("popups-code.html", CODE_PAGE.format(essay=route("essay")))):
             (tmp / "fixtures" / name).write_text(content, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         essay = built(route("essay")).read_text(encoding="utf-8")
@@ -266,7 +287,7 @@ class LinkPopups(unittest.TestCase):
             document.addEventListener('securitypolicyviolation',
                 e => window.__csp.push(e.effectiveDirective + ' ' + e.blockedURI));""")
         net = FakeNetwork(context, self.base, ROUTES, ANSWERS,
-                          local=r"proxy/|data/annotations\.json")
+                          local=r"proxy/|data/annotations\.json|source/__fixture/")
         net.answers.update(answers)
         page = context.new_page()
         errors = []
@@ -371,6 +392,19 @@ class LinkPopups(unittest.TestCase):
             with self.subTest(browser=browser, link="citation"):
                 entry = self.shown(page, "cite").locator(".popup-citation-entry")
                 self.assertEqual(self.text(entry), "Knuth, D. The Art of Computer Programming.")
+
+    @requires_switch("transclusion")
+    @requires_switch("code")
+    def test_code_in_a_source_popup_is_highlighted(self) -> None:
+        # popups.js highlights with the loader transclude.js publishes, which
+        # fetches Prism for a page with no code of its own: the two must agree
+        # on its name, or the code shows plain and nothing says so.
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, net = self.fixture(browser, "popups-code.html")
+                popup = self.shown(page, "code-source")
+                self.expect(popup.locator("code.language-python .token").first).to_be_visible()
+                self.assertEqual(net.hits["fixture-source"], 1)
 
     def test_a_provider_the_site_does_not_list_asks_nothing(self) -> None:
         for browser in BROWSERS:
