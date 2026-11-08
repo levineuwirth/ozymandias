@@ -12,7 +12,9 @@ executable site
     hs-source-dirs:   build
     other-modules:
         Config
+        EngineVersion
         Site
+        SourceHash
         SiteThreads
         Archive
         ArchiveIndex
@@ -87,7 +89,8 @@ executable site
         data-default         >= 0.7   && < 0.8,
         mtl                  >= 2.3   && < 2.4,
         blaze-html           >= 0.9   && < 0.10,
-        blaze-markup         >= 0.8   && < 0.9
+        blaze-markup         >= 0.8   && < 0.9,
+        template-haskell     >= 2.20  && < 2.24
     default-language:   GHC2021
     ghc-options:
         -threaded

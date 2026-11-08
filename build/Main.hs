@@ -1,10 +1,16 @@
 module Main where
 
 import Control.Concurrent    (setNumCapabilities)
+import Control.Exception     (IOException, try)
 import Control.Monad         (when)
 import Data.Time.Clock.POSIX (getPOSIXTime)
-import System.Directory      (createDirectoryIfMissing)
+import System.Directory      (createDirectoryIfMissing, doesFileExist)
 import System.Environment    (getArgs)
+import System.Exit           (die)
+import System.FilePath       ((</>))
+import EngineFiles           (engineDir)
+import EngineVersion         (compiledSourceHash)
+import SourceHash            (sourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
 import Hakyll                (hakyllWith, toFilePath)
@@ -77,7 +83,9 @@ writeBuildStamp = do
 -- that gets a page, and @site expand-tags@ the pages the tags on stdin would
 -- get ('Tags.pagedTags'), for tools/scaffold-photos.py; @site
 -- strip-template-comments@ filters stdin as templates are ('Utils.stripHtmlComments'),
--- for its test. A build refuses to run when two items share an output
+-- for its test; @site version@ the digest of the sources it was compiled
+-- from ("EngineVersion"). A build refuses to run with other sources under
+-- engine/ than those ('checkSources'), when two items share an output
 -- path, or when site.yaml links a page of a switch it has off that nothing
 -- else builds ('withCheckedRoutes').
 main :: IO ()
@@ -85,6 +93,7 @@ main = do
     args <- getArgs
     case args of
         ["config"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode
+        ["version"] -> putStrLn ("ozymandias sources " ++ compiledSourceHash)
         ["config", "--make"] -> readSiteConfig >>= putStr . configMake
         ["render-fixture", path] -> renderFixture path
         ["render-template", template, context, work] -> renderTemplate template context work
@@ -124,12 +133,32 @@ main = do
             cfg <- readSiteConfig
             writeFooterData (switchOn cfg "similar-links") (outputDirFor False)
         _ -> do
+            when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) checkSources
             siteThreads >>= setNumCapabilities
             writeBuildStamp
             dev <- isDevBuild
             cfg <- readSiteConfig
             hakyllWith (siteConfigurationFor dev)
                 (withCheckedRoutes (siteSwitchedLinks cfg) (withoutUnpublished currentUnpublished rules))
+
+-- | Plan §3.7: a build runs with the engine sources this binary was compiled
+--   from, so that its templates, scripts and tools are that engine's too.
+--   The sources are compared, not the engine's commit: a commit that
+--   changes no Haskell leaves the binary right for it. A tree with no
+--   engine cabal file has no sources to compare: the tests' scratch sites,
+--   which have only the engine's registry.
+checkSources :: IO ()
+checkSources = do
+    present <- doesFileExist (engineDir </> "ozymandias.cabal")
+    when present $ do
+        found <- try (sourceHash engineDir) :: IO (Either IOException String)
+        case found of
+            Right here | here == compiledSourceHash -> pure ()
+            Right _ -> die $ unlines
+                [ "site: this generator was compiled from other sources than " ++ engineDir ++ "/ holds."
+                , "      Rebuild it (cabal build exe:site), as make build does first. If cabal"
+                , "      says it is up to date, a .hs file under " ++ engineDir ++ "/build/ is not in ozymandias.cabal." ]
+            Left err -> die ("site: the engine's sources could not be read: " ++ show err)
 
 -- | The lists the Python tools and tests must agree with the generator on,
 --   read through @site shared-rules@ (tools/shared_rules.py) rather than
