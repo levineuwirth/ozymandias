@@ -209,7 +209,7 @@
         window.reinitLightbox = wireLightbox;
         wireLightbox(document);
 
-        document.addEventListener('ln:content-added', function (e) {
+        document.addEventListener('ozy:content-added', function (e) {
             wireLightbox(e.detail && e.detail.container);
         });
 

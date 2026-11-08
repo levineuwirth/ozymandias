@@ -1,15 +1,15 @@
 /* settings.js — Settings panel: theme, season, text size, print.
-   Text sizes are lnUtils.TEXT_SIZE (utils.js), which theme.js reads too.
+   Text sizes are ozyUtils.TEXT_SIZE (utils.js), which theme.js reads too.
 
-   All localStorage access routes through window.lnUtils.safeStorage so
+   All localStorage access routes through window.ozyUtils.safeStorage so
    Safari private-mode SecurityErrors on writes do not throw uncaught. */
 (function () {
     'use strict';
 
     var TEXT_SIZE_KEY = 'text-size';
-    var SIZES = (window.lnUtils && window.lnUtils.TEXT_SIZE)
+    var SIZES = (window.ozyUtils && window.ozyUtils.TEXT_SIZE)
         || { min: 17, max: 29, step: 2, base: 23 };
-    var store = (window.lnUtils && window.lnUtils.safeStorage) || {
+    var store = (window.ozyUtils && window.ozyUtils.safeStorage) || {
         get: function () { return null; },
         set: function () { return false; },
         remove: function () { return false; }
@@ -169,14 +169,14 @@
 
     /* Text size ------------------------------------------------------- */
 
-    /* Seven sizes, a step apart (lnUtils.TEXT_SIZE). The size in force is
+    /* Seven sizes, a step apart (ozyUtils.TEXT_SIZE). The size in force is
        the stored one, else the default; a size off the steps (the old
        scale's 20 or 26px) steps to the nearest one in that direction. */
     var lastSize = null;    /* the size this page last set, if storage cannot hold it */
 
     function currentSize() {
-        var stored = window.lnUtils && window.lnUtils.storedTextSize
-            ? window.lnUtils.storedTextSize() : null;
+        var stored = window.ozyUtils && window.ozyUtils.storedTextSize
+            ? window.ozyUtils.storedTextSize() : null;
         if (stored !== null) return stored;
         return lastSize !== null ? lastSize : SIZES.base;
     }

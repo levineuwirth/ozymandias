@@ -28,7 +28,7 @@ def run():
             cons = []
             page.on('console', lambda m: cons.append(m.text[:300]) if m.type == 'error' else None)
             page.goto(BASE + path, wait_until='load'); settle(page, 800)
-            links = page.evaluate("""() => [...document.querySelectorAll('#markdownBody a[href], main a[href]')].map((a, i) => { a.dataset.lnIdx = i; return {i, href: a.getAttribute('href'), bound: a.dataset.popupBound || null, cls: a.className}; })""")
+            links = page.evaluate("""() => [...document.querySelectorAll('#markdownBody a[href], main a[href]')].map((a, i) => { a.dataset.ozyIdx = i; return {i, href: a.getAttribute('href'), bound: a.dataset.popupBound || null, cls: a.className}; })""")
             for kind, rx in PROV:
                 if kind in done and kind not in ('wikipedia',):
                     continue
@@ -36,7 +36,7 @@ def run():
                 if not cands:
                     continue
                 for l in cands[:1]:
-                    sel = f'[data-ln-idx="{l["i"]}"]'
+                    sel = f'[data-ozy-idx="{l["i"]}"]'
                     rec = {'page': path, 'kind': kind, 'href': l['href'], 'bound': l['bound']}
                     try:
                         el = page.query_selector(sel)

@@ -31,7 +31,7 @@
         { key: 'cursor', label: 'Cursor' },
         { key: 'none',   label: 'Turns only' }
     ];
-    var storage = window.lnUtils && window.lnUtils.safeStorage;
+    var storage = window.ozyUtils && window.ozyUtils.safeStorage;
     var style   = (storage && storage.get(STYLE_KEY)) || 'bar';
     if (!STYLES.some(function (s) { return s.key === style; })) style = 'bar';
 

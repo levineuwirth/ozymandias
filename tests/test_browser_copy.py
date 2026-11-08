@@ -2,7 +2,7 @@
 
 static/js/copy.js gives each <pre> a copy button beside it, not inside it
 (outside its scroll box, out of the copied text), except in chrome such as
-popups, and again for code that arrives later (ln:content-added). The
+popups, and again for code that arrives later (ozy:content-added). The
 clipboard is stubbed here, so nothing reaches the machine's own.
 
 Checked: one button per block, a sibling of the <pre>, none in excluded
@@ -98,7 +98,7 @@ class CopyButtons(unittest.TestCase):
                 # Code that arrives later, announced twice: one button.
                 page.evaluate("""() => { const later = document.getElementById('later');
                     later.innerHTML = '<pre id="added"><code>echo added</code></pre>';
-                    for (let i = 0; i < 2; i++) later.dispatchEvent(new CustomEvent('ln:content-added',
+                    for (let i = 0; i < 2; i++) later.dispatchEvent(new CustomEvent('ozy:content-added',
                         {bubbles: true, detail: {container: later}})); }""")
                 self.assertEqual(self.buttons(page)["added"], one)
 

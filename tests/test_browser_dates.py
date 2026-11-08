@@ -4,7 +4,7 @@
 A fixture page carries a date popup, a date-range popup (popups.js) and a
 Current-page stamp (now.js, with the now switch on), all dated 1 October 2026. Each case sets the
 browser's time zone and freezes its clock, then reads what the page says.
-Both scripts count calendar days the same way (lnUtils.isoDay/localDay,
+Both scripts count calendar days the same way (ozyUtils.isoDay/localDay,
 tested alone in tests/test_js_dates.py); this checks that they use it,
 and the popups' phrasing: past 345 days they say "~1 year", not
 "~12 months".

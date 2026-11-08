@@ -1211,8 +1211,8 @@
             partial ? 'lines ' + start + '–' + end + ' of ' + n : ''));
         /* A page without inline code does not preload Prism. The shared
            loader highlights this detached preview before it is shown. */
-        if (lang && typeof window.lnHighlightCode === 'function') {
-            return window.lnHighlightCode(wrap).then(function () { return wrap; });
+        if (lang && typeof window.ozyHighlightCode === 'function') {
+            return window.ozyHighlightCode(wrap).then(function () { return wrap; });
         }
         return wrap;
     }
@@ -1542,8 +1542,8 @@
 
     function dateContent(target) {
         /* Calendar days, as now.js counts them: the reader's own date
-           against the attribute's (lnUtils.isoDay/localDay, audit J09). */
-        var isoDay  = window.lnUtils.isoDay;
+           against the attribute's (ozyUtils.isoDay/localDay, audit J09). */
+        var isoDay  = window.ozyUtils.isoDay;
         var start   = isoDay(target.getAttribute('data-date-start'));
         if (start === null) return Promise.resolve(null);
 
@@ -1551,7 +1551,7 @@
         var end     = endAttr ? isoDay(endAttr) : null;
         var commits = target.getAttribute('data-date-commits');
 
-        var today   = window.lnUtils.localDay();
+        var today   = window.ozyUtils.localDay();
         var lines   = [];
 
         if (end !== null) {
@@ -1645,7 +1645,7 @@
        templates/partials/head.html) so this file cannot drift from
        annotations.js, semantic-search.js, or build/Utils.hs. */
     function esc(s) {
-        return window.lnUtils.escapeHtml(s);
+        return window.ozyUtils.escapeHtml(s);
     }
 
     /* Emit a .popup-source label with a data-popup-source attribute so CSS

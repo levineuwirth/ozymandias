@@ -1,6 +1,6 @@
 /* utils.js — Tiny shared helpers loaded before any other script.
    Loaded synchronously (no `defer`) from templates/partials/head.html so
-   that defer'd scripts can rely on `window.lnUtils` existing at run time.
+   that defer'd scripts can rely on `window.ozyUtils` existing at run time.
 
    Keep this file dependency-free and minimal. It's the lowest-level
    layer in the JS stack — anything heavier should live in a feature
@@ -8,7 +8,7 @@
 (function (global) {
     'use strict';
 
-    var lnUtils = global.lnUtils || {};
+    var ozyUtils = global.ozyUtils || {};
 
     /* What site.yaml tells the scripts, by the page's meta tags: no fetch and
        no CSP change. Read once, here, so the tags come before this script in
@@ -35,7 +35,7 @@
        gets re-escaped to `&amp;amp;`.
 
        Mirror of `Utils.escapeHtml` in build/Utils.hs. */
-    lnUtils.escapeHtml = function (s) {
+    ozyUtils.escapeHtml = function (s) {
         return String(s)
             .replace(/&/g,  '&amp;')
             .replace(/</g,  '&lt;')
@@ -48,7 +48,7 @@
        browsing mode on every access — including writes — so reads AND
        writes need to be guarded. Every consumer that touches storage
        should route through this helper so degradation is uniform. */
-    lnUtils.safeStorage = {
+    ozyUtils.safeStorage = {
         get: function (key) {
             try { return localStorage.getItem(key); }
             catch (_) { return null; }
@@ -68,11 +68,11 @@
        around base.css's 23px. Stored as px, and only when not the
        default; a stored 0, 1 or 2 is the earlier three-size scale
        (20/23/26px), read as those sizes. Anything else is no choice. */
-    lnUtils.TEXT_SIZE = { min: 17, max: 29, step: 2, base: 23, legacy: [20, 23, 26] };
+    ozyUtils.TEXT_SIZE = { min: 17, max: 29, step: 2, base: 23, legacy: [20, 23, 26] };
 
-    lnUtils.storedTextSize = function () {
-        var T   = lnUtils.TEXT_SIZE;
-        var raw = lnUtils.safeStorage.get('text-size');
+    ozyUtils.storedTextSize = function () {
+        var T   = ozyUtils.TEXT_SIZE;
+        var raw = ozyUtils.safeStorage.get('text-size');
         if (raw === null || !/^\d{1,2}$/.test(raw)) return null;
         var n = parseInt(raw, 10);
         if (n < T.legacy.length) return T.legacy[n];
@@ -97,7 +97,7 @@
 
        Deliberately not migrated on read: rewriting storage on page load
        is a side effect for a problem that costs one extra lookup. */
-    lnUtils.pagePaths = function (pathname) {
+    ozyUtils.pagePaths = function (pathname) {
         var path  = typeof pathname === 'string' ? pathname : location.pathname;
         var INDEX = 'index.html';
         /* The separator is part of the test: /essays/reindex.html is a
@@ -127,7 +127,7 @@
        with no popup, on a Tokyo morning. */
     var DAY_MS = 86400000;
 
-    lnUtils.isoDay = function (s) {
+    ozyUtils.isoDay = function (s) {
         var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(typeof s === 'string' ? s : '');
         if (!m) return null;
         var t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
@@ -139,10 +139,10 @@
         return t / DAY_MS;
     };
 
-    lnUtils.localDay = function (date) {
+    ozyUtils.localDay = function (date) {
         var d = date || new Date();
         return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS;
     };
 
-    global.lnUtils = lnUtils;
+    global.ozyUtils = ozyUtils;
 })(window);

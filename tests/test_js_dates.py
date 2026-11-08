@@ -1,4 +1,4 @@
-"""Calendar days in static/js/utils.js (lnUtils.isoDay, lnUtils.localDay).
+"""Calendar days in static/js/utils.js (ozyUtils.isoDay, ozyUtils.localDay).
 
 now.js and popups.js's date popups count "how long ago" with these: the
 reader's local calendar date against a YYYY-MM-DD date, in whole days
@@ -24,7 +24,7 @@ const vm = require('vm'), fs = require('fs');
 const sandbox = {window: {document: {querySelector: () => null}}};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
-const u = sandbox.window.lnUtils;
+const u = sandbox.window.ozyUtils;
 const out = {};
 for (const [iso, instant] of JSON.parse(process.argv[2])) {
   const then = u.isoDay(iso);

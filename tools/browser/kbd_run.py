@@ -102,7 +102,7 @@ def tab_walk(page, n=STOPS):
         # compare against unfocused style
         try:
             h = page.evaluate_handle('document.activeElement')
-            page.evaluate('el => { el.__lnBlur = true; }', h)
+            page.evaluate('el => { el.__ozyBlur = true; }', h)
             # clone-free approach: blur, read, refocus
             page.evaluate('el => el.blur()', h)
             un = page.evaluate(UNFOCUSED_STYLE, h)

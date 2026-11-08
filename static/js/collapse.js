@@ -17,14 +17,14 @@
        /essays/x/index.html — the same page under two spellings — share
        one set of keys. LEGACY_PREFIX is the index.html spelling, read as
        a fallback so state saved before that fix is still honoured. */
-    var paths  = window.lnUtils && window.lnUtils.pagePaths
-        ? window.lnUtils.pagePaths()
+    var paths  = window.ozyUtils && window.ozyUtils.pagePaths
+        ? window.ozyUtils.pagePaths()
         : { current: location.pathname, legacy: null };
     var PREFIX = 'section-collapsed:' + paths.current + ':';
     var LEGACY_PREFIX = paths.legacy
         ? 'section-collapsed:' + paths.legacy + ':'
         : null;
-    var store  = window.lnUtils && window.lnUtils.safeStorage;
+    var store  = window.ozyUtils && window.ozyUtils.safeStorage;
 
     function initHeading(heading) {
         // Idempotence guard: reinitCollapse may be called more than once on

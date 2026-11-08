@@ -41,7 +41,7 @@ SHARDS = 3
 THEMES = ("light", "dark")
 VIEWPORTS = ("1440x1000", "375x812")
 AXE_ROUTES = [r for r in ROUTES if r not in routes().names("axe-skip")]
-TEXT_SIZES = (17, 29)       # the settings panel's ends (lnUtils.TEXT_SIZE)
+TEXT_SIZES = (17, 29)       # the settings panel's ends (ozyUtils.TEXT_SIZE)
 KBD_ROUTES = routes().names("keyboard")
 KBD_WIDTHS = [w for w, _ in harness_constant("kbd_run.py", "VIEWPORTS")]
 

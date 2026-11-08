@@ -48,7 +48,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
     def test_two_code_fragments_share_the_download_and_both_get_highlighted(self):
         result = self.run_case(r"""
 const a = root(), b = root();
-const first = lnHighlightCode(a), second = lnHighlightCode(b);
+const first = ozyHighlightCode(a), second = ozyHighlightCode(b);
 global.Prism = {languages: {python: {}}, highlightElement(c) { c.highlighted = true; }};
 added.find(e => e.src === '/assets/abc123/js/prism.min.js').onload();
 await Promise.all([first, second]);
@@ -59,10 +59,10 @@ console.log(JSON.stringify({scripts: added.filter(e => e.src).length,
 
     def test_a_failed_math_download_can_be_retried(self):
         result = self.run_case(r"""
-lnEnhance(root(false, true));
+ozyEnhance(root(false, true));
 added.find(e => e.src === '/katex/katex.min.js').onerror();
 await tick();
-lnEnhance(root(false, true));
+ozyEnhance(root(false, true));
 await tick();
 console.log(JSON.stringify(added.filter(e => e.src === '/katex/katex.min.js').length));
 """)
@@ -70,6 +70,6 @@ console.log(JSON.stringify(added.filter(e => e.src === '/katex/katex.min.js').le
 
     def test_plain_content_does_not_load_feature_assets(self):
         result = self.run_case(r"""
-lnEnhance(root(false)); await tick(); console.log(JSON.stringify(added.length));
+ozyEnhance(root(false)); await tick(); console.log(JSON.stringify(added.length));
 """)
         self.assertEqual(result, 0)

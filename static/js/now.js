@@ -46,9 +46,9 @@
         if (!timeEl) return;
 
         // Calendar days between the stamp's date and the visitor's own
-        // (lnUtils.isoDay/localDay, shared with the date popups). Without
+        // (ozyUtils.isoDay/localDay, shared with the date popups). Without
         // utils.js, or with an unparseable date, only the absolute date stays.
-        var u = window.lnUtils;
+        var u = window.ozyUtils;
         if (!u || !u.isoDay) return;
         var then = u.isoDay(timeEl.getAttribute('datetime'));
         if (then === null) return;

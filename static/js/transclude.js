@@ -32,20 +32,20 @@
  *
  * Enhancement contract (F07, smaller finding 7)
  * ---------------------------------------------
- * `window.lnEnhance(container[, {force: true, source: url}])` is the one
+ * `window.ozyEnhance(container[, {force: true, source: url}])` is the one
  * idempotent entry point for content inserted into the page after load.
  * It calls the known reinitialisers (sidenotes, popups, collapse) and
- * then dispatches a bubbling `ln:content-added` CustomEvent
+ * then dispatches a bubbling `ozy:content-added` CustomEvent
  * on the container, with `detail = {container, source}`. Any subsystem
  * that needs to see injected content — KaTeX rendering, code-copy
  * buttons, annotations, lightbox — should listen for that event rather
  * than growing its own ad hoc hook:
  *
- *     document.addEventListener('ln:content-added', function (e) {
+ *     document.addEventListener('ozy:content-added', function (e) {
  *         myInit(e.detail.container);
  *     });
  *
- * Calling lnEnhance twice on the same container is a no-op unless
+ * Calling ozyEnhance twice on the same container is a no-op unless
  * `force` is passed, so listeners may assume one call per insertion.
  *
  * gallery.js does not listen yet: a transcluded display equation or score
@@ -304,13 +304,13 @@
        Shared enhancement entry point
     ------------------------------------------------------------------ */
 
-    var CONTENT_EVENT = 'ln:content-added';
+    var CONTENT_EVENT = 'ozy:content-added';
 
     function enhance(container, opts) {
         if (!container || container.nodeType !== 1) return;
         opts = opts || {};
-        if (container.dataset.lnEnhanced === '1' && !opts.force) return;
-        container.dataset.lnEnhanced = '1';
+        if (container.dataset.ozyEnhanced === '1' && !opts.force) return;
+        container.dataset.ozyEnhanced = '1';
 
         /* sidenotes.js — pair newly injected note references with their
            notes and reposition the margin. A page that transcludes always loads it
@@ -394,7 +394,7 @@
             codeLoading = null; // plain code remains readable; the next use retries
         });
     }
-    window.lnHighlightCode = highlightCode;
+    window.ozyHighlightCode = highlightCode;
 
     /* KaTeX loads only on pages whose own body has math (audit X6). A
        transclusion can bring math to a page that has none: load it then,
@@ -410,7 +410,7 @@
             .catch(function () { mathLoading = null; });
     }
 
-    window.lnEnhance = enhance;
+    window.ozyEnhance = enhance;
 
     /* ------------------------------------------------------------------
        Failure states

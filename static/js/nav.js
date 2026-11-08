@@ -134,7 +134,7 @@
         // storage-blocked context can't throw before the click listener
         // below binds; guarded like theme.js in case utils.js itself
         // failed to load.
-        const store = window.lnUtils && window.lnUtils.safeStorage;
+        const store = window.ozyUtils && window.ozyUtils.safeStorage;
 
         function setOpen(open) {
             portals.classList.toggle('is-open', open);

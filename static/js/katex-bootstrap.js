@@ -13,7 +13,7 @@
 
    Dynamic content (smaller finding 7): rendering used to happen once, on
    DOMContentLoaded, so math inside a transcluded passage stayed as raw
-   LaTeX. It now takes a root and listens for `ln:content-added`. Each
+   LaTeX. It now takes a root and listens for `ozy:content-added`. Each
    element is marked once rendered, because re-rendering a finished block
    would typeset KaTeX's own output as if it were source.
 */
@@ -99,7 +99,7 @@
         watchScrollers(document);
     }
 
-    document.addEventListener('ln:content-added', function (e) {
+    document.addEventListener('ozy:content-added', function (e) {
         renderIn(e.detail && e.detail.container);
         watchScrollers(e.detail && e.detail.container);
     });

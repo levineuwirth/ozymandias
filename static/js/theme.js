@@ -2,13 +2,13 @@
    Loaded synchronously (no defer/async) to prevent flash of wrong appearance.
    DOM interaction (button wiring) is handled by settings.js (deferred).
 
-   All storage access routes through window.lnUtils.safeStorage (from
+   All storage access routes through window.ozyUtils.safeStorage (from
    utils.js, loaded immediately before this script) so Safari private-mode
    SecurityErrors degrade to default appearance rather than blowing up
    the synchronous bootstrap.
 */
 (function () {
-    var store = window.lnUtils && window.lnUtils.safeStorage;
+    var store = window.ozyUtils && window.ozyUtils.safeStorage;
     function safeGet(key) { return store ? store.get(key) : null; }
 
     /* Theme */
@@ -18,8 +18,8 @@
     }
 
     /* Text size: the reader's choice, read as settings.js reads it. */
-    var size = window.lnUtils && window.lnUtils.storedTextSize
-        ? window.lnUtils.storedTextSize() : null;
+    var size = window.ozyUtils && window.ozyUtils.storedTextSize
+        ? window.ozyUtils.storedTextSize() : null;
     if (size !== null) {
         document.documentElement.style.setProperty('--text-size', size + 'px');
     }

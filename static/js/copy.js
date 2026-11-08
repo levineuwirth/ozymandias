@@ -20,7 +20,7 @@
  * reachable with a finger-sized hit area (see .copy-btn::after in CSS).
  *
  * Dynamic content: attaches over an arbitrary root and listens for
- * `ln:content-added`, the event transclude.js dispatches after injecting
+ * `ozy:content-added`, the event transclude.js dispatches after injecting
  * content. Idempotent per <pre> (a data flag), so a container enhanced twice
  * gets one button.
  */
@@ -162,8 +162,8 @@
     });
 
     /* Content injected after load (transclusions, and anything else that
-       calls window.lnEnhance). */
-    document.addEventListener('ln:content-added', function (e) {
+       calls window.ozyEnhance). */
+    document.addEventListener('ozy:content-added', function (e) {
         initCopyButtons(e.detail && e.detail.container);
     });
 }());

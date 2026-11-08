@@ -29,7 +29,7 @@
  * Staying on 2.x is deliberate — 3.x moved to @huggingface/transformers
  * with a different model-path contract.
  *
- * Public API — window.lnSemanticSearch, consumed by search-filters.js
+ * Public API — window.ozySemanticSearch, consumed by search-filters.js
  * ------------------------------------------------------------------
  *   setResultFilter(fn | null)
  *       fn(metaEntry, url) -> boolean. Applied to the *whole* scored list
@@ -110,7 +110,7 @@
             /* Allow a retry on the next call instead of caching the
                failed promise forever. */
             loadIndexPromise = null;
-            if (!err.lnKind) err.lnKind = 'index';
+            if (!err.ozyKind) err.ozyKind = 'index';
             throw err;
         });
         return loadIndexPromise;
@@ -121,7 +121,7 @@
        message text. */
     function indexError(detail) {
         var e = new Error('semantic index unavailable: ' + detail);
-        e.lnKind = 'index';
+        e.ozyKind = 'index';
         return e;
     }
 
@@ -186,7 +186,7 @@
                failed promise forever. */
             loadModelPromise = null;
             progressFiles = {};
-            if (!err.lnKind) err.lnKind = 'model';
+            if (!err.ozyKind) err.ozyKind = 'model';
             throw err;
         });
         return loadModelPromise;
@@ -359,7 +359,7 @@
     function showFailure(err, gen) {
         if (gen !== undefined && !fresh(gen)) return;
 
-        var kind = err && err.lnKind;
+        var kind = err && err.ozyKind;
         var msg;
         if (kind === 'index') {
             msg = 'Semantic search is unavailable right now — its index could not be loaded.';
@@ -434,7 +434,7 @@
        templates/partials/head.html) so this file cannot drift from
        popups.js, annotations.js, or build/Utils.hs. */
     function esc(s) {
-        return window.lnUtils.escapeHtml(s);
+        return window.ozyUtils.escapeHtml(s);
     }
 
     /* ------------------------------------------------------------------
@@ -571,7 +571,7 @@
        Public API
     ------------------------------------------------------------------ */
 
-    window.lnSemanticSearch = {
+    window.ozySemanticSearch = {
         setResultFilter: setResultFilter,
         rerank: rerank,
         activateTab: function (name) { activateTab(name); },

@@ -27,7 +27,7 @@
     /* A stored highlight is used only in the shape written here; any other
        entry is dropped, and gone from storage at the next write. A value
        that was not a list used to throw at every load and every
-       ln:content-added, so no highlight showed on any page, and Annotate
+       ozy:content-added, so no highlight showed on any page, and Annotate
        failed without its message. */
     function wellFormed(a) {
         return a !== null && typeof a === 'object'
@@ -61,8 +61,8 @@
        New annotations are written under the canonical one; both are read,
        so highlights made before this fix are still found. */
     function pagePaths() {
-        return window.lnUtils && window.lnUtils.pagePaths
-            ? window.lnUtils.pagePaths()
+        return window.ozyUtils && window.ozyUtils.pagePaths
+            ? window.ozyUtils.pagePaths()
             : { current: location.pathname, legacy: null };
     }
 
@@ -334,7 +334,7 @@
        templates/partials/head.html) so this file cannot drift from
        popups.js, semantic-search.js, or build/Utils.hs. */
     function escHtml(s) {
-        return window.lnUtils.escapeHtml(s);
+        return window.ozyUtils.escapeHtml(s);
     }
 
     function showTooltip(mark, ann) {
@@ -478,7 +478,7 @@
     /* Content injected after load can contain the text a stored annotation
        was anchored to. applyAll() skips annotations already on the page,
        so this only ever adds. */
-    document.addEventListener('ln:content-added', function () {
+    document.addEventListener('ozy:content-added', function () {
         if (!tooltip) initTooltip();
         applyAll();
     });

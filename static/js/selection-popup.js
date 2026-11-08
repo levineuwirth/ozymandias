@@ -323,7 +323,7 @@
 
     /* The builders' one reference to the shared namespace (renamed in A9). */
     function escapeHtml(s) {
-        return window.lnUtils.escapeHtml(s);
+        return window.ozyUtils.escapeHtml(s);
     }
 
     function emailBtn(href) {

@@ -303,7 +303,7 @@ class Annotations(unittest.TestCase):
 
     @requires_switch("annotations")
     def test_malformed_highlights_are_ignored(self) -> None:
-        # Any of these used to throw at load and on every ln:content-added,
+        # Any of these used to throw at load and on every ozy:content-added,
         # and made Annotate fail without its message.
         good = {"id": 'a"b]', "url": "/__fixture/reading.html", "text": "Serendipity",
                 "color": "rose", "note": 7, "created": None}

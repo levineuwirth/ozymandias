@@ -16,7 +16,7 @@
  * Where filtering happens (F04)
  * -----------------------------
  * Semantic: filtering is pushed *into* the ranker via
- * window.lnSemanticSearch.setResultFilter, so it runs over the whole
+ * window.ozySemanticSearch.setResultFilter, so it runs over the whole
  * scored list before the top-8 cut. Excluding a high-ranked passage now
  * promotes the next passing one instead of leaving a hole.
  *
@@ -369,7 +369,7 @@
     /* ---- Semantic ---- */
 
     function semanticHook() {
-        var api = window.lnSemanticSearch;
+        var api = window.ozySemanticSearch;
         return (api && typeof api.setResultFilter === 'function') ? api : null;
     }
 
