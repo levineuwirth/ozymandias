@@ -13,7 +13,7 @@ from xml.etree import ElementTree
 import yaml
 
 from tests import target
-from tests._helpers import (ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary,
+from tests._helpers import (CABAL_PROJECT, ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary,
                             write_site_config)
 
 
@@ -775,7 +775,7 @@ class FeedProbeTests(unittest.TestCase):
         cls.binary = build / "probe"
         compiled = subprocess.run(
             ["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}", "-outputdir", str(build),
-             str(build / "Probe.hs"), "-o", str(cls.binary)], cwd=ENGINE, env=script_env(),
+             str(build / "Probe.hs"), "-o", str(cls.binary)], cwd=CABAL_PROJECT, env=script_env(),
             capture_output=True, text=True, timeout=180)
         if compiled.returncode:
             raise AssertionError(compiled.stderr)
@@ -842,7 +842,7 @@ main = hakyll $ do
             binary = root / "probe"
             compiled = subprocess.run(
                 ["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}", "-outputdir", str(root),
-                 str(driver), "-o", str(binary)], cwd=ENGINE, env=script_env(),
+                 str(driver), "-o", str(binary)], cwd=CABAL_PROJECT, env=script_env(),
                 capture_output=True, text=True, timeout=120)
             self.assertEqual(compiled.returncode, 0, compiled.stderr)
             for title in ("Example Site", "Changed Site"):

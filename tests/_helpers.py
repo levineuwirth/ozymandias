@@ -62,19 +62,24 @@ def load_tool(filename: str, name: str | None = None, *, register: bool = False,
 
 requires_cabal = unittest.skipUnless(shutil.which("cabal"), "cabal not on PATH")
 
+# Where cabal runs: the site's project, which builds its engine with the
+# engine's dependency set. An engine checked out on its own has no project
+# (cabal would make one up, with no freeze and its default compiler); one
+# inside a site finds that site's project above it.
+CABAL_PROJECT = SITE_ROOT if (SITE_ROOT / "cabal.project").is_file() else ENGINE
+
 
 @lru_cache(maxsize=1)
 def site_binary() -> Path:
     """The generator, rebuilt first if any source changed; once per run,
     not once per test class. Built by the site's project, which holds the
     engine's dependency set (an engine checked out on its own has none),
-    or found from the engine inside one."""
-    project = SITE_ROOT if (SITE_ROOT / "cabal.project").is_file() else ENGINE
-    done = subprocess.run(["cabal", "build", "-v0", "exe:site"], cwd=project,
+    or found from the engine inside one (CABAL_PROJECT)."""
+    done = subprocess.run(["cabal", "build", "-v0", "exe:site"], cwd=CABAL_PROJECT,
                           capture_output=True, text=True)
     if done.returncode:
         raise AssertionError(f"`cabal build -v0 exe:site` failed:\n{done.stderr[-2000:]}")
-    found = subprocess.run(["cabal", "list-bin", "-v0", "exe:site"], cwd=project,
+    found = subprocess.run(["cabal", "list-bin", "-v0", "exe:site"], cwd=CABAL_PROJECT,
                            capture_output=True, text=True, check=True)
     return Path(found.stdout.strip())
 

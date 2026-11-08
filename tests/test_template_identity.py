@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import unittest
 
-from tests._helpers import (ENGINE, SITE_ROOT, copy_engine_tree, engine_path, load_tool, requires_cabal,
+from tests._helpers import (CABAL_PROJECT, ENGINE, SITE_ROOT, copy_engine_tree, engine_path, load_tool, requires_cabal,
                             script_env, site_binary, write_site_config)
 
 
@@ -92,7 +92,7 @@ main = hakyll $ do
         cls.binary = build / "probe"
         done = subprocess.run(["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}",
                                "-outputdir", str(build), str(build / "Probe.hs"),
-                               "-o", str(cls.binary)], cwd=ENGINE, env=script_env(),
+                               "-o", str(cls.binary)], cwd=CABAL_PROJECT, env=script_env(),
                               capture_output=True, text=True, timeout=180)
         if done.returncode:
             raise AssertionError(done.stderr)

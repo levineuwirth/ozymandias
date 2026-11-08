@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary, write_site_config
+from tests._helpers import CABAL_PROJECT, ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary, write_site_config
 
 
 @requires_cabal
@@ -31,7 +31,7 @@ class SiteThreadsTests(unittest.TestCase):
         cls.probe = root / "probe"
         done = subprocess.run(
             ["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}", "-outputdir", str(root),
-             str(source), "-o", str(cls.probe)], cwd=ENGINE,
+             str(source), "-o", str(cls.probe)], cwd=CABAL_PROJECT,
             capture_output=True, text=True, timeout=120,
         )
         if done.returncode:

@@ -6,7 +6,7 @@ import unittest
 from urllib.parse import parse_qs, urlsplit
 
 from bs4 import BeautifulSoup
-from tests._helpers import ENGINE, engine_path, requires_cabal
+from tests._helpers import CABAL_PROJECT, ENGINE, engine_path, requires_cabal
 PATHS = [
     "/papers/result%20final.pdf",
     "/papers/result%2Ffinal.pdf",
@@ -37,7 +37,7 @@ class PdfViewerUrls(unittest.TestCase):
         done = subprocess.run(
             ["cabal", "exec", "--", "ghc", "--interactive", "-ignore-dot-ghci", "-v0",
              f"-i{engine_path('build')}", str(engine_path("build/SimilarLinks.hs"))],
-            cwd=ENGINE, input="\n".join(commands) + "\n", text=True,
+            cwd=CABAL_PROJECT, input="\n".join(commands) + "\n", text=True,
             capture_output=True, check=True, timeout=60,
         )
         if "error:" in done.stderr:

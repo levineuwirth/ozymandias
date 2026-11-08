@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import unittest
 
-from tests._helpers import ENGINE, engine_path, requires_cabal, script_env
+from tests._helpers import CABAL_PROJECT, ENGINE, engine_path, requires_cabal, script_env
 
 
 @requires_cabal
@@ -38,7 +38,7 @@ else:
             done = subprocess.run(
                 ["cabal", "exec", "--", "ghc", "--interactive", "-ignore-dot-ghci", "-v0",
                  f"-i{engine_path('build')}", str(engine_path("build/Stability.hs"))],
-                cwd=ENGINE, env=env,
+                cwd=CABAL_PROJECT, env=env,
                 input="\n".join(setup + commands + [":quit"]) + "\n",
                 capture_output=True, text=True, timeout=60,
             )

@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 import unittest
 
-from tests._helpers import ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary
+from tests._helpers import CABAL_PROJECT, ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary
 
 PROBE = '''{-# LANGUAGE OverloadedStrings #-}
 import Control.Monad (forM_, (>=>))
@@ -64,7 +64,7 @@ class EngineFilesTests(unittest.TestCase):
         cls.binary = build / "probe"
         done = subprocess.run(["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}",
                                "-outputdir", str(build), str(build / "Probe.hs"),
-                               "-o", str(cls.binary)], cwd=ENGINE, env=script_env(),
+                               "-o", str(cls.binary)], cwd=CABAL_PROJECT, env=script_env(),
                               capture_output=True, text=True, timeout=180)
         if done.returncode:
             raise AssertionError(done.stderr)
