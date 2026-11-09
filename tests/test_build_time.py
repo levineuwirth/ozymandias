@@ -47,7 +47,9 @@ class StampTests(unittest.TestCase):
 
     @requires_switch("footer-build-time")
     def test_the_footer_ships_an_empty_span(self):
-        footer = (SITE_ROOT / "templates" / "partials" / "footer.html").read_text()
+        # The footer the build uses: the site's override, else the engine's.
+        rel = Path("templates/partials/footer.html")
+        footer = (SITE_ROOT / rel if (SITE_ROOT / rel).is_file() else engine_path(rel)).read_text()
         self.assertIn('<span class="footer-build-time" data-build-time></span>', footer)
 
 
