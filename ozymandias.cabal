@@ -7,6 +7,9 @@ license-file:       LICENSE
 author:             the Ozymandias authors
 build-type:         Simple
 
+-- Cabal must invoke GHC when the embedded freeze fingerprint changes.
+extra-source-files: cabal.project.freeze
+
 executable site
     main-is:          Main.hs
     hs-source-dirs:   build

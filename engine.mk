@@ -195,6 +195,7 @@ build-locked: engine-committed
 	# frontmatter changed, stale full-rebuild stamp); otherwise the build
 	# is incremental. This is what lets `make deploy` skip its old
 	# unconditional `clean`.
+	@python3 $(call tool,build-provenance.py) begin
 	@$(call tool,build-freshness.sh) check
 	# Responsive photo variants (P01). Must come BEFORE convert-images so
 	# each .w480/.w960/.w1440 file gets a .webp companion of its own, and
@@ -343,6 +344,7 @@ build-locked: engine-committed
 	# What this build was built from, for tests that need _site to match
 	# the tree (tests/_browser.py). Last, so nothing the build writes
 	# afterwards reads as a change.
+	@python3 $(call tool,build-provenance.py) check
 	@python3 $(call tool,build-inputs.py) record $(BUILD_INPUTS) content
 
 sign:

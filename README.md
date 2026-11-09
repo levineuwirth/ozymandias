@@ -56,13 +56,19 @@ images or PDFs: `make dev` and `make watch` skip their WebP companions and
 thumbnails, which then survive later dev builds.
 
 A build runs only with the engine it was compiled from: the generator
-embeds a digest of its Haskell sources (`site version` prints it), and
+embeds a digest of its Haskell sources, dependency freeze, project settings
+and effective compiler invocation (`site version` prints it), and
 `site build` refuses an `engine/` that holds others; `make build` compiles
 it first. A production build also wants the engine committed
 (`ENGINE_DEV=1` builds one being edited), and records its commit in the
-site's `data/last-build-engine.txt`, for the deploy. `make watch` runs a
+site's `data/last-build-engine.txt`, for the deploy. Both repository revisions
+are captured before compilation and checked again before recording a
+successful build and before transfer; a commit made during the build
+requires another build. `make watch` runs a
 second watcher for an engine linked beside the site, whose edits Hakyll's
-own watcher doesn't see; an edit to the Haskell needs it restarted.
+own watcher doesn't see. Engine inputs and site overrides trigger a clean
+rebuild and restart under the same lock, including Haskell changes. A failed
+compile waits for another edit rather than serving with the old generator.
 
 `build`, `watch`, `dev` and the targets that write `_site/`, `_cache/` or
 `static/` hold an exclusive lock on `data/.site-build.lock`

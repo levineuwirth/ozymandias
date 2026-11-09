@@ -9,8 +9,7 @@ import System.Environment    (getArgs)
 import System.Exit           (die)
 import System.FilePath       ((</>))
 import EngineFiles           (engineDir)
-import EngineVersion         (compiledSourceHash)
-import SourceHash            (sourceHash)
+import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
 import Hakyll                (hakyllWith, toFilePath)
@@ -151,13 +150,13 @@ checkSources :: IO ()
 checkSources = do
     present <- doesFileExist (engineDir </> "ozymandias.cabal")
     when present $ do
-        found <- try (sourceHash engineDir) :: IO (Either IOException String)
+        found <- try (currentSourceHash engineDir) :: IO (Either IOException String)
         case found of
             Right here | here == compiledSourceHash -> pure ()
             Right _ -> die $ unlines
                 [ "site: this generator was compiled from other sources than " ++ engineDir ++ "/ holds."
                 , "      Rebuild it (cabal build exe:site), as make build does first. If cabal"
-                , "      says it is up to date, a .hs file under " ++ engineDir ++ "/build/ is not in ozymandias.cabal." ]
+                , "      says it is up to date, check the project settings, freeze and module list in ozymandias.cabal." ]
             Left err -> die ("site: the engine's sources could not be read: " ++ show err)
 
 -- | The lists the Python tools and tests must agree with the generator on,

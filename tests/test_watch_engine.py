@@ -1,75 +1,91 @@
-"""make watch sees the engine's edits when the engine is linked.
-
-Hakyll's watcher doesn't descend into a linked directory. tools/watch-engine.py
-runs the watch command and, with `engine` a link to a checkout beside the
-site, touches data/engine-changed.stamp when an engine file changes, which
-Hakyll's watcher sees. Here the command is a stand-in that only waits."""
-
+"""Real watch sessions must use new compiled rules and re-evaluate overrides."""
+import os
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
-
-from tests._helpers import engine_path, script_env
-
-TOOL = engine_path("tools/watch-engine.py")
-WAIT = [sys.executable, "-c", "import time; time.sleep(3)"]
+from tests import fixture_variants
+from tests._helpers import ENGINE, SITE_ROOT, requires_cabal, script_env
 
 
+@requires_cabal
 class WatchEngine(unittest.TestCase):
-    def setUp(self):
-        tmp = tempfile.TemporaryDirectory(prefix="watch-engine-")
-        self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
-        self.site = self.root / "site"
-        self.site.mkdir()
-        self.engine = self.root / "ozymandias"
-        (self.engine / "templates").mkdir(parents=True)
-        (self.engine / "templates/page.html").write_text("before\n")
-        (self.engine / "tests").mkdir()
-        (self.engine / "tests/test_x.py").write_text("")
-        self.stamp = self.site / "data/engine-changed.stamp"
-
-    def start(self, command=WAIT) -> subprocess.Popen:
-        process = subprocess.Popen([sys.executable, str(TOOL), "--", *command], cwd=self.site,
-                                   env=script_env(WATCH_ENGINE_INTERVAL="0.1"))
-        time.sleep(0.6)  # past its first look
-        return process
-
-    def test_an_engine_edit_touches_the_stamp_hakyll_sees(self):
-        (self.site / "engine").symlink_to("../ozymandias")
-        process = self.start()
-        self.assertFalse(self.stamp.exists())
-        (self.engine / "templates/page.html").write_text("after, and longer\n")
-        time.sleep(0.6)
-        self.assertTrue(self.stamp.exists())
-        self.assertEqual(process.wait(timeout=10), 0)
-
-    def test_the_engine_s_tests_are_not_watched(self):
-        (self.site / "engine").symlink_to("../ozymandias")
-        process = self.start()
-        (self.engine / "tests/test_x.py").write_text("changed\n")
-        time.sleep(0.6)
-        self.assertFalse(self.stamp.exists())
-        process.wait(timeout=10)
-
-    def test_an_engine_inside_the_site_is_left_to_hakyll(self):
-        (self.site / "engine").mkdir()
-        (self.site / "engine/page.html").write_text("before\n")
-        process = self.start()
-        (self.site / "engine/page.html").write_text("after, and longer\n")
-        time.sleep(0.6)
-        self.assertFalse(self.stamp.exists())
-        process.wait(timeout=10)
-
-    def test_the_command_s_status_is_its_own(self):
-        (self.site / "engine").symlink_to("../ozymandias")
-        done = subprocess.run([sys.executable, str(TOOL), "--", sys.executable, "-c", "raise SystemExit(3)"],
-                              cwd=self.site, env=script_env(WATCH_ENGINE_INTERVAL="0.1"), timeout=10)
-        self.assertEqual(done.returncode, 3)
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_compiler_edits_and_file_changes_restart_under_the_lock(self):
+        with tempfile.TemporaryDirectory(prefix="watch-engine-") as tmp:
+            root = Path(tmp)
+            engine, site = root / "ozymandias", root / "site"
+            shutil.copytree(ENGINE, engine, ignore=shutil.ignore_patterns(
+                "static", "tests", "fixture-site", "dist-newstyle", "__pycache__", ".git"))
+            (engine / "static").symlink_to(ENGINE / "static")
+            build = next(b for b in fixture_variants.builds() if b.name == "minimal")
+            fixture_variants.copy_site(build, site, engine)
+            (site / "cabal.project").write_text((SITE_ROOT / "cabal.project").read_text())
+            (site / "cabal.project.freeze").symlink_to("engine/cabal.project.freeze")
+            for args in (("init", "-q"), ("add", "."), ("commit", "-qm", "fixture")):
+                subprocess.run(["git", "-c", "user.name=Fixture", "-c", "user.email=test@example.org",
+                                "-c", "commit.gpgsign=false", *args], cwd=site, check=True,
+                               capture_output=True)
+            logpath = root / "watch.log"
+            env = script_env(SITE_ENV="production", WATCH_ENGINE_INTERVAL="0.1")
+            command = ["bash", str(engine / "tools/with-lock.sh"), "data/.site-build.lock", sys.executable,
+                       str(engine / "tools/watch-engine.py"), "--", "cabal", "run", "-v0", "site", "--",
+                       "watch", "--no-server"]
+            with logpath.open("w") as log:
+                proc = subprocess.Popen(command, cwd=site, env=env, stdout=log, stderr=subprocess.STDOUT,
+                                        start_new_session=True)
+                def until(predicate):
+                    deadline = time.monotonic() + 240
+                    while time.monotonic() < deadline:
+                        if proc.poll() is not None:
+                            self.fail(logpath.read_text()[-6000:])
+                        if predicate():
+                            return
+                        time.sleep(.2)
+                    self.fail("watch timed out:\n" + logpath.read_text()[-6000:])
+                def contains(rel, text):
+                    path = site / "_site" / rel
+                    return path.exists() and text in path.read_text()
+                try:
+                    until(lambda: contains("robots.txt", "Disallow: /proxy/"))
+                    source = engine / "build/Site.hs"
+                    source.write_text(source.read_text().replace("Disallow: /proxy/", "Disallow: /watch-test/"))
+                    until(lambda: contains("robots.txt", "Disallow: /watch-test/"))
+                    locked = subprocess.run(["bash", str(engine / "tools/with-lock.sh"),
+                                             "data/.site-build.lock", "true"], cwd=site,
+                                            env=env, capture_output=True)
+                    self.assertNotEqual(locked.returncode, 0)
+                    head = engine / "templates/partials/head.html"
+                    original = head.read_text()
+                    freeze = engine / "cabal.project.freeze"
+                    freeze.write_text(freeze.read_text() + "\n-- watch dependency change\n")
+                    head.write_text(original + '\n<meta name="watch-freeze" content="yes">\n')
+                    until(lambda: contains("index.html", 'name="watch-freeze"'))
+                    (site / "cabal.project.local").write_text(
+                        "package ozymandias\n  ghc-options: -fno-ignore-asserts\n")
+                    head.write_text(original + '\n<meta name="watch-project" content="yes">\n')
+                    until(lambda: contains("index.html", 'name="watch-project"'))
+                    extra = engine / "templates/partials/watch-extra.html"
+                    extra.write_text('<meta name="watch-added" content="yes">\n')
+                    head.write_text(original + '\n$partial("templates/partials/watch-extra.html")$\n')
+                    until(lambda: contains("index.html", 'name="watch-added"'))
+                    own = site / "templates/partials/head.html"
+                    own.write_text(original + '\n<meta name="watch-override" content="yes">\n')
+                    until(lambda: contains("index.html", 'name="watch-override"'))
+                    head.write_text(original + '\n<meta name="watch-restored" content="yes">\n')
+                    extra.unlink()
+                    own.unlink()
+                    until(lambda: contains("index.html", 'name="watch-restored"'))
+                    self.assertFalse(contains("index.html", 'name="watch-override"'))
+                    self.assertFalse(contains("index.html", 'name="watch-added"'))
+                finally:
+                    if proc.poll() is None:
+                        os.killpg(proc.pid, signal.SIGINT)
+                        try:
+                            proc.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                            proc.wait()

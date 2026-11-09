@@ -97,6 +97,7 @@ class BuildFreshnessTestCase(unittest.TestCase):
         shutil.copy2(engine_path("tools/site-paths.sh"), tools / "site-paths.sh")
         shutil.copy2(engine_path("tools/unpublished.py"), tools / "unpublished.py")
         shutil.copy2(engine_path("tools/sitelib.py"), tools / "sitelib.py")
+        shutil.copy2(engine_path("tools/build-provenance.py"), tools / "build-provenance.py")
 
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "initial")
@@ -112,6 +113,9 @@ class BuildFreshnessTestCase(unittest.TestCase):
     def run_script(self, arg: str, tools: str = "tools") -> subprocess.CompletedProcess:
         env = script_env(CLEAN_CMD=f"touch {self.root}/CLEANED", STATE_DIR="data",
                          CACHE_DIR="_cache", SITE_BINARY=str(self.binary))
+        if arg == "stamp":
+            subprocess.run(["python3", str(self.root / tools / "build-provenance.py"), "begin"],
+                           cwd=self.root, env=env, check=True, capture_output=True)
         return subprocess.run(
             ["bash", str(self.root / tools / SCRIPT.name), arg],
             cwd=self.root,
