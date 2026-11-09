@@ -75,3 +75,16 @@ A mechanical change (Phase B) keeps both: record the build before it and
 after it, compare, and compare the page bodies with `sitediff.py
 --body-only`. A record is only comparable with one of the same browser
 version, which `meta.json` names.
+
+Use a new output directory for each `snapshot`: existing directories are
+refused, including those left by interrupted runs. `meta.json` is written
+only when recording finishes. `compare` requires that completion marker,
+compatible browser versions and recording settings, and every expected
+record; missing or extra files fail even when both snapshots have the same
+gap. Older snapshots without this manifest must be recorded again.
+
+Every screenshot also has a computed-style record at its width and media
+(`*-view-320.json.gz`, through `*-view-print.json.gz`). This catches even
+one-unit responsive and print colour changes despite the screenshot noise
+tolerance. `--shots=0` explicitly omits screenshots and these accompanying
+style records; it can only be compared with another styles-only snapshot.

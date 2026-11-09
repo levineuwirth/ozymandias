@@ -15,7 +15,8 @@ but from the site itself:
   styles   the computed style of every element under <html> but <head>, and
            of each ::before and ::after that has content, for PROPERTIES,
            at 1280px wide and the smallest, default and largest text sizes
-           (utils.js's TEXT_SIZE);
+           (utils.js's TEXT_SIZE), plus each screenshot's width and media
+           at the default text size;
   shots    the page at 320, 768, 1280 and 1600px wide, and in print, at the
            default size, from the top down to SHOT_HEIGHT.
 
@@ -59,6 +60,7 @@ SHOT_HEIGHT = 6000
 # A change of colour is the computed styles' to catch, which they do to the
 # unit; the screenshots are for what styles don't name, never that faint.
 TOLERANCE = 2
+FORMAT = 1
 
 # What a reader sees of an element, and what places it: the properties a
 # move of CSS between files or layers could change without meaning to.
@@ -257,6 +259,12 @@ async def context(browser, base: str, theme: str, size: int | None, moment: int,
     return ctx
 
 
+async def record_styles(page, target: Path) -> None:
+    data = await page.evaluate(COLLECT, [PROPERTIES, VOLATILE])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(gzip.compress(json.dumps(data, separators=(",", ":")).encode(), mtime=0))
+
+
 async def record_page(browser, base, name, path, out: Path, moment, sizes, shots, errors):
     url = base + path
     for theme in THEMES:
@@ -267,10 +275,7 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
             try:
                 await settled(page, url)
                 await still(page, HEIGHT)
-                data = await page.evaluate(COLLECT, [PROPERTIES, VOLATILE])
-                target = out / "styles" / name / f"{theme}-{size}.json.gz"
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(gzip.compress(json.dumps(data, separators=(",", ":")).encode(), mtime=0))
+                await record_styles(page, out / "styles" / name / f"{theme}-{size}.json.gz")
             finally:
                 await ctx.close()
         if not shots:
@@ -294,6 +299,7 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
                 except Exception:
                     pass
                 await still(page, SHOT_HEIGHT)
+                await record_styles(page, out / "styles" / name / f"{theme}-view-{width}.json.gz")
                 height = await page.evaluate("document.scrollingElement.scrollHeight")
                 full = await page.evaluate("document.scrollingElement.scrollWidth")
                 target = out / "shots" / name / f"{theme}-{width}.png"
@@ -311,7 +317,14 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     engine = HERE.parents[1]
     sizes = text_sizes(engine)
     moment = off_season(root)
-    out.mkdir(parents=True, exist_ok=True)
+    if not pages or jobs < 1:
+        raise SystemExit("preserve: snapshot needs at least one page and --jobs >= 1")
+    # Never mix a rerun with old records or an old completion marker. A failed
+    # run leaves diagnostics, but cannot be compared as a complete snapshot.
+    try:
+        out.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        raise SystemExit(f"preserve: snapshot output already exists; choose a new directory: {out}")
     server, base = serve(root, served, out)
     errors: dict[str, list[str]] = {}
     try:
@@ -330,31 +343,117 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
         server.terminate()
         server.wait(timeout=10)
     (out / "meta.json").write_text(json.dumps({
+        "format": FORMAT, "complete": True,
         "site": str(root), "served": str(served), "browser": f"{browser_name} {version}",
         "moment": moment, "volatile": VOLATILE, "themes": THEMES, "sizes": sizes, "widths": WIDTHS,
+        "style_width": STYLE_WIDTH, "height": HEIGHT, "shot_height": SHOT_HEIGHT,
+        "properties": PROPERTIES, "shots": shots,
         "pages": pages, "errors": errors}, indent=1) + "\n")
     print(f"preserve: {len(pages)} pages, {browser_name} {version}, into {out}")
 
 
-def resolved(path: Path) -> dict[str, tuple]:
+def resolved(path: Path, properties: list[str]) -> dict[str, tuple]:
     data = json.loads(gzip.decompress(path.read_bytes()))
     props, styles = data["props"], data["styles"]
+    elements = data["elements"]
+    if props != properties or not styles or not elements:
+        raise ValueError("empty style record or properties differ from the manifest")
+    if any(len(values) != len(props) or any(not isinstance(v, str) for v in values) for values in styles):
+        raise ValueError("invalid style table")
+    paths = set()
+    for element in elements:
+        if len(element) != 4 or not isinstance(element[0], str) or element[0] in paths:
+            raise ValueError("invalid or duplicate element")
+        paths.add(element[0])
+        for i, value in enumerate(element[1:]):
+            if value is None and i > 0:
+                continue
+            if type(value) is not int or not 0 <= value < len(styles):
+                raise ValueError("invalid style index")
     style = lambda i: None if i is None else dict(zip(props, styles[i]))
-    return {e[0]: (style(e[1]), style(e[2]), style(e[3])) for e in data["elements"]}
+    return {e[0]: (style(e[1]), style(e[2]), style(e[3])) for e in elements}
+
+
+SETTINGS = ("format", "browser", "moment", "volatile", "themes", "sizes", "widths",
+            "style_width", "height", "shot_height", "properties", "shots", "pages")
+
+
+def inventory(meta: dict) -> dict[str, set[Path]]:
+    """The full recording matrix, derived from settings rather than files found."""
+    styles, shots = set(), set()
+    for name in meta["pages"]:
+        for theme in meta["themes"]:
+            styles.update(Path(name) / f"{theme}-{size}.json.gz" for size in meta["sizes"])
+            if meta["shots"]:
+                for width in [*meta["widths"], "print"]:
+                    styles.add(Path(name) / f"{theme}-view-{width}.json.gz")
+                    shots.add(Path(name) / f"{theme}-{width}.png")
+    return {"styles": styles, "shots": shots}
+
+
+def manifest(root: Path) -> dict:
+    """A completion marker is required even when both directories are empty."""
+    meta = json.loads((root / "meta.json").read_text())
+    if not isinstance(meta, dict) or any(key not in meta for key in SETTINGS):
+        raise ValueError("missing recording settings; take a fresh snapshot")
+    if meta["format"] != FORMAT or meta.get("complete") is not True:
+        raise ValueError("unsupported or incomplete snapshot; take a fresh snapshot")
+    if not isinstance(meta["browser"], str) or not meta["browser"] or type(meta["shots"]) is not bool:
+        raise ValueError("invalid browser or screenshot setting")
+    for key in ("moment", "style_width", "height", "shot_height"):
+        if type(meta[key]) is not int or meta[key] < 1:
+            raise ValueError(f"invalid {key}")
+    for key in ("sizes", "widths"):
+        values = meta[key]
+        if (not isinstance(values, list) or not values or
+                any(type(v) is not int or v < 1 for v in values) or len(set(values)) != len(values)):
+            raise ValueError(f"invalid {key}")
+    if len(meta["sizes"]) != 3:
+        raise ValueError("expected smallest, default and largest text sizes")
+    for key in ("themes", "properties", "volatile"):
+        values = meta[key]
+        if (not isinstance(values, list) or any(not isinstance(v, str) or not v for v in values) or
+                len(set(values)) != len(values) or (key != "volatile" and not values)):
+            raise ValueError(f"invalid {key}")
+    pages = meta["pages"]
+    if not isinstance(pages, dict) or not pages:
+        raise ValueError("snapshot has no routes")
+    for name in [*pages, *meta["themes"]]:
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+            raise ValueError(f"invalid record name: {name!r}")
+    if any(not isinstance(path, str) or not path.startswith("/") for path in pages.values()):
+        raise ValueError("invalid route paths")
+    return meta
 
 
 def compare(base: Path, new: Path, report: Path | None, tolerance: int = TOLERANCE) -> int:
     lines: list[str] = []
-    for kind in ("styles", "shots"):
-        a = {p.relative_to(base / kind) for p in (base / kind).rglob("*") if p.is_file()}
-        b = {p.relative_to(new / kind) for p in (new / kind).rglob("*") if p.is_file()}
-        lines += [f"only in the base: {kind}/{p}" for p in sorted(a - b)]
-        lines += [f"only in the new: {kind}/{p}" for p in sorted(b - a)]
-        for rel in sorted(a & b):
-            if kind == "styles":
-                lines += style_differences(rel, resolved(base / kind / rel), resolved(new / kind / rel))
-            else:
-                lines += shot_difference(rel, base / kind / rel, new / kind / rel, report, tolerance)
+    manifests = []
+    for label, root in (("base", base), ("new", new)):
+        try:
+            meta = manifest(root)
+            manifests.append(meta)
+            for kind, expected in inventory(meta).items():
+                found = {p.relative_to(root / kind) for p in (root / kind).rglob("*") if p.is_file()}
+                lines += [f"{label}: missing {kind}/{p}" for p in sorted(expected - found)]
+                lines += [f"{label}: unexpected {kind}/{p}" for p in sorted(found - expected)]
+        except (OSError, ValueError, TypeError) as e:
+            lines.append(f"{label}: invalid snapshot: {e}")
+    if len(manifests) == 2:
+        lines += [f"incompatible recording setting: {key}" for key in SETTINGS
+                  if manifests[0][key] != manifests[1][key]]
+    if not lines:
+        for kind, expected in inventory(manifests[0]).items():
+            for rel in sorted(expected):
+                try:
+                    if kind == "styles":
+                        props = manifests[0]["properties"]
+                        lines += style_differences(rel, resolved(base / kind / rel, props),
+                                                   resolved(new / kind / rel, props))
+                    else:
+                        lines += shot_difference(rel, base / kind / rel, new / kind / rel, report, tolerance)
+                except (OSError, ValueError, KeyError, TypeError, IndexError, EOFError) as e:
+                    lines.append(f"{kind}/{rel}: invalid record: {e}")
     for line in lines[:400]:
         print(line)
     if len(lines) > 400:

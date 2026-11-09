@@ -67,6 +67,27 @@ class Preserve(unittest.TestCase):
         self.assertNotIn("display", out)
         self.assertTrue(any((self.root / "report/shots/home").iterdir()))
 
+    def test_faint_phone_and_print_colours_are_caught_by_styles(self):
+        sheet = self.site / "_site/style.css"
+        sheet.write_text(STYLE + "body { background: rgb(100, 100, 100); }\n")
+        first = self.snapshot("first")
+        sheet.write_text(sheet.read_text() +
+                         "@media (max-width: 400px), print { body { background: rgb(101, 100, 100); } }\n")
+        changed = self.snapshot("changed")
+        done = self.run_tool("compare", str(first), str(changed))
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        for theme in ("light", "dark", "cappuccino"):
+            for width in (320, "print"):
+                self.assertIn(f"home/{theme}-view-{width}.json.gz: html>body:1 background-color: "
+                              "'rgb(100, 100, 100)' -> 'rgb(101, 100, 100)'", done.stdout)
+        # The tolerance still ignores faint pixels. The new style records
+        # must be the reason the default comparison refuses this change.
+        self.assertNotIn("shots/", done.stdout)
+        self.assertNotIn("view-768", done.stdout)
+        self.assertNotIn("view-1280", done.stdout)
+        self.assertNotIn("view-1600", done.stdout)
+        self.assertIn("preserve: 6 difference(s)", done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
