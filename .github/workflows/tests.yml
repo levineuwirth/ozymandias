@@ -1,0 +1,40 @@
+# The engine's tests that need nothing but Python, Node and stock tools
+# (tests/ci.py lists them, and fails if any skips), run against its fixture
+# site under the full profile, with the engine linked in as a site links it.
+# The full suite needs the Haskell generator and builds; it runs with each
+# site's `make test` and `make test-clean` on the author's machine.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ozymandias
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: ozymandias/uv.lock
+      - name: Python environment (uv.lock)
+        run: uv sync --locked --project ozymandias
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.venv
+      - name: The fixture site, full profile
+        run: |
+          PYTHONPATH=ozymandias .venv/bin/python -c '
+          from pathlib import Path
+          from tests import fixture_variants
+          build = next(b for b in fixture_variants.builds() if b.name == "full")
+          fixture_variants.copy_site(build, Path("site"), Path("ozymandias").resolve())
+          '
+          ln -s ../.venv site/.venv
+      - name: Tests
+        working-directory: site
+        run: .venv/bin/python engine/tests/ci.py
