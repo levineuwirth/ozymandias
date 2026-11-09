@@ -37,8 +37,10 @@ GIT_FILES = {".gitignore", ".gitattributes"}
 NOTICE = "LICENSE"
 # What each repository has of its own at its root: the engine's beside the
 # site's, neither standing in for the other, so neither is an override. Only
-# the notice goes unscanned.
+# the notice goes unscanned. So is anything under REPOSITORY_DIRS: each
+# repository's CI is its own.
 REPOSITORY_FILES = {NOTICE, "README.md"}
+REPOSITORY_DIRS = (".github/",)
 FONTS = "tools/fonts.yaml"
 
 
@@ -230,7 +232,7 @@ def inventory(root: Path, policy: dict) -> list[str]:
     and those entries must exist. A site file at an engine file's path
     overrides it, which overrides.yaml must declare and site-files name
     exactly; the engine's copy must then exist too. Git's own files are not
-    overrides (GIT_FILES), nor are a repository's own (REPOSITORY_FILES),
+    overrides (GIT_FILES), nor are a repository's own (REPOSITORY_FILES, REPOSITORY_DIRS),
     nor a link to the engine's file at that path, which site-files still
     names (`linked`).
     """
@@ -245,7 +247,8 @@ def inventory(root: Path, policy: dict) -> list[str]:
     # Each list names its own kind of path, the site's and the engine's, so a
     # string in both is no duplicate: a site file overriding a vendored one.
     conflicting = sorted({e for entries in (site, vendored) for e in entries if entries.count(e) > 1}
-                         | {p for p in (seen & engine) - paired if Path(p).name not in GIT_FILES and p not in REPOSITORY_FILES}
+                         | {p for p in (seen & engine) - paired if Path(p).name not in GIT_FILES and p not in REPOSITORY_FILES
+                            and not p.startswith(REPOSITORY_DIRS)}
                          | (overrides - files))
     missing = sorted((files - seen)
                      | {d for d in directories if not any(p.startswith(d) for p in seen)}

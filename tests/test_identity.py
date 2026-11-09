@@ -184,6 +184,15 @@ class IdentityTests(unittest.TestCase):
                 checker.inventory(root, policy)
             for path in ("engine/README.md", "engine/data/README.md", "data/README.md"):
                 (root / path).unlink()
+            # Nor is either's CI: each repository has its own .github/.
+            for rel in (".github/workflows/tests.yml", "engine/.github/workflows/tests.yml"):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text("name: tests\n")
+            ci = dict(policy, **{"site-files": policy["site-files"] + [".github/workflows/tests.yml"]})
+            self.assertEqual(checker.inventory(root, ci),
+                             [".github/workflows/tests.yml", "data/style.csl", "engine.mk"])
+            shutil.rmtree(root / ".github")
+            shutil.rmtree(root / "engine/.github")
             # A site file that is a link to the engine's at the same path is
             # that file, not an override; the site still names it. A link to
             # anything else there is a conflict like any file.
