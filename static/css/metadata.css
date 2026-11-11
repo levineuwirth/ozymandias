@@ -172,9 +172,14 @@
     color: var(--text-faint);
 }
 
+/* Each link a line at least 24px high: at small text sizes a row that
+   wraps, as five links do on a phone, otherwise sets them closer than
+   that, too close to touch (WCAG 2.5.8). From the default size up the
+   line is already taller, and nothing changes. */
 .meta-pagelinks a {
     color: var(--text-faint);
     text-decoration: none;
+    line-height: max(1.5em, 24px);
 }
 
 .meta-pagelinks a:hover {
