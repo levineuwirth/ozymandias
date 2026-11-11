@@ -183,7 +183,9 @@ The tokens a site may set, on `:root` in its `theme.css`, besides the
 palette and font stacks: `--text-size-default`, in px, the size the settings
 panel calls 100% (`utils.js` reads it; `--text-size` is the size in force,
 the reader's choice or this, so a site sets the default, not it);
-`--weight-regular`, `-medium`, `-semibold` and `-bold`, the four weights the
+`--type-ratio`, the ratio of the type scale, whose steps `--step--5` to
+`--step-8` (1rem times the ratio that many times) are every rem font size
+the engine sets; `--weight-regular`, `-medium`, `-semibold` and `-bold`, the four weights the
 engine asks of a face; `--radius-sm`, `-md`, `-lg`, `-xl` and `-pill`;
 `--shadow-bubble` and `--shadow-plate`; `--transition-fast` and
 `--transition-medium`; and two dials, `--tracking-scale`, which multiplies

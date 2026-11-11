@@ -124,7 +124,7 @@
    a subtitle render unchanged. */
 .essay-subtitle {
     font-family: var(--font-serif);
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     font-style: italic;
     color: var(--text-muted);
     margin: 0 0 0.75rem 0;

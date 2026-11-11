@@ -30,7 +30,7 @@
     border-radius: var(--radius-md);
     box-shadow: 0 3px 14px rgba(0, 0, 0, 0.09);
     font-family: var(--font-sans);
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     line-height: 1.55;
     pointer-events: auto;
@@ -52,7 +52,7 @@
 
 
 .link-popup--rich .popup-title {
-    font-size: 0.98rem;
+    font-size: var(--step-0);
     line-height: 1.3;
     margin-bottom: 0.35rem;
 }
@@ -60,13 +60,13 @@
 
 .link-popup--rich .popup-authors,
 .link-popup--rich .popup-meta {
-    font-size: 0.78rem;
+    font-size: var(--step--2);
 }
 
 
 .link-popup--rich .popup-abstract,
 .link-popup--rich .popup-extract {
-    font-size: 0.84rem;
+    font-size: var(--step--1);
     line-height: 1.6;
 }
 
@@ -124,7 +124,7 @@
 .popup-title {
     font-weight: var(--weight-semibold);
     color: var(--text);
-    font-size: 0.82rem;
+    font-size: var(--step--2);
     margin-bottom: 0.3rem;
     line-height: 1.35;
 }
@@ -168,7 +168,7 @@
 
 .popup-abstract,
 .popup-extract {
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     line-height: 1.55;
 }
@@ -180,7 +180,7 @@
     display: flex;
     align-items: center;
     gap: 0.3em;
-    font-size: 0.65rem;
+    font-size: var(--step--4);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
@@ -269,7 +269,7 @@
 
 /* Author list (arXiv, DOI, GitHub, etc.) */
 .popup-authors {
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     color: var(--text-faint);
     margin-bottom: 0.3rem;
     font-style: italic;
@@ -278,7 +278,7 @@
 
 /* Journal / year / language / stars line */
 .popup-meta {
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
     margin-bottom: 0.3rem;
     font-variant-numeric: tabular-nums;
@@ -305,7 +305,7 @@
 
 .popup-citation .csl-entry {
     font-family: var(--font-sans);
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     line-height: 1.6;
     /* Override the hanging-indent style used in the bibliography list */
@@ -412,7 +412,7 @@
     padding: 0.45rem 0.65rem 0.4rem;
     border-bottom: 1px solid var(--border);
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: var(--step--4);
     color: var(--text-faint);
     word-break: break-all;
     background: var(--bg);
@@ -451,7 +451,7 @@
     margin: 0;
     padding: 0.55rem 0.65rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     line-height: var(--line);
     white-space: pre;
     border: none;
@@ -512,7 +512,7 @@
 .popup-source-truncated {
     padding: 0.4rem 0.65rem;
     border-top: 1px solid var(--border);
-    font-size: 0.65rem;
+    font-size: var(--step--4);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
@@ -538,7 +538,7 @@
     max-height: 420px;
     overflow: auto;
     padding: 0.55rem 0.75rem 0.65rem;
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     line-height: 1.5;
     color: var(--text-muted);
 }
@@ -574,12 +574,12 @@
 
 .popup-md-heading:first-child { margin-top: 0; }
 
-.popup-md-h1 { font-size: 0.92rem; }
+.popup-md-h1 { font-size: var(--step--1); }
 
-.popup-md-h2 { font-size: 0.86rem; }
+.popup-md-h2 { font-size: var(--step--1); }
 
 .popup-md-h3,
-.popup-md-h4 { font-size: 0.8rem; font-style: italic; }
+.popup-md-h4 { font-size: var(--step--2); font-style: italic; }
 
 
 .popup-md code {
@@ -592,7 +592,7 @@
     padding: 0.4rem 0.5rem;
     overflow-x: auto;
     background: var(--bg-offset);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
 }
 
 
@@ -606,7 +606,7 @@
     display: block;
     overflow-x: auto;
     border-collapse: collapse;
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     line-height: 1.4;
 }
 
@@ -636,7 +636,7 @@
 .popup-source-rev {
     margin-top: 0.1rem;
     font-family: var(--font-sans);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
     word-break: normal;
 }
 
@@ -649,7 +649,7 @@
 
 
 .popup-code-subject {
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     color: var(--text);
     line-height: 1.35;
     margin-bottom: 0.35rem;
@@ -663,7 +663,7 @@
 
 
 .popup-code-stat {
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
     margin-bottom: 0.25rem;
 }
@@ -674,7 +674,7 @@
     margin: 0;
     padding: 0;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
     line-height: 1.55;
     columns: 2;
     column-gap: 1.2rem;
@@ -758,7 +758,7 @@ a.source-ref code {
 .popup-sig pre {
     margin: 0;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
     line-height: 1.45;
     white-space: pre;
     overflow-x: auto;
@@ -780,7 +780,7 @@ a.source-ref code {
 
 .popup-date {
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     line-height: 1.45;
     color: var(--text-muted);
 }
@@ -794,7 +794,7 @@ a.source-ref code {
 
 .popup-date-cadence {
     margin-top: 0.15rem;
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-faint);

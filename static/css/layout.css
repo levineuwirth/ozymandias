@@ -159,7 +159,7 @@ body > header:not(.essay-frontmatter) {
 
 
 .footer-center {
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
 }
 
@@ -201,7 +201,7 @@ body > header:not(.essay-frontmatter) {
 
 
 .footer-build-link {
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
     font-variant-numeric: tabular-nums;
     text-decoration: none;

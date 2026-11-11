@@ -13,7 +13,7 @@
     color: var(--text);
     border: 1px solid var(--border);
     text-decoration: none;
-    font-size: 0.875rem;
+    font-size: var(--step--1);
 }
 
 
@@ -62,7 +62,7 @@ nav.site-nav {
     justify-content: center;
     align-items: center;
     gap: 0;
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     font-weight: var(--weight-semibold);
     font-variant-caps: small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
@@ -136,7 +136,7 @@ nav.site-nav {
     border: none;
     cursor: pointer;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
@@ -153,7 +153,7 @@ nav.site-nav {
 
 
 .nav-portal-arrow {
-    font-size: 0.6rem;
+    font-size: var(--step--4);
     display: inline-block;
     margin-right: 0.2em;
     vertical-align: middle;
@@ -171,7 +171,7 @@ nav.site-nav {
     border: none;
     cursor: pointer;
     color: var(--text-faint);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     font-family: var(--font-sans);
     padding: 0;
     line-height: 1;
@@ -220,7 +220,7 @@ nav.site-nav {
 
 .settings-label {
     font-family: var(--font-sans);
-    font-size: 0.62rem;
+    font-size: var(--step--4);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
@@ -243,7 +243,7 @@ nav.site-nav {
     border-radius: var(--radius-md);
     color: var(--text-muted);
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-medium);
     padding: 0.3rem 0.5rem;
     cursor: pointer;
@@ -449,7 +449,7 @@ nav.site-nav {
 
     .toc-mobile-label {
         font-family: var(--font-sans);
-        font-size: 0.68rem;
+        font-size: var(--step--3);
         font-weight: var(--weight-semibold);
         font-variant-caps: all-small-caps;
         letter-spacing: calc(0.07em * var(--tracking-scale));
@@ -508,7 +508,7 @@ nav.site-nav {
         flex-wrap: wrap;
         justify-content: center;
         row-gap: 0;
-        font-size: 0.72rem;
+        font-size: var(--step--3);
     }
 
 
@@ -600,7 +600,7 @@ nav.site-nav {
 
 
 .nav-portals a {
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.05em * var(--tracking-scale));

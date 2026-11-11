@@ -18,6 +18,29 @@
     --page-padding:    1.5rem;
     --nav-height:      3rem;
 
+    /* The type scale: step n is 1rem (the text size) times --type-ratio
+       n times over, so a site sets the whole scale with one number, on
+       :root, where the steps read it. Every rem font size the engine sets
+       is a step. Each step is built from its neighbor, not with pow(),
+       so it holds in any browser with calc() and custom properties. At
+       1.125 (a major second): 0.555, 0.624, 0.702, 0.790, 0.889, 1,
+       1.125, 1.266, 1.424, 1.602, 1.802, 2.027, 2.281, 2.566rem. */
+    --type-ratio: 1.125;
+    --step-0:  1rem;
+    --step--1: calc(var(--step-0) / var(--type-ratio));
+    --step--2: calc(var(--step--1) / var(--type-ratio));
+    --step--3: calc(var(--step--2) / var(--type-ratio));
+    --step--4: calc(var(--step--3) / var(--type-ratio));
+    --step--5: calc(var(--step--4) / var(--type-ratio));
+    --step-1:  calc(var(--step-0) * var(--type-ratio));
+    --step-2:  calc(var(--step-1) * var(--type-ratio));
+    --step-3:  calc(var(--step-2) * var(--type-ratio));
+    --step-4:  calc(var(--step-3) * var(--type-ratio));
+    --step-5:  calc(var(--step-4) * var(--type-ratio));
+    --step-6:  calc(var(--step-5) * var(--type-ratio));
+    --step-7:  calc(var(--step-6) * var(--type-ratio));
+    --step-8:  calc(var(--step-7) * var(--type-ratio));
+
     /* Weights: the four the engine's rules ask of a face. */
     --weight-regular:  400;
     --weight-medium:   500;

@@ -65,7 +65,7 @@ def item(label: str, blocks: str) -> str:
             f'<span class="footnote-label" aria-hidden="true">{label}</span>{blocks}</li>')
 
 
-LONG = " ".join(["A long note runs on beside the text, and on, and further on still."] * 14)
+LONG = " ".join(["A long note runs on beside the text, and on, and further on still."] * 18)
 
 PAGE = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Sidenotes fixture</title>

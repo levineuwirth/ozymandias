@@ -44,7 +44,7 @@
 
 .now-stamp-label {
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     letter-spacing: calc(0.12em * var(--tracking-scale));
     color: var(--text-faint);
@@ -58,7 +58,7 @@
    width changes. */
 .now-stamp-date {
     font-family: var(--font-serif);
-    font-size: 1.85rem;
+    font-size: var(--step-5);
     font-style: italic;
     font-weight: var(--weight-regular);
     color: var(--text);
@@ -72,7 +72,7 @@
    the absolute date with a human-readable "how recent." */
 .now-stamp-relative {
     font-family: var(--font-serif);
-    font-size: 0.92rem;
+    font-size: var(--step--1);
     font-style: italic;
     color: var(--text-faint);
     margin-top: 0.3rem;
@@ -89,7 +89,7 @@
 .now-intro {
     margin: 0 0 2.5rem;
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: var(--step-0);
     color: var(--text-muted);
     line-height: 1.6;
 }
@@ -114,7 +114,7 @@
 
 .now-section-heading {
     font-family: var(--font-serif);
-    font-size: 1.15rem;
+    font-size: var(--step-1);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.09em * var(--tracking-scale));
@@ -159,7 +159,7 @@
 .now-status {
     display: inline-block;
     font-family: var(--font-sans);
-    font-size: 0.66rem;
+    font-size: var(--step--4);
     font-variant: all-small-caps;
     letter-spacing: calc(0.08em * var(--tracking-scale));
     line-height: 1;
@@ -219,17 +219,17 @@
 
 
     .now-status {
-        font-size: 0.62rem;
+        font-size: var(--step--4);
         padding: 0.28em 0.45em 0.24em;
     }
 
 
     .now-stamp-date {
-        font-size: 1.55rem;
+        font-size: var(--step-4);
     }
 
 
     .now-stamp-relative {
-        font-size: 0.88rem;
+        font-size: var(--step--1);
     }}
 }

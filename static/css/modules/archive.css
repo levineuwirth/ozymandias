@@ -56,7 +56,7 @@
 #markdownBody .archive-banner-label {
     margin: 0;
     font-family: var(--font-sans);
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.13em * var(--tracking-scale));
@@ -67,7 +67,7 @@
 #markdownBody .archive-banner-text {
     margin: 0;
     font-family: var(--font-serif);
-    font-size: 0.95rem;
+    font-size: var(--step-0);
     line-height: 1.5;
     color: var(--text);
 }
@@ -76,7 +76,7 @@
 #markdownBody .archive-banner-original {
     align-self: flex-start;
     font-family: var(--font-sans);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     font-weight: var(--weight-semibold);
 }
 
@@ -89,7 +89,7 @@
     border: 1px dashed var(--border-muted);
     border-radius: var(--radius-sm);
     font-family: var(--font-serif);
-    font-size: 0.9rem;
+    font-size: var(--step--1);
     line-height: 1.55;
     color: var(--text-muted);
 }
@@ -98,7 +98,7 @@
 #markdownBody .archive-degraded-label {
     margin-right: 0.4rem;
     font-family: var(--font-sans);
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.1em * var(--tracking-scale));
@@ -115,7 +115,7 @@
     border-radius: var(--radius-sm);
     background: var(--bg-subtle);
     font-family: var(--font-serif);
-    font-size: 0.95rem;
+    font-size: var(--step-0);
     line-height: 1.6;
     color: var(--text-muted);
 }
@@ -132,7 +132,7 @@
     border-left-width: 3px;
     border-radius: var(--radius-sm);
     font-family: var(--font-serif);
-    font-size: 0.92rem;
+    font-size: var(--step--1);
     line-height: 1.55;
     color: var(--text);
 }
@@ -183,7 +183,7 @@
 #markdownBody .archive-panel-title {
     margin: 0 0 0.7rem;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
@@ -202,7 +202,7 @@
 
 #markdownBody .archive-meta dt {
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.05em * var(--tracking-scale));
@@ -213,7 +213,7 @@
 #markdownBody .archive-meta dd {
     margin: 0;
     font-family: var(--font-serif);
-    font-size: 0.92rem;
+    font-size: var(--step--1);
     color: var(--text);
     overflow-wrap: anywhere;
 }
@@ -221,7 +221,7 @@
 
 #markdownBody .archive-meta dd code {
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: var(--step--2);
 }
 
 
@@ -229,7 +229,7 @@
 #markdownBody .archive-note {
     margin: 1.6rem 0;
     font-family: var(--font-serif);
-    font-size: 0.97rem;
+    font-size: var(--step-0);
     font-style: italic;
     line-height: 1.6;
     color: var(--text-muted);
@@ -266,14 +266,14 @@
 
 #markdownBody .archive-viewer-name {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
 }
 
 
 #markdownBody .archive-viewer-open {
     font-family: var(--font-sans);
-    font-size: 0.76rem;
+    font-size: var(--step--2);
     white-space: nowrap;
 }
 
@@ -305,7 +305,7 @@
     padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border);
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
@@ -322,7 +322,7 @@
 #markdownBody .archive-fulltext-wrap > p {
     margin: 0 0 0.85rem;
     font-family: var(--font-serif);
-    font-size: 0.95rem;
+    font-size: var(--step-0);
     line-height: 1.6;
     color: var(--text);
 }
@@ -338,7 +338,7 @@
     border-radius: var(--radius-sm);
     background: var(--bg-subtle);
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     line-height: 1.5;
     color: var(--text-muted);
     white-space: pre-wrap;
@@ -367,7 +367,7 @@
 #markdownBody .referenced-by-fragment {
     margin: 0 0 0.3rem;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
@@ -387,7 +387,7 @@
     padding-top: 1rem;
     border-top: 1px solid var(--border);
     font-family: var(--font-serif);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     font-style: italic;
     line-height: 1.55;
     color: var(--text-faint);
@@ -409,7 +409,7 @@
 #markdownBody .archive-index-intro {
     margin: 0.6rem 0 0;
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: var(--step-0);
     line-height: 1.6;
     color: var(--text-muted);
 }
@@ -440,7 +440,7 @@
 
 #markdownBody .archive-list-link {
     font-family: var(--font-serif);
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     color: var(--text);
     text-decoration: none;
 }
@@ -454,7 +454,7 @@
 
 #markdownBody .archive-list-meta {
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-faint);
     white-space: nowrap;
 }

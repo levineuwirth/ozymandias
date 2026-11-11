@@ -118,7 +118,7 @@
 .transclude-noscript-note {
     display: block;
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     line-height: 1.5;
     color: var(--text-muted);
     margin: 0.5rem 0;
@@ -174,7 +174,7 @@
     gap: 0.4rem;
     margin: 0.75rem 0;
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
 }
 
@@ -185,7 +185,7 @@
     margin-top: 1.65rem;
     padding: 0.5rem 0.75rem;
     font-family: var(--font-sans);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     color: var(--text);
     background: var(--bg);
     border: 1px solid var(--border);
@@ -227,7 +227,7 @@
 .semantic-result-title {
     font-family: var(--font-sans);
     font-weight: var(--weight-semibold);
-    font-size: 0.9rem;
+    font-size: var(--step--1);
     color: var(--text);
     text-decoration: none;
 }

@@ -31,7 +31,7 @@
 .see-also {
     margin: 0.15rem 0 1.5rem;
     font-family: var(--font-sans);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     color: var(--text-muted);
     line-height: 1.45;
 }
@@ -113,7 +113,7 @@
 
 .list-controls-label {
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     color: var(--text-faint);
 }
 
@@ -127,7 +127,7 @@
 
 .list-count-btn {
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     background: none;
     border: 1px solid var(--border);
@@ -184,7 +184,7 @@
 
 .item-card-kind {
     font-family: var(--font-sans);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
@@ -257,7 +257,7 @@
 
 .item-card-title {
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: var(--step-0);
     color: var(--text);
     text-decoration: none;
     line-height: 1.35;
@@ -287,14 +287,14 @@
 /* Separator between date and marker — same role as .see-also-dash. */
 .item-card-dateline-sep {
     color: var(--text-faint);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     user-select: none;
 }
 
 
 .item-card-date {
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
     white-space: nowrap;
     flex-shrink: 0;
@@ -310,7 +310,7 @@
    affordance saying it holds more. */
 .item-card-revised {
     font-family: var(--font-sans);
-    font-size: 0.68rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
@@ -376,7 +376,7 @@
    thrown away — only relocated. */
 .item-card-revision-note {
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-faint);
     line-height: 1.4;
     position: absolute;
@@ -472,7 +472,7 @@
     .item-card-kind {
         min-width: 0;
         margin-top: 0;
-        font-size: 0.62rem;
+        font-size: var(--step--4);
     }
 
 
@@ -484,7 +484,7 @@
 
 
     .item-card-title {
-        font-size: 0.95rem;
+        font-size: var(--step-0);
         overflow-wrap: anywhere;
     }
 
@@ -499,7 +499,7 @@
 
 
     .item-card-date {
-        font-size: 0.68rem;
+        font-size: var(--step--3);
     }
 
 

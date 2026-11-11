@@ -83,7 +83,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     box-shadow: var(--shadow-bubble);
     padding: 0.45rem 0.6rem;
     font-family: var(--font-sans);
-    font-size: 0.73rem;
+    font-size: var(--step--3);
     line-height: 1.45;
 
     opacity: 0;
@@ -127,7 +127,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
 
 .ann-tooltip-date {
     opacity: 0.55;
-    font-size: 0.68rem;
+    font-size: var(--step--3);
 }
 
 
@@ -139,7 +139,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     opacity: 0.65;
     cursor: pointer;
     font-family: var(--font-sans);
-    font-size: 0.7rem;
+    font-size: var(--step--3);
     padding: 0;
     line-height: 1;
     transition: opacity calc(0.1s * var(--motion-scale)) ease;
@@ -169,7 +169,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
     padding: 0.55rem 0.6rem;
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     width: 13rem;
 
     opacity: 0;
@@ -247,7 +247,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     border-radius: var(--radius-md);
     color: inherit;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     padding: 0.28rem 0.4rem;
     margin-bottom: 0.45rem;
     outline: none;
@@ -269,7 +269,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
 .ann-picker-error {
     margin: 0.4rem 0 0;
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    font-size: var(--step--2);
     color: var(--danger);
 }
 
@@ -288,7 +288,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     border-radius: var(--radius-md);
     color: inherit;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     padding: 0.22rem 0.55rem;
     cursor: pointer;
     line-height: 1.4;

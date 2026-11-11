@@ -78,7 +78,7 @@
     border: none;
     color: var(--bg);
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-medium);
     letter-spacing: calc(0.025em * var(--tracking-scale));
     padding: 0.38rem 0.6rem;

@@ -192,7 +192,7 @@
    roman, quieter than the title, ahead of the scoring line. */
 #markdownBody.composition .comp-opus {
     margin: 0.45rem 0 0;
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     line-height: 1.35;
     color: var(--text-muted);
     font-variant-numeric: lining-nums;
@@ -208,7 +208,7 @@
 
 #markdownBody.composition .comp-forces {
     margin: 0.5rem 0 0;
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     font-style: italic;
     line-height: 1.35;
     color: var(--text-muted);
@@ -225,7 +225,7 @@
 
 .comp-composer {
     display: block;
-    font-size: 1.2rem;
+    font-size: var(--step-2);
     font-variant-caps: small-caps;
     letter-spacing: calc(0.045em * var(--tracking-scale));
 }
@@ -256,7 +256,7 @@
 .comp-abstract {
     margin-top: 1.75rem;
     max-width: 30rem;
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     line-height: 1.55;
 }
 
@@ -269,7 +269,7 @@
     grid-template-columns: max-content 1fr;
     gap: 0.2rem 1.1rem;
     margin: 1.75rem 0 0;
-    font-size: 1rem;
+    font-size: var(--step-0);
     line-height: 1.5;
 }
 
@@ -312,7 +312,7 @@
     display: inline-block;
     padding: 0.5em 1.25em 0.55em;
     border: 1px solid var(--text);
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     color: var(--text);
     text-decoration: none;
     transition: background var(--transition-fast), color var(--transition-fast);
@@ -335,7 +335,7 @@
 
 
 .comp-pdf {
-    font-size: 1rem;
+    font-size: var(--step-0);
     font-style: italic;
     color: var(--text-muted);
 }
@@ -407,7 +407,7 @@ a.comp-mvt-row:visited {
     text-align: right;
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
-    font-size: 1.1rem;
+    font-size: var(--step-1);
     color: var(--text-muted);
 }
 
@@ -419,7 +419,7 @@ a.comp-mvt-row:visited {
     align-items: baseline;
     gap: 0 0.7rem;
     min-width: 0;
-    font-size: 1.1rem;
+    font-size: var(--step-1);
 }
 
 
@@ -463,7 +463,7 @@ a.comp-mvt-row:visited {
 
 
 .comp-mvt-status {
-    font-size: 1rem;
+    font-size: var(--step-0);
     font-style: italic;
     color: var(--text-muted);
     white-space: nowrap;
@@ -472,7 +472,7 @@ a.comp-mvt-row:visited {
 
 
 .comp-mvt-dur {
-    font-size: 1.1rem;
+    font-size: var(--step-1);
     font-variant-numeric: lining-nums;
     white-space: nowrap;
 }
@@ -523,7 +523,7 @@ a.comp-mvt-row:focus-visible .comp-mvt-leader {
 #markdownBody.composition .comp-scoring-heading {
     margin: 0 0 1.25rem;
     font-family: var(--font-serif);
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     font-style: italic;
     font-weight: var(--weight-regular);
     text-align: center;
@@ -539,7 +539,7 @@ a.comp-mvt-row:focus-visible .comp-mvt-leader {
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: 1.02rem;
+    font-size: var(--step-0);
     line-height: 1.6;
     text-align: center;
     text-wrap: balance;

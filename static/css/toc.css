@@ -8,7 +8,7 @@
 
 #toc {
     font-family: var(--font-sans);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     line-height: 1.5;
     padding-right: 1.5rem;
     padding-left: 0.5rem;
@@ -51,7 +51,7 @@
 
 /* Current section label */
 .toc-active-label {
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
@@ -75,7 +75,7 @@
     border: none;
     cursor: pointer;
     color: var(--text-faint);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     padding: 0;
     line-height: 1;
     flex-shrink: 0;
@@ -156,10 +156,15 @@
 }
 
 
+/* Each entry at least 24px high (WCAG 2.5.8): at the smallest text size
+   a subsection's line comes to about 21px, and stacked entries stand
+   closer than a fingertip. From the default size up an entry is taller
+   already, and nothing changes. */
 .toc-nav a {
     text-decoration: none;
     color: var(--text-faint);
     display: block;
+    min-height: 24px;
     padding: 0.1rem 0;
     transition: color var(--transition-fast);
 }
@@ -190,6 +195,6 @@
 /* h3-level links indented and smaller */
 .toc-nav > ol > li > ol > li > a {
     padding-left: 0.75rem;
-    font-size: 0.74rem;
+    font-size: var(--step--3);
 }
 }

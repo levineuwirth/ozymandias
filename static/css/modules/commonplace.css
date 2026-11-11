@@ -20,7 +20,7 @@
 
 .cp-toggle-btn {
     font-family: var(--font-ui);
-    font-size: 0.73rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
     padding: 0.2rem 0.7rem;
@@ -48,7 +48,7 @@
 
 .cp-theme-heading {
     font-family: var(--font-ui);
-    font-size: 0.73rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.1em * var(--tracking-scale));
     color: var(--text-muted);
@@ -99,7 +99,7 @@
 
 .cp-attribution {
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     margin: 0;
 }
@@ -123,7 +123,7 @@
 
 .cp-commentary {
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     font-style: italic;
     margin: 0.7rem 0 0;
@@ -142,7 +142,7 @@
 
 .cp-tag {
     font-family: var(--font-ui);
-    font-size: 0.67rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);

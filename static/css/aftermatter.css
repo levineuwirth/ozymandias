@@ -77,14 +77,14 @@
 
 
 .aftermatter h2 {
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border-muted);
 }
 
 
 .aftermatter h3 {
-    font-size: 1.05rem;
+    font-size: var(--step-0);
 }
 
 
@@ -115,7 +115,7 @@
 .page-meta-footer {
     padding: 1.5rem var(--page-padding) 2rem;
     font-family: var(--font-sans);
-    font-size: 0.82rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     display: flex;
     flex-direction: column;
@@ -134,7 +134,7 @@
 /* Shared heading style for full-width section headings */
 .meta-footer-full > h3,
 .meta-footer-section h3 {
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
@@ -167,7 +167,7 @@
 .meta-footer-section p,
 .meta-footer-section ul {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     line-height: 1.5;
 }
@@ -197,7 +197,7 @@
    secondary-row headings (which stay at 0.78rem) because Backlinks
    is now a primary aftermatter section. */
 .meta-footer-backlinks > h3 {
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     letter-spacing: calc(0.09em * var(--tracking-scale));
     margin-bottom: 1rem;
 }
@@ -227,7 +227,7 @@
 .backlink-source {
     display: inline-block;
     font-family: var(--font-serif);
-    font-size: 1.32rem;
+    font-size: var(--step-2);
     font-variant: normal;
     font-weight: var(--weight-medium);
     letter-spacing: 0;
@@ -253,7 +253,7 @@
     padding: 0 0 0 1rem;
     border-left: 2px solid var(--border-muted);
     font-family: var(--font-serif);
-    font-size: 1.12rem;
+    font-size: var(--step-1);
     font-style: italic;
     line-height: 1.55;
     color: var(--text-muted);
@@ -297,7 +297,7 @@
     padding: 0;
     line-height: 1;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     color: var(--text-faint);
     cursor: help;
     display: inline-flex;
@@ -331,7 +331,7 @@
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
     font-family: var(--font-serif);
     font-style: normal;
-    font-size: 0.88rem;
+    font-size: var(--step--1);
     line-height: 1.55;
     color: var(--text-muted);
     text-align: left;
@@ -368,7 +368,7 @@
     list-style: none;
     cursor: pointer;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
@@ -409,7 +409,7 @@
    ============================================================ */
 
 .meta-footer-similar > h3 {
-    font-size: 1.05rem;
+    font-size: var(--step-0);
     letter-spacing: calc(0.09em * var(--tracking-scale));
     margin-bottom: 1rem;
 }
@@ -432,7 +432,7 @@
 
 .meta-footer-similar .similar-links-item a {
     font-family: var(--font-serif);
-    font-size: 1.18rem;
+    font-size: var(--step-1);
     font-weight: var(--weight-medium);
     color: var(--text);
     text-decoration: none;
@@ -465,7 +465,7 @@
     list-style: none;
     cursor: pointer;
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
@@ -546,7 +546,7 @@
 /* Number badge preceding each entry */
 .ref-num {
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-weight: var(--weight-semibold);
     color: var(--text-faint);
     margin-right: 0.4em;
@@ -555,10 +555,13 @@
 
 
 /* Each bibliography entry */
+/* break-word splits only a word longer than a line (a title's, at a
+   phone's width and the largest text size); others wrap as before. */
 .csl-bib-body .csl-entry {
-    font-size: 0.95rem;
+    font-size: var(--step-0);
     color: var(--text-muted);
     line-height: 1.6;
+    overflow-wrap: break-word;
     margin-bottom: 0.6rem;
     padding-left: 1.6em;
     text-indent: -1.6em;

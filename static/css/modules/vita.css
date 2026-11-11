@@ -39,7 +39,7 @@
 
 #markdownBody .vita-intro h2 {
     font-family: var(--font-serif);
-    font-size: 1.15rem;
+    font-size: var(--step-1);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.09em * var(--tracking-scale));
@@ -76,7 +76,7 @@
 
 #markdownBody .vita-section-heading {
     font-family: var(--font-serif);
-    font-size: 1.15rem;
+    font-size: var(--step-1);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.09em * var(--tracking-scale));
@@ -114,7 +114,7 @@
    outline purposes, not section openers. */
 #markdownBody .vita-entry-title {
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: var(--step-0);
     font-weight: var(--weight-semibold);
     line-height: 1.35;
     color: var(--text);
@@ -141,7 +141,7 @@
    read as emphasis on a line that is only labelling. */
 #markdownBody .vita-role {
     font-family: var(--font-serif);
-    font-size: 0.92rem;
+    font-size: var(--step--1);
     color: var(--text-muted);
     margin: 0.1rem 0 0;
     line-height: 1.45;
@@ -153,7 +153,7 @@
 #markdownBody .vita-quiet {
     color: var(--text-faint);
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
 }
 
 
@@ -177,7 +177,7 @@
    material — sans, small, muted, tight. */
 #markdownBody .vita-authors {
     font-family: var(--font-sans);
-    font-size: 0.78rem;
+    font-size: var(--step--2);
     color: var(--text-muted);
     margin: 0.25rem 0 0;
     line-height: 1.45;
@@ -194,7 +194,7 @@
    where it belongs. */
 #markdownBody .vita-venue {
     font-family: var(--font-serif);
-    font-size: 0.9rem;
+    font-size: var(--step--1);
     color: var(--text-muted);
     margin: 0.1rem 0 0;
     line-height: 1.45;
@@ -211,7 +211,7 @@
    here would compete with the link chips below it. */
 #markdownBody .vita-status {
     font-family: var(--font-sans);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant: all-small-caps;
     letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
@@ -284,7 +284,7 @@
 #markdownBody .vita-chip {
     display: inline-block;
     font-family: var(--font-sans);
-    font-size: 0.66rem;
+    font-size: var(--step--4);
     font-variant: all-small-caps;
     letter-spacing: calc(0.08em * var(--tracking-scale));
     line-height: 1;
@@ -317,7 +317,7 @@
    any one entry, so it sits below the list in the faintest register. */
 #markdownBody .vita-footnote {
     font-family: var(--font-serif);
-    font-size: 0.85rem;
+    font-size: var(--step--1);
     font-style: italic;
     color: var(--text-faint);
     margin: 0.8rem 0 0;
@@ -333,19 +333,19 @@
 
 @media (max-width: 540px) {
     #markdownBody .vita-entry-title {
-        font-size: 0.95rem;
+        font-size: var(--step-0);
         overflow-wrap: anywhere;
     }
 
 
     #markdownBody .vita-role,
     #markdownBody .vita-venue {
-        font-size: 0.88rem;
+        font-size: var(--step--1);
     }
 
 
     #markdownBody .vita-chip {
-        font-size: 0.62rem;
+        font-size: var(--step--4);
         padding: 0.28em 0.45em 0.24em;
     }}
 

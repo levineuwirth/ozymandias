@@ -1,10 +1,11 @@
 """The engine's style values are tokens (B2).
 
-tokens.css declares the font weights, corner radii, the shadows used more
-than once, two dials (--tracking-scale, --motion-scale) and the default
-text size, and lists the breakpoints; the rest of the engine's CSS asks for
-them. Here: no literal that a token holds; every letter spacing and every
-time scaled by its dial; every token asked for declared; every width query
+tokens.css declares the type scale, font weights, corner radii, the
+shadows used more than once, two dials (--tracking-scale, --motion-scale)
+and the default text size, and lists the breakpoints; the rest of the
+engine's CSS asks for them. Here: every rem font size a step of the scale;
+no literal that a token holds; every letter spacing and every time scaled
+by its dial; every token asked for declared; every width query
 in the breakpoint table and every row of the table in use; the default text
 size set once, in px, which utils.js reads rather than repeats. A site
 checks its own sheets with text_size_overrides(root)."""
@@ -21,7 +22,10 @@ DECL = re.compile(
     r"|box-shadow|transition(?:-duration|-delay)?|animation(?:-duration|-delay)?)"
     r"\s*:\s*([^;{}]*?)\s*(?=;|\})", re.S)
 TOKEN_DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;{}]*?)\s*;", re.S)
-TOKEN_USE = re.compile(r"var\((--(?:weight|radius|shadow|transition|text-size)[\w-]*|--tracking-scale|--motion-scale)\b")
+TOKEN_USE = re.compile(r"var\((--(?:weight|radius|shadow|transition|text-size|step)[\w-]*"
+                       r"|--tracking-scale|--motion-scale|--type-ratio)\b")
+FONT_SIZE = re.compile(r"(?<![\w-])font-size\s*:\s*([^;{}]*?)\s*(?=;|\})", re.S)
+REM = re.compile(r"(?<![\w.-])\d*\.?\d+rem\b")
 TIME = re.compile(r"(?<![\w.-])(\d*\.?\d+)(ms|s)\b")
 SCALED_TIME = re.compile(r"calc\((?:var\(--[\w-]+,\s*)?\d*\.?\d+m?s\)? \* var\(--motion-scale\)\)")
 SCALED_TRACKING = re.compile(r"calc\(-?\d*\.?\d+em \* var\(--tracking-scale\)\)")
@@ -95,6 +99,28 @@ def text_size_overrides(root: Path) -> list[str]:
 
 
 class Tokens(unittest.TestCase):
+    def test_rem_font_sizes_are_steps_of_the_scale(self):
+        """A rem size in a font-size is a step (var(--step-N)); em sizes
+        (relative to their surroundings), print's pt and the fluid
+        clamp() display titles are left as they are."""
+        bad = [(rel, " ".join(v.split())) for rel, text in sheets(engine_path("")).items()
+               if rel != "static/css/tokens.css"
+               for v in FONT_SIZE.findall(text)
+               if REM.search(v) and not v.strip().startswith("clamp(")]
+        self.assertEqual(bad, [])
+
+    def test_the_scale_is_one_ratio_from_one_rem(self):
+        values = tokens()
+        self.assertRegex(values.get("--type-ratio", ""), r"^\d*\.?\d+$")
+        self.assertEqual(values.get("--step-0"), "1rem")
+        steps = sorted(int(n[len("--step-"):]) for n in values if n.startswith("--step-"))
+        self.assertEqual(steps, list(range(steps[0], steps[-1] + 1)), "a gap in the scale")
+        for n in steps:
+            if n:
+                near = f"--step-{n - 1 if n > 0 else n + 1}"
+                op = "*" if n > 0 else "/"
+                self.assertEqual(values[f"--step-{n}"], f"calc(var({near}) {op} var(--type-ratio))")
+
     def test_weights_are_tokens(self):
         bad = [(f, v) for f, p, v in declarations()
                if p == "font-weight" and not re.fullmatch(r"var\(--weight-[a-z]+\)( !important)?|inherit|normal", v)]

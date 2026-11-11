@@ -43,7 +43,7 @@
 .music-abstract {
     max-width: 34rem;
     margin-top: 0.6rem;
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     font-style: italic;
     line-height: 1.4;
     color: var(--text-muted);
@@ -181,7 +181,7 @@
 
 .shelf-spine-year {
     font-family: var(--font-serif);
-    font-size: 0.72rem;
+    font-size: var(--step--3);
     font-variant-numeric: oldstyle-nums;
     letter-spacing: calc(0.03em * var(--tracking-scale));
     opacity: var(--shelf-detail-opacity);
@@ -291,7 +291,7 @@
 
 
 .shelf-caption-title {
-    font-size: 1.05rem;
+    font-size: var(--step-0);
 }
 
 
@@ -303,7 +303,7 @@
 
 
 .shelf-caption-meta {
-    font-size: 0.98rem;
+    font-size: var(--step-0);
     font-style: italic;
     color: var(--text-muted);
 }
@@ -346,7 +346,7 @@
 #markdownBody.music-index .cat-section-title {
     margin: 0 0 1rem;
     font-family: var(--font-serif);
-    font-size: 1.3rem;
+    font-size: var(--step-2);
     font-style: italic;
     font-weight: var(--weight-regular);
     text-align: center;
@@ -384,7 +384,7 @@ a.cat-work-row:visited {
 
 
 .cat-work-year {
-    font-size: 1rem;
+    font-size: var(--step-0);
     font-variant-numeric: oldstyle-nums;
     color: var(--text-muted);
 }
@@ -393,7 +393,7 @@ a.cat-work-row:visited {
 
 .cat-work-title {
     min-width: 0;
-    font-size: 1.2rem;
+    font-size: var(--step-2);
 }
 
 
@@ -414,7 +414,7 @@ a.cat-work-row:visited {
 
 
 .cat-work-dur {
-    font-size: 1.1rem;
+    font-size: var(--step-1);
     font-variant-numeric: lining-nums;   /* see composition.css */
     white-space: nowrap;
 }
@@ -423,7 +423,7 @@ a.cat-work-row:visited {
 
 .cat-work-forces {
     grid-column: 2 / -1;
-    font-size: 1rem;
+    font-size: var(--step-0);
     font-style: italic;
     color: var(--text-muted);
 }
