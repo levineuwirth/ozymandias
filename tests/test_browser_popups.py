@@ -79,6 +79,9 @@ ROUTES = {
     "youtube":         r"^https://www\.youtube\.com/oembed\?",
     "archive":         r"/proxy/archive/metadata/",
     "pubmed":          r"/proxy/pubmed/entrez/eutils/esummary\.fcgi\?",
+    "mtgwiki":         r"^https://mtg\.wiki/api\.php\?",
+    "scryfall":        r"^https://api\.scryfall\.com/cards/",
+    "scryfall-image":  r"^https://cards\.scryfall\.io/",
     "annotations":     r"/data/annotations\.json$",
     "fixture-source":  r"/source/__fixture/increment\.py$",
 }
@@ -115,6 +118,14 @@ ANSWERS = {
     "pubmed": answer({"result": {"uids": ["12345678"], "12345678": {
         "title": "A PubMed Paper", "authors": [{"name": "Smith J"}],
         "fulljournalname": "Journal of Medicine", "pubdate": "2020 Jan"}}}),
+    "mtgwiki": answer({"query": {"pages": {"42": {
+        "title": "Landfall", "extract": "Landfall is an ability word."}}}}),
+    "scryfall": answer({"object": "card", "name": "Scute Swarm", "mana_cost": "{2}{G}",
+                        "type_line": "Creature — Insect", "power": "1", "toughness": "1",
+                        "oracle_text": "Landfall — Whenever a land you control enters, create a token.",
+                        "set_name": "Zendikar Rising", "collector_number": "203",
+                        "image_uris": {"normal": "https://cards.scryfall.io/normal/front/scute-swarm.png"}}),
+    "scryfall-image": answer(PNG, "image/png"),
     "annotations": answer({"https://example.org/annotated": {
         "title": "Annotated link", "annotation": "The author's own note."}}),
     "fixture-source": answer("def increment(x):\n    return x + 1\n", "text/plain"),
@@ -144,6 +155,10 @@ PROVIDERS = {
                      (".popup-authors", "Someone, 1999")),
     "pubmed":       ("pubmed", "popup-pubmed", "A PubMed Paper",
                      (".popup-meta", "Journal of Medicine, 2020")),
+    "mtgwiki":      ("mtgwiki", "popup-mtgwiki", "Landfall",
+                     (".popup-extract", "Landfall is an ability word.")),
+    "scryfall":     ("scryfall", "popup-scryfall", "Scute Swarm",
+                     (".popup-extract", "Landfall — Whenever a land you control enters, create a token.")),
     "annotated":    ("annotations", "popup-annotation", "Annotated link",
                      (".popup-abstract", "The author's own note.")),
 }
@@ -162,6 +177,9 @@ REQUESTS = {
     "youtube":      lambda r: query(r)["url"] == ["https://www.youtube.com/watch?v=abc123"],
     "archive":      lambda r: urlsplit(r.url).path == "/proxy/archive/metadata/someitem",
     "pubmed":       lambda r: query(r)["id"] == ["12345678"],
+    "mtgwiki":      lambda r: query(r)["titles"] == ["Landfall"] and query(r)["origin"] == ["*"],
+    "scryfall":     lambda r: (urlsplit(r.url).path == "/cards/znr/203" and
+                               r.headers.get("accept") == "application/json"),
 }
 
 PAGE = """<!doctype html>
@@ -185,6 +203,8 @@ PAGE = """<!doctype html>
 <p><a id="youtube" href="https://www.youtube.com/watch?v=abc123">YouTube</a></p>
 <p><a id="archive" href="https://archive.org/details/someitem">Internet Archive</a></p>
 <p><a id="pubmed" href="https://pubmed.ncbi.nlm.nih.gov/12345678/">PubMed</a></p>
+<p><a id="mtgwiki" href="https://mtg.wiki/page/Landfall">MTG Wiki</a></p>
+<p><a id="scryfall" href="https://scryfall.com/card/znr/203/scute-swarm">Scryfall</a></p>
 <p><a id="annotated" href="https://example.org/annotated">annotated</a></p>
 <p><a id="forge" href="https://git.example.org/owner/repo">Forgejo</a></p>
 <p><a id="alone" href="/__fixture/author-alone.html">authors named alone</a></p>
@@ -360,6 +380,11 @@ class LinkPopups(unittest.TestCase):
                 banner = self.shown(page, "wikipedia").locator("img.popup-image-banner")
                 self.expect(banner).to_have_attribute("src", re.compile(r"^https://upload\."))
                 self.assertTrue(banner.evaluate("i => i.complete && i.naturalWidth > 0"))
+            with self.subTest(browser=browser, link="scryfall", part="card image"):
+                card = self.shown(page, "scryfall").locator("img.popup-image-banner.is-card")
+                self.expect(card).to_have_attribute("src", re.compile(r"^https://cards\.scryfall\.io/"))
+                self.expect(card).to_have_js_property("complete", True)
+                self.assertGreater(card.evaluate("i => i.naturalWidth"), 0)
             with self.subTest(browser=browser, part="annotations replace providers"):
                 self.assertEqual(net.hits["annotations"], 1)
                 self.assertEqual([u for u in net.unexpected if "example.org" in u], [])
