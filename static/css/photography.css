@@ -101,7 +101,7 @@
 
 .photo-series-stats dt {
     font-variant: all-small-caps;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-faint);
 }
 
@@ -202,10 +202,10 @@
 
 
 .photo-meta dt {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     color: var(--text-muted);
     text-transform: lowercase;
-    letter-spacing: 0.02em;
+    letter-spacing: calc(0.02em * var(--tracking-scale));
 }
 
 
@@ -229,7 +229,7 @@
 .photo-external-links .meta-label {
     margin-right: 0.5rem;
     text-transform: lowercase;
-    letter-spacing: 0.02em;
+    letter-spacing: calc(0.02em * var(--tracking-scale));
 }
 
 
@@ -314,13 +314,13 @@
     padding: 0.3rem 0.75rem;
     background: none;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     color: var(--text-faint);
     cursor: pointer;
     font-family: var(--font-sans);
     font-size: 0.7rem;
     font-variant: all-small-caps;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     line-height: 1.6;
     text-decoration: none;
     transition:
@@ -340,7 +340,7 @@
 .photography-controls .mode-btn[aria-current] {
     color: var(--text);
     border-color: var(--text-muted);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -451,7 +451,7 @@
     );
     opacity: 0;
     transform: translateY(0.35rem);
-    transition: opacity 140ms ease, transform 140ms ease;
+    transition: opacity calc(140ms * var(--motion-scale)) ease, transform calc(140ms * var(--motion-scale)) ease;
     pointer-events: none;
 }
 
@@ -465,7 +465,7 @@
 
 
 .photography-grid[data-photography-mode="grid"] .photo-card-title {
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     line-height: 1.25;
     /* Two lines maximum: a long title must not grow a scrim tall enough to
      * cover the frame it is describing. */
@@ -567,7 +567,7 @@
 
 
 .photo-card-title {
-    font-weight: 500;
+    font-weight: var(--weight-medium);
 }
 
 
@@ -601,7 +601,7 @@
             rgba(0, 0, 0, 0) 35%,
             rgba(0, 0, 0, 0.55) 100%
         );
-    transition: opacity 200ms ease;
+    transition: opacity calc(200ms * var(--motion-scale)) ease;
 }
 
 
@@ -644,7 +644,7 @@
     color: rgba(255, 255, 255, 0.8);
     font-size: 1rem;
     cursor: pointer;
-    transition: background 120ms ease, border-color 120ms ease;
+    transition: background calc(120ms * var(--motion-scale)) ease, border-color calc(120ms * var(--motion-scale)) ease;
 }
 
 
@@ -667,7 +667,7 @@
     background: rgba(0, 0, 0, 0.85);
     color: rgba(255, 255, 255, 0.85);
     border-top: 1px solid rgba(255, 255, 255, 0.12);
-    transition: transform 220ms ease;
+    transition: transform calc(220ms * var(--motion-scale)) ease;
     pointer-events: none;
 }
 
@@ -688,10 +688,10 @@
 
 
 .lightbox-info-panel dt {
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     color: rgba(255, 255, 255, 0.55);
     text-transform: lowercase;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
 }
 
 
@@ -754,7 +754,7 @@
 .photography-map-note code {
     background: var(--bg-muted);
     padding: 0 0.3em;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     font-size: 0.9em;
 }
 
@@ -768,7 +768,7 @@
     background: var(--bg);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     font-family: inherit;
@@ -799,7 +799,7 @@
 
 .photography-map-tooltip-title {
     padding: 0.4rem 0.6rem 0.1rem;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     line-height: 1.2;
 }
 
@@ -854,7 +854,7 @@
     border-bottom: 1px solid var(--border-muted);
     text-decoration: none;
     color: inherit;
-    transition: color 120ms ease;
+    transition: color calc(120ms * var(--motion-scale)) ease;
 }
 
 
@@ -873,7 +873,7 @@
     color: var(--text-muted);
     font-size: 0.85em;
     text-transform: lowercase;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
 }
 
 
@@ -919,7 +919,7 @@
     background: #f5f3ee;
     padding: 0.5rem 0.5rem 0.4rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    transition: transform 120ms ease;
+    transition: transform calc(120ms * var(--motion-scale)) ease;
 }
 
 
@@ -955,7 +955,7 @@
     font-family: var(--font-mono, monospace);
     font-size: 0.75em;
     color: rgba(245, 243, 238, 0.55);
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
 }
 
 
@@ -1083,13 +1083,13 @@ body.slideshow-open {
 .slideshow-btn {
     background: none;
     border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     line-height: 1;
     padding: 0.4rem 0.7rem;
     cursor: pointer;
-    transition: color 120ms ease, border-color 120ms ease;
+    transition: color calc(120ms * var(--motion-scale)) ease, border-color calc(120ms * var(--motion-scale)) ease;
 }
 
 
@@ -1120,7 +1120,7 @@ body.slideshow-open {
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
 }
 
 

@@ -17,7 +17,7 @@
     background-color: var(--text-faint);
     z-index: 200;
     pointer-events: none;
-    transition: width 0.08s linear;
+    transition: width calc(0.08s * var(--motion-scale)) linear;
 }
 
 
@@ -87,9 +87,9 @@ body.reading-mode.fiction .page-shell > #markdownBody h2 {
     text-align: center;
     font-family: var(--font-sans);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant: small-caps;
-    letter-spacing: 0.12em;
+    letter-spacing: calc(0.12em * var(--tracking-scale));
     text-transform: lowercase;
     color: var(--text-muted);
     margin: 3.5rem 0 2.5rem;
@@ -111,7 +111,7 @@ body.reading-mode.fiction .page-shell > #markdownBody h2 + p::first-letter {
 /* Smallcaps lead-in for chapter-opening lines */
 body.reading-mode.fiction .page-shell > #markdownBody h2 + p::first-line {
     font-variant-caps: small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
 }
 
 

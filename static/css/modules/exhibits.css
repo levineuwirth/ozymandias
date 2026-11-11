@@ -38,7 +38,7 @@
     line-height: 1;
     color: var(--text-faint);
     padding: 0.2rem 0.35rem;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     pointer-events: none; /* click handled by wrapper */
     opacity: 0;
     transition: opacity var(--transition-fast);
@@ -60,7 +60,7 @@
     transform: translateX(-50%);
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
     padding: 0.3rem 0.65rem;
     font-family: var(--font-sans);
@@ -102,7 +102,7 @@
 
 .exhibit--proof .exhibit-header-label {
     font-style: italic;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     color: var(--text);
     flex-shrink: 0;
 }
@@ -194,9 +194,9 @@
     transform: translateX(-50%);
     font-family: var(--font-sans);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     color: rgba(255, 255, 255, 0.5);
     white-space: nowrap;
     pointer-events: none;
@@ -465,9 +465,9 @@
     cursor: pointer;
     font-family: var(--font-sans);
     font-size: 0.69rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     padding: 0;
     line-height: 1.5;
@@ -485,7 +485,7 @@
 .toc-contained-arrow {
     font-size: 0.55rem;
     display: inline-block;
-    transition: transform 0.15s ease;
+    transition: transform var(--transition-fast);
     flex-shrink: 0;
 }
 
@@ -532,7 +532,7 @@
 .toc-exhibit-type-badge {
     font-size: 0.6rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-faint);
     flex-shrink: 0;
 }

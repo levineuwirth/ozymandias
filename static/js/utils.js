@@ -65,10 +65,21 @@
 
     /* The reader's text size (the settings panel; theme.js restores it
        before the first paint): seven sizes, 17 to 29px in steps of 2,
-       around base.css's 23px. Stored as px, and only when not the
-       default; a stored 0, 1 or 2 is the earlier three-size scale
-       (20/23/26px), read as those sizes. Anything else is no choice. */
-    ozyUtils.TEXT_SIZE = { min: 17, max: 29, step: 2, base: 23, legacy: [20, 23, 26] };
+       around the default. Stored as px, and only when not the default;
+       a stored 0, 1 or 2 is the earlier three-size scale (20/23/26px),
+       read as those sizes. Anything else is no choice. */
+    ozyUtils.TEXT_SIZE = {
+        min: 17, max: 29, step: 2, legacy: [20, 23, 26],
+        /* The default is the stylesheet's, tokens.css's --text-size-default
+           (a site's theme.css may change it), read when asked: settings.js
+           asks after the stylesheets have loaded. Without one, the middle
+           of the range. */
+        get base() {
+            var px = parseFloat(getComputedStyle(document.documentElement)
+                .getPropertyValue('--text-size-default'));
+            return px > 0 ? px : (this.min + this.max) / 2;
+        }
+    };
 
     ozyUtils.storedTextSize = function () {
         var T   = ozyUtils.TEXT_SIZE;

@@ -33,7 +33,7 @@
     border-bottom: 1px solid var(--border);
     font-family: var(--font-sans);
     font-size: 0.825rem;
-    transition: opacity 0.4s ease, transform 0.4s ease;
+    transition: opacity calc(0.4s * var(--motion-scale)) ease, transform calc(0.4s * var(--motion-scale)) ease;
 }
 
 
@@ -90,8 +90,8 @@
     padding: 0.2rem 0.5rem;
     cursor: pointer;
     white-space: nowrap;
-    border-radius: 3px;
-    transition: background 0.15s, color 0.15s;
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .score-reader-mvt:hover,
@@ -116,7 +116,7 @@
     display: flex;
     align-items: center;
     border: 1px solid var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -130,7 +130,7 @@
     line-height: 1;
     padding: 0.35rem 0.5rem;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .score-reader-zoom-btn + .score-reader-zoom-btn {
@@ -151,7 +151,7 @@
 .score-reader-zoom-mode {
     min-width: 3.6em;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     font-variant-numeric: tabular-nums;
 }
 
@@ -290,7 +290,7 @@
 
 .score-page.is-loading {
     opacity: 0.35;
-    transition: opacity 0.2s ease 0.15s;
+    transition: opacity calc(0.2s * var(--motion-scale)) ease calc(0.15s * var(--motion-scale));
 }
 
 
@@ -328,7 +328,7 @@
     color: var(--text-muted);
     font-size: 1.15rem;
     cursor: pointer;
-    transition: color 0.15s, border-color 0.15s, opacity 0.4s ease;
+    transition: color var(--transition-fast), border-color var(--transition-fast), opacity calc(0.4s * var(--motion-scale)) ease;
 }
 
 .score-reader-nav:hover:not(:disabled) {
@@ -359,10 +359,10 @@
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     pointer-events: none;
-    transition: opacity 0.4s ease;
+    transition: opacity calc(0.4s * var(--motion-scale)) ease;
 }
 
 
@@ -391,7 +391,7 @@
     pointer-events: none;
 
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--transition-fast);
 }
 
 .score-gutter.is-visible { opacity: 1; }
@@ -417,7 +417,7 @@
 .is-panning .score-folio {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 0.1rem 0.55rem;
 }
 
@@ -526,7 +526,7 @@
     background: var(--bg);
     color: var(--text);
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 
@@ -613,10 +613,10 @@
 
 
 .score-follow-layer[data-style="bar"] .score-follow-mark {
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--text) 7%, transparent);
     box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--text) 40%, transparent);
-    transition: left 0.12s ease, top 0.12s ease, width 0.12s ease, height 0.12s ease;
+    transition: left calc(0.12s * var(--motion-scale)) ease, top calc(0.12s * var(--motion-scale)) ease, width calc(0.12s * var(--motion-scale)) ease, height calc(0.12s * var(--motion-scale)) ease;
 }
 
 

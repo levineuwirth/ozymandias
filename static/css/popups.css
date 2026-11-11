@@ -27,7 +27,7 @@
     padding: 0.7rem 0.9rem;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     box-shadow: 0 3px 14px rgba(0, 0, 0, 0.09);
     font-family: var(--font-sans);
     font-size: 0.8rem;
@@ -37,7 +37,7 @@
 
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.14s ease, visibility 0.14s ease;
+    transition: opacity calc(0.14s * var(--motion-scale)) ease, visibility calc(0.14s * var(--motion-scale)) ease;
 }
 
 
@@ -122,7 +122,7 @@
 
 
 .popup-title {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     color: var(--text);
     font-size: 0.82rem;
     margin-bottom: 0.3rem;
@@ -145,7 +145,7 @@
     max-height: 220px;
     object-fit: cover;
     object-position: center 30%;
-    border-radius: 5px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--border-muted);
     margin: 0.4rem 0 0.55rem;
 }
@@ -181,9 +181,9 @@
     align-items: center;
     gap: 0.3em;
     font-size: 0.65rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     margin-bottom: 0.25rem;
 }
@@ -322,7 +322,7 @@
 
 
 .popup-citation .ref-num {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     color: var(--text-faint);
     margin-right: 0.35em;
     font-variant-numeric: tabular-nums;
@@ -514,7 +514,7 @@
     border-top: 1px solid var(--border);
     font-size: 0.65rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     background: var(--bg);
 }
@@ -622,7 +622,7 @@
 
 .popup-md th {
     color: var(--text);
-    font-weight: 500;
+    font-weight: var(--weight-medium);
 }
 
 
@@ -796,7 +796,7 @@ a.source-ref code {
     margin-top: 0.15rem;
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-faint);
 }
 

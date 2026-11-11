@@ -47,15 +47,15 @@
     color: var(--text-faint);
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     -webkit-appearance: none;
     appearance: none;
 
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.12s ease, color 0.12s ease,
-                border-color 0.12s ease, background-color 0.12s ease;
+    transition: opacity calc(0.12s * var(--motion-scale)) ease, color calc(0.12s * var(--motion-scale)) ease,
+                border-color calc(0.12s * var(--motion-scale)) ease, background-color calc(0.12s * var(--motion-scale)) ease;
 }
 
 

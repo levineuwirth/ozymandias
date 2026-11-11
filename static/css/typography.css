@@ -45,7 +45,7 @@
 /* 2. Magazine-style Lead-in (Small caps for the rest of the first line) */
 #markdownBody > p:first-of-type::first-line {
     font-variant-caps: small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text);
 }
 
@@ -66,7 +66,7 @@
 
 #markdownBody .dropcap p::first-line {
     font-variant-caps: small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text);
 }
 
@@ -183,14 +183,14 @@
     :root:not([data-reduce-motion]) .initial .initial-cut {
         stroke-dasharray: 1;
         stroke-dashoffset: 1;
-        animation: initial-cut var(--d, 0.7s) ease-out var(--t, 0s) forwards;
+        animation: initial-cut calc(var(--d, 0.7s) * var(--motion-scale)) ease-out calc(var(--t, 0s) * var(--motion-scale)) forwards;
     }
 
 
     :root:not([data-reduce-motion]) .initial .initial-ink,
     :root:not([data-reduce-motion]) .initial .initial-shade {
         opacity: 0;
-        animation: initial-ink var(--d, 0.5s) ease var(--t, 1s) forwards;
+        animation: initial-ink calc(var(--d, 0.5s) * var(--motion-scale)) ease calc(var(--t, 1s) * var(--motion-scale)) forwards;
     }}
 
 
@@ -325,7 +325,7 @@
 
 #markdownBody :is(h1, h2, h3, h4, h5, h6) {
     font-family: var(--font-sans);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     line-height: 1.25;
     color: var(--text);
 
@@ -354,7 +354,7 @@
 #markdownBody h5 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; }
 
 
-#markdownBody h6 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; font-weight: 400; font-style: italic; }
+#markdownBody h6 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; font-weight: var(--weight-regular); font-style: italic; }
 
 
 
@@ -370,7 +370,7 @@
     right: -1.25em;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.1s ease;
+    transition: opacity calc(0.1s * var(--motion-scale)) ease;
 }
 
 
@@ -419,10 +419,10 @@ a:visited {
    INLINE ELEMENTS & HIGHLIGHTING
    ============================================================ */
 
-strong { font-weight: 700; }
+strong { font-weight: var(--weight-bold); }
 
 
-strong.semibold { font-weight: 600; }
+strong.semibold { font-weight: var(--weight-semibold); }
 
 
 em { font-style: italic; }
@@ -432,7 +432,7 @@ em { font-style: italic; }
 /* Abbreviations: force uppercase acronyms to x-height */
 abbr {
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.03em;
+    letter-spacing: calc(0.03em * var(--tracking-scale));
     text-decoration: none;
     cursor: help;
 }
@@ -471,7 +471,7 @@ code, kbd, samp {
     font-feature-settings: 'liga' 1, 'calt' 1;
     background-color: var(--bg-offset);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.1em 0.3em;
 }
 
@@ -484,7 +484,7 @@ pre {
     font-feature-settings: 'liga' 1, 'calt' 1;
     background-color: var(--bg-offset);
     border: 1px solid var(--border-muted);
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
     padding: 1.65rem 1.5rem; /* Anchored to baseline grid */
     overflow-x: auto;
     line-height: 1.65;
@@ -563,7 +563,7 @@ pre code {
     font-size: 0.73rem;
     font-style: normal;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-muted);
     margin-top: 0.5rem;
     position: relative;
@@ -626,7 +626,7 @@ pre code {
     font-size: 0.73rem;
     font-style: normal;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-muted);
     margin-top: 0.5rem;
     position: relative;
@@ -697,8 +697,8 @@ pre code {
     background: var(--bg-offset);
     padding: 1rem;
     border: 1px solid var(--border);
-    border-radius: 2px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03); /* Extremely subtle depth */
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-plate); /* Extremely subtle depth */
     max-width: fit-content;
 }
 
@@ -745,7 +745,7 @@ pre code {
     text-align: right; /* Editorial, museum-placard feel */
     margin-top: 1rem;
     font-style: italic;
-    letter-spacing: 0.02em;
+    letter-spacing: calc(0.02em * var(--tracking-scale));
 }
 
 
@@ -776,7 +776,7 @@ pre code {
 
 #markdownBody th {
     font-family: var(--font-sans);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     background-color: var(--bg-offset);
 }
 
@@ -870,7 +870,7 @@ pre code {
 /* "Proof." label — italic bold, matching LaTeX convention */
 .proof-label {
     font-style: italic;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -899,7 +899,7 @@ pre code {
 
 .smallcaps {
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.03em;
+    letter-spacing: calc(0.03em * var(--tracking-scale));
 }
 
 

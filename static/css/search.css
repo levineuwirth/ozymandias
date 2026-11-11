@@ -87,7 +87,7 @@
     font-size: var(--text-size-small);
     color: var(--text-faint);
     cursor: pointer;
-    transition: color 0.1s, border-color 0.1s;
+    transition: color calc(0.1s * var(--motion-scale)), border-color calc(0.1s * var(--motion-scale));
 }
 
 
@@ -189,7 +189,7 @@
     color: var(--text);
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     box-sizing: border-box;
     outline: none;
 }
@@ -226,7 +226,7 @@
 
 .semantic-result-title {
     font-family: var(--font-sans);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-size: 0.9rem;
     color: var(--text);
     text-decoration: none;

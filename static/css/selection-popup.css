@@ -25,13 +25,13 @@
     gap: 0;
 
     background: var(--text);
-    border-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-bubble);
 
     opacity: 0;
     visibility: hidden;
     transform: translateY(5px);
-    transition: opacity 0.13s ease, visibility 0.13s ease, transform 0.13s ease;
+    transition: opacity calc(0.13s * var(--motion-scale)) ease, visibility calc(0.13s * var(--motion-scale)) ease, transform calc(0.13s * var(--motion-scale)) ease;
 
     pointer-events: none;
     user-select: none;
@@ -79,15 +79,15 @@
     color: var(--bg);
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.025em;
+    font-weight: var(--weight-medium);
+    letter-spacing: calc(0.025em * var(--tracking-scale));
     padding: 0.38rem 0.6rem;
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     white-space: nowrap;
     line-height: 1;
     text-decoration: none;
-    transition: background 0.1s ease;
+    transition: background calc(0.1s * var(--motion-scale)) ease;
 }
 
 

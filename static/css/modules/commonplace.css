@@ -22,7 +22,7 @@
     font-family: var(--font-ui);
     font-size: 0.73rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     padding: 0.2rem 0.7rem;
     border: 1px solid var(--border);
     background: transparent;
@@ -50,9 +50,9 @@
     font-family: var(--font-ui);
     font-size: 0.73rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.1em;
+    letter-spacing: calc(0.1em * var(--tracking-scale));
     color: var(--text-muted);
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     margin: 2.5rem 0 1.5rem;
     padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border);
@@ -144,7 +144,7 @@
     font-family: var(--font-ui);
     font-size: 0.67rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     padding: 0.1rem 0.4rem;
     border: 1px solid var(--border-muted);

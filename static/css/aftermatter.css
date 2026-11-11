@@ -71,7 +71,7 @@
 .aftermatter :is(h2, h3, h4) {
     text-align: right;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-muted);
 }
 
@@ -135,9 +135,9 @@
 .meta-footer-full > h3,
 .meta-footer-section h3 {
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     margin: 0 0 0.75rem 0;
     font-family: var(--font-sans);
@@ -198,7 +198,7 @@
    is now a primary aftermatter section. */
 .meta-footer-backlinks > h3 {
     font-size: 1.05rem;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     margin-bottom: 1rem;
 }
 
@@ -229,7 +229,7 @@
     font-family: var(--font-serif);
     font-size: 1.32rem;
     font-variant: normal;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     letter-spacing: 0;
     color: var(--text);
     text-decoration: none;
@@ -291,7 +291,7 @@
 .backlink-full-trigger {
     background: none;
     border: 1px solid var(--border-muted);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     width: 1.1rem;
     height: 1.1rem;
     padding: 0;
@@ -327,7 +327,7 @@
     padding: 0.75rem 0.95rem;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
     font-family: var(--font-serif);
     font-style: normal;
@@ -370,7 +370,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     user-select: none;
     padding-left: 1em;
@@ -410,7 +410,7 @@
 
 .meta-footer-similar > h3 {
     font-size: 1.05rem;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     margin-bottom: 1rem;
 }
 
@@ -433,7 +433,7 @@
 .meta-footer-similar .similar-links-item a {
     font-family: var(--font-serif);
     font-size: 1.18rem;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     color: var(--text);
     text-decoration: none;
     border-bottom: 1px solid var(--border-muted);
@@ -467,7 +467,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     user-select: none;
     padding-left: 1em;
@@ -521,10 +521,10 @@
     color: var(--text-faint);
     text-decoration: none;
     border: 1px solid var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.05em 0.28em;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    font-weight: var(--weight-semibold);
+    letter-spacing: calc(0.01em * var(--tracking-scale));
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
@@ -547,7 +547,7 @@
 .ref-num {
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     color: var(--text-faint);
     margin-right: 0.4em;
     white-space: nowrap;

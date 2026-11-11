@@ -16,8 +16,8 @@ but from the site itself:
   styles   the computed style of every element under <html> but <head>, and
            of each ::before and ::after that has content, for PROPERTIES,
            at 1280px wide and the smallest, default and largest text sizes
-           (utils.js's TEXT_SIZE), plus each screenshot's width and media
-           at the default text size;
+           (utils.js's TEXT_SIZE; the default, tokens.css's or the site's),
+           plus each screenshot's width and media at the default text size;
   shots    the page at 320, 768, 1280 and 1600px wide, and in print, at the
            default size, from the top down to SHOT_HEIGHT.
 
@@ -186,14 +186,24 @@ def site_root() -> Path:
     return Path(os.environ.get("SITE_ROOT") or os.getcwd()).resolve()
 
 
-def text_sizes(engine: Path) -> tuple[int, int, int]:
-    """utils.js's TEXT_SIZE: its smallest, default and largest."""
+DEFAULT_SIZE = re.compile(r"--text-size-default\s*:\s*(\d+)px")
+
+
+def text_sizes(engine: Path, root: Path | None = None) -> tuple[int, int, int]:
+    """utils.js's TEXT_SIZE, its smallest and largest, and the default
+    between them: the site's own --text-size-default (theme.css, else
+    site.css) where it sets one, else tokens.css's."""
     js = (engine / "static/js/utils.js").read_text(encoding="utf-8")
-    m = re.search(r"TEXT_SIZE\s*=\s*\{\s*min:\s*(\d+),\s*max:\s*(\d+),\s*step:\s*\d+,\s*base:\s*(\d+)", js)
+    m = re.search(r"TEXT_SIZE\s*=\s*\{\s*min:\s*(\d+),\s*max:\s*(\d+),", js)
     if not m:
         raise SystemExit("preserve: utils.js's TEXT_SIZE not found")
-    low, high, base = map(int, m.groups())
-    return low, base, high
+    low, high = map(int, m.groups())
+    sheets = [] if root is None else [root / "static/css/theme.css", root / "static/css/site.css"]
+    for sheet in [*sheets, engine / "static/css/tokens.css"]:
+        found = DEFAULT_SIZE.findall(sheet.read_text(encoding="utf-8")) if sheet.is_file() else []
+        if found:
+            return low, int(found[-1]), high
+    raise SystemExit("preserve: tokens.css's --text-size-default not found")
 
 
 def off_season(root: Path) -> int:
@@ -340,7 +350,7 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     from playwright.async_api import async_playwright
     root = site_root()
     engine = HERE.parents[1]
-    sizes = text_sizes(engine)
+    sizes = text_sizes(engine, root)
     moment = in_season(root, season) if season else off_season(root)
     themes = [season] if season else list(THEMES)
     if not pages or jobs < 1:

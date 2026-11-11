@@ -173,9 +173,9 @@
     margin: 0;
     font-family: var(--font-serif);
     font-size: clamp(2.2rem, 1.6rem + 2.6vw, 3.6rem);
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     line-height: 1.04;
-    letter-spacing: -0.012em;
+    letter-spacing: calc(-0.012em * var(--tracking-scale));
     text-align: left;
     text-wrap: balance;          /* "Symphony / No. 6", never a lone "6" */
 }
@@ -227,7 +227,7 @@
     display: block;
     font-size: 1.2rem;
     font-variant-caps: small-caps;
-    letter-spacing: 0.045em;
+    letter-spacing: calc(0.045em * var(--tracking-scale));
 }
 
 
@@ -406,7 +406,7 @@ a.comp-mvt-row:visited {
 .comp-mvt-num {
     text-align: right;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     font-size: 1.1rem;
     color: var(--text-muted);
 }
@@ -525,7 +525,7 @@ a.comp-mvt-row:focus-visible .comp-mvt-leader {
     font-family: var(--font-serif);
     font-size: 1.3rem;
     font-style: italic;
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     text-align: center;
     color: var(--text-muted);
 }

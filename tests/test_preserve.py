@@ -234,6 +234,18 @@ class Settings(unittest.TestCase):
         low, base, high = preserve.text_sizes(engine_path(""))
         self.assertTrue(low < base < high, (low, base, high))
 
+    def test_the_default_size_is_the_site_s_where_it_sets_one(self):
+        """tokens.css's --text-size-default, unless the site's theme.css
+        (or site.css) sets its own, as the default record is that size."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(preserve.text_sizes(engine_path(""), root),
+                             preserve.text_sizes(engine_path("")))
+            (root / "static/css").mkdir(parents=True)
+            (root / "static/css/theme.css").write_text(
+                "@layer site { :root { --text-size-default: 21px; } }")
+            self.assertEqual(preserve.text_sizes(engine_path(""), root)[1], 21)
+
     def test_the_clock_stands_on_a_day_no_season_dresses(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

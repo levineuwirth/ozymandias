@@ -48,7 +48,7 @@
     flex-direction: column;
     gap: 0.3rem;
     border: 1px solid var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     background: var(--bg-subtle);
 }
 
@@ -59,7 +59,7 @@
     font-size: 0.7rem;
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.13em;
+    letter-spacing: calc(0.13em * var(--tracking-scale));
     color: var(--text-muted);
 }
 
@@ -77,7 +77,7 @@
     align-self: flex-start;
     font-family: var(--font-sans);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -87,7 +87,7 @@
     margin: 1rem 0 0;
     padding: 0.7rem 1rem;
     border: 1px dashed var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     font-family: var(--font-serif);
     font-size: 0.9rem;
     line-height: 1.55;
@@ -101,7 +101,7 @@
     font-size: 0.7rem;
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.1em;
+    letter-spacing: calc(0.1em * var(--tracking-scale));
     color: var(--text);
 }
 
@@ -112,7 +112,7 @@
     margin: 1.8rem 0;
     padding: 1rem 1.2rem;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     background: var(--bg-subtle);
     font-family: var(--font-serif);
     font-size: 0.95rem;
@@ -130,7 +130,7 @@
     padding: 0.7rem 1rem;
     border: 1px solid var(--border-muted);
     border-left-width: 3px;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     font-family: var(--font-serif);
     font-size: 0.92rem;
     line-height: 1.55;
@@ -151,7 +151,7 @@
 #markdownBody .archive-status {
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
 }
 
 
@@ -161,7 +161,7 @@
 
 
 #markdownBody .archive-status--rotted {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -176,7 +176,7 @@
     margin: 1.8rem 0;
     padding: 1rem 1.2rem 1.1rem;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
 }
 
 
@@ -184,10 +184,10 @@
     margin: 0 0 0.7rem;
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.12em;
+    letter-spacing: calc(0.12em * var(--tracking-scale));
     color: var(--text-faint);
 }
 
@@ -205,7 +205,7 @@
     font-size: 0.78rem;
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-faint);
 }
 
@@ -247,9 +247,9 @@
 #markdownBody .archive-viewer {
     margin: 1.8rem 0;
     border: 1px solid var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    box-shadow: var(--shadow-plate);
 }
 
 
@@ -306,10 +306,10 @@
     border-bottom: 1px solid var(--border);
     font-family: var(--font-sans);
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.1em;
+    letter-spacing: calc(0.1em * var(--tracking-scale));
     color: var(--text-muted);
 }
 
@@ -335,7 +335,7 @@
     max-height: 60vh;
     overflow: auto;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     background: var(--bg-subtle);
     font-family: var(--font-mono);
     font-size: 0.8rem;
@@ -368,10 +368,10 @@
     margin: 0 0 0.3rem;
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-faint);
 }
 
@@ -464,10 +464,10 @@
 #markdownBody .archive-quality-flag {
     padding: 0.05em 0.4em;
     border: 1px dashed var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
     color: var(--text-muted);
 }
 

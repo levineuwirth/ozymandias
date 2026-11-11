@@ -9,10 +9,10 @@ mark.user-annotation {
     /* Reset browser UA mark color (can be blue on dark system themes) */
     background-color: transparent;
     color: inherit;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     padding: 0.18em 0.28em;
     cursor: pointer;
-    transition: filter 0.1s ease;
+    transition: filter calc(0.1s * var(--motion-scale)) ease;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
 }
@@ -79,8 +79,8 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     max-width: 15rem;
     background: var(--text);
     color: var(--bg);
-    border-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-bubble);
     padding: 0.45rem 0.6rem;
     font-family: var(--font-sans);
     font-size: 0.73rem;
@@ -89,7 +89,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     opacity: 0;
     visibility: hidden;
     /* Closing: hidden once the fade is over. */
-    transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+    transition: opacity calc(0.12s * var(--motion-scale)) ease, visibility 0s linear calc(0.12s * var(--motion-scale));
     pointer-events: none;
 }
 
@@ -103,7 +103,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transition: opacity 0.12s ease, visibility 0s;
+    transition: opacity calc(0.12s * var(--motion-scale)) ease, visibility 0s;
 }
 
 
@@ -142,7 +142,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     font-size: 0.7rem;
     padding: 0;
     line-height: 1;
-    transition: opacity 0.1s ease;
+    transition: opacity calc(0.1s * var(--motion-scale)) ease;
 }
 
 
@@ -165,7 +165,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     z-index: 760;
     background: var(--text);
     color: var(--bg);
-    border-radius: 5px;
+    border-radius: var(--radius-xl);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
     padding: 0.55rem 0.6rem;
     font-family: var(--font-sans);
@@ -175,7 +175,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     opacity: 0;
     visibility: hidden;
     /* Closing: hidden once the fade is over. */
-    transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+    transition: opacity calc(0.12s * var(--motion-scale)) ease, visibility 0s linear calc(0.12s * var(--motion-scale));
     pointer-events: none;
 }
 
@@ -189,7 +189,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transition: opacity 0.12s ease, visibility 0s;
+    transition: opacity calc(0.12s * var(--motion-scale)) ease, visibility 0s;
 }
 
 
@@ -212,7 +212,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     padding: 0;
     flex-shrink: 0;
     outline: none;
-    transition: transform 0.1s ease, border-color 0.1s ease;
+    transition: transform calc(0.1s * var(--motion-scale)) ease, border-color calc(0.1s * var(--motion-scale)) ease;
 }
 
 
@@ -244,7 +244,7 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     box-sizing: border-box;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     color: inherit;
     font-family: var(--font-sans);
     font-size: 0.72rem;
@@ -285,14 +285,14 @@ mark.user-annotation:hover { filter: brightness(0.80); }
 .ann-picker-submit {
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     color: inherit;
     font-family: var(--font-sans);
     font-size: 0.72rem;
     padding: 0.22rem 0.55rem;
     cursor: pointer;
     line-height: 1.4;
-    transition: background 0.1s ease;
+    transition: background calc(0.1s * var(--motion-scale)) ease;
 }
 
 

@@ -131,10 +131,10 @@
     color: var(--text-muted);
     background: none;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.15em 0.55em;
     cursor: pointer;
-    transition: border-color 0.1s, color 0.1s;
+    transition: border-color calc(0.1s * var(--motion-scale)), color calc(0.1s * var(--motion-scale));
 }
 
 
@@ -147,7 +147,7 @@
 .list-count-btn.is-active {
     border-color: var(--text-muted);
     color: var(--text);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -186,7 +186,7 @@
     font-family: var(--font-sans);
     font-size: 0.68rem;
     font-variant: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     flex-shrink: 0;
     margin-top: 0.35em;
@@ -312,7 +312,7 @@
     font-family: var(--font-sans);
     font-size: 0.68rem;
     font-variant: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     white-space: nowrap;
     cursor: help;

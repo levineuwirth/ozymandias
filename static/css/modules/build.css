@@ -23,7 +23,7 @@
 .build-table th {
     font-family: var(--font-ui);
     font-size: 0.8em;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
     text-transform: uppercase;
     color: var(--text-muted);
     border-bottom: 2px solid var(--rule);
@@ -36,7 +36,7 @@
 
 
 .build-total td {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     border-top: 2px solid var(--rule);
     border-bottom: none;
 }
@@ -84,7 +84,7 @@
     flex: 1;
     background: var(--rule);
     height: 1rem;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
@@ -93,8 +93,8 @@
     display: block;
     height: 100%;
     background: var(--text);
-    border-radius: 2px;
-    transition: width 0.2s ease;
+    border-radius: var(--radius-sm);
+    transition: width calc(0.2s * var(--motion-scale)) ease;
     min-width: 2px;
 }
 

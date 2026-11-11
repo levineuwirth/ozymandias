@@ -10,7 +10,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-muted);
 }
 
@@ -31,7 +31,7 @@
    .ep-row wrapper, which already supplies the centerdot separator. */
 .ep-dots {
     font-size: 0.55rem;
-    letter-spacing: 0.12em;
+    letter-spacing: calc(0.12em * var(--tracking-scale));
     color: var(--text-muted);
     line-height: 1;
     vertical-align: 0.15em;
@@ -46,7 +46,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-muted);
 }
 
@@ -55,10 +55,10 @@
     font-size: 0.72rem;
     font-variant-caps: normal;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.03em;
+    letter-spacing: calc(0.03em * var(--tracking-scale));
     color: var(--text-muted);
     border: 1px solid var(--border-muted);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.05em 0.5em;
     margin-right: 0.25em;
 }
@@ -79,7 +79,7 @@
     color: var(--text-faint);
     font-family: var(--font-sans);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
 }
 
 
@@ -116,7 +116,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     color: var(--text-muted);
 }
 

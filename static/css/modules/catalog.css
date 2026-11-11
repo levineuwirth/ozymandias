@@ -33,9 +33,9 @@
     margin: 0;
     font-family: var(--font-serif);
     font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.6rem);
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     line-height: 1.04;
-    letter-spacing: -0.012em;
+    letter-spacing: calc(-0.012em * var(--tracking-scale));
 }
 
 
@@ -163,7 +163,7 @@
     font-family: var(--font-serif);
     font-size: var(--spine-type);
     line-height: 1.15;
-    letter-spacing: 0.04em;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
     text-align: center;
     text-overflow: ellipsis;
     text-wrap: balance;
@@ -183,7 +183,7 @@
     font-family: var(--font-serif);
     font-size: 0.72rem;
     font-variant-numeric: oldstyle-nums;
-    letter-spacing: 0.03em;
+    letter-spacing: calc(0.03em * var(--tracking-scale));
     opacity: var(--shelf-detail-opacity);
 }
 
@@ -348,7 +348,7 @@
     font-family: var(--font-serif);
     font-size: 1.3rem;
     font-style: italic;
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     text-align: center;
     color: var(--text-muted);
 }

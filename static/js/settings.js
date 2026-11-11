@@ -1,5 +1,6 @@
 /* settings.js — Settings panel: theme, season, text size, print.
-   Text sizes are ozyUtils.TEXT_SIZE (utils.js), which theme.js reads too.
+   Text sizes are ozyUtils.TEXT_SIZE (utils.js), which theme.js reads too;
+   the default among them is the stylesheet's (tokens.css).
 
    All localStorage access routes through window.ozyUtils.safeStorage so
    Safari private-mode SecurityErrors on writes do not throw uncaught. */
@@ -7,8 +8,8 @@
     'use strict';
 
     var TEXT_SIZE_KEY = 'text-size';
-    var SIZES = (window.ozyUtils && window.ozyUtils.TEXT_SIZE)
-        || { min: 17, max: 29, step: 2, base: 23 };
+    /* Without utils.js the text size controls do nothing. */
+    var SIZES = (window.ozyUtils && window.ozyUtils.TEXT_SIZE) || null;
     var store = (window.ozyUtils && window.ozyUtils.safeStorage) || {
         get: function () { return null; },
         set: function () { return false; },
@@ -95,9 +96,12 @@
         else if (action === 'theme-dark')       setTheme('dark');
         else if (action === 'theme-cappuccino') setTheme('cappuccino');
         else if (action.indexOf('season-') === 0) setSeason(action.slice(7));
-        else if (action === 'text-smaller')  shiftSize(-1);
-        else if (action === 'text-larger')   shiftSize(+1);
-        else if (action === 'text-reset')    setSize(SIZES.base);
+        else if (action.indexOf('text-') === 0) {
+            if (!SIZES) return;
+            if      (action === 'text-smaller') shiftSize(-1);
+            else if (action === 'text-larger')  shiftSize(+1);
+            else if (action === 'text-reset')   setSize(SIZES.base);
+        }
         else if (action === 'focus-mode')    toggleDataAttr('focus-mode',    'data-focus-mode');
         else if (action === 'reduce-motion') toggleDataAttr('reduce-motion', 'data-reduce-motion');
         else if (action === 'print')             { setOpen(false); window.print(); }
@@ -238,6 +242,7 @@
        default, which resets it; a change is announced (`announce`), the
        size at load is not. */
     function syncTextSizeButtons(announce) {
+        if (!SIZES) return;
         var px      = currentSize();
         var smaller = document.querySelector('[data-action="text-smaller"]');
         var larger  = document.querySelector('[data-action="text-larger"]');

@@ -7,7 +7,7 @@
 
 .section-body {
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    transition: max-height calc(0.3s * var(--motion-scale)) ease;
 }
 
 

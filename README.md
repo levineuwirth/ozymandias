@@ -179,6 +179,19 @@ URLs stay theirs, and Pagefind writes its sheet after the build); the head
 preloads each imported file, so it is fetched beside its wrapper, not after
 it.
 
+The tokens a site may set, on `:root` in its `theme.css`, besides the
+palette and font stacks: `--text-size-default`, in px, the size the settings
+panel calls 100% (`utils.js` reads it; `--text-size` is the size in force,
+the reader's choice or this, so a site sets the default, not it);
+`--weight-regular`, `-medium`, `-semibold` and `-bold`, the four weights the
+engine asks of a face; `--radius-sm`, `-md`, `-lg`, `-xl` and `-pill`;
+`--shadow-bubble` and `--shadow-plate`; `--transition-fast` and
+`--transition-medium`; and two dials, `--tracking-scale`, which multiplies
+every letter spacing the engine sets, and `--motion-scale`, every duration
+and delay. A media query cannot read a custom property, so the breakpoints
+are literals, listed in `tokens.css`. `tests/test_css_tokens.py` keeps the
+engine's stylesheets to these tokens and that list.
+
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture
 site demonstrates a complete skin. A mechanical restyling records before

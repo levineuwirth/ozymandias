@@ -15,7 +15,7 @@
     pointer-events: none;
     contain: strict;
     opacity: 0;
-    transition: opacity 1.2s ease;
+    transition: opacity calc(1.2s * var(--motion-scale)) ease;
 }
 
 

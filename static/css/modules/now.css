@@ -46,7 +46,7 @@
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-variant: all-small-caps;
-    letter-spacing: 0.12em;
+    letter-spacing: calc(0.12em * var(--tracking-scale));
     color: var(--text-faint);
 }
 
@@ -60,7 +60,7 @@
     font-family: var(--font-serif);
     font-size: 1.85rem;
     font-style: italic;
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     color: var(--text);
     line-height: 1.1;
     margin-top: 0.05rem;
@@ -117,10 +117,10 @@
     font-size: 1.15rem;
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     color: var(--text-muted);
     text-transform: none;
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     margin: 0 0 0.85rem 0;
 }
 
@@ -137,7 +137,7 @@
 .now-section--shipped .now-section-heading {
     color: var(--text-faint);
     font-style: italic;
-    letter-spacing: 0.11em;
+    letter-spacing: calc(0.11em * var(--tracking-scale));
 }
 
 
@@ -161,11 +161,11 @@
     font-family: var(--font-sans);
     font-size: 0.66rem;
     font-variant: all-small-caps;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     line-height: 1;
     padding: 0.32em 0.55em 0.28em;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     color: var(--text-muted);
     background: transparent;
     white-space: nowrap;
@@ -176,7 +176,7 @@
    states (in-review, drafting, building) get slightly stronger
    ink; passive states (paused, shipped) recede. "accepted" is the
    one affirmative state — full ink and a solid, confident border. */
-.now-status--accepted  { color: var(--text); border-color: var(--text); font-weight: 600; }
+.now-status--accepted  { color: var(--text); border-color: var(--text); font-weight: var(--weight-semibold); }
 
 .now-status--in-review { color: var(--text); border-color: var(--text-muted); }
 

@@ -63,9 +63,9 @@ nav.site-nav {
     align-items: center;
     gap: 0;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
 }
 
 
@@ -137,9 +137,9 @@ nav.site-nav {
     cursor: pointer;
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     padding: 0;
     line-height: 1;
@@ -193,7 +193,7 @@ nav.site-nav {
     padding: 0.5rem;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 
     display: none;
@@ -221,9 +221,9 @@ nav.site-nav {
 .settings-label {
     font-family: var(--font-sans);
     font-size: 0.62rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     margin-bottom: 0.3rem;
     line-height: 1;
@@ -240,11 +240,11 @@ nav.site-nav {
     flex: 1;
     background: var(--bg-offset);
     border: 1px solid var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     color: var(--text-muted);
     font-family: var(--font-sans);
     font-size: 0.72rem;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     padding: 0.3rem 0.5rem;
     cursor: pointer;
     transition: background var(--transition-fast), color var(--transition-fast),
@@ -443,16 +443,16 @@ nav.site-nav {
         height: 2px;
         width: calc(var(--toc-progress, 0) * 100%);
         background: var(--text-muted);
-        transition: width 0.12s ease;
+        transition: width calc(0.12s * var(--motion-scale)) ease;
     }
 
 
     .toc-mobile-label {
         font-family: var(--font-sans);
         font-size: 0.68rem;
-        font-weight: 600;
+        font-weight: var(--weight-semibold);
         font-variant-caps: all-small-caps;
-        letter-spacing: 0.07em;
+        letter-spacing: calc(0.07em * var(--tracking-scale));
         color: var(--text-faint);
         white-space: nowrap;
         overflow: hidden;
@@ -601,9 +601,9 @@ nav.site-nav {
 
 .nav-portals a {
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: calc(0.05em * var(--tracking-scale));
     text-decoration: none;
     color: var(--text-faint);
     padding: 0.1rem 0.7rem;

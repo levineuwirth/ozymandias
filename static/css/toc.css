@@ -45,16 +45,16 @@
     height: 1px;
     width: calc(var(--toc-progress, 0) * 100%);
     background: var(--text-muted);
-    transition: width 0.12s ease;
+    transition: width calc(0.12s * var(--motion-scale)) ease;
 }
 
 
 /* Current section label */
 .toc-active-label {
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
     font-variant-caps: all-small-caps;
-    letter-spacing: 0.07em;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
     color: var(--text-faint);
     white-space: nowrap;
     overflow: hidden;
@@ -79,7 +79,7 @@
     padding: 0;
     line-height: 1;
     flex-shrink: 0;
-    transition: color var(--transition-fast), transform 0.28s ease;
+    transition: color var(--transition-fast), transform var(--transition-medium);
 }
 
 .toc-toggle:hover {
@@ -104,7 +104,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
-    transition: max-height 0.3s ease;
+    transition: max-height calc(0.3s * var(--motion-scale)) ease;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
 }
@@ -113,7 +113,7 @@
 
 .toc-nav::-webkit-scrollbar-thumb {
     background: var(--border);
-    border-radius: 3px;
+    border-radius: var(--radius-md);
 }
 
 #toc.is-collapsed .toc-nav {
@@ -172,7 +172,7 @@
 /* JS adds .is-active to the current heading's link */
 .toc-nav a.is-active {
     color: var(--text);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 

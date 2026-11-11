@@ -45,9 +45,9 @@ body > header:not(.essay-frontmatter) {
 
 /* ============================================================
    CONTENT AREA
-   Three-column grid: [toc 220px] [body] [phantom 220px]
-   The phantom right column mirrors the TOC width so that the
-   body column is geometrically centered on the viewport.
+   Three-column grid: [toc 1fr] [body, at most --body-max-width]
+   [phantom 1fr]. The phantom right column matches the TOC's, so
+   the body column is geometrically centered on the viewport.
    Sidenotes are absolutely positioned inside #markdownBody and
    overflow into the phantom column naturally.
    ============================================================ */
@@ -81,8 +81,8 @@ body > header:not(.essay-frontmatter) {
 
 /* ============================================================
    CENTER COLUMN — MAIN BODY
-   Pinned to column 2 explicitly so it stays centered even when
-   the TOC is hidden (below 900px breakpoint).
+   Pinned to column 2 explicitly so it stays centered when focus
+   mode hides the TOC. Narrower, it spans the columns (below).
    #markdownBody must be position: relative — on wide screens
    sidenotes.css positions the notes absolutely inside it.
    ============================================================ */
@@ -216,15 +216,6 @@ body > header:not(.essay-frontmatter) {
 
 
 /* ============================================================
-   RESPONSIVE BREAKPOINTS
-   ============================================================ */
-
-/*  Margin notes have no breakpoint here: sidenotes.js uses the margin
-    only when the room right of the body holds a readable measure at the
-    reader's text size, and otherwise the notes stay in the list the
-    Sidenotes filter appends to the body (sidenotes.css). */
-
-/* ============================================================
    FOCUS MODE
    Hides the TOC, fades the header until hovered.
    Activated by [data-focus-mode] on <html> (settings.js).
@@ -235,16 +226,24 @@ body > header:not(.essay-frontmatter) {
 }
 
 
-/*  Below ~900px: hide the TOC.
-    #markdownBody stays in grid-column 2, so it remains centered
-    with the phantom right column still balancing it. */
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   The engine's breakpoints are listed in tokens.css.
+   ============================================================ */
+
+/*  Margin notes have no breakpoint here: sidenotes.js uses the margin
+    only when the room right of the body holds a readable measure at the
+    reader's text size, and otherwise the notes stay in the list the
+    Sidenotes filter appends to the body (sidenotes.css). */
+
+/*  Below 900px: hide the TOC. The body widens into its column (below). */
 @media (max-width: 900px) {
     #toc {
         display: none;
     }}
 
 
-/*  Below ~680px: collapse to single-column, full-width body. */
+/*  Below 680px: collapse to single-column, full-width body. */
 @media (max-width: 680px) {
     #content {
         grid-template-columns: 1fr;
@@ -278,7 +277,8 @@ body > header:not(.essay-frontmatter) {
     }}
 
 
-/*  Below ~900px: body spans full width (TOC hidden, no phantom column). */
+/*  681-900px: the TOC is hidden; the body spans all three columns
+    (the grid still has them; below 680px it has one). */
 @media (max-width: 900px) and (min-width: 681px) {
     #markdownBody {
         grid-column: 1 / -1;

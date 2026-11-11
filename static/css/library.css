@@ -14,11 +14,11 @@
     color: var(--text-muted);
     background: none;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.15em 0.55em;
     cursor: pointer;
     margin-left: auto;
-    transition: border-color 0.1s, color 0.1s;
+    transition: border-color calc(0.1s * var(--motion-scale)), color calc(0.1s * var(--motion-scale));
 }
 
 
@@ -30,7 +30,7 @@
 
 
 .filter-toggle-badge {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -84,10 +84,10 @@
     color: var(--text-muted);
     background: none;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 0.1em 0.45em;
     cursor: pointer;
-    transition: border-color 0.1s, color 0.1s;
+    transition: border-color calc(0.1s * var(--motion-scale)), color calc(0.1s * var(--motion-scale));
 }
 
 
@@ -100,7 +100,7 @@
 .filter-btn.is-active {
     border-color: var(--text-muted);
     color: var(--text);
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
 }
 
 
@@ -110,7 +110,7 @@
     width: 3rem;
     padding: 0.1em 0.3em;
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text);
 }
@@ -170,10 +170,10 @@
     font-size: 1.2rem;
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.09em;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
     color: var(--library-accent);
     text-transform: none;
-    font-weight: 400;
+    font-weight: var(--weight-regular);
     margin: 0 0 0.9rem 0;
 }
 
@@ -350,7 +350,7 @@
 .library-section .item-card-kind {
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
-    letter-spacing: 0.06em;
+    letter-spacing: calc(0.06em * var(--tracking-scale));
 }
 
 
@@ -467,9 +467,9 @@
     font-size: 0.85rem;
     font-variant: small-caps;
     text-transform: lowercase;
-    letter-spacing: 0.08em;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     margin: 1.5rem 0 0.5rem;
     scroll-margin-top: 1rem;
 }
