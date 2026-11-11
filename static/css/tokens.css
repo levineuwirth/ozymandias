@@ -411,25 +411,25 @@
    epistemic-filter UI that now lives on /search.html. */
 
 /* ============================================================
-   LIBRARY PALETTE — scoped warm "candlelight" accent
-   Only loaded on /library.html (via $if(library)$) and /search.html,
-   so defining at :root here is effectively page-scoped. Consumed by
-   section headings, the divider, the intro blockquote, and the
-   "more on this shelf" link to give the library page a fine-press
-   feel without touching global colors.
+   ACCENT — a warm "candlelight" ink, one per theme
+   --accent and --accent-muted are the site's accent, for what should
+   read as set apart without a new color: the library's shelf headings,
+   divider and "more on this shelf" link, the links page's sections.
+   A site sets them, per theme, in its theme.css. --library-intro-ink is
+   the library's intro blockquote alone.
    ============================================================ */
 
 :root {
-    --library-accent: #524638;
-    --library-accent-muted: #726758;
+    --accent: #524638;
+    --accent-muted: #726758;
     --library-intro-ink: #3c3328;
 }
 
 
 
 [data-theme="dark"] {
-    --library-accent: #b5a890;
-    --library-accent-muted: #8d8373;
+    --accent: #b5a890;
+    --accent-muted: #8d8373;
     --library-intro-ink: #c8beac;
 }
 
@@ -437,8 +437,8 @@
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
-    --library-accent: #b5a890;
-    --library-accent-muted: #8d8373;
+    --accent: #b5a890;
+    --accent-muted: #8d8373;
     --library-intro-ink: #c8beac;
 }}
 

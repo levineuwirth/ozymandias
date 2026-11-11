@@ -109,27 +109,9 @@
 /* links */
 
 :root:where(html:has(.links-section)) {
-    --links-accent:        #524638;
-    --links-accent-muted:  #726758;
     --links-intro-ink:     var(--text);
 }
 
-[data-theme="dark"]:where(html:has(.links-section)) {
-    --links-accent:        #b5a890;
-    --links-accent-muted:  #8d8373;
-}
-
-[data-theme="cappuccino"]:where(html:has(.links-section)) {
-    --links-accent:        #d0b888;
-    --links-accent-muted:  #c5a880;
-}
-
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]):where(html:has(.links-section)) {
-        --links-accent:        #b5a890;
-        --links-accent-muted:  #8d8373;
-    }}
 
 :where(html:has(.links-section)) #markdownBody > p:first-of-type {
     max-width: 32rem;
@@ -155,7 +137,7 @@
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: 0.09em;
-    color: var(--links-accent);
+    color: var(--accent);
     text-transform: none;
     font-weight: 400;
     margin: 0 0 0.9rem 0;
@@ -208,7 +190,7 @@
     max-width: 60%;
     height: 24px;
     margin: 2.5rem auto;
-    color: var(--links-accent-muted);
+    color: var(--accent-muted);
     background-color: currentColor;
     mask-image: url('/images/dingbats/library-divider.svg');
     -webkit-mask-image: url('/images/dingbats/library-divider.svg');

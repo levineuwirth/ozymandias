@@ -171,7 +171,7 @@
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: calc(0.09em * var(--tracking-scale));
-    color: var(--library-accent);
+    color: var(--accent);
     text-transform: none;
     font-weight: var(--weight-regular);
     margin: 0 0 0.9rem 0;
@@ -248,7 +248,7 @@
     max-width: 60%;
     height: 24px;
     margin: 2.5rem auto;
-    color: var(--library-accent-muted);
+    color: var(--accent-muted);
     background-color: currentColor;
     mask-image: url('/images/dingbats/library-divider.svg');
     -webkit-mask-image: url('/images/dingbats/library-divider.svg');
@@ -268,7 +268,7 @@
     font-family: var(--font-serif);
     font-style: italic;
     font-size: var(--step-0);
-    color: var(--library-accent-muted);
+    color: var(--accent-muted);
     margin: 0.75rem 0 0;
 }
 
@@ -282,8 +282,8 @@
 
 
 .library-more a:hover {
-    color: var(--library-accent);
-    border-bottom-color: var(--library-accent-muted);
+    color: var(--accent);
+    border-bottom-color: var(--accent-muted);
 }
 
 
@@ -317,21 +317,21 @@
     margin: 0;
     font-style: normal;
     font-size: var(--step--1);
-    color: var(--library-accent-muted);
+    color: var(--accent-muted);
 }
 
 
 .library-intro a {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: var(--library-accent-muted);
+    text-decoration-color: var(--accent-muted);
     text-decoration-thickness: 0.05em;
     text-underline-offset: 0.2em;
 }
 
 
 .library-intro a:hover {
-    text-decoration-color: var(--library-accent);
+    text-decoration-color: var(--accent);
 }
 
 
@@ -363,7 +363,7 @@
 
 
 .library-section h2 a:hover {
-    border-bottom-color: var(--library-accent-muted);
+    border-bottom-color: var(--accent-muted);
 }
 
 

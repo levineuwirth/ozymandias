@@ -22,7 +22,7 @@ DECL = re.compile(
     r"|box-shadow|transition(?:-duration|-delay)?|animation(?:-duration|-delay)?)"
     r"\s*:\s*([^;{}]*?)\s*(?=;|\})", re.S)
 TOKEN_DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;{}]*?)\s*;", re.S)
-TOKEN_USE = re.compile(r"var\((--(?:weight|radius|shadow|transition|text-size|step)[\w-]*"
+TOKEN_USE = re.compile(r"var\((--(?:weight|radius|shadow|transition|text-size|step|accent)[\w-]*"
                        r"|--tracking-scale|--motion-scale|--type-ratio)\b")
 FONT_SIZE = re.compile(r"(?<![\w-])font-size\s*:\s*([^;{}]*?)\s*(?=;|\})", re.S)
 REM = re.compile(r"(?<![\w.-])\d*\.?\d+rem\b")
@@ -151,7 +151,10 @@ class Tokens(unittest.TestCase):
         self.assertEqual(bad, [])
 
     def test_every_token_asked_for_is_declared(self):
-        declared = set(tokens())
+        """Declared anywhere in tokens.css: the palette's (the accent) are
+        declared per theme, past the first block."""
+        declared = set(TOKEN_DECL.findall(COMMENT.sub(" ", TOKENS.read_text(encoding="utf-8"))))
+        declared = {name for name, _ in declared}
         asked = {(rel, name) for rel, text in sheets(engine_path("")).items()
                  for name in TOKEN_USE.findall(text)}
         self.assertEqual(sorted((r, n) for r, n in asked if n not in declared), [])

@@ -180,7 +180,9 @@ preloads each imported file, so it is fetched beside its wrapper, not after
 it.
 
 The tokens a site may set, on `:root` in its `theme.css`, besides the
-palette and font stacks: `--text-size-default`, in px, the size the settings
+palette and font stacks: `--accent` and `--accent-muted`, per theme, the
+ink of what should read as set apart (the library's shelves, the links
+page's sections); `--text-size-default`, in px, the size the settings
 panel calls 100% (`utils.js` reads it; `--text-size` is the size in force,
 the reader's choice or this, so a site sets the default, not it);
 `--type-ratio`, the ratio of the type scale, whose steps `--step--5` to
