@@ -54,7 +54,7 @@ class Compare(unittest.TestCase):
         # that deliberately damage coverage. Do not derive these from inventory().
         meta = {"format": preserve.FORMAT, "complete": True, "browser": "chromium test",
                 "moment": 1, "volatile": [".leaflet-container"],
-                "themes": ["light", "dark", "cappuccino"], "sizes": [17, 23, 29],
+                "themes": ["light", "dark", "cappuccino"], "sizes": [17, "default", 29],
                 "widths": [320, 768, 1280, 1600], "style_width": 1280,
                 "height": 900, "shot_height": 6000, "properties": PROPS,
                 "shots": True, "pages": {"home": "/"}, "season": None, "init": None}
@@ -62,7 +62,7 @@ class Compare(unittest.TestCase):
             root.mkdir()
             (root / "meta.json").write_text(json.dumps(meta))
             for theme in ("light", "dark", "cappuccino"):
-                for size in (17, 23, 29):
+                for size in (17, "default", 29):
                     record(root, f"home/{theme}-{size}.json.gz", [BLACK], [["html", 0, None, None]])
                 for width in (320, 768, 1280, 1600, "print"):
                     record(root, f"home/{theme}-view-{width}.json.gz", [BLACK], [["html", 0, None, None]])
@@ -74,7 +74,7 @@ class Compare(unittest.TestCase):
 
     def both(self, styles, elements):
         for root in (self.base, self.new):
-            record(root, "home/light-23.json.gz", styles, elements)
+            record(root, "home/light-default.json.gz", styles, elements)
 
     def test_the_same_records_compare_equal(self):
         self.both([BLACK], [["html", 0, None, None], ["html>body:1", 0, None, None]])
@@ -93,16 +93,16 @@ class Compare(unittest.TestCase):
     def test_a_pseudo_element_that_appears_or_changes_is_named(self):
         icon = ["rgb(0, 0, 0)", "inline-block", '""']
         wider = ["rgb(0, 0, 0)", "inline-block", '"x"']
-        record(self.base, "home/light-23.json.gz", [BLACK, icon], [["html>body:1>a:1", 0, None, 1], ["html>body:1>a:2", 0, None, 1]])
-        record(self.new, "home/light-23.json.gz", [BLACK, icon, wider], [["html>body:1>a:1", 0, 1, 1], ["html>body:1>a:2", 0, None, 2]])
+        record(self.base, "home/light-default.json.gz", [BLACK, icon], [["html>body:1>a:1", 0, None, 1], ["html>body:1>a:2", 0, None, 1]])
+        record(self.new, "home/light-default.json.gz", [BLACK, icon, wider], [["html>body:1>a:1", 0, 1, 1], ["html>body:1>a:2", 0, None, 2]])
         code, text = self.compare()
         self.assertEqual(code, 1)
         self.assertIn("html>body:1>a:1::before appeared", text)
         self.assertIn("""html>body:1>a:2::after content: '""' -> '"x"'""", text)
 
     def test_elements_that_differ_say_the_bodies_changed(self):
-        record(self.base, "home/light-23.json.gz", [BLACK], [["html", 0, None, None], ["html>body:1", 0, None, None]])
-        record(self.new, "home/light-23.json.gz", [BLACK], [["html", 0, None, None]])
+        record(self.base, "home/light-default.json.gz", [BLACK], [["html", 0, None, None], ["html>body:1", 0, None, None]])
+        record(self.new, "home/light-default.json.gz", [BLACK], [["html", 0, None, None]])
         code, text = self.compare()
         self.assertEqual(code, 1)
         self.assertIn("the elements differ (1 gone, 0 added; first html>body:1)", text)
@@ -179,6 +179,14 @@ class Compare(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn(f"incompatible recording setting: {key}", text)
 
+    def test_default_capture_cannot_be_replaced_by_a_numeric_size(self):
+        path = self.new / "meta.json"
+        original = json.loads(path.read_text())
+        for sizes in ([17, 17, 29], [17, 23, 29], [17, "default", 17]):
+            with self.subTest(sizes=sizes):
+                path.write_text(json.dumps({**original, "sizes": sizes}))
+                self.assertIn("new: invalid snapshot", self.compare()[1])
+
     def test_styles_only_is_explicit_and_cannot_match_a_full_snapshot(self):
         for root in (self.base, self.new):
             meta = json.loads((root / "meta.json").read_text())
@@ -199,14 +207,14 @@ class Compare(unittest.TestCase):
         for props, styles, elements in ((PROPS, [], []),
                                         (PROPS + ["width"], [BLACK], [["html", 0, None, None]])):
             for root in (self.base, self.new):
-                path = root / "styles/home/light-23.json.gz"
+                path = root / "styles/home/light-default.json.gz"
                 path.write_bytes(gzip.compress(json.dumps({"props": props, "styles": styles,
                                                           "elements": elements}).encode()))
             self.assertEqual(self.compare()[0], 1)
 
     def test_failed_snapshot_cannot_be_compared_or_reused(self):
         output = self.report.parent / "interrupted"
-        with patch.object(preserve, "text_sizes", return_value=(17, 23, 29)), \
+        with patch.object(preserve, "text_sizes", return_value=(17, "default", 29)), \
              patch.object(preserve, "off_season", return_value=1), \
              patch.object(preserve, "serve", side_effect=RuntimeError("interrupted")) as server:
             with self.assertRaisesRegex(RuntimeError, "interrupted"):
@@ -220,7 +228,7 @@ class Compare(unittest.TestCase):
 
     def test_completed_snapshot_cannot_be_overwritten(self):
         before = {p: p.read_bytes() for p in self.base.rglob("*") if p.is_file()}
-        with patch.object(preserve, "text_sizes", return_value=(17, 23, 29)), \
+        with patch.object(preserve, "text_sizes", return_value=(17, "default", 29)), \
              patch.object(preserve, "off_season", return_value=1), \
              patch.object(preserve, "serve") as server:
             with self.assertRaisesRegex(SystemExit, "already exists"):
@@ -232,19 +240,8 @@ class Compare(unittest.TestCase):
 class Settings(unittest.TestCase):
     def test_the_text_sizes_are_utils_js_s(self):
         low, base, high = preserve.text_sizes(engine_path(""))
-        self.assertTrue(low < base < high, (low, base, high))
-
-    def test_the_default_size_is_the_site_s_where_it_sets_one(self):
-        """tokens.css's --text-size-default, unless the site's theme.css
-        (or site.css) sets its own, as the default record is that size."""
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.assertEqual(preserve.text_sizes(engine_path(""), root),
-                             preserve.text_sizes(engine_path("")))
-            (root / "static/css").mkdir(parents=True)
-            (root / "static/css/theme.css").write_text(
-                "@layer site { :root { --text-size-default: 21px; } }")
-            self.assertEqual(preserve.text_sizes(engine_path(""), root)[1], 21)
+        self.assertEqual(base, "default")
+        self.assertTrue(0 < low < high, (low, high))
 
     def test_the_clock_stands_on_a_day_no_season_dresses(self):
         with tempfile.TemporaryDirectory() as tmp:

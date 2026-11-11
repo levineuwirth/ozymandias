@@ -67,13 +67,16 @@ class SettingsPanel(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def open_page(self, browser: str, path: str = PAGE, init: str = "", width: int = 1280):
+    def open_page(self, browser: str, path: str = PAGE, init: str = "", width: int = 1280,
+                  context_setup=None):
         context = self.browsers[browser].new_context(viewport={"width": width, "height": 900})
         self.addCleanup(context.close)
         # Out of every season (test_browser_seasons), so that nothing stored
         # means no theme, on any date.
         context.clock.set_fixed_time(off_season())
         context.add_init_script(STUBS + init)
+        if context_setup:
+            context_setup(context)
         page = context.new_page()
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -226,6 +229,30 @@ class SettingsPanel(unittest.TestCase):
                 self.expect(larger).to_have_attribute("aria-disabled", "false")
                 page.reload(wait_until="load")
                 self.assertEqual(self.size_state(page), ("17px", "17", "74%", ""))
+
+    def test_a_skin_default_with_fresh_and_saved_settings(self) -> None:
+        def skin(context):
+            def stylesheet(route):
+                response = route.fetch()
+                route.fulfill(response=response, body=response.text() +
+                              "\n@layer site { :root { --text-size-default: 21px; } }")
+            context.route("**/css/core.css", stylesheet)
+
+        for browser in BROWSERS:
+            for stored in (False, True):
+                with self.subTest(browser=browser, stored=stored):
+                    init = ("if (!sessionStorage.s) { localStorage.setItem('text-size', '27');"
+                            " sessionStorage.s = 1; }") if stored else ""
+                    page = self.open_page(browser, init=init, context_setup=skin)
+                    self.assertEqual(self.size_state(page)[:3],
+                                     ("27px", "27", "129%") if stored else ("21px", None, "100%"))
+                    self.open_panel(page)
+                    self.button(page, "text-larger").click()
+                    self.assertEqual(self.size_state(page)[0], "29px" if stored else "23px")
+                    self.button(page, "text-reset").click()
+                    self.assertEqual(self.size_state(page)[:3], ("21px", None, "100%"))
+                    page.reload(wait_until="load")
+                    self.assertEqual(self.size_state(page)[:3], ("21px", None, "100%"))
 
     def test_text_size_stored_by_the_old_scale(self) -> None:
         # The panel had three sizes and stored their place, 0 to 2.

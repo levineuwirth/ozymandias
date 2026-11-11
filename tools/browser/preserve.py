@@ -16,7 +16,7 @@ but from the site itself:
   styles   the computed style of every element under <html> but <head>, and
            of each ::before and ::after that has content, for PROPERTIES,
            at 1280px wide and the smallest, default and largest text sizes
-           (utils.js's TEXT_SIZE; the default, tokens.css's or the site's),
+           (utils.js's TEXT_SIZE endpoints; the default as rendered by CSS),
            plus each screenshot's width and media at the default text size;
   shots    the page at 320, 768, 1280 and 1600px wide, and in print, at the
            default size, from the top down to SHOT_HEIGHT.
@@ -65,7 +65,7 @@ SHOT_HEIGHT = 6000
 # A change of colour is the computed styles' to catch, which they do to the
 # unit; the screenshots are for what styles don't name, never that faint.
 TOLERANCE = 2
-FORMAT = 2
+FORMAT = 3
 
 # What a reader sees of an element, and what places it: the properties a
 # move of CSS between files or layers could change without meaning to.
@@ -186,24 +186,19 @@ def site_root() -> Path:
     return Path(os.environ.get("SITE_ROOT") or os.getcwd()).resolve()
 
 
-DEFAULT_SIZE = re.compile(r"--text-size-default\s*:\s*(\d+)px")
+def text_sizes(engine: Path) -> tuple[int, str, int]:
+    """The reader's endpoints, and a separate CSS-default capture.
 
-
-def text_sizes(engine: Path, root: Path | None = None) -> tuple[int, int, int]:
-    """utils.js's TEXT_SIZE, its smallest and largest, and the default
-    between them: the site's own --text-size-default (theme.css, else
-    site.css) where it sets one, else tokens.css's."""
+    The browser resolves the default in each view, including the cascade,
+    theme and media queries. A distinct label also keeps all three captures
+    when the default equals an endpoint. Never infer it from source CSS.
+    """
     js = (engine / "static/js/utils.js").read_text(encoding="utf-8")
     m = re.search(r"TEXT_SIZE\s*=\s*\{\s*min:\s*(\d+),\s*max:\s*(\d+),", js)
     if not m:
         raise SystemExit("preserve: utils.js's TEXT_SIZE not found")
     low, high = map(int, m.groups())
-    sheets = [] if root is None else [root / "static/css/theme.css", root / "static/css/site.css"]
-    for sheet in [*sheets, engine / "static/css/tokens.css"]:
-        found = DEFAULT_SIZE.findall(sheet.read_text(encoding="utf-8")) if sheet.is_file() else []
-        if found:
-            return low, int(found[-1]), high
-    raise SystemExit("preserve: tokens.css's --text-size-default not found")
+    return low, "default", high
 
 
 def off_season(root: Path) -> int:
@@ -301,7 +296,7 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
     url = base + path
     for theme in themes:
         for size in sizes:
-            ctx = await context(browser, base, theme, None if size == sizes[1] else size, moment, STYLE_WIDTH, init)
+            ctx = await context(browser, base, theme, None if size == "default" else size, moment, STYLE_WIDTH, init)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: errors.setdefault(n, []).append(str(e)[:200]))
             try:
@@ -350,7 +345,7 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     from playwright.async_api import async_playwright
     root = site_root()
     engine = HERE.parents[1]
-    sizes = text_sizes(engine, root)
+    sizes = text_sizes(engine)
     moment = in_season(root, season) if season else off_season(root)
     themes = [season] if season else list(THEMES)
     if not pages or jobs < 1:
@@ -441,12 +436,14 @@ def manifest(root: Path) -> dict:
     for key in ("moment", "style_width", "height", "shot_height"):
         if type(meta[key]) is not int or meta[key] < 1:
             raise ValueError(f"invalid {key}")
-    for key in ("sizes", "widths"):
-        values = meta[key]
-        if (not isinstance(values, list) or not values or
-                any(type(v) is not int or v < 1 for v in values) or len(set(values)) != len(values)):
-            raise ValueError(f"invalid {key}")
-    if len(meta["sizes"]) != 3:
+    widths = meta["widths"]
+    if (not isinstance(widths, list) or not widths or
+            any(type(v) is not int or v < 1 for v in widths) or len(set(widths)) != len(widths)):
+        raise ValueError("invalid widths")
+    sizes = meta["sizes"]
+    if (not isinstance(sizes, list) or len(sizes) != 3 or sizes[1] != "default"
+            or type(sizes[0]) is not int or type(sizes[2]) is not int
+            or not 0 < sizes[0] < sizes[2]):
         raise ValueError("expected smallest, default and largest text sizes")
     for key in ("themes", "properties", "volatile"):
         values = meta[key]

@@ -103,6 +103,15 @@
             wrapper.setAttribute('inert', '');
         }
 
+        function finishTransition() {
+            if (wrapper.classList.contains('is-collapsed')) {
+                conceal();
+            } else {
+                wrapper.style.maxHeight = 'none';
+            }
+            window.dispatchEvent(new Event('resize'));
+        }
+
         function setCollapsed(c, animate) {
             if (!animate) wrapper.style.transition = 'none';
             if (c) {
@@ -122,6 +131,14 @@
                 wrapper.classList.remove('is-collapsed');
                 btn.setAttribute('aria-expanded', 'true');
             }
+            // A skin can turn motion off. No transitionend is dispatched
+            // at zero duration (or when the height has not changed).
+            // Ask for the actual transition after applying the new styles,
+            // including delays and any overrides, rather than guessing
+            // from the motion token alone.
+            if (animate && !wrapper.getAnimations().some(function (animation) {
+                return animation.transitionProperty === 'max-height';
+            })) finishTransition();
             if (!animate) {
                 // Re-enable transition after layout pass.
                 requestAnimationFrame(function () {
@@ -156,12 +173,7 @@
         // Also retrigger sidenote layout after each transition.
         wrapper.addEventListener('transitionend', function (e) {
             if (e.target !== wrapper || e.propertyName !== 'max-height') return;
-            if (wrapper.classList.contains('is-collapsed')) {
-                conceal();
-            } else {
-                wrapper.style.maxHeight = 'none';
-            }
-            window.dispatchEvent(new Event('resize'));
+            finishTransition();
         });
 
         /* A03: a deep link into a collapsed section must open it, otherwise

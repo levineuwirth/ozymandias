@@ -7,6 +7,7 @@ one rule changed. The real sites' records are the harness's work, not this
 test's; this is that it sees a computed style and the pixels it makes."""
 
 import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -14,7 +15,7 @@ import unittest
 from pathlib import Path
 
 from tests._browser import requires_browser
-from tests._helpers import engine_path, script_env
+from tests._helpers import engine_path, script_env, load_tool
 
 TOOL = engine_path("tools/browser/preserve.py")
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>One</title>
@@ -43,10 +44,47 @@ class Preserve(unittest.TestCase):
                               env=script_env(SITE_ROOT=str(self.site), BROWSER_JOBS="1"),
                               capture_output=True, text=True, timeout=600)
 
-    def snapshot(self, name: str) -> Path:
-        done = self.run_tool("snapshot", str(self.root / name))
+    def snapshot(self, name: str, *options: str) -> Path:
+        done = self.run_tool("snapshot", str(self.root / name), *options)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return self.root / name
+
+    def test_default_is_rendered_css_and_has_its_own_record_at_either_endpoint(self):
+        preserve = load_tool("browser/preserve.py", "preserve_browser_test")
+        built = self.site / "_site"
+        for script in ("utils.js", "theme.js"):
+            (built / script).write_text(engine_path("static/js/" + script).read_text())
+        (built / "index.html").write_text(PAGE.replace('</head>',
+            '<link rel="stylesheet" href="/theme.css">'
+            '<link rel="stylesheet" href="/site.css">'
+            '<script src="/utils.js"></script><script src="/theme.js"></script></head>'))
+        (built / "style.css").write_text(STYLE + """
+            :root { --text-size-default: 23px; --text-size: var(--text-size-default); }
+            html { font-size: var(--text-size); }
+        """)
+        (built / "theme.css").write_text("""
+            :root { --text-size-default: 21px; }
+            /* Old default: --text-size-default: 17px */
+        """)
+        # Poison the source files too: snapshot must use the served build,
+        # not whatever CSS happens to be in the working tree today.
+        source = self.site / "static/css"
+        source.mkdir(parents=True)
+        (source / "theme.css").write_text((built / "theme.css").read_text())
+        (source / "site.css").write_text(":root { --text-size-default: 25px; }")
+        for size in (25, 17, 29):
+            with self.subTest(default=size):
+                (built / "site.css").write_text(f":root {{ --text-size-default: {size}px; }}")
+                snapshot = self.snapshot(f"size-{size}", "--shots=0")
+                meta = json.loads((snapshot / "meta.json").read_text())
+                self.assertEqual(meta["sizes"], [17, "default", 29])
+                for theme in ("light", "dark", "cappuccino"):
+                    for label, expected in ((17, 17), ("default", size), (29, 29)):
+                        path = snapshot / "styles/home" / f"{theme}-{label}.json.gz"
+                        styles = preserve.resolved(path, meta["properties"])
+                        self.assertEqual(styles["html"][0]["font-size"], f"{expected}px")
+                done = self.run_tool("compare", str(snapshot), str(snapshot))
+                self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
 
     def test_one_changed_rule_is_what_it_reports(self):
         first, again = self.snapshot("first"), self.snapshot("again")

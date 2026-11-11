@@ -94,6 +94,30 @@ class Sections(unittest.TestCase):
 
     # -- sections ----------------------------------------------------------
 
+    def test_zero_motion_closes_accessibly_and_reopens_without_a_height_cap(self):
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open(browser)
+                page.evaluate("document.documentElement.style.setProperty('--motion-scale', '0')")
+                body = self.body(page, "first")
+                page.wait_for_function("document.querySelector('#section-body-first').style.transition === ''")
+                self.assertEqual(body.evaluate("n => getComputedStyle(n).transitionDuration"), "0s")
+                self.close_section(page, "first")
+                self.expect(body).to_have_attribute("inert", "")
+                page.locator("#link1").evaluate("n => n.focus()")
+                self.expect(page.locator("#link1")).not_to_be_focused()
+                self.toggle(page, "first").click()
+                self.expect(body).not_to_have_attribute("hidden", "")
+                self.expect(body).not_to_have_attribute("inert", "")
+                self.assertEqual(body.evaluate("n => n.style.maxHeight"), "none")
+                before = body.bounding_box()["height"]
+                body.evaluate("""n => {
+                    const late = document.createElement('div');
+                    late.style.height = '200px';
+                    n.appendChild(late);
+                }""")
+                self.assertGreater(body.bounding_box()["height"], before + 190)
+
     def test_closing_a_section(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):

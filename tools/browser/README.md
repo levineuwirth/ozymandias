@@ -83,6 +83,14 @@ compatible browser versions and recording settings, and every expected
 record; missing or extra files fail even when both snapshots have the same
 gap. Older snapshots without this manifest must be recorded again.
 
+Format 3 names the CSS-default style capture `THEME-default.json.gz`.
+It leaves the reader's text-size choice unset, so the served stylesheets,
+their cascade, theme and media queries determine the size. The endpoint
+captures still select the smallest and largest reader settings. All three
+remain separate even if the default equals an endpoint. Formats 1 and 2
+must be recorded again; their numeric default labels are not accepted as
+format 3 records.
+
 Every screenshot also has a computed-style record at its width and media
 (`*-view-320.json.gz`, through `*-view-print.json.gz`). This catches even
 one-unit responsive and print colour changes despite the screenshot noise
