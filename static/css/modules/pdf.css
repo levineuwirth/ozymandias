@@ -22,7 +22,9 @@
 }
 
 
-@media (max-width: 600px) {
+/* At one column (tokens.css's breakpoints), a shorter frame: a phone or
+   a small tablet sideways has little height to give. */
+@media (max-width: 680px) {
     .pdf-embed {
         height: 60vh;
         min-height: 300px;

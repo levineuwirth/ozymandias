@@ -88,10 +88,9 @@
 
      media      max-width   540px  phones: the header's second row (below),
                                    tables, cards, the score reader's clock
-     media      max-width   600px  the PDF viewer's shorter frame
      media      max-width   640px  the score reader's narrow gutter
      media      max-width   680px  one column: the body takes the width,
-                                   the footer stacks
+                                   the footer stacks, the PDF frame shortens
      media      min-width   681px  with 900px, the band where the TOC is
                                    gone and the body spans the whole grid
      media      max-width   760px  the score reader drops its seek bar
@@ -100,6 +99,8 @@
      container  width <   47.5rem  site-nav: the links wrap into two rows
      container  width <=    32rem  site-nav: the narrow nav
 
+   The page's own are 540, 680 and 900px; the score reader's 640, 760
+   and 1100px follow what fits in its toolbar, not the page's columns.
    The container queries are in rem, so they move with the reader's text
    size; the media queries do not. Margin notes have no breakpoint:
    sidenotes.js measures the room. */
