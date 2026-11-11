@@ -194,6 +194,8 @@ iconForHost :: SiteConfig -> Text -> Text
 iconForHost cfg host
     -- Scholarly / reference
     | m "wikipedia.org"        = "wikipedia"
+    | m "mtg.wiki"             = "mtgwiki"
+    | m "scryfall.com"         = "scryfall"
     | m "arxiv.org"            = "arxiv"
     | m "doi.org"              = "doi"
     | m "worldcat.org"         = "worldcat"

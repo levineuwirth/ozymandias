@@ -82,3 +82,17 @@ class LinkIconsEndTests(unittest.TestCase):
         soup = self.render('[normal](https://example.org) [Plain prose.]{.link-icons-end}')
         self.assertFalse(soup.select('.link-icons-tail, .link-icon-deferred'))
         self.assertEqual(soup.select_one('a')['data-link-icon'], 'external')
+
+    def test_magic_domains_have_icons_on_plain_and_trailing_links(self):
+        links = ('[Landfall](https://mtg.wiki/page/Landfall) '
+                 '[Scute Swarm](https://scryfall.com/card/znr/203/scute-swarm)')
+        soup = self.render(links + '\n\n[' + links + '.]{.link-icons-end}\n\n'
+                           '[lookalike](https://notmtg.wiki/page/Landfall) '
+                           '[path](https://example.org/scryfall.com/card/znr/203)')
+        plain = soup.select('p')[0].select('a')
+        trailing = soup.select('.link-icons-tail a')
+        for anchors in (plain, trailing):
+            self.assertEqual([a['data-link-icon'] for a in anchors], ['mtgwiki', 'scryfall'])
+            self.assertTrue(all(a['data-link-icon-type'] == 'svg' for a in anchors))
+        self.assertEqual([a['data-link-icon'] for a in soup.select('p')[-1].select('a')],
+                         ['external', 'external'])

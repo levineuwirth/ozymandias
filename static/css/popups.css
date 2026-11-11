@@ -142,6 +142,16 @@
     background: color-mix(in srgb, var(--text-faint) 7%, transparent);
 }
 
+/* A whole card stays legible, with neither its name nor rules cropped. */
+.popup-image-banner.is-card {
+    width: auto;
+    height: 320px;
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    margin-inline: auto;
+}
+
 .popup-abstract,
 .popup-extract {
     font-size: 0.78rem;
@@ -183,6 +193,14 @@
 .popup-source[data-popup-source="wikipedia"]::before {
     mask-image: url('/images/link-icons/wikipedia.svg');
     -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
+}
+.popup-source[data-popup-source="mtgwiki"]::before {
+    mask-image: url('/images/link-icons/mtgwiki.svg');
+    -webkit-mask-image: url('/images/link-icons/mtgwiki.svg');
+}
+.popup-source[data-popup-source="scryfall"]::before {
+    mask-image: url('/images/link-icons/scryfall.svg');
+    -webkit-mask-image: url('/images/link-icons/scryfall.svg');
 }
 .popup-source[data-popup-source="arxiv"]::before {
     mask-image: url('/images/link-icons/arxiv.svg');

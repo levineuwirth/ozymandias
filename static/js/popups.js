@@ -14,15 +14,19 @@
      10. YouTube            — oEmbed, title + channel (no key required)
      11. Internet Archive   — archive.org/metadata, title + description
      12. PubMed             — NCBI esummary, title + authors + journal
+     13. MTG Wiki           — MediaWiki action API, article introduction
+     14. Scryfall           — card image, type and Oracle rules text
 
    A site asks only the providers its site.yaml lists in popup-providers
-   (ozySite.popupProviders, 4 to 12 above); local annotations, citations and
+   (ozySite.popupProviders, 4 to 14 above); local annotations, citations and
    internal pages need no listing.
 
    For those it lists, production nginx CSP must add to connect-src:
      https://*.wikipedia.org  https://api.crossref.org
      https://api.github.com   https://openlibrary.org
      https://api.biorxiv.org  https://www.youtube.com
+     https://mtg.wiki         https://api.scryfall.com
+   Scryfall card images also need https://cards.scryfall.io in img-src.
    (The wildcard covers per-language Wikipedias: en, es, fr, simple,
     zh-yue, be-tarask, …  — the popup picks the host from the link URL.)
 
@@ -648,6 +652,7 @@
             (/^https:\/\//.test(img.src) || /^\/(?!\/)/.test(img.src))) {
             html += '<img class="popup-image-banner'
                   + (fields.imageKind === 'figure' ? ' is-figure' : '')
+                  + (fields.imageKind === 'card' ? ' is-card' : '')
                   + '" src="' + esc(img.src) + '"'
                   + (img.width && img.height
                         ? ' width="' + (+img.width) + '" height="' + (+img.height) + '"'
@@ -1003,6 +1008,74 @@
                     authors: (paper.authors || []).map(function (a) { return a.name; }),
                     meta:    [paper.fulljournalname || paper.source || '',
                               (paper.pubdate || '').slice(0, 4)].filter(Boolean).join(', ')
+                };
+            }
+        },
+
+        /* MTG Wiki exposes TextExtracts, but not Wikipedia's PageImages
+           extension. Its article paths start with /page/, not /wiki/. */
+        {
+            name: 'mtgwiki', label: 'MTG Wiki',
+            host:  /^(?:www\.)?mtg\.wiki$/,
+            match: /^https?:\/\/(?:www\.)?mtg\.wiki\/page\/([^#?]+)/,
+            fetchType: 'json',
+            bodyLimit: 600,
+            url: function (ctx) {
+                return 'https://mtg.wiki/api.php?action=query&prop=extracts'
+                     + '&exintro=1&explaintext=1&format=json&redirects=1'
+                     + '&titles=' + encodeURIComponent(decodeURIComponent(ctx.match[1]))
+                     + '&origin=*';
+            },
+            parse: function (data) {
+                var pages = data && data.query && data.query.pages;
+                var page = pages && Object.values(pages)[0];
+                if (!page || page.missing !== undefined || !page.extract) return null;
+                return { title: page.title, extract: page.extract };
+            }
+        },
+
+        /* Resolve the exact printing by set and collector number; the
+           optional slug is for readers, not a card-name search. */
+        {
+            name: 'scryfall', label: 'Scryfall',
+            host:  /^(?:www\.)?scryfall\.com$/,
+            match: /^https?:\/\/(?:www\.)?scryfall\.com\/card\/([^/?#]+)\/([^/?#]+)(?:\/([^/?#]+))?(?:[/?#]|$)/,
+            fetchType: 'json',
+            fetchInit: { headers: { 'Accept': 'application/json' } },
+            bodyLimit: 1200,
+            url: function (ctx) {
+                var lang = ctx.match[3] || '';
+                /* A slug such as "fog" is not a language code. */
+                var localized = /^(?:en|es|fr|de|it|pt|ja|ko|ru|zhs|zht|he|la|grc|ar|sa|ph)$/.test(lang);
+                return 'https://api.scryfall.com/cards/'
+                     + encodeURIComponent(decodeURIComponent(ctx.match[1])) + '/'
+                     + encodeURIComponent(decodeURIComponent(ctx.match[2]))
+                     + (localized ? '/' + lang : '');
+            },
+            parse: function (card) {
+                if (!card || card.object !== 'card' || !card.name) return null;
+                var faces = card.card_faces || [];
+                var front = faces[0] || card;
+                var images = card.image_uris || front.image_uris;
+                var rules = card.oracle_text;
+                if (!rules && faces.length) {
+                    rules = faces.map(function (face) {
+                        return face.name + ': ' + (face.oracle_text || '');
+                    }).join(' // ');
+                }
+                var stats = card.power !== undefined && card.toughness !== undefined
+                    ? card.power + '/' + card.toughness
+                    : card.loyalty !== undefined ? 'Loyalty ' + card.loyalty : '';
+                return {
+                    title: card.name,
+                    meta: [card.mana_cost || front.mana_cost, card.type_line, stats]
+                              .filter(Boolean).join(' · '),
+                    extract: rules || '',
+                    stats: [card.set_name, card.collector_number ? '#' + card.collector_number : '']
+                               .filter(Boolean).join(' · '),
+                    image: images && images.normal
+                        ? { src: images.normal, width: 488, height: 680 } : null,
+                    imageKind: 'card'
                 };
             }
         }

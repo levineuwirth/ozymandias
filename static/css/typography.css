@@ -907,6 +907,14 @@ a[data-link-icon="wikipedia"]::after {
     mask-image: url('/images/link-icons/wikipedia.svg');
     -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
 }
+a[data-link-icon="mtgwiki"]::after {
+    mask-image: url('/images/link-icons/mtgwiki.svg');
+    -webkit-mask-image: url('/images/link-icons/mtgwiki.svg');
+}
+a[data-link-icon="scryfall"]::after {
+    mask-image: url('/images/link-icons/scryfall.svg');
+    -webkit-mask-image: url('/images/link-icons/scryfall.svg');
+}
 
 a[data-link-icon="arxiv"]::after {
     mask-image: url('/images/link-icons/arxiv.svg');

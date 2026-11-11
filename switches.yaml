@@ -292,7 +292,7 @@ popups:
   default: true
   assets: [js/popups.js, css/popups.css]
   # What site.yaml's popup-providers may list: popups.js's PROVIDERS.
-  providers: [wikipedia, arxiv, doi, github, openlibrary, biorxiv, medrxiv, youtube, archive, pubmed]
+  providers: [wikipedia, arxiv, doi, github, openlibrary, biorxiv, medrxiv, youtube, archive, pubmed, mtgwiki, scryfall]
   about: >-
     Link previews on hover or focus (popups.js), and data/annotations.json,
     the author's own previews. Previews from other sites are asked of the
