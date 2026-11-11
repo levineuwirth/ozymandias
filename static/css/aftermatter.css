@@ -1,0 +1,577 @@
+@layer engine {
+/* ============================================================
+   CONTENT DIVIDERS
+   Decorative rule with centered logo. Used both at the top of
+   the body (content-divider, between metadata and prose) and at
+   the aftermatter boundary (aftermatter-divider).
+   ============================================================ */
+
+.content-divider,
+.aftermatter-divider {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+
+.content-divider {
+    margin: 2rem 0 2.5rem;
+}
+
+
+.aftermatter-divider {
+    margin: 3.5rem 0 2.5rem;
+}
+
+
+.content-divider::before,
+.content-divider::after,
+.aftermatter-divider::before,
+.aftermatter-divider::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--text-faint);
+    opacity: 0.5;
+}
+
+
+.content-divider-logo,
+.aftermatter-logo {
+    display: block;
+    width: 1.6rem;
+    height: 1.6rem;
+    flex-shrink: 0;
+    background-color: var(--text-faint);
+    opacity: 0.45;
+    mask-image: var(--divider-logo, none);
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-image: var(--divider-logo, none);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    transition: opacity var(--transition-fast);
+}
+
+
+.content-divider-logo:hover,
+.aftermatter-logo:hover {
+    opacity: 0.7;
+}
+
+
+
+/* ============================================================
+   AFTERMATTER HEADINGS
+   Right-aligned, all-small-caps, muted — visually distinct from
+   main-body headings to signal supplementary material.
+   ============================================================ */
+
+.aftermatter :is(h2, h3, h4) {
+    text-align: right;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+
+.aftermatter h2 {
+    font-size: 1.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border-muted);
+}
+
+
+.aftermatter h3 {
+    font-size: 1.05rem;
+}
+
+
+
+/* ============================================================
+   FOOTER ORNAMENT
+   Inline SVG floral ornament separating body from page metadata.
+   Uses currentColor for automatic light/dark theming.
+   ============================================================ */
+
+.footer-ornament {
+    display: block;
+    width: 100%;
+    height: auto;
+    padding: 0.5rem var(--page-padding);
+    color: var(--text-faint);
+    opacity: 0.5;
+}
+
+
+
+/* ============================================================
+   BOTTOM METADATA FOOTER
+   Full-width section outside the essay's three-column layout.
+   Structure: [Further Reading row?] [Bibliography row?] [metadata grid].
+   ============================================================ */
+
+.page-meta-footer {
+    padding: 1.5rem var(--page-padding) 2rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+
+/* Each section is constrained and centered. */
+.page-meta-footer > * {
+    width: 100%;
+    max-width: min(1200px, 100%);
+}
+
+
+/* Shared heading style for full-width section headings */
+.meta-footer-full > h3,
+.meta-footer-section h3 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin: 0 0 0.75rem 0;
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+}
+
+
+/* Full-width rows: Further Reading and Bibliography */
+.meta-footer-full {
+    width: 100%;
+}
+
+
+/* Secondary row: RELATED | EPISTEMIC | VERSION HISTORY.
+   auto-fit + minmax lets the grid render 3 columns when all are present,
+   2 when RELATED is absent (zero similar pages), and stack gracefully
+   at narrow viewports without any further media queries. */
+.meta-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    justify-content: center;
+    gap: 1.65rem 2.25rem;
+    padding-top: 0.25rem;
+}
+
+
+.meta-footer-section p,
+.meta-footer-section ul {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+
+.meta-footer-section ul {
+    padding-left: 1em;
+    list-style: none;
+}
+
+
+.meta-footer-section ul li::before {
+    content: "–\00a0";
+    color: var(--text-faint);
+}
+
+
+
+/* ============================================================
+   BACKLINKS — promoted to a full-width aftermatter section.
+   Each entry: source title in serif body face, then a blockquote of
+   the sentence containing the link. A small "¶" affordance reveals
+   the full paragraph in a hover/focus-activated popup.
+   ============================================================ */
+
+/* The "BACKLINKS" small-caps label is noticeably larger than the
+   secondary-row headings (which stay at 0.78rem) because Backlinks
+   is now a primary aftermatter section. */
+.meta-footer-backlinks > h3 {
+    font-size: 1.05rem;
+    letter-spacing: 0.09em;
+    margin-bottom: 1rem;
+}
+
+
+.meta-footer-backlinks .backlinks-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+
+.meta-footer-backlinks .backlinks-list li::before {
+    content: none;
+}
+
+
+.backlink-item {
+    padding: 0;
+}
+
+
+/* Source title — serif body face, prominent but restrained */
+.backlink-source {
+    display: inline-block;
+    font-family: var(--font-serif);
+    font-size: 1.32rem;
+    font-variant: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 0.05em;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+
+.backlink-source:hover,
+.backlink-source:focus-visible {
+    color: var(--text);
+    border-color: var(--border);
+}
+
+
+/* Sentence-level context quoted beneath the title */
+.backlink-quote {
+    margin: 0.55rem 0 0 0;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid var(--border-muted);
+    font-family: var(--font-serif);
+    font-size: 1.12rem;
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--text-muted);
+    quotes: none;
+}
+
+
+.backlink-quote::before,
+.backlink-quote::after {
+    content: none;
+}
+
+
+.backlink-quote a {
+    color: var(--text-muted);
+    text-decoration-color: var(--border-muted);
+}
+
+
+.backlink-quote a:hover {
+    color: var(--text);
+    text-decoration-color: var(--border);
+}
+
+
+/* Hover/focus popup — full paragraph context */
+.backlink-full {
+    position: relative;
+    display: inline-block;
+    margin-left: 0.35em;
+    vertical-align: baseline;
+}
+
+
+.backlink-full-trigger {
+    background: none;
+    border: 1px solid var(--border-muted);
+    border-radius: 999px;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    line-height: 1;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    cursor: help;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast),
+                background-color var(--transition-fast);
+}
+
+
+.backlink-full-trigger:hover,
+.backlink-full:focus-within .backlink-full-trigger {
+    color: var(--text);
+    border-color: var(--border);
+    background-color: var(--bg-offset);
+}
+
+
+.backlink-full-popup {
+    display: none;
+    position: absolute;
+    z-index: 200;
+    bottom: calc(100% + 0.4rem);
+    left: 0;
+    width: min(34rem, 80vw);
+    padding: 0.75rem 0.95rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+    font-family: var(--font-serif);
+    font-style: normal;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    text-align: left;
+}
+
+
+.backlink-full:hover .backlink-full-popup,
+.backlink-full:focus-within .backlink-full-popup {
+    display: block;
+}
+
+
+.backlink-full-popup a {
+    color: var(--text-muted);
+    text-decoration-color: var(--border-muted);
+}
+
+
+.backlink-full-popup a:hover {
+    color: var(--text);
+}
+
+
+/* Second and later mentions from the same source page, folded away.
+   Styled as the version-history "More" disclosure below, so the two
+   collapsed lists in this footer read as one affordance. The quotes keep
+   their own margin, so the summary only needs to clear the first one. */
+.backlink-more {
+    margin-top: 0.35rem;
+}
+
+
+.backlink-more > summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    user-select: none;
+    padding-left: 1em;
+    transition: color var(--transition-fast);
+}
+
+
+.backlink-more > summary:hover,
+.backlink-more > summary:focus-visible {
+    color: var(--text-muted);
+}
+
+
+.backlink-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+
+.backlink-more > summary::before {
+    content: "\25B8\00a0";
+    font-size: 0.7em;
+    vertical-align: 0.1em;
+}
+
+
+.backlink-more[open] > summary::before {
+    content: "\25BE\00a0";
+}
+
+
+
+/* ============================================================
+   RELATED (SIMILAR LINKS) — promoted to a full-width aftermatter
+   section, sitting just under Backlinks. Source file:
+   data/similar-links.json (produced by tools/embed.py).
+   ============================================================ */
+
+.meta-footer-similar > h3 {
+    font-size: 1.05rem;
+    letter-spacing: 0.09em;
+    margin-bottom: 1rem;
+}
+
+
+.meta-footer-similar .similar-links-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+
+.meta-footer-similar .similar-links-list li::before {
+    content: none;
+}
+
+
+.meta-footer-similar .similar-links-item a {
+    font-family: var(--font-serif);
+    font-size: 1.18rem;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-muted);
+    padding-bottom: 0.05em;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+
+.meta-footer-similar .similar-links-item a:hover,
+.meta-footer-similar .similar-links-item a:focus-visible {
+    color: var(--text);
+    border-bottom-color: var(--border);
+}
+
+
+
+/* ============================================================
+   VERSION HISTORY — cap at 3 with a <details> "more" affordance.
+   .version-history-list inherits list styling from .meta-footer-section ul.
+   ============================================================ */
+
+.version-history-more {
+    margin-top: 0.35rem;
+}
+
+
+.version-history-more > summary {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    user-select: none;
+    padding-left: 1em;
+    transition: color var(--transition-fast);
+}
+
+
+.version-history-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+
+.version-history-more > summary::before {
+    content: "▸\00a0";
+    font-size: 0.7em;
+    vertical-align: 0.1em;
+}
+
+
+.version-history-more[open] > summary::before {
+    content: "▾\00a0";
+}
+
+
+.version-history-more > summary:hover {
+    color: var(--text-muted);
+}
+
+
+.version-history-more > .version-history-list {
+    margin-top: 0.25rem;
+}
+
+
+
+
+/* ============================================================
+   CITATION MARKERS (inline superscripts)
+   ============================================================ */
+
+.cite-marker {
+    font-family: var(--font-sans);
+    font-size: 0.62em;
+    line-height: 1;
+    vertical-align: super;
+    margin: 0 0.08em;
+}
+
+
+.cite-link {
+    color: var(--text-faint);
+    text-decoration: none;
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.28em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+
+.cite-link:hover {
+    color: var(--text-muted);
+    border-color: var(--border);
+    text-decoration: none;
+}
+
+
+
+
+
+/* ============================================================
+   BIBLIOGRAPHY (inside .page-meta-footer #bibliography)
+   ============================================================ */
+
+/* Number badge preceding each entry */
+.ref-num {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    margin-right: 0.4em;
+    white-space: nowrap;
+}
+
+
+/* Each bibliography entry */
+.csl-bib-body .csl-entry {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 0.6rem;
+    padding-left: 1.6em;
+    text-indent: -1.6em;
+}
+
+
+.csl-bib-body .csl-entry a {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+
+.csl-bib-body .csl-entry a:hover {
+    color: var(--text-muted);
+}
+}

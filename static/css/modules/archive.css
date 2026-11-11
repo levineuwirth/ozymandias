@@ -1,3 +1,4 @@
+@layer engine {
 /* archive.css — the link archive: /archive/ and /archive/<slug>/.
  *
  * Gated in head.html via $if(archive)$ (build/Archive.hs sets the flag on
@@ -22,6 +23,7 @@
     text-indent: 0;
 }
 
+
 /* ============================================================
    ENTRY HEADER + ARCHIVAL BANNER
    The banner is a bordered callout, stacked: a small-caps label,
@@ -33,9 +35,11 @@
     margin-bottom: 0.5rem;
 }
 
+
 #markdownBody .archive-header .page-title {
     margin-bottom: 0;
 }
+
 
 #markdownBody .archive-banner {
     margin-top: 1.4rem;
@@ -48,6 +52,7 @@
     background: var(--bg-subtle);
 }
 
+
 #markdownBody .archive-banner-label {
     margin: 0;
     font-family: var(--font-sans);
@@ -58,6 +63,7 @@
     color: var(--text-muted);
 }
 
+
 #markdownBody .archive-banner-text {
     margin: 0;
     font-family: var(--font-serif);
@@ -66,12 +72,14 @@
     color: var(--text);
 }
 
+
 #markdownBody .archive-banner-original {
     align-self: flex-start;
     font-family: var(--font-sans);
     font-size: 0.85rem;
     font-weight: 600;
 }
+
 
 /* Degraded / js-required snapshots: a dashed-border note. Restrained —
    the monochrome palette has no alarm colour and wants none. */
@@ -86,6 +94,7 @@
     color: var(--text-muted);
 }
 
+
 #markdownBody .archive-degraded-label {
     margin-right: 0.4rem;
     font-family: var(--font-sans);
@@ -95,6 +104,7 @@
     letter-spacing: 0.1em;
     color: var(--text);
 }
+
 
 /* Private entry: the artifact is held offline, not published — a calm
    informational panel in place of the artifact viewer. */
@@ -109,6 +119,7 @@
     line-height: 1.6;
     color: var(--text-muted);
 }
+
 
 /* Link-rot status — a header note for non-live states (archive.py check),
    and the status word in the provenance panel. The palette is monochrome,
@@ -126,13 +137,16 @@
     color: var(--text);
 }
 
+
 #markdownBody .archive-status-note--rotted {
     border-left-color: var(--text);
 }
 
+
 #markdownBody .archive-status-note--moved {
     color: var(--text-muted);
 }
+
 
 #markdownBody .archive-status {
     font-variant: all-small-caps;
@@ -140,13 +154,16 @@
     letter-spacing: 0.04em;
 }
 
+
 #markdownBody .archive-status--live {
     color: var(--text-muted);
 }
 
+
 #markdownBody .archive-status--rotted {
     font-weight: 600;
 }
+
 
 /* ============================================================
    PROVENANCE PANEL
@@ -162,6 +179,7 @@
     border-radius: 2px;
 }
 
+
 #markdownBody .archive-panel-title {
     margin: 0 0 0.7rem;
     font-family: var(--font-sans);
@@ -173,12 +191,14 @@
     color: var(--text-faint);
 }
 
+
 #markdownBody .archive-meta {
     margin: 0;
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: 0.34rem 1.1rem;
 }
+
 
 #markdownBody .archive-meta dt {
     font-family: var(--font-sans);
@@ -189,6 +209,7 @@
     color: var(--text-faint);
 }
 
+
 #markdownBody .archive-meta dd {
     margin: 0;
     font-family: var(--font-serif);
@@ -197,10 +218,12 @@
     overflow-wrap: anywhere;
 }
 
+
 #markdownBody .archive-meta dd code {
     font-family: var(--font-mono);
     font-size: 0.82rem;
 }
+
 
 /* The author's reason-for-archiving note, set in the page measure. */
 #markdownBody .archive-note {
@@ -211,6 +234,7 @@
     line-height: 1.6;
     color: var(--text-muted);
 }
+
 
 /* ============================================================
    ARTIFACT VIEWER
@@ -228,6 +252,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
+
 #markdownBody .archive-viewer-bar {
     display: flex;
     align-items: baseline;
@@ -238,17 +263,20 @@
     background: var(--bg-subtle);
 }
 
+
 #markdownBody .archive-viewer-name {
     font-family: var(--font-mono);
     font-size: 0.78rem;
     color: var(--text-muted);
 }
 
+
 #markdownBody .archive-viewer-open {
     font-family: var(--font-sans);
     font-size: 0.76rem;
     white-space: nowrap;
 }
+
 
 #markdownBody .archive-frame {
     display: block;
@@ -257,6 +285,7 @@
     border: 0;
     background: var(--bg);
 }
+
 
 /* ============================================================
    EXTRACTED FULL TEXT
@@ -268,6 +297,7 @@
 #markdownBody .archive-fulltext-wrap {
     margin: 1.8rem 0 0;
 }
+
 
 #markdownBody .archive-fulltext-title,
 #markdownBody .archive-section-title {
@@ -283,9 +313,11 @@
     color: var(--text-muted);
 }
 
+
 #markdownBody summary.archive-fulltext-title {
     cursor: pointer;
 }
+
 
 #markdownBody .archive-fulltext-wrap > p {
     margin: 0 0 0.85rem;
@@ -294,6 +326,7 @@
     line-height: 1.6;
     color: var(--text);
 }
+
 
 /* The pdftotext block: scroll-capped so it never dominates the page. */
 #markdownBody .archive-fulltext {
@@ -312,10 +345,11 @@
     overflow-wrap: anywhere;
 }
 
+
 /* ============================================================
    REFERENCED BY / RELATED
    The site-wide .backlinks-list / .similar-links-list styles
-   (components.css) carry the lists themselves; these rules add
+   (collapse.css) carry the lists themselves; these rules add
    only the section framing and the granular fragment groups.
    ============================================================ */
 
@@ -324,9 +358,11 @@
     margin: 1.8rem 0 0;
 }
 
+
 #markdownBody .referenced-by-group {
     margin-top: 0.9rem;
 }
+
 
 #markdownBody .referenced-by-fragment {
     margin: 0 0 0.3rem;
@@ -338,6 +374,7 @@
     letter-spacing: 0.08em;
     color: var(--text-faint);
 }
+
 
 /* ============================================================
    REMOVAL NOTICE
@@ -356,6 +393,7 @@
     color: var(--text-faint);
 }
 
+
 /* ============================================================
    INDEX PAGE — /archive/
    A text list in the catalog idiom: one hairline between rows,
@@ -367,6 +405,7 @@
     margin-bottom: 1.8rem;
 }
 
+
 #markdownBody .archive-index-intro {
     margin: 0.6rem 0 0;
     font-family: var(--font-serif);
@@ -375,11 +414,13 @@
     color: var(--text-muted);
 }
 
+
 #markdownBody .archive-list {
     margin: 0;
     padding: 0;
     list-style: none;
 }
+
 
 #markdownBody .archive-list-item {
     display: flex;
@@ -391,9 +432,11 @@
     border-bottom: 1px solid var(--border);
 }
 
+
 #markdownBody .archive-list-item:last-child {
     border-bottom: none;
 }
+
 
 #markdownBody .archive-list-link {
     font-family: var(--font-serif);
@@ -402,10 +445,12 @@
     text-decoration: none;
 }
 
+
 #markdownBody .archive-list-link:hover {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
+
 
 #markdownBody .archive-list-meta {
     font-family: var(--font-sans);
@@ -413,6 +458,7 @@
     color: var(--text-faint);
     white-space: nowrap;
 }
+
 
 /* Non-'ok' capture flag — a dashed chip, echoing the entry-page note. */
 #markdownBody .archive-quality-flag {
@@ -425,6 +471,7 @@
     color: var(--text-muted);
 }
 
+
 /* A rotted entry is the one health state worth a solid, inked flag. */
 #markdownBody .archive-quality-flag--rotted {
     border-style: solid;
@@ -432,11 +479,13 @@
     color: var(--text);
 }
 
+
 #markdownBody .archive-empty {
     font-family: var(--font-serif);
     font-style: italic;
     color: var(--text-muted);
 }
+
 
 /* ============================================================
    MOBILE
@@ -449,15 +498,18 @@
         gap: 0;
     }
 
+
     #markdownBody .archive-meta dt {
         margin-top: 0.55rem;
     }
+
 
     #markdownBody .archive-meta dt:first-of-type {
         margin-top: 0;
     }
 
+
     #markdownBody .archive-frame {
         height: 70vh;
-    }
+    }}
 }

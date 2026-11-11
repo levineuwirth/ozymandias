@@ -346,12 +346,22 @@
        demand comes from there, so an old tab stays on its old set. */
     var ASSETS = (document.querySelector('meta[name="ozy:assets"]') || {content: ''}).content;
 
-    function ensureStyle(href) {
+    /* `imports`: what the stylesheet @imports (a vendor sheet, into the
+       engine's layer), preloaded beside it as head.html does for a page's
+       own, or its request would wait for the stylesheet to arrive. */
+    function ensureStyle(href, imports) {
         var present = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
             .some(function (el) {
                 return new URL(el.href, document.baseURI).pathname === href;
             });
         if (present) return;
+        (imports || []).forEach(function (url) {
+            var early = document.createElement('link');
+            early.rel = 'preload';
+            early.as = 'style';
+            early.href = url;
+            document.head.appendChild(early);
+        });
         var css = document.createElement('link');
         css.rel = 'stylesheet';
         css.href = href;
@@ -380,7 +390,7 @@
         var codes = Array.from(container.querySelectorAll(selector));
         if (container.matches && container.matches(selector)) codes.unshift(container);
         if (!codes.length) return Promise.resolve();
-        ensureStyle(ASSETS + '/css/syntax.css');
+        ensureStyle(ASSETS + '/css/modules/syntax.css');
         if (!codeLoading) codeLoading = window.Prism
             ? Promise.resolve() : loadScript(ASSETS + '/js/prism.min.js');
         return codeLoading.then(function () {
@@ -404,7 +414,7 @@
     function ensureMath(container) {
         if (mathLoading || typeof window.renderMath === 'function') return;
         if (!container.querySelector('.math') && !container.classList.contains('math')) return;
-        ensureStyle('/katex/katex.min.css');
+        ensureStyle(ASSETS + '/css/modules/katex.css', ['/katex/katex.min.css']);
         mathLoading = (window.katex ? Promise.resolve() : loadScript('/katex/katex.min.js'))
             .then(function () { return loadScript(ASSETS + '/js/katex-bootstrap.js'); })
             .catch(function () { mathLoading = null; });

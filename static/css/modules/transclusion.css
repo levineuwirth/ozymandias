@@ -1,0 +1,52 @@
+@layer engine {
+/* ============================================================
+   TRANSCLUSION
+   States for <div class="transclude"> placeholders injected by
+   Filters.Transclusion and populated by transclude.js.
+   ============================================================ */
+
+/* Loading placeholder — subtle pulse so the page doesn't look broken
+   while the fetch is in flight. */
+.transclude--loading {
+    min-height: 1.65rem;
+    background: var(--bg-offset);
+    border-radius: 2px;
+    animation: transclude-pulse 1.2s ease-in-out infinite;
+}
+
+
+@keyframes transclude-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+}
+
+
+/* Loaded — transparent wrapper; content reads as native. */
+.transclude--loaded {
+    /* No visual treatment: transcluded content is visually native. */
+}
+
+
+/* Optional: uncomment to show a subtle left rule on loaded transclusions.
+.transclude--loaded {
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+    margin-left: -1rem;
+}
+*/
+
+/* Error state — faint inline notice. */
+.transclude--error {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    padding: 0.4rem 0;
+}
+
+
+/* Content wrapper — display:contents so the injected nodes participate
+   in normal document flow without adding a structural block. */
+.transclude--content {
+    display: contents;
+}
+}

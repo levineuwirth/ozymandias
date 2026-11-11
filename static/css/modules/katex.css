@@ -1,0 +1,15 @@
+/* KaTeX 0.16.11, self-hosted under static/katex/ (audit X6): the npm
+   package's katex.min.js unchanged (its SHA-384 is the SRI these tags
+   carried from jsDelivr), the stylesheet trimmed to woff2 sources, woff2
+   fonts only. `math` is set from the rendered page
+   (Contexts.pageFeatureFields), so pages without math load none of it;
+   transclude.js loads it on demand when a transclusion brings math. To
+   upgrade: take dist/ from the new release, trim the stylesheet the same
+   way, and compare the math-heavy essays. The script tag is in
+   templates/default.html.
+
+   Imported into the engine's layer, so the site's rules still win: a
+   stylesheet can be put in a layer only by @import. head.html preloads
+   katex.min.css beside this file, and so does transclude.js when it loads
+   this file later, so the import does not wait for it. */
+@import url("/katex/katex.min.css") layer(engine);

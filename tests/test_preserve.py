@@ -52,12 +52,12 @@ class Compare(unittest.TestCase):
         self.report = Path(tmp.name) / "report"
         # Independent, complete one-page recordings; omit a file only in tests
         # that deliberately damage coverage. Do not derive these from inventory().
-        meta = {"format": 1, "complete": True, "browser": "chromium test",
+        meta = {"format": preserve.FORMAT, "complete": True, "browser": "chromium test",
                 "moment": 1, "volatile": [".leaflet-container"],
                 "themes": ["light", "dark", "cappuccino"], "sizes": [17, 23, 29],
                 "widths": [320, 768, 1280, 1600], "style_width": 1280,
                 "height": 900, "shot_height": 6000, "properties": PROPS,
-                "shots": True, "pages": {"home": "/"}}
+                "shots": True, "pages": {"home": "/"}, "season": None, "init": None}
         for root in (self.base, self.new):
             root.mkdir()
             (root / "meta.json").write_text(json.dumps(meta))

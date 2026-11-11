@@ -1,0 +1,195 @@
+@layer engine {
+/* ============================================================
+   TABLE OF CONTENTS
+   Sticky left sidebar (position: sticky set in layout.css).
+   toc.js manages: .is-active links, .is-collapsed state,
+   and the --toc-progress custom property for the progress bar.
+   ============================================================ */
+
+#toc {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    padding-right: 1.5rem;
+    padding-left: 0.5rem;
+}
+
+
+/* Header row: current section label + collapse toggle */
+.toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.35rem;
+    position: relative;
+}
+
+
+/* Progress track — full width, faint */
+.toc-header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 1px;
+    background: var(--border);
+}
+
+
+/* Progress fill — grows left→right with scroll */
+.toc-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 1px;
+    width: calc(var(--toc-progress, 0) * 100%);
+    background: var(--text-muted);
+    transition: width 0.12s ease;
+}
+
+
+/* Current section label */
+.toc-active-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+
+#toc.is-collapsed .toc-active-label {
+    color: var(--text-muted);
+}
+
+
+/* Collapse toggle button */
+.toc-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--transition-fast), transform 0.28s ease;
+}
+
+.toc-toggle:hover {
+    color: var(--text-muted);
+}
+
+#toc.is-collapsed .toc-toggle {
+    transform: rotate(-90deg);
+}
+
+
+/* Nav: animates open/closed via max-height. The collapsed state hides
+   the nav from the keyboard tab order *and* the accessibility tree
+   using `aria-hidden="true"` (set by toc.js). The transition still
+   works because we keep `max-height: 0` for the visual collapse. */
+.toc-nav {
+    /* Fill the sticky sidebar's remaining height and scroll when the
+       outline is taller than the viewport. The subtracted ~2.6rem
+       mirrors #toc's own max-height budget (layout.css) minus the
+       .toc-header row (label + progress rule + its bottom margin). */
+    max-height: calc(100vh - var(--nav-height, 4rem) - 3rem - 2.6rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    transition: max-height 0.3s ease;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.toc-nav::-webkit-scrollbar { width: 6px; }
+
+.toc-nav::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+#toc.is-collapsed .toc-nav {
+    max-height: 0;
+    /* overflow:hidden so the outline is clipped (not scrolled) while
+       the max-height transition runs down to 0. */
+    overflow: hidden;
+}
+
+#toc.is-collapsed .toc-nav a,
+#toc.is-collapsed .toc-nav button {
+    /* Belt-and-suspenders: even if aria-hidden is somehow stripped,
+       the collapsed nav cannot receive focus. The earlier rule used
+       `visibility: hidden` which already removed elements from the
+       focus order, but `visibility` interacts poorly with the
+       max-height transition; tabindex=-1 set by toc.js is preferred. */
+    pointer-events: none;
+}
+
+
+/* Nav list */
+.toc-nav ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+
+.toc-nav > ol > li {
+    margin: 0.3rem 0;
+}
+
+
+.toc-nav > ol > li > ol {
+    margin: 0.1rem 0 0.2rem 0;
+}
+
+.toc-nav > ol > li > ol > li {
+    margin: 0.15rem 0;
+}
+
+
+.toc-nav a {
+    text-decoration: none;
+    color: var(--text-faint);
+    display: block;
+    padding: 0.1rem 0;
+    transition: color var(--transition-fast);
+}
+
+.toc-nav a:hover {
+    color: var(--text);
+}
+
+
+/* JS adds .is-active to the current heading's link */
+.toc-nav a.is-active {
+    color: var(--text);
+    font-weight: 600;
+}
+
+
+/* h2-level links slightly more prominent */
+.toc-nav > ol > li > a {
+    color: var(--text-muted);
+}
+
+.toc-nav > ol > li > a:hover,
+.toc-nav > ol > li > a.is-active {
+    color: var(--text);
+}
+
+
+/* h3-level links indented and smaller */
+.toc-nav > ol > li > ol > li > a {
+    padding-left: 0.75rem;
+    font-size: 0.74rem;
+}
+}

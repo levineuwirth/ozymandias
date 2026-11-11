@@ -1,0 +1,253 @@
+@layer site {
+/* fonts.css — Web fonts and their measured local fallback faces. */
+
+/* ============================================================
+   FONTS
+   ============================================================ */
+
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-semibold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-semibold-italic.woff2") format("woff2");
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Spectral";
+    src: url("/fonts/spectral-bold-italic.woff2") format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Fira Sans";
+    src: url("/fonts/fira-sans-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Fira Sans";
+    src: url("/fonts/fira-sans-semibold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("/fonts/jetbrains-mono-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("/fonts/jetbrains-mono-italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* Fallback faces. Before a web font arrives, and wherever it never
+   does, the reader sees a system font; unadjusted, its lines run longer
+   or shorter and the page reflows when Spectral or Fira Sans swaps in
+   (audit A19, CLS 0.10–0.17). Each face below names a common system font
+   with local() and scales it to set the site's prose to the web font's
+   width, with the web font's ascent and descent. They sit second in the
+   stacks (--font-serif, --font-sans), so the first one this system has
+   is the one used; a system with none falls through to the old stack.
+   Measured, not tuned: tools/subset-fonts.py writes them from the subsets
+   it builds, so regenerate there rather than editing here. */
+/* BEGIN fallback faces — written by tools/subset-fonts.py */
+@font-face {
+    font-family: "Spectral on Georgia";
+    src: local("Georgia"), local("Gelasio Regular"), local("Gelasio-Regular");
+    font-weight: 400;
+    font-style: normal;
+    size-adjust: 100.2%;
+    ascent-override: 105.7%;
+    descent-override: 46.2%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Georgia";
+    src: local("Georgia Italic"), local("Georgia-Italic"), local("Gelasio Italic"), local("Gelasio-Italic");
+    font-weight: 400;
+    font-style: italic;
+    size-adjust: 90.1%;
+    ascent-override: 117.5%;
+    descent-override: 51.4%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Georgia";
+    src: local("Georgia Bold"), local("Georgia-Bold"), local("Gelasio Bold"), local("Gelasio-Bold");
+    font-weight: 600 700;
+    font-style: normal;
+    size-adjust: 88.1%;
+    ascent-override: 120.2%;
+    descent-override: 52.5%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Georgia";
+    src: local("Georgia Bold Italic"), local("Georgia-BoldItalic"), local("Gelasio Bold Italic"), local("Gelasio-BoldItalic");
+    font-weight: 600 700;
+    font-style: italic;
+    size-adjust: 80.1%;
+    ascent-override: 132.2%;
+    descent-override: 57.8%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Times";
+    src: local("Times New Roman"), local("TimesNewRomanPSMT"), local("Liberation Serif"), local("LiberationSerif"), local("Tinos"), local("Tinos-Regular");
+    font-weight: 400;
+    font-style: normal;
+    size-adjust: 109.9%;
+    ascent-override: 96.4%;
+    descent-override: 42.1%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Times";
+    src: local("Times New Roman Italic"), local("TimesNewRomanPS-ItalicMT"), local("Liberation Serif Italic"), local("LiberationSerif-Italic"), local("Tinos Italic"), local("Tinos-Italic");
+    font-weight: 400;
+    font-style: italic;
+    size-adjust: 100.3%;
+    ascent-override: 105.5%;
+    descent-override: 46.1%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Times";
+    src: local("Times New Roman Bold"), local("TimesNewRomanPS-BoldMT"), local("Liberation Serif Bold"), local("LiberationSerif-Bold"), local("Tinos Bold"), local("Tinos-Bold");
+    font-weight: 600 700;
+    font-style: normal;
+    size-adjust: 105.7%;
+    ascent-override: 100.2%;
+    descent-override: 43.8%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Times";
+    src: local("Times New Roman Bold Italic"), local("TimesNewRomanPS-BoldItalicMT"), local("Liberation Serif Bold Italic"), local("LiberationSerif-BoldItalic"), local("Tinos Bold Italic"), local("Tinos-BoldItalic");
+    font-weight: 600 700;
+    font-style: italic;
+    size-adjust: 101.2%;
+    ascent-override: 104.7%;
+    descent-override: 45.8%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Noto";
+    src: local("Noto Serif"), local("NotoSerif-Regular");
+    font-weight: 400;
+    font-style: normal;
+    size-adjust: 92.8%;
+    ascent-override: 114.1%;
+    descent-override: 49.9%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Noto";
+    src: local("Noto Serif Italic"), local("NotoSerif-Italic");
+    font-weight: 400;
+    font-style: italic;
+    size-adjust: 87.5%;
+    ascent-override: 121.1%;
+    descent-override: 52.9%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Noto";
+    src: local("Noto Serif Bold"), local("NotoSerif-Bold");
+    font-weight: 600 700;
+    font-style: normal;
+    size-adjust: 89.3%;
+    ascent-override: 118.6%;
+    descent-override: 51.9%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Spectral on Noto";
+    src: local("Noto Serif Bold Italic"), local("NotoSerif-BoldItalic");
+    font-weight: 600 700;
+    font-style: italic;
+    size-adjust: 81.9%;
+    ascent-override: 129.3%;
+    descent-override: 56.5%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Fira Sans on Arial";
+    src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans"), local("Arimo"), local("Arimo-Regular");
+    font-weight: 400;
+    font-style: normal;
+    size-adjust: 102.6%;
+    ascent-override: 91.1%;
+    descent-override: 25.8%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Fira Sans on Arial";
+    src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold"), local("Arimo Bold"), local("Arimo-Bold");
+    font-weight: 600 700;
+    font-style: normal;
+    size-adjust: 95.6%;
+    ascent-override: 97.8%;
+    descent-override: 27.7%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Fira Sans on Roboto";
+    src: local("Roboto"), local("Roboto-Regular");
+    font-weight: 400;
+    font-style: normal;
+    size-adjust: 102.7%;
+    ascent-override: 91.0%;
+    descent-override: 25.8%;
+    line-gap-override: 0.0%;
+}
+@font-face {
+    font-family: "Fira Sans on Roboto";
+    src: local("Roboto Bold"), local("Roboto-Bold");
+    font-weight: 600 700;
+    font-style: normal;
+    size-adjust: 101.4%;
+    ascent-override: 92.2%;
+    descent-override: 26.1%;
+    line-gap-override: 0.0%;
+}
+/* END fallback faces */
+}

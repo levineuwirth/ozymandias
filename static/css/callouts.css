@@ -1,0 +1,205 @@
+@layer engine {
+/* ============================================================
+   ESSAY SUMMARY BOX
+   Optional key-points / summary block rendered from the
+   `summary:` frontmatter field, between metadata and content.
+   ============================================================ */
+
+.essay-summary {
+    margin: 1.5rem 0 0;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--border-muted);
+    background: var(--bg-offset, var(--bg));
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+
+.essay-summary p {
+    margin: 0 0 0.5em;
+}
+
+
+.essay-summary p:last-child {
+    margin-bottom: 0;
+}
+
+
+
+/* ============================================================
+   CORRESPONDENCE
+   Native disclosures set apart from essay prose, on the summary stock.
+   ============================================================ */
+
+#markdownBody .correspondence {
+    margin: 1.65rem 0;
+    border: 1px solid var(--border-muted);
+    background: var(--bg-offset, var(--bg));
+}
+
+
+#markdownBody .correspondence > summary {
+    padding: 0.9rem 1.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+
+#markdownBody .correspondence > summary::marker {
+    color: var(--text-faint);
+}
+
+
+#markdownBody .correspondence > summary:hover {
+    color: var(--text);
+}
+
+
+#markdownBody .correspondence > summary:focus-visible {
+    outline: 2px solid var(--text-muted);
+    outline-offset: -4px;
+}
+
+
+#markdownBody .correspondence[open] > summary {
+    border-bottom: 1px solid var(--border-muted);
+}
+
+
+#markdownBody .correspondence-body {
+    padding: 1.25rem 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    text-align: left;
+    hyphens: none;
+    overflow-wrap: anywhere;
+}
+
+
+#markdownBody .correspondence-body p {
+    margin: 0;
+    text-indent: 0;
+}
+
+
+#markdownBody .correspondence-body p + p {
+    margin-top: 0.9em;
+    text-indent: 0;
+}
+
+
+#markdownBody .correspondence-body p:last-child {
+    margin-top: 1.4em;
+}
+
+
+@media (max-width: 540px) {
+    #markdownBody .correspondence > summary {
+        padding: 0.85rem 1rem;
+    }
+
+
+    #markdownBody .correspondence-body {
+        padding: 1rem;
+    }}
+
+
+
+/* ============================================================
+   ANNOTATION
+   Editorial callout boxes: definitions, notes, remarks, warnings.
+   Two variants: static (always visible) and collapsible.
+   ============================================================ */
+
+.annotation {
+    position: relative;
+    margin: 1.65rem 0;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+}
+
+
+.annotation-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-offset);
+}
+
+
+.annotation-label {
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+
+.annotation-name {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-style: italic;
+    flex: 1;
+    min-width: 0;
+}
+
+
+.annotation-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+}
+
+
+.annotation-toggle:hover {
+    color: var(--text-muted);
+}
+
+
+.annotation-body {
+    padding: 0.825rem 0.85rem;
+}
+
+
+/* Collapsible variant: body hidden until toggled.
+   Only max-height transitions — padding applies instantly so that
+   scrollHeight reads the correct full height before the animation starts. */
+.annotation--collapsible .annotation-body {
+    overflow: hidden;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    transition: max-height 0.35s ease;
+}
+
+
+.annotation--collapsible.is-open .annotation-body {
+    padding-top: 0.825rem;
+    padding-bottom: 0.825rem;
+}
+
+
+/* Static variant: always open, no toggle */
+.annotation--static .annotation-header {
+    border-bottom: 1px solid var(--border);
+}
+}

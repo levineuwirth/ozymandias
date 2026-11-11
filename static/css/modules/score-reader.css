@@ -1,3 +1,4 @@
+@layer engine {
 /* score-reader.css — Full-page score reader layout.
    Used only on /music/{slug}/score/ pages via score-reader-default.html.
 
@@ -9,26 +10,11 @@
    reader should show a score. */
 
 .score-reader-page {
-    /* Bar height. The viewport is offset by exactly this much and does not
-       reflow when the bar fades — recomputing the fit on every idle
-       transition would make the page jump while being read. */
     --score-chrome: 2.75rem;
     --score-gutter: 1.25rem;
-
-    /* Paper. Set per theme rather than derived, because "slightly brighter
-       than the ground" is a different mix in a warm off-white, a near-black,
-       and a brown. */
-    --score-paper: #fffdfa;
-
-    overflow: hidden;   /* the viewport scrolls, not the document */
+    overflow: hidden;
 }
 
-[data-theme="dark"]       .score-reader-page { --score-paper: #1c1c1c; }
-[data-theme="cappuccino"] .score-reader-page { --score-paper: #5e4230; }
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .score-reader-page { --score-paper: #1c1c1c; }
-}
 
 /* ------------------------------------------------------------------
    Top bar
@@ -50,6 +36,7 @@
     transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
+
 /* The title is what gives way when the bar is short of room: it is the
    one thing in the bar that is also on the page behind it. Rigid, a long
    one ("Concerto for Bassoon and Orchestra") pushed the movements, Play
@@ -60,6 +47,7 @@
     min-width: 0;
 }
 
+
 .score-reader-movements {
     display: flex;
     align-items: center;
@@ -68,7 +56,9 @@
     overflow-x: auto;
     scrollbar-width: none;
 }
+
 .score-reader-movements::-webkit-scrollbar { display: none; }
+
 
 .score-reader-bar-right {
     display: flex;
@@ -78,6 +68,7 @@
     margin-left: auto;   /* stays right when there is no movement nav */
 }
 
+
 .score-reader-back {
     display: block;
     overflow: hidden;
@@ -86,7 +77,9 @@
     text-decoration: none;
     white-space: nowrap;
 }
+
 .score-reader-back:hover { color: var(--text); }
+
 
 .score-reader-mvt {
     background: none;
@@ -100,18 +93,22 @@
     border-radius: 3px;
     transition: background 0.15s, color 0.15s;
 }
+
 .score-reader-mvt:hover,
 .score-reader-mvt.is-active {
     background: var(--bg-subtle);
     color: var(--text);
 }
 
+
 .score-reader-pdf {
     color: var(--text-muted);
     text-decoration: none;
     font-size: 0.8rem;
 }
+
 .score-reader-pdf:hover { color: var(--text); }
+
 
 /* Zoom group ------------------------------------------------------- */
 
@@ -122,6 +119,7 @@
     border-radius: 3px;
     overflow: hidden;
 }
+
 
 .score-reader-zoom-btn {
     background: none;
@@ -134,17 +132,21 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
 }
+
 .score-reader-zoom-btn + .score-reader-zoom-btn {
     border-left: 1px solid var(--border);
 }
+
 .score-reader-zoom-btn:hover:not(:disabled) {
     background: var(--bg-subtle);
     color: var(--text);
 }
+
 .score-reader-zoom-btn:disabled {
     opacity: 0.35;
     cursor: default;
 }
+
 
 .score-reader-zoom-mode {
     min-width: 3.6em;
@@ -152,6 +154,7 @@
     letter-spacing: 0.06em;
     font-variant-numeric: tabular-nums;
 }
+
 
 /* ------------------------------------------------------------------
    Stage and viewport
@@ -163,6 +166,7 @@
     background: var(--bg);
 }
 
+
 .score-reader-viewport {
     position: absolute;
     top: var(--score-chrome);
@@ -172,6 +176,7 @@
     padding: var(--score-gutter);
     overscroll-behavior: contain;
 }
+
 
 /* `margin: auto` rather than `justify-content: center`: it centres the
    sheet while it fits, but unlike the flex property it does not clip the
@@ -211,6 +216,7 @@
     fill: currentColor;
 }
 
+
 /* A portrait sheet fills the width instead and scrolls, matching what the
    reader's own default does once its script is running. */
 .score-page[data-orient="portrait"] {
@@ -220,6 +226,7 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05),
                 0 10px 28px rgba(0, 0, 0, 0.06);
 }
+
 
 /* Once the reader is live, zoom owns the sheet's width and the fit caps
    have to come off — otherwise max-height would clamp every zoom level
@@ -231,6 +238,7 @@
        gap to spend at full container width. */
     width: var(--score-page-width, var(--score-fit-width));
 }
+
 
 /* Recolour the engraver's own values instead of rewriting them at build
    time. A presentation attribute (fill="#000000") carries specificity
@@ -251,9 +259,11 @@
 .score-page svg [fill="#000" i],
 .score-page svg [fill="black" i]     { fill: currentColor; }
 
+
 .score-page svg [stroke="#000000" i],
 .score-page svg [stroke="#000" i],
 .score-page svg [stroke="black" i]   { stroke: currentColor; }
+
 
 /* Page grounds join the sheet rather than staying paper-white in a dark
    theme. `none` is untouched throughout — slurs, ties and beams need it. */
@@ -261,11 +271,13 @@
 .score-page svg [fill="#fff" i],
 .score-page svg [fill="white" i]     { fill: var(--score-paper); }
 
+
 .score-page svg {
     display: block;
     width: 100%;
     height: 100%;
 }
+
 
 /* Scripting-off fallback. Renders in the engraver's own colours, which is
    an honest degradation — legible in any theme, if not native to it. */
@@ -275,10 +287,12 @@
     height: auto;
 }
 
+
 .score-page.is-loading {
     opacity: 0.35;
     transition: opacity 0.2s ease 0.15s;
 }
+
 
 .score-page-error {
     display: flex;
@@ -292,6 +306,7 @@
     font-size: 0.85rem;
     color: var(--text-muted);
 }
+
 
 /* ------------------------------------------------------------------
    Page turning
@@ -315,17 +330,22 @@
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s, opacity 0.4s ease;
 }
+
 .score-reader-nav:hover:not(:disabled) {
     color: var(--text);
     border-color: var(--text-muted);
 }
+
 .score-reader-nav:disabled {
     opacity: 0.25;
     cursor: default;
 }
 
+
 .score-reader-prev { left: 0.85rem; }
+
 .score-reader-next { right: 0.85rem; }
+
 
 /* Folio — the page number as it would be printed on the sheet, rather
    than as a counter chip in the corner of an application. */
@@ -344,6 +364,7 @@
     pointer-events: none;
     transition: opacity 0.4s ease;
 }
+
 
 /* ------------------------------------------------------------------
    Instrument-label gutter
@@ -372,7 +393,9 @@
     opacity: 0;
     transition: opacity 0.15s ease;
 }
+
 .score-gutter.is-visible { opacity: 1; }
+
 
 /* Full page width inside the clip, so the copy lines up with the original
    rather than being squashed into the gutter. The width is set from the
@@ -381,11 +404,13 @@
     width: 100%;
     height: 100%;
 }
+
 .score-gutter-inner svg {
     display: block;
     width: 100%;
     height: 100%;
 }
+
 
 /* Zoomed past the viewport, the folio is over the staves rather than in
    the page's bottom margin, so it takes a ground of its own. */
@@ -396,6 +421,7 @@
     padding: 0.1rem 0.55rem;
 }
 
+
 /* ------------------------------------------------------------------
    Idle — chrome recedes
 ------------------------------------------------------------------ */
@@ -405,11 +431,13 @@
     transform: translateY(-100%);
     pointer-events: none;
 }
+
 .score-reader-page.is-idle .score-reader-nav,
 .score-reader-page.is-idle .score-folio {
     opacity: 0;
     pointer-events: none;
 }
+
 
 /* ------------------------------------------------------------------
    Narrow screens
@@ -418,11 +446,13 @@
 @media (max-width: 640px) {
     .score-reader-page { --score-gutter: 0.5rem; }
 
+
     /* Swipe replaces them; at this width they would sit on the music. */
     .score-reader-nav { display: none; }
 
-    .score-reader-zoom { display: none; }
-}
+
+    .score-reader-zoom { display: none; }}
+
 
 @media (prefers-reduced-motion: reduce) {
     .score-reader-bar,
@@ -432,10 +462,11 @@
     .score-page.is-loading {
         transition: none;
     }
+
     .score-reader-page.is-idle .score-reader-bar {
         transform: none;
-    }
-}
+    }}
+
 
 /* A reader routed for a score whose pages are absent from this build
    (templates/score-reader.html). */
@@ -450,6 +481,7 @@
     color: var(--text-muted);
 }
 
+
 /* The reader does not load typography.css, so the link takes the site's
    link treatment here rather than the browser's blue. */
 .score-page-missing a {
@@ -462,9 +494,11 @@
     text-underline-offset: 0.2em;
 }
 
+
 .score-page-missing a:hover {
     text-decoration-color: var(--text);
 }
+
 
 /* ------------------------------------------------------------------
    Realization (score-follow.js): play the music and follow it.
@@ -478,6 +512,7 @@
     gap: 0.6rem;
     margin-right: 0.5rem;
 }
+
 
 .score-follow-play {
     display: inline-flex;
@@ -494,10 +529,12 @@
     transition: background 0.15s, border-color 0.15s;
 }
 
+
 .score-follow-play:hover {
     background: var(--bg-subtle);
     border-color: var(--text-muted);
 }
+
 
 .score-follow-play svg {
     width: 0.9rem;
@@ -505,19 +542,23 @@
     fill: currentColor;
 }
 
+
 .score-follow-icon-pause,
 .score-follow-play.is-playing .score-follow-icon-play {
     display: none;
 }
 
+
 .score-follow-play.is-playing .score-follow-icon-pause {
     display: block;
 }
+
 
 .score-follow-seek {
     width: 10rem;
     accent-color: var(--text-muted);
 }
+
 
 .score-follow-time {
     font-family: var(--font-sans);
@@ -527,6 +568,7 @@
     white-space: nowrap;
 }
 
+
 .score-follow-label {
     font-family: var(--font-serif);
     font-size: 0.88rem;
@@ -535,21 +577,23 @@
     white-space: nowrap;
 }
 
+
 .score-follow.is-failed {
     opacity: 0.5;
 }
 
+
 @media (max-width: 1100px) {
-    .score-follow-label { display: none; }
-}
+    .score-follow-label { display: none; }}
+
 
 @media (max-width: 760px) {
-    .score-follow-seek { display: none; }
-}
+    .score-follow-seek { display: none; }}
+
 
 @media (max-width: 540px) {
-    .score-follow-time { display: none; }
-}
+    .score-follow-time { display: none; }}
+
 
 /* The mark on the page. Its box is the bar's box from timing.json, in
    percentages of the sheet, so it holds its place at any zoom. */
@@ -562,9 +606,11 @@
     pointer-events: none;
 }
 
+
 .score-follow-mark {
     position: absolute;
 }
+
 
 .score-follow-layer[data-style="bar"] .score-follow-mark {
     border-radius: 2px;
@@ -573,6 +619,7 @@
     transition: left 0.12s ease, top 0.12s ease, width 0.12s ease, height 0.12s ease;
 }
 
+
 /* The cursor moves every frame; a transition would only make it lag. */
 .score-follow-layer[data-style="cursor"] .score-follow-mark {
     width: 0;
@@ -580,11 +627,12 @@
     border-left: 2px solid color-mix(in srgb, var(--text) 55%, transparent);
 }
 
+
 @media (prefers-reduced-motion: reduce) {
     .score-follow-layer[data-style="bar"] .score-follow-mark {
         transition: none;
-    }
-}
+    }}
+
 
 /* Shown when the reader has turned away while the music plays. */
 .score-follow-return {
@@ -603,12 +651,15 @@
     box-shadow: 0 2px 10px color-mix(in srgb, var(--text) 12%, transparent);
 }
 
+
 .score-follow-return:hover,
 .score-follow-return:focus-visible {
     background: var(--text);
     color: var(--bg);
 }
 
+
 .score-follow-return[hidden] {
     display: none;
+}
 }

@@ -19,6 +19,7 @@ module Contexts
     , abstractField
     , descriptionField
     , plainField
+    , pageStylesheetsField
     , feedTitleField
     , tagLinksField
     , tagLinksFieldExcludingScope
@@ -39,12 +40,13 @@ module Contexts
     ) where
 
 import Control.Exception       (IOException, catch, try)
+import Control.Monad           (forM, unless)
 import Data.Aeson              (Value (..))
 import qualified Data.Aeson         as Aeson
 import qualified Data.Aeson.Key     as AK
 import qualified Data.Aeson.KeyMap  as KM
 import qualified Data.Vector        as V
-import Data.Char               (isDigit, isSpace, toLower, toUpper)
+import Data.Char               (isAsciiLower, isDigit, isSpace, toLower, toUpper)
 import Data.List               (intercalate, isInfixOf, isPrefixOf, sortBy,
                                 stripPrefix)
 import Data.Maybe              (fromMaybe, isJust, mapMaybe)
@@ -81,7 +83,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext,
-                     scriptContext, switchContext, switchOn)
+                     scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
@@ -647,6 +649,22 @@ pageFeatureFields = mconcat
             then return "true"
             else noResult ("no " ++ name)
 
+-- | @$for(page-stylesheets)$@: the stylesheets a page names for itself in
+--   its front matter (@stylesheets: [links]@), each @static/css/NAME.css@,
+--   the site's or else the engine's, for what only that page has: the site
+--   keeps them out of every other page's load. A name that is no such file
+--   stops the build.
+pageStylesheetsField :: Context String
+pageStylesheetsField = listFieldWith "page-stylesheets" (assetsField <> field "name" (pure . itemBody)) $ \item -> do
+    names <- fromMaybe [] . lookupStringList "stylesheets" <$> getMetadata (itemIdentifier item)
+    forM names $ \name -> do
+        unless (not (null name) && all (\ch -> isAsciiLower ch || isDigit ch || ch == '-') name) $
+            fail ("stylesheets: not a stylesheet's name: " ++ show name)
+        found <- unsafeCompiler $ or <$> mapM doesFileExist
+            ["static/css/" ++ name ++ ".css", "engine/static/css/" ++ name ++ ".css"]
+        unless found $ fail ("stylesheets: no static/css/" ++ name ++ ".css")
+        makeItem name
+
 -- | @$plain(field)$@: a field as text that is safe in an attribute or in
 --   @<title>@: tags stripped, whitespace collapsed, @& < > " '@ escaped.
 --   Hakyll hands metadata to templates as it is written. A title may carry
@@ -726,6 +744,8 @@ siteCtx =
     <> navigationContext
     <> seasonContext
     <> switchContext
+    <> bundleContext
+    <> pageStylesheetsField
     <> scriptContext
     <> hasEpistemicField
     <> epistemicAboutField

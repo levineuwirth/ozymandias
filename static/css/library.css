@@ -1,47 +1,4 @@
-/* library.css — Library + Bibliography page components, plus the
-   epistemic-filter UI that now lives on /search.html. */
-
-/* ============================================================
-   LIBRARY PALETTE — scoped warm "candlelight" accent
-   Only loaded on /library.html (via $if(library)$) and /search.html,
-   so defining at :root here is effectively page-scoped. Consumed by
-   section headings, the divider, the intro blockquote, and the
-   "more on this shelf" link to give the library page a fine-press
-   feel without touching global colors.
-   ============================================================ */
-
-:root {
-    --library-accent:        #524638;   /* muted warm-gray — reads as "warm" only if you look */
-    /* #7c7164 measured 4.50:1 on --bg and 4.19:1 on --bg-offset — on the
-       wrong side of AA for the "More on this shelf" link and the intro
-       attribution line. #726758 is the same dusty taupe a shade deeper:
-       5.21:1 / 4.86:1. */
-    --library-accent-muted:  #726758;   /* dusty taupe */
-    --library-intro-ink:     #3c3328;
-}
-
-[data-theme="dark"] {
-    --library-accent:        #b5a890;   /* soft oat */
-    --library-accent-muted:  #8d8373;   /* was #897f6e — 4.41:1 on --bg-offset */
-    --library-intro-ink:     #c8beac;
-}
-
-[data-theme="cappuccino"] {
-    --library-accent:        #d0b888;   /* foam — matches text-muted */
-    /* #957a5a was 2.58:1 on --bg — effectively unreadable in this theme.
-       #c5a880 holds the same roasted-tan role at 4.59:1 / 4.90:1. */
-    --library-accent-muted:  #c5a880;
-    --library-intro-ink:     #dcc296;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-        --library-accent:        #b5a890;
-        --library-accent-muted:  #8d8373;
-        --library-intro-ink:     #c8beac;
-    }
-}
-
+@layer engine {
 /* ============================================================
    FILTER UI
    Originally the Library's sort+filter panel; the sort panel
@@ -64,15 +21,18 @@
     transition: border-color 0.1s, color 0.1s;
 }
 
+
 .library-filter-toggle:hover,
 .library-filter-toggle[aria-expanded="true"] {
     border-color: var(--text-muted);
     color: var(--text);
 }
 
+
 .filter-toggle-badge {
     font-weight: 600;
 }
+
 
 .library-filters {
     border-top: 1px solid var(--border);
@@ -80,9 +40,11 @@
     margin-top: 0.75rem;
 }
 
+
 .library-filters[hidden] {
     display: none;
 }
+
 
 .filter-row {
     display: flex;
@@ -90,6 +52,7 @@
     gap: 0.45rem;
     margin-bottom: 0.45rem;
 }
+
 
 .filter-label {
     font-family: var(--font-sans);
@@ -99,6 +62,7 @@
     flex-shrink: 0;
 }
 
+
 .filter-options {
     display: flex;
     flex-wrap: wrap;
@@ -106,11 +70,13 @@
     gap: 0.25rem;
 }
 
+
 .filter-prefix {
     font-family: var(--font-sans);
     font-size: 0.72rem;
     color: var(--text-faint);
 }
+
 
 .filter-btn {
     font-family: var(--font-sans);
@@ -124,16 +90,19 @@
     transition: border-color 0.1s, color 0.1s;
 }
 
+
 .filter-btn:hover {
     border-color: var(--border-muted);
     color: var(--text);
 }
+
 
 .filter-btn.is-active {
     border-color: var(--text-muted);
     color: var(--text);
     font-weight: 600;
 }
+
 
 .filter-number {
     font-family: var(--font-sans);
@@ -146,15 +115,18 @@
     color: var(--text);
 }
 
+
 .filter-number:focus {
     outline: none;
     border-color: var(--text-muted);
 }
 
+
 .filter-row-actions {
     justify-content: flex-end;
     margin-top: 0.25rem;
 }
+
 
 .filter-clear-btn {
     font-family: var(--font-sans);
@@ -166,15 +138,18 @@
     padding: 0;
 }
 
+
 .filter-clear-btn:hover {
     color: var(--text);
 }
+
 
 /* Search-page result filtering (applied via search-filters.js) */
 
 .search-filtered {
     display: none !important;
 }
+
 
 /* ============================================================
    PORTAL SECTIONS
@@ -185,6 +160,7 @@
 .library-section {
     margin-bottom: 3rem;
 }
+
 
 /* Section heading — fine-press chapter marker. Spectral small-caps in
    walnut ink, letterspaced for a traditional printer's-ornament look.
@@ -200,6 +176,7 @@
     font-weight: 400;
     margin: 0 0 0.9rem 0;
 }
+
 
 /* Per-shelf ornament sitting before the heading text. SVGs in
    /images/dingbats/ painted via mask-image so they inherit
@@ -219,38 +196,47 @@
     vertical-align: -0.12em;
 }
 
+
 .library-section-ornament[data-ornament="research"] {
     mask-image: url('/images/dingbats/research.svg');
     -webkit-mask-image: url('/images/dingbats/research.svg');
 }
+
 .library-section-ornament[data-ornament="nonfiction"] {
     mask-image: url('/images/dingbats/nonfiction.svg');
     -webkit-mask-image: url('/images/dingbats/nonfiction.svg');
 }
+
 .library-section-ornament[data-ornament="fiction"] {
     mask-image: url('/images/dingbats/fiction.svg');
     -webkit-mask-image: url('/images/dingbats/fiction.svg');
 }
+
 .library-section-ornament[data-ornament="poetry"] {
     mask-image: url('/images/dingbats/poetry.svg');
     -webkit-mask-image: url('/images/dingbats/poetry.svg');
 }
+
 .library-section-ornament[data-ornament="music"] {
     mask-image: url('/images/dingbats/clef.svg');
     -webkit-mask-image: url('/images/dingbats/clef.svg');
 }
+
 .library-section-ornament[data-ornament="ai"] {
     mask-image: url('/images/dingbats/ai.svg');
     -webkit-mask-image: url('/images/dingbats/ai.svg');
 }
+
 .library-section-ornament[data-ornament="tech"] {
     mask-image: url('/images/dingbats/tech.svg');
     -webkit-mask-image: url('/images/dingbats/tech.svg');
 }
+
 .library-section-ornament[data-ornament="miscellany"] {
     mask-image: url('/images/dingbats/trefoil.svg');
     -webkit-mask-image: url('/images/dingbats/trefoil.svg');
 }
+
 
 /* Inter-shelf divider. Adjacent-sibling selector renders between
    actually-emitted sections — a section hidden by its $if$ gate
@@ -274,6 +260,7 @@
     -webkit-mask-size: contain;
 }
 
+
 /* "More on this shelf →" link, shown when the portal has more
    items than the shelf's cap. Right-aligned, italic, subdued. */
 .library-more {
@@ -285,6 +272,7 @@
     margin: 0.75rem 0 0;
 }
 
+
 .library-more a {
     color: inherit;
     text-decoration: none;
@@ -292,10 +280,12 @@
     transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 
+
 .library-more a:hover {
     color: var(--library-accent);
     border-bottom-color: var(--library-accent-muted);
 }
+
 
 /* Leading blockquote above the shelves, lifted from content/library.md.
    Set as an epigraph: narrower measure, italic serif, warm ink, no
@@ -310,15 +300,18 @@
     color: var(--library-intro-ink);
 }
 
+
 .library-intro blockquote {
     border: none;
     margin: 0;
     padding: 0;
 }
 
+
 .library-intro blockquote p {
     margin: 0 0 0.4rem 0;
 }
+
 
 .library-intro blockquote p:last-of-type {
     margin: 0;
@@ -326,6 +319,7 @@
     font-size: 0.9rem;
     color: var(--library-accent-muted);
 }
+
 
 .library-intro a {
     color: inherit;
@@ -335,9 +329,11 @@
     text-underline-offset: 0.2em;
 }
 
+
 .library-intro a:hover {
     text-decoration-color: var(--library-accent);
 }
+
 
 /* Card-level typography refinements scoped to the library page.
    Oldstyle figures on dates read as book-typesetting rather than
@@ -350,11 +346,13 @@
     font-feature-settings: "onum" 1, "pnum" 1;
 }
 
+
 .library-section .item-card-kind {
     font-variant: all-small-caps;
     font-feature-settings: "smcp" 1;
     letter-spacing: 0.06em;
 }
+
 
 .library-section h2 a {
     color: inherit;
@@ -363,9 +361,11 @@
     transition: border-color var(--transition-fast);
 }
 
+
 .library-section h2 a:hover {
     border-bottom-color: var(--library-accent-muted);
 }
+
 
 /* ============================================================
    SEE ALSO — compact chain (Phase 4)
@@ -390,9 +390,11 @@
     min-width: 0;
 }
 
+
 .library-see-also a {
     overflow-wrap: anywhere;
 }
+
 
 .library-see-also a {
     color: var(--text-muted);
@@ -403,16 +405,19 @@
     transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
 }
 
+
 .library-see-also a:hover {
     color: var(--text);
     text-decoration-color: var(--border-muted);
 }
+
 
 .library-see-also-sep {
     color: var(--text-faint);
     padding: 0 0.35em;
     user-select: none;
 }
+
 
 /* ============================================================
    BIBLIOGRAPHY INDEX — alphabet jump strip + letter headers
@@ -431,6 +436,7 @@
     line-height: 1.4;
 }
 
+
 .bibliography-alphabet .alpha {
     display: inline-block;
     min-width: 1.2em;
@@ -442,16 +448,19 @@
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
+
 .bibliography-alphabet a.alpha:hover {
     color: var(--text);
     border-bottom-color: var(--border-muted);
 }
+
 
 .bibliography-alphabet .alpha-empty {
     color: var(--text-faint);
     opacity: 0.45;
     cursor: default;
 }
+
 
 .bibliography-letter {
     font-family: var(--font-sans);
@@ -463,4 +472,5 @@
     font-weight: 500;
     margin: 1.5rem 0 0.5rem;
     scroll-margin-top: 1rem;
+}
 }

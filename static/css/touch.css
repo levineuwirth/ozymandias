@@ -1,0 +1,106 @@
+@layer engine {
+/* ============================================================
+   TOUCH DEVICES
+   (hover: none) and (pointer: coarse) reliably targets
+   touchscreen-primary devices (phones, tablets) without
+   relying on viewport width or user-agent sniffing.
+
+   Goals:
+     1. Suppress :hover states that "stick" after a tap
+     2. Ensure tap targets meet ~44px minimum
+     3. (popup disable is handled in popups.js)
+   ============================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Nav: ensure adequate vertical tap area even on wider tablets
+       where the ≤540px query doesn't fire */
+    .nav-primary a {
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+
+    .nav-portal-toggle {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+
+    /* Settings gear: expand hit area without visual change */
+    .settings-toggle {
+        padding: 0.5rem;
+        margin: -0.5rem;
+    }
+
+
+    /* Portal row links */
+    .nav-portals a {
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+
+
+    /* Suppress stuck hover states — reset to their non-hover values */
+    .nav-primary a:hover           { color: var(--text-muted); }
+
+    .nav-portals a:hover           { color: var(--text-faint); }
+
+    .nav-portal-toggle:hover       { color: var(--text-faint); }
+
+    .settings-toggle:hover         { color: var(--text-faint); }
+
+    .toc-nav a:hover               { color: var(--text-faint); }
+
+    .toc-nav > ol > li > a:hover   { color: var(--text-muted); }
+
+    .hp-pro-row a:hover            { color: var(--text-muted); }
+
+    .hp-curiosity-row a:hover      { color: var(--text-muted); }
+
+    .hp-portal-name:hover          { text-decoration-color: var(--border-muted); }
+
+    .meta-tag:hover                { color: var(--text-faint); }
+
+    .backlink-source:hover         { color: var(--text-muted); }
+
+    .section-toggle:hover          { color: var(--text-faint); }
+
+
+    /* Copy button: no hover to reveal it, so it stays present — but
+       faint, and only as an outline glyph, so it reads as an affordance
+       in the block's empty top gutter rather than a label stuck to the
+       code. It never gains a hover background here (that state sticks
+       after a tap on touch). */
+    .copy-btn {
+        opacity: 0.55;
+        pointer-events: auto;
+    }
+
+
+    .copy-btn:hover {
+        color: var(--text-faint);
+        background: transparent;
+        border-color: transparent;
+    }
+
+
+    .copy-btn[data-state] {
+        opacity: 1;
+        color: var(--text-muted);
+    }
+
+
+    /* Finger-sized hit area without a finger-sized button: ~45x49px of
+       slop around a 23px glyph. It grows up into the block's own top
+       margin and left along its empty top gutter — both dead space —
+       and only ~10px down, so it steals as little of the first code
+       row (where a touch-drag scrolls long lines) as it can. */
+    .copy-btn::after {
+        content: '';
+        position: absolute;
+        top: -0.9rem;
+        right: -0.45rem;
+        bottom: -0.45rem;
+        left: -1.1rem;
+    }}
+}

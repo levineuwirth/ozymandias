@@ -1,0 +1,528 @@
+@layer site {
+/* ============================================================
+   CUSTOM PROPERTIES (light mode defaults)
+   ============================================================ */
+
+:root {
+    --bg:              #faf8f4;
+    --bg-nav:          #faf8f4;
+    --nav-logo-fg:     #1a1a1a;
+    --bg-offset:       #f2f0eb;
+    --text:            #1a1a1a;
+    --text-muted:      #555555;
+    --text-faint:      #6e6a64;
+    --border:          #cccccc;
+    --danger:          #9e2f2f;
+    --border-muted:    #aaaaaa;
+    --link:            #1a1a1a;
+    --link-underline:  #6e6a64;
+    --link-hover:      #1a1a1a;
+    --link-hover-underline: #1a1a1a;
+    --link-visited:    #444444;
+    --selection-bg:    #1a1a1a;
+    --selection-text:  #faf8f4;
+    --initial-glow:    drop-shadow(0 0 0.28em rgba(150, 105, 40, 0.30));
+    --font-serif:      "Spectral", "Spectral on Georgia", "Spectral on Times", "Spectral on Noto", "Georgia", "Times New Roman", serif;
+    --font-sans:       "Fira Sans", "Fira Sans on Arial", "Fira Sans on Roboto", "Helvetica Neue", "Arial", sans-serif;
+    --font-mono:       "JetBrains Mono", "Consolas", "Menlo", monospace;
+    --hm-0: #e8e8e4;
+    --hm-1: #b4b4b0;
+    --hm-2: #787874;
+    --hm-3: #424240;
+    --hm-4: #1a1a1a;
+}
+
+
+
+/* ============================================================
+   DARK MODE (Refined to Charcoal & Ink)
+   ============================================================ */
+
+/* Explicit dark mode */
+[data-theme="dark"] {
+    --bg:              #121212;
+    --bg-nav:          #181818;
+    --nav-logo-fg:     #d4d0c8;
+    --bg-offset:       #1a1a1a;
+    --text:            #d4d0c8;
+    --text-muted:      #8c8881;
+    --text-faint:      #8b8680;
+    --border:          #333333;
+    --danger:          #e08a84;
+    --border-muted:    #444444;
+    --link:            #d4d0c8;
+    --link-underline:  #8b8680;
+    --link-hover:      #ffffff;
+    --link-hover-underline: #ffffff;
+    --link-visited:    #a39f98;
+    --selection-bg:    #d4d0c8;
+    --selection-text:  #121212;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
+    --bg-subtle:       var(--bg-offset);
+    --hm-0: #252524;
+    --hm-1: #484844;
+    --hm-2: #6e6e6a;
+    --hm-3: #9e9e9a;
+    --hm-4: #d4d0c8;
+}
+
+
+/* ============================================================
+   CAPPUCCINO (warm milky-coffee — opt-in only, no system trigger)
+   ============================================================ */
+
+[data-theme="cappuccino"] {
+    --bg:              #553a28;
+    --bg-nav:          #503626;
+    --nav-logo-fg:     #ead0a0;
+    --bg-offset:       #4a3324;
+    --text:            #ead0a0;
+    --text-muted:      #d0b888;
+    --text-faint:      #c6ac88;
+    --border:          #7a5d44;
+    --danger:          #ffb0a0;
+    --border-muted:    #6a4f38;
+    --link:            #ead0a0;
+    --link-underline:  #c6ac88;
+    --link-hover:      #f5e6c0;
+    --link-hover-underline: #f5e6c0;
+    --link-visited:    #d0b888;
+    --selection-bg:    #ead0a0;
+    --selection-text:  #3a2418;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(255, 216, 150, 0.34));
+    --bg-subtle:       var(--bg-offset);
+    --hm-0: #4a3324;
+    --hm-1: #6a4f38;
+    --hm-2: #8d6c4e;
+    --hm-3: #b09575;
+    --hm-4: #ead0a0;
+}
+
+
+/* System dark mode fallback */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --bg:              #121212;
+    --bg-nav:          #181818;
+    --nav-logo-fg:     #d4d0c8;
+    --bg-offset:       #1a1a1a;
+    --text:            #d4d0c8;
+    --text-muted:      #8c8881;
+    --text-faint:      #8b8680;
+    --border:          #333333;
+    --danger:          #e08a84;
+    --border-muted:    #444444;
+    --link:            #d4d0c8;
+    --link-underline:  #8b8680;
+    --link-hover:      #ffffff;
+    --link-hover-underline: #ffffff;
+    --link-visited:    #a39f98;
+    --selection-bg:    #d4d0c8;
+    --selection-text:  #121212;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
+    --bg-subtle:       var(--bg-offset);
+    --hm-0: #252524;
+    --hm-1: #484844;
+    --hm-2: #6e6e6a;
+    --hm-3: #9e9e9a;
+    --hm-4: #d4d0c8;
+}}
+:root { --divider-logo: url("/images/link-icons/internal.svg"); }
+:root {
+    --highlight-background: linear-gradient(
+        104deg,
+        rgba(250, 235, 120, 0) 0%,
+        rgba(250, 235, 120, 0.8) 2%,
+        rgba(250, 220, 100, 0.9) 98%,
+        rgba(250, 220, 100, 0) 100%
+    );
+}
+
+[data-theme="dark"] {
+    --highlight-background: linear-gradient(
+            104deg,
+            rgba(100, 130, 180, 0) 0%,
+            rgba(100, 130, 180, 0.4) 2%,
+            rgba(80, 110, 160, 0.5) 98%,
+            rgba(80, 110, 160, 0) 100%
+        );
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --highlight-background: linear-gradient(
+            104deg,
+            rgba(100, 130, 180, 0) 0%,
+            rgba(100, 130, 180, 0.4) 2%,
+            rgba(80, 110, 160, 0.5) 98%,
+            rgba(80, 110, 160, 0) 100%
+        );
+}
+}
+
+[data-theme="cappuccino"] {
+    --highlight-background: linear-gradient(
+        104deg,
+        rgba(245, 215, 130, 0)    0%,
+        rgba(245, 215, 130, 0.45) 2%,
+        rgba(230, 195, 110, 0.55) 98%,
+        rgba(230, 195, 110, 0)    100%
+    );
+}
+
+:root {
+    --annotation-amber-background: rgba(245, 158,  11, 0.32);
+    --annotation-sage-background: rgba(107, 158, 120, 0.34);
+    --annotation-steel-background: rgba(112, 150, 184, 0.34);
+    --annotation-rose-background: rgba(200, 116, 116, 0.34);
+}
+
+[data-theme="dark"] {
+    --annotation-amber-background: rgba(245, 158,  11, 0.40);
+    --annotation-sage-background: rgba(107, 158, 120, 0.42);
+    --annotation-steel-background: rgba(112, 150, 184, 0.42);
+    --annotation-rose-background: rgba(200, 116, 116, 0.42);
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --annotation-amber-background: rgba(245, 158,  11, 0.40);
+    --annotation-sage-background: rgba(107, 158, 120, 0.42);
+    --annotation-steel-background: rgba(112, 150, 184, 0.42);
+    --annotation-rose-background: rgba(200, 116, 116, 0.42);
+}
+}
+
+[data-theme="cappuccino"] {
+    --annotation-amber-background: rgba(245, 180,  70, 0.42);
+    --annotation-sage-background: rgba(130, 175, 140, 0.42);
+    --annotation-steel-background: rgba(140, 170, 200, 0.42);
+    --annotation-rose-background: rgba(220, 140, 140, 0.42);
+}
+
+:root {
+    --score-thumbnail-mix-blend-mode: multiply;
+    --score-thumbnail-filter: none;
+    --score-thumbnail-opacity: 1;
+}
+
+[data-theme="dark"] {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+}
+
+[data-theme="cappuccino"] {
+    --score-thumbnail-filter: invert(1) sepia(0.45);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.82;
+}
+
+:root {
+    --shelf-detail-opacity: 0.75;
+    --score-thumbnail-mix-blend-mode: multiply;
+    --score-thumbnail-filter: none;
+    --score-thumbnail-opacity: 1;
+}
+
+[data-theme="cappuccino"] {
+    --shelf-detail-opacity: 0.85;
+    --score-thumbnail-filter: invert(1) sepia(0.45);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.82;
+}
+
+[data-theme="dark"] {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+}
+
+/* modules/code */
+/* syntax.css — Oneiros paper / charcoal, from the author's foot palette.
+   File syntax follows bat's ANSI theme; shell syntax follows fish's roles.
+   The same tokens style essay blocks, transclusions and source popups.
+   No blue; coral is reserved for errors and removed diff lines.
+   Reference: oneiros-config/dotfiles/.config/{foot/foot.ini,fish/config.fish}.
+*/
+
+:root {
+    --syntax-fg: #1c1a17;
+    --syntax-param: #1c1a17;
+    --syntax-comment: var(--text-faint);
+    --syntax-red: #a3341f;
+    --syntax-sage: #5f6b38;
+    --syntax-amber: #8b671d;
+    --syntax-plum: #7a5c72;
+    --syntax-rose: #8a4436;
+    --syntax-teal: #4f6660;
+}
+
+
+[data-theme="dark"] {
+    --syntax-fg: #e8e8e8;
+    --syntax-param: #d8d8d8;
+    --syntax-comment: #828282;
+    --syntax-red: #e0604a;
+    --syntax-sage: #8f9a63;
+    --syntax-amber: #d3a05c;
+    --syntax-plum: #a2849f;
+    --syntax-rose: #c2887a;
+    --syntax-teal: #8fa39e;
+}
+
+
+/* The website's coffee ground is lighter than the charcoal terminal.
+   Use its bright ANSI slots, lifting sage/plum a little further so they
+   remain distinct on both the page and the raised code background. */
+[data-theme="cappuccino"] {
+    --syntax-fg: var(--text);
+    --syntax-param: var(--text);
+    --syntax-comment: var(--text-faint);
+    --syntax-red: var(--danger);
+    --syntax-sage: color-mix(in srgb, #a5b077 95%, #f2f2f2);
+    --syntax-amber: #e5b673;
+    --syntax-plum: color-mix(in srgb, #b89bb5 80%, #f2f2f2);
+    --syntax-rose: #d69f90;
+    --syntax-teal: #a8bcb7;
+}
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --syntax-fg: #e8e8e8;
+    --syntax-param: #d8d8d8;
+    --syntax-comment: #828282;
+    --syntax-red: #e0604a;
+    --syntax-sage: #8f9a63;
+    --syntax-amber: #d3a05c;
+    --syntax-plum: #a2849f;
+    --syntax-rose: #c2887a;
+    --syntax-teal: #8fa39e;
+}}
+/* modules/catalog */
+/* catalog.css — /music/, the catalogue of works (templates/music-catalog.html,
+   build/Catalog.hs).
+
+   Two parts. The shelf is the page's one bold element: every work as the
+   spine of a bound score, oldest to newest, each as thick as its score is
+   long, with one work standing face-out to show its first page. Below it,
+   the catalogue proper — quiet, set like the movement list on each work's
+   own page (composition.css), so the index and the works read as one
+   edition. */
+
+.music-index {
+    --shelf-paper: #fffdfa;
+}
+
+
+
+[data-theme="dark"]       .music-index {
+    --shelf-paper: #1c1c1c;
+}
+
+
+[data-theme="cappuccino"] .music-index {
+    --shelf-paper: #5e4230;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .music-index {
+    --shelf-paper: #1c1c1c;
+}}
+/* modules/composition */
+
+
+
+/* ------------------------------------------------------------------
+   Paper
+   The frontispiece's sheet matches the reader's, theme by theme, so
+   the page a reader clicks is the page they land on.
+------------------------------------------------------------------ */
+
+.composition {
+    --comp-paper: #fffdfa;
+}
+
+
+
+[data-theme="dark"]       .composition {
+    --comp-paper: #1c1c1c;
+}
+
+
+[data-theme="cappuccino"] .composition {
+    --comp-paper: #5e4230;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .composition {
+    --comp-paper: #1c1c1c;
+}}
+/* library */
+/* library.css — Library + Bibliography page components, plus the
+   epistemic-filter UI that now lives on /search.html. */
+
+/* ============================================================
+   LIBRARY PALETTE — scoped warm "candlelight" accent
+   Only loaded on /library.html (via $if(library)$) and /search.html,
+   so defining at :root here is effectively page-scoped. Consumed by
+   section headings, the divider, the intro blockquote, and the
+   "more on this shelf" link to give the library page a fine-press
+   feel without touching global colors.
+   ============================================================ */
+
+:root {
+    --library-accent: #524638;
+    --library-accent-muted: #726758;
+    --library-intro-ink: #3c3328;
+}
+
+
+[data-theme="dark"] {
+    --library-accent: #b5a890;
+    --library-accent-muted: #8d8373;
+    --library-intro-ink: #c8beac;
+}
+
+
+[data-theme="cappuccino"] {
+    --library-accent: #d0b888;
+    --library-accent-muted: #c5a880;
+    --library-intro-ink: #dcc296;
+}
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --library-accent: #b5a890;
+    --library-accent-muted: #8d8373;
+    --library-intro-ink: #c8beac;
+}}
+/* reading */
+
+
+/* ============================================================
+   READING MODE — BASE
+   Slightly warmer background; narrower, book-like measure.
+   The class is applied to <body> by default.html.
+   ============================================================ */
+
+body.reading-mode {
+    --bg: #fdf9f1;
+}
+
+
+[data-theme="dark"] body.reading-mode {
+    --bg: #1c1917;
+}
+
+
+[data-theme="cappuccino"] body.reading-mode {
+    --bg: #634432;
+    --text-muted: #dcc49c;
+    --text-faint: #d4bc98;
+}
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) body.reading-mode {
+    --bg: #1c1917;
+}}
+/* modules/score-reader */
+/* score-reader.css — Full-page score reader layout.
+   Used only on /music/{slug}/score/ pages via score-reader-default.html.
+
+   Two ideas drive the design. The sheet is the only bright object on
+   screen — it sits on the theme's ground with a hairline edge and a soft
+   shadow, reading as paper on a stand rather than as a document bleeding
+   into the background. And the chrome recedes: after a few seconds of
+   stillness the bar and the page-turn affordances fade, because a score
+   reader should show a score. */
+
+.score-reader-page {
+    --score-paper: #fffdfa;
+}
+
+
+[data-theme="dark"]       .score-reader-page {
+    --score-paper: #1c1c1c;
+}
+
+[data-theme="cappuccino"] .score-reader-page {
+    --score-paper: #5e4230;
+}
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .score-reader-page {
+    --score-paper: #1c1c1c;
+}}
+/* print.css — Clean paper output.
+   Loaded LAST in head.html via <link media="print"> so its rules win
+   the cascade at print page widths (~595–820 CSS px on A4/Letter),
+   which otherwise trip every screen breakpoint below 900px (mobile
+   TOC bar, body bottom padding).
+
+   Hides chrome, expands body full-width, renders in black on white. */
+
+@media print {
+
+    /* ----------------------------------------------------------------
+       The score reader has its own print presentation; keep its palette.
+       Force other pages light on paper. The custom-property overrides drive the
+       rest of the cascade — use them consistently below instead of
+       reaching for hardcoded #fff/#000 again.
+    ---------------------------------------------------------------- */
+    /* :root:not([data-theme]) is the OS-dark fallback's own selector
+       (theme.css), and at (0,2,0) it beat a bare :root here: with a dark
+       system setting and no saved theme, body text printed pale grey on
+       white (audit V02). Same specificity, later in the cascade, wins. */
+    :root:where(:not(:has(body.score-reader-page))),
+    :root:not([data-theme]):where(:not(:has(body.score-reader-page))),
+    [data-theme="dark"]:where(:not(:has(body.score-reader-page))),
+    [data-theme="cappuccino"]:where(:not(:has(body.score-reader-page))) {
+    --bg: #ffffff;
+    --bg-nav: #ffffff;
+    --bg-offset: #ffffff;
+    --bg-subtle: #f9f9f9;
+    --text: #000000;
+    --text-muted: #333333;
+    --text-faint: #555555;
+    --border: #cccccc;
+    --border-muted: #aaaaaa;
+    --rule: #cccccc;
+}
+
+
+    /* Reading-mode body warm tints would otherwise repaint pages cream,
+       or dark: each theme's reading-mode rule (reading.css) is more
+       specific than a bare body.reading-mode. */
+    body.reading-mode,
+    [data-theme] body.reading-mode,
+    :root:not([data-theme]) body.reading-mode {
+    --bg: #ffffff;
+    --text-muted: #333333;
+    --text-faint: #555555;
+}}
+}

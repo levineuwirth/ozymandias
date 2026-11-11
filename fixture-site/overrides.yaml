@@ -3,3 +3,15 @@
   engine: templates/partials/ornament.html
   reviewed: 8bd1bda3354286c1b7580a1924eff061ef1a84be
   note: a ruled ornament of its own, to exercise the contract
+- site: static/css/theme.css
+  engine: static/css/theme.css
+  reviewed: 9d83a3bc68df71f6aa51c8e549338728535be73f
+  note: the site's theme stylesheet, in the site layer
+- site: static/css/fonts.css
+  engine: static/css/fonts.css
+  reviewed: 9d83a3bc68df71f6aa51c8e549338728535be73f
+  note: the site's fonts stylesheet, in the site layer
+- site: static/css/site.css
+  engine: static/css/site.css
+  reviewed: 9d83a3bc68df71f6aa51c8e549338728535be73f
+  note: the site's site stylesheet, in the site layer

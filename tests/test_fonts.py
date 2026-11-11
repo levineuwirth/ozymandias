@@ -32,8 +32,9 @@ class FontTests(unittest.TestCase):
         self.generated = faces(self.css[begin:end])
         # The web family each set stands in for: "Spectral on Georgia" is Spectral's.
         self.web = sorted({s["family"].split(" on ")[0] for s in fallbacks["sets"]})
+        theme = engine_file("static/css/theme.css").read_text(encoding="utf-8")
         self.stacks = {token: [f.strip().strip('"') for f in value.split(",")]
-                       for token, value in re.findall(r"--([\w-]+):\s*([^;{}]+);", self.css)}
+                       for token, value in re.findall(r"--([\w-]+):\s*([^;{}]+);", theme)}
 
     def test_the_generated_block_is_not_empty(self):
         self.assertGreater(len(self.generated), 0, "run engine/tools/subset-fonts.py")

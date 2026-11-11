@@ -1,3 +1,4 @@
+@layer engine {
 /* ============================================================
    Build telemetry page (/build/)
    ============================================================ */
@@ -10,12 +11,14 @@
     font-size: 0.95em;
 }
 
+
 .build-table th,
 .build-table td {
     padding: 0.35rem 0.75rem;
     text-align: left;
     border-bottom: 1px solid var(--rule);
 }
+
 
 .build-table th {
     font-family: var(--font-ui);
@@ -26,15 +29,18 @@
     border-bottom: 2px solid var(--rule);
 }
 
+
 .build-table td:not(:first-child) {
     font-variant-numeric: tabular-nums;
 }
+
 
 .build-total td {
     font-weight: 600;
     border-top: 2px solid var(--rule);
     border-bottom: none;
 }
+
 
 /* A run of charts and tables under one h2 is broken up by <p><strong>
    sub-labels ("Focal length", "Aperture", "Places"). Neither a table nor a
@@ -46,6 +52,7 @@
     margin-bottom: 1.65rem;
 }
 
+
 /* Word-length distribution bars */
 .build-bars {
     display: flex;
@@ -54,12 +61,14 @@
     max-width: 480px;
 }
 
+
 .build-bar-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     font-size: 0.9em;
 }
+
 
 .build-bar-label {
     width: 6.5rem;
@@ -70,6 +79,7 @@
     text-align: right;
 }
 
+
 .build-bar-wrap {
     flex: 1;
     background: var(--rule);
@@ -77,6 +87,7 @@
     border-radius: 2px;
     overflow: hidden;
 }
+
 
 .build-bar {
     display: block;
@@ -87,6 +98,7 @@
     min-width: 2px;
 }
 
+
 .build-bar-count {
     width: 2.5rem;
     flex-shrink: 0;
@@ -94,6 +106,7 @@
     font-size: 0.85em;
     color: var(--text-muted);
 }
+
 
 /* Build info dl */
 .build-meta {
@@ -103,16 +116,19 @@
     font-size: 0.95em;
 }
 
+
 .build-meta dt {
     color: var(--text-muted);
     font-family: var(--font-ui);
     font-size: 0.85em;
 }
 
+
 .build-meta dd {
     margin: 0;
     font-variant-numeric: tabular-nums;
 }
+
 
 /* ============================================================
    Writing statistics page (/stats/)
@@ -124,28 +140,36 @@
     overflow-x: auto;
 }
 
+
 .heatmap-svg {
     display: block;
     max-width: 100%;
 }
 
-/* Heatmap intensity classes (driven by CSS vars in base.css) */
+
+/* Heatmap intensity classes (driven by CSS vars in theme.css) */
 .heatmap-svg .hm0,
 .heatmap-legend .hm0 { fill: var(--hm-0); }
+
 .heatmap-svg .hm1,
 .heatmap-legend .hm1 { fill: var(--hm-1); }
+
 .heatmap-svg .hm2,
 .heatmap-legend .hm2 { fill: var(--hm-2); }
+
 .heatmap-svg .hm3,
 .heatmap-legend .hm3 { fill: var(--hm-3); }
+
 .heatmap-svg .hm4,
 .heatmap-legend .hm4 { fill: var(--hm-4); }
+
 
 .heatmap-svg .hm-lbl {
     font-size: 9px;
     fill: var(--text-faint);
     font-family: sans-serif;
 }
+
 
 /* Legend row below heatmap */
 .heatmap-legend {
@@ -158,6 +182,7 @@
     color: var(--text-faint);
 }
 
+
 /* Ordered lists on the Notable section */
 .build-page-list {
     font-size: 0.95em;
@@ -165,7 +190,9 @@
     margin: 0.25rem 0 1rem;
 }
 
+
 .build-page-list li {
     margin: 0.3rem 0;
     font-variant-numeric: tabular-nums;
+}
 }

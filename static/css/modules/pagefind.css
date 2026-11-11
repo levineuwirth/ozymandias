@@ -1,0 +1,4 @@
+/* Vendor rules share the structure layer; site overrides remain last. A
+   stylesheet can be put in a layer only by @import; head.html preloads the
+   imported files beside this one, so the import does not wait for them. */
+@import url("/pagefind/pagefind-ui.css") layer(engine);

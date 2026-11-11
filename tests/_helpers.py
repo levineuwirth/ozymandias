@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -32,6 +33,25 @@ ENGINE = Path(__file__).resolve().parents[1]
 def engine_path(rel: str | Path) -> Path:
     """An engine file or directory by its path in the engine."""
     return ENGINE / rel
+
+
+_SHEET = re.compile(r'''href="[./]*assets/([0-9a-f]+)/css/([a-z0-9-]+)\.css"''')
+
+
+def loads_stylesheet(built: Path, page: str, path: str) -> bool:
+    """Whether a page of the built site `built` (a _site/) loads the engine
+    stylesheet `path` (css/NAME.css): by a tag of its own, or by a bundle it
+    links whose served text holds the file's, as the build serves each file
+    alone beside its bundles."""
+    if re.search(rf'''href="[./]*(?:assets/[0-9a-f]+/)?{re.escape(path)}"''', page):
+        return True
+    for version, sheet in set(_SHEET.findall(page)):
+        alone, bundle = built / "assets" / version / path, built / "assets" / version / "css" / f"{sheet}.css"
+        if alone.is_file() and bundle.is_file() and bundle != alone:
+            text = alone.read_text(encoding="utf-8")
+            if text and text in bundle.read_text(encoding="utf-8"):
+                return True
+    return False
 
 
 def copy_engine_tree(rel: str, dest: Path, **copytree) -> Path:

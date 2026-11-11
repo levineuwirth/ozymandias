@@ -16,7 +16,7 @@ from tests.test_browser_annotations import SELECT, STUBS
 
 ORIGIN = "http://email.test"
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
-<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/reset.css">
 <link rel="stylesheet" href="/css/selection-popup.css">
 <script src="/js/utils.js"></script>
 <script src="/js/selection-popup.js" defer></script>

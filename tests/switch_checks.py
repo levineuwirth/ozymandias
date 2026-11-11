@@ -15,6 +15,8 @@ import json
 import re
 from pathlib import Path
 
+from tests._helpers import loads_stylesheet
+
 ARCHIVED = "example-cited-page"   # the fixture's archive entry (archive/manifest.yaml)
 PIECE = "a-piece"                 # the fixture's composition (content/music/a-piece/)
 CAPABILITIES = "essays/capabilities/index.html"   # the full profile's essay of switched features
@@ -22,7 +24,7 @@ EULER = r"$e^{i\pi} + 1 = 0$"     # its inline math, as written
 CAPTION_MATH = "$y = x$"          # its static figure's caption's math, as written
 # What music puts on a page: the score filter's fragment, the composition
 # page's stylesheet, the catalog's shelf script, the reader's page list.
-MUSIC_MARKS = ('data-exhibit-type="score"', "/css/composition.css", "/css/catalog.css", "/js/music-shelf.js",
+MUSIC_MARKS = ('data-exhibit-type="score"', "/css/modules/composition.css", "/css/modules/catalog.css", "/js/music-shelf.js",
                'id="score-reader-stage"')
 
 
@@ -72,7 +74,7 @@ def music_on(site: Path) -> None:
     assert 'data-exhibit-type="score"' in work, "the work's score fragment was not inlined"
     assert 'data-exhibit-type="score"' in text(site, "essays/capabilities/index.html"), \
         "the essay's score fragment was not inlined"
-    assert "/css/composition.css" in work, "the work's page has no composition stylesheet"
+    assert "/css/modules/composition.css" in work, "the work's page has no composition stylesheet"
     reader = text(site, f"music/{PIECE}/score/index.html")
     assert f"/music/{PIECE}/scores/page-1.svg,/music/{PIECE}/scores/page-2.svg" in reader, \
         "the score reader does not list both pages"
@@ -102,7 +104,7 @@ def music_off(site: Path) -> None:
 
 def math_on(site: Path) -> None:
     essay = text(site, CAPABILITIES)
-    for mark in ('class="math inline"', 'class="math display"', "/katex/katex.min.css", "/katex/katex.min.js"):
+    for mark in ('class="math inline"', 'class="math display"', "/css/modules/katex.css", "/katex/katex.min.js"):
         assert mark in essay, f"the essay's math has no {mark}"
     assert "<math" in essay, "the essay's abstract has no MathML"
     captions = "".join(captions_of(essay))
@@ -113,7 +115,7 @@ def math_on(site: Path) -> None:
 
 def math_off(site: Path) -> None:
     marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
-              for mark in ('class="math', "/katex/", "<math")}
+              for mark in ('class="math', "/katex/", "/css/modules/katex.css", "<math")}
     assert not any(marked.values()), f"math on pages: {marked}"
     if (site / "_site" / CAPABILITIES).is_file():
         essay = text(site, CAPABILITIES)
@@ -124,7 +126,7 @@ def math_off(site: Path) -> None:
 
 # What code puts on a page: Prism's language classes and the highlighter,
 # its stylesheet, the copy buttons' script.
-CODE_MARKS = ('class="language-', "/js/prism.min.js", "/css/syntax.css", "/js/copy.js")
+CODE_MARKS = ('class="language-', "/js/prism.min.js", "/css/modules/syntax.css", "/js/copy.js")
 
 
 def code_on(site: Path) -> None:
@@ -140,16 +142,18 @@ def code_off(site: Path) -> None:
     assert not any(marked.values()), f"code on pages: {marked}"
 
 
-# What viz puts on a page: its two kinds of figure, its stylesheet, and on a
-# page that sets `viz: true` Vega (from its CDN) and viz.js.
-VIZ_MARKS = ('class="viz-figure"', 'class="viz-interactive"', "/css/viz.css", "/js/viz.js",
-             "cdn.jsdelivr.net/npm/vega")
+# What viz puts on a page: its two kinds of figure, and on a page that sets
+# `viz: true` Vega (from its CDN) and viz.js; its stylesheet, by tag or in a
+# bundle, apart.
+VIZ_MARKS = ('class="viz-figure"', 'class="viz-interactive"', "/js/viz.js", "cdn.jsdelivr.net/npm/vega")
+VIZ_CSS = "css/modules/viz.css"
 
 
 def viz_on(site: Path) -> None:
     essay = text(site, CAPABILITIES)
     for mark in VIZ_MARKS:
         assert mark in essay, f"the essay's figures have no {mark}"
+    assert loads(site, essay, VIZ_CSS), f"the essay's figures have no {VIZ_CSS}"
     assert "<polyline" in essay, "the static figure's SVG was not inlined"
     assert 'class="vega-spec"' in essay, "the interactive figure has no spec"
 
@@ -158,6 +162,7 @@ def viz_off(site: Path) -> None:
     marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
               for mark in VIZ_MARKS}
     assert not any(marked.values()), f"viz on pages: {marked}"
+    assert not loading(site, VIZ_CSS), f"{VIZ_CSS} on {loading(site, VIZ_CSS)}"
 
 
 PAPER = "/essays/capabilities/paper.pdf"   # the essay's PDF: a link, a citation's file, an embed
@@ -275,17 +280,17 @@ def marks_off(site: Path) -> None:
 def vita_on(site: Path) -> None:
     cv = text(site, "cv.html")
     assert "Example University" in cv, "the CV page does not render yaml-source/data/education.yml"
-    assert "/css/vita.css" in cv, "the CV page has no vita stylesheet"
+    assert "/css/modules/vita.css" in cv, "the CV page has no vita stylesheet"
 
 
 def vita_off(site: Path) -> None:
     # Without the switch content/cv.md may still be an ordinary page.
     marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
-              for mark in ("/css/vita.css", "Example University")}
+              for mark in ("/css/modules/vita.css", "Example University")}
     assert not any(marked.values()), f"the CV on pages: {marked}"
 
 
-COMMONPLACE_MARKS = ("/js/commonplace.js", "/css/commonplace.css", "cp-attribution")
+COMMONPLACE_MARKS = ("/js/commonplace.js", "/css/modules/commonplace.css", "cp-attribution")
 
 
 def commonplace_on(site: Path) -> None:
@@ -302,7 +307,7 @@ def commonplace_off(site: Path) -> None:
     assert not any(marked.values()), f"the commonplace book on pages: {marked}"
 
 
-NOW_MARKS = ("/js/now.js", "/css/now.css", "now-stamp")
+NOW_MARKS = ("/js/now.js", "/css/modules/now.css", "now-stamp")
 
 
 LIBRARY_LINK = re.compile(r'href="[./]*library\.html"')
@@ -345,17 +350,24 @@ def asset_tag(path: str) -> re.Pattern:
     return re.compile(rf'''(?:src|href)="[./]*(?:assets/[0-9a-f]+/)?{re.escape(path)}"''')
 
 
+def loads(site: Path, page: str, path: str) -> bool:
+    """Whether `page` loads the engine asset `path`: by its tag, or, a
+    stylesheet, inside a bundle it links."""
+    if path.endswith(".css"):
+        return loads_stylesheet(site / "_site", page, path)
+    return bool(asset_tag(path).search(page))
+
+
 def loading(site: Path, *paths: str) -> list[str]:
     """Each page that loads one of `paths`, with its path under _site."""
-    tags = [asset_tag(path) for path in paths]
     return [str(p.relative_to(site / "_site")) for p in pages(site)
-            if any(tag.search(p.read_text(encoding="utf-8")) for tag in tags)]
+            if any(loads(site, p.read_text(encoding="utf-8"), path) for path in paths)]
 
 
 def selection_toolbar_on(site: Path) -> None:
     essay = text(site, "essays/long/index.html")
     for path in ("js/selection-popup.js", "css/selection-popup.css"):
-        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+        assert loads(site, essay, path), f"the essay does not load {path}"
 
 
 def selection_toolbar_off(site: Path) -> None:
@@ -366,7 +378,7 @@ def selection_toolbar_off(site: Path) -> None:
 def annotations_on(site: Path) -> None:
     essay = text(site, "essays/long/index.html")
     for path in ("js/annotations.js", "css/annotations.css"):
-        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+        assert loads(site, essay, path), f"the essay does not load {path}"
     assert 'data-action="clear-annotations"' in essay, "the settings panel cannot clear annotations"
 
 
@@ -380,7 +392,7 @@ def annotations_off(site: Path) -> None:
 def popups_on(site: Path) -> None:
     essay = text(site, "essays/long/index.html")
     for path in ("js/popups.js", "css/popups.css"):
-        assert asset_tag(path).search(essay), f"the essay does not load {path}"
+        assert loads(site, essay, path), f"the essay does not load {path}"
     assert "An annotated link" in text(site, "data/annotations.json"), "the author's previews are not published"
 
 

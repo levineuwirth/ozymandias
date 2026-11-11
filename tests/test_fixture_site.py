@@ -380,6 +380,57 @@ class FixtureBuilds(unittest.TestCase):
         # The essay's mark.svg is still beside it.
         switch_checks.marks_off(self.turned_off("marks"))
 
+    def test_each_bundle_is_its_files_in_order(self):
+        # What `site css-bundles` plans for each build: every file there,
+        # the site's or else the engine's, and the bundle served is them,
+        # as each is served alone, one after another.
+        for build in self.builds:
+            site = self.sites[build.name]
+            plan = json.loads(subprocess.run([str(site_binary()), "css-bundles"], cwd=site, env=script_env(),
+                                             capture_output=True, text=True, check=True).stdout)
+            css = next((site / "_site/assets").iterdir()) / "css"
+            for bundle, files in plan.items():
+                with self.subTest(build=build.name, bundle=bundle):
+                    for file in files:
+                        self.assertTrue((site / f"static/css/{file}.css").is_file()
+                                        or engine_path(f"static/css/{file}.css").is_file(), file)
+                    self.assertEqual((css / f"{bundle}.css").read_text(),
+                                     "\n".join((css / f"{file}.css").read_text() for file in files))
+
+    def test_a_page_s_own_stylesheets_are_its_alone(self):
+        site = self.sites["minimal"]
+        own = switch_checks.text(site, "short-page.html")
+        self.assertRegex(own, r'<link rel="stylesheet" href="[./]*assets/[0-9a-f]{12}/css/short-page\.css">')
+        for page in ("index.html", "essays/long/index.html"):
+            self.assertNotIn("short-page.css", switch_checks.text(site, page))
+        # A name that is no stylesheet stops the build.
+        broken = self.sites["minimal"].with_name("minimal-missing-stylesheet")
+        shutil.copytree(site, broken, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
+        page = broken / "content/short-page.md"
+        page.write_text(page.read_text().replace("stylesheets: [short-page]", "stylesheets: [no-such-sheet]"))
+        binary = str(site_binary())
+        done = subprocess.run([binary, "build"], cwd=broken, capture_output=True, text=True, timeout=600,
+                              env=script_env(SITE_ENV="production", SITE_ROOT=str(broken), SITE_BINARY=binary))
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("stylesheets: no static/css/no-such-sheet.css", done.stdout + done.stderr)
+
+    def test_core_styles_do_not_depend_on_optional_marks_or_math(self):
+        # The core bundle is its files, the site's or else the engine's, as
+        # each is served, in order; the minimal site's modules bundle has no
+        # marks or exhibits, and it links no syntax styles.
+        site = self.sites["minimal"]
+        page = switch_checks.text(site, "essays/long/index.html")
+        self.assertIn("/css/core.css", page)
+        css = next((site / "_site/assets").iterdir()) / "css"
+        core = ("tokens", "theme", "fonts", "reset", "layout", "typography", "nav", "toc", "metadata",
+                "aftermatter", "collapse", "search", "callouts", "frontmatter", "images", "stage", "site")
+        self.assertEqual((css / "core.css").read_text(),
+                         "\n".join((css / f"{sheet}.css").read_text() for sheet in core))
+        modules = (css / "modules.css").read_text() if (css / "modules.css").exists() else ""
+        for sheet in ("marks", "exhibits"):
+            self.assertNotIn((css / f"modules/{sheet}.css").read_text(), modules)
+        self.assertNotIn("/css/modules/syntax.css", page)
+
     def test_a_site_that_turns_photography_off_has_no_frames_in_its_lists(self):
         # content/photography/ is still there, its flat file an ordinary
         # page, and its sidecars and the full build's stats still left.
@@ -558,7 +609,7 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(page=page):
                 html = switch_checks.text(site, page)
                 self.assertEqual(preload.findall(html), ["a.woff2", "b.woff2"])
-                self.assertLess(html.index("fonts/b.woff2"), html.index("css/base.css"))
+                self.assertLess(html.index("fonts/b.woff2"), html.index("css/core.css"))
 
     def test_its_override_stands_in_for_the_engine_s(self):
         essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")

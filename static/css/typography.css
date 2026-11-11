@@ -1,3 +1,4 @@
+@layer engine {
 /* typography.css — Spectral body text, Fira Sans headings, OT features, and editorial flourishes */
 
 /* ============================================================
@@ -22,6 +23,8 @@
 }
 
 
+
+
 /* ============================================================
    LITERARY FLOURISHES
    ============================================================ */
@@ -37,12 +40,16 @@
     font-variant-caps: normal; /* Prevent smcp collision */
 }
 
+
+
 /* 2. Magazine-style Lead-in (Small caps for the rest of the first line) */
 #markdownBody > p:first-of-type::first-line {
     font-variant-caps: small-caps;
     letter-spacing: 0.05em;
     color: var(--text);
 }
+
+
 
 /* 3. Explicit dropcap — wrap any paragraph in a ::: dropcap ::: fenced div */
 #markdownBody .dropcap p::first-letter {
@@ -55,11 +62,15 @@
     font-variant-caps: normal;
 }
 
+
+
 #markdownBody .dropcap p::first-line {
     font-variant-caps: small-caps;
     letter-spacing: 0.05em;
     color: var(--text);
 }
+
+
 
 /* 4. Drawn initials. A page that names a set (frontmatter initials:) has
    each dropcap's letter drawn from it, as many as the page has, at the
@@ -85,6 +96,8 @@
     filter: var(--initial-glow, none);
 }
 
+
+
 .initial svg {
     display: block;
     height: 100%;
@@ -92,9 +105,13 @@
     overflow: visible;
 }
 
+
+
 .initial-letter {
     font-size: 0;
 }
+
+
 
 /* Stages: the page's status (frontmatter status:), which the filter puts
    on each initial as initial--<status>. A set's SVG carries the layers:
@@ -110,6 +127,8 @@
     display: none;
 }
 
+
+
 /* Outlines are hairlines at any size: non-scaling, set on each path, as
    vector-effect is not inherited (a set's SVG that puts it on a group
    drew them a twentieth of a pixel wide). What grows from a letter scales
@@ -117,6 +136,8 @@
 .initial .initial-cut:not(.initial-growth) {
     vector-effect: non-scaling-stroke;
 }
+
+
 
 .initial--durable .initial-shade,
 .initial--working-model .initial-ink,
@@ -127,24 +148,34 @@
     display: none;
 }
 
+
+
 .initial--working-model .initial-outline,
 .initial--draft .initial-outline {
     display: inline;
 }
 
+
+
 .initial--working-model .initial-cut:not(.initial-growth) {
     stroke-width: 0.9px;
 }
+
+
 
 .initial--draft .initial-cut {
     stroke: var(--text-faint);
     stroke-width: 1px;
 }
 
+
+
 .initial--superseded,
 .initial--deprecated {
     opacity: 0.3;
 }
+
+
 
 /* Cut, then inked, once, as the page opens: each outline is drawn at its
    own moment (--t, set in the SVG) and pace (--d), then the ink fills it. */
@@ -154,20 +185,27 @@
         stroke-dashoffset: 1;
         animation: initial-cut var(--d, 0.7s) ease-out var(--t, 0s) forwards;
     }
+
+
     :root:not([data-reduce-motion]) .initial .initial-ink,
     :root:not([data-reduce-motion]) .initial .initial-shade {
         opacity: 0;
         animation: initial-ink var(--d, 0.5s) ease var(--t, 1s) forwards;
-    }
-}
+    }}
+
+
 
 @keyframes initial-cut {
     to { stroke-dashoffset: 0; }
 }
 
+
+
 @keyframes initial-ink {
     to { opacity: 1; }
 }
+
+
 
 /* 3. Epigraphs: Whispered preludes */
 .epigraph {
@@ -178,6 +216,8 @@
     border-left: 1px solid var(--border-muted);
     color: var(--text-muted);
 }
+
+
 
 /* 4. Pull Quotes */
 .pull-quote {
@@ -190,6 +230,8 @@
     border-bottom: 1px solid var(--border-muted);
     color: var(--text);
 }
+
+
 
 /* 5. Section-break ornaments (replace standard <hr>).
    Selected by `data-dingbat` on <body>, resolved in build/Dingbat.hs:
@@ -207,6 +249,8 @@
     color: var(--text-muted);
     font-family: var(--font-serif);
 }
+
+
 #markdownBody hr::after {
     display: inline-block;
     font-size: 1.5em;
@@ -216,83 +260,6 @@
     padding-left: 0.5em; /* Optically center the letter-spacing */
 }
 
-/* --- Typographic ornaments ------------------------------------------ */
-
-/* asterism — ⁂ typographic asterism */
-body[data-dingbat="asterism"] #markdownBody hr::after {
-    content: "⁂";
-    letter-spacing: 0.5em;
-    padding-left: 0.5em;
-}
-
-/* asterisks — classic spaced asterisks used in print fiction */
-body[data-dingbat="asterisks"] #markdownBody hr::after {
-    content: "* * *";
-    letter-spacing: 0.4em;
-    padding-left: 0;
-    font-size: 1.3em;
-}
-
-/* --- SVG ornaments -------------------------------------------------- */
-/* Shared mask/sizing for every SVG-driven variant. The per-variant rules
-   below only supply the mask-image URL. */
-body[data-dingbat="fleuron"]  #markdownBody hr::after,
-body[data-dingbat="trefoil"]  #markdownBody hr::after,
-body[data-dingbat="lozenge"]  #markdownBody hr::after,
-body[data-dingbat="clef"]     #markdownBody hr::after,
-body[data-dingbat="memento"]  #markdownBody hr::after,
-body[data-dingbat="tech"]     #markdownBody hr::after,
-body[data-dingbat="ai"]       #markdownBody hr::after {
-    content: "";
-    width: 1.6em;
-    height: 1.6em;
-    font-size: 1em; /* override the 1.5em from the base rule */
-    vertical-align: middle;
-    letter-spacing: 0;
-    padding-left: 0;
-    background-color: currentColor;
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    mask-position: center;
-    -webkit-mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-}
-
-body[data-dingbat="fleuron"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/fleuron.svg');
-    -webkit-mask-image: url('/images/dingbats/fleuron.svg');
-}
-
-body[data-dingbat="trefoil"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/trefoil.svg');
-    -webkit-mask-image: url('/images/dingbats/trefoil.svg');
-}
-
-body[data-dingbat="lozenge"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/lozenge.svg');
-    -webkit-mask-image: url('/images/dingbats/lozenge.svg');
-}
-
-body[data-dingbat="clef"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/clef.svg');
-    -webkit-mask-image: url('/images/dingbats/clef.svg');
-}
-
-body[data-dingbat="memento"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/memento.svg');
-    -webkit-mask-image: url('/images/dingbats/memento.svg');
-}
-
-body[data-dingbat="tech"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/tech.svg');
-    -webkit-mask-image: url('/images/dingbats/tech.svg');
-}
-
-body[data-dingbat="ai"] #markdownBody hr::after {
-    mask-image: url('/images/dingbats/ai.svg');
-    -webkit-mask-image: url('/images/dingbats/ai.svg');
-}
 
 
 /* ============================================================
@@ -303,6 +270,8 @@ body[data-dingbat="ai"] #markdownBody hr::after {
 #markdownBody p {
     margin: 0;
 }
+
+
 
 /* ------------------------------------------------------------
    NARROW-SCREEN REFLOW (WCAG 2.2 SC 1.4.10)
@@ -317,26 +286,36 @@ body[data-dingbat="ai"] #markdownBody hr::after {
     overflow-wrap: break-word;
 }
 
+
+
 /* Identifiers such as `poly_getnoise_eta{1,2}` have no break
    opportunity at all, so they need the stronger value. */
 #markdownBody :not(pre) > code {
     overflow-wrap: anywhere;
 }
 
+
+
 #markdownBody p + p,
 #markdownBody .dropcap + p {
     text-indent: 1.5em;
 }
+
+
 
 /* Reset indent after any block-level element */
 #markdownBody :is(blockquote, pre, .code-block, ul, ol, figure, table, h1, h2, h3, h4, h5, h6, hr) + p {
     text-indent: 0;
 }
 
+
+
 /* Space between block-level elements: Exactly 1 line-height */
 #markdownBody :is(blockquote, pre, .code-block, ul, ol, figure, table) {
     margin: 1.65rem 0;
 }
+
+
 
 
 /* ============================================================
@@ -357,16 +336,32 @@ body[data-dingbat="ai"] #markdownBody hr::after {
     text-rendering: optimizeLegibility;
 }
 
+
+
 /* Top margin: 3.3rem (2 lines). Bottom margin: 0.825rem (half line). */
 #markdownBody h1 { font-size: 2.6rem;  margin: 0 0 1.65rem 0; }
+
+
 #markdownBody h2 { font-size: 1.85rem; margin: 3.3rem 0 0.825rem 0; }
+
+
 #markdownBody h3 { font-size: 1.45rem; margin: 2.475rem 0 0.825rem 0; }
+
+
 #markdownBody h4 { font-size: 1.15rem; margin: 1.65rem 0 0.825rem 0; }
+
+
 #markdownBody h5 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; }
+
+
 #markdownBody h6 { font-size: 1rem;    margin: 1.65rem 0 0.825rem 0; font-weight: 400; font-style: italic; }
+
+
 
 /* Section heading self-links (¶ pilcrow) */
 #markdownBody .heading { position: relative; }
+
+
 #markdownBody .heading a::after {
     content: "\00B6";
     font-size: 0.75em;
@@ -377,10 +372,14 @@ body[data-dingbat="ai"] #markdownBody hr::after {
     opacity: 0;
     transition: opacity 0.1s ease;
 }
+
+
 #markdownBody .heading:hover a::after {
     visibility: visible;
     opacity: 0.4;
 }
+
+
 
 
 /* ============================================================
@@ -398,13 +397,19 @@ a {
     transition: text-decoration-color var(--transition-fast), color var(--transition-fast);
 }
 
+
+
 a:hover {
     text-decoration-color: var(--link-hover);
 }
 
+
+
 a:visited {
     color: var(--link-visited);
 }
+
+
 
 
 /* (external link icons moved to bottom of file — see data-link-icon section) */
@@ -415,8 +420,14 @@ a:visited {
    ============================================================ */
 
 strong { font-weight: 700; }
+
+
 strong.semibold { font-weight: 600; }
+
+
 em { font-style: italic; }
+
+
 
 /* Abbreviations: force uppercase acronyms to x-height */
 abbr {
@@ -426,55 +437,28 @@ abbr {
     cursor: help;
 }
 
+
+
 /* True superscripts & subscripts */
 sup { font-variant-position: super; line-height: 1; }
+
+
 sub { font-variant-position: sub; line-height: 1; }
+
+
 
 /* Realistic Ink Highlighting — excludes user annotation marks */
 #markdownBody mark:not(.user-annotation) {
     background-color: transparent;
-    background-image: linear-gradient(
-        104deg,
-        rgba(250, 235, 120, 0) 0%,
-        rgba(250, 235, 120, 0.8) 2%,
-        rgba(250, 220, 100, 0.9) 98%,
-        rgba(250, 220, 100, 0) 100%
-    );
+    background-image: var(--highlight-background);
     background-size: 100% 0.7em;
     background-position: 0 88%;
     background-repeat: no-repeat;
     padding: 0 0.2em;
     color: inherit;
 }
-[data-theme="dark"] #markdownBody mark:not(.user-annotation) {
-    background-image: linear-gradient(
-        104deg,
-        rgba(100, 130, 180, 0) 0%,
-        rgba(100, 130, 180, 0.4) 2%,
-        rgba(80, 110, 160, 0.5) 98%,
-        rgba(80, 110, 160, 0) 100%
-    );
-}
-[data-theme="cappuccino"] #markdownBody mark:not(.user-annotation) {
-    background-image: linear-gradient(
-        104deg,
-        rgba(245, 215, 130, 0)    0%,
-        rgba(245, 215, 130, 0.45) 2%,
-        rgba(230, 195, 110, 0.55) 98%,
-        rgba(230, 195, 110, 0)    100%
-    );
-}
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) #markdownBody mark:not(.user-annotation) {
-        background-image: linear-gradient(
-            104deg,
-            rgba(100, 130, 180, 0) 0%,
-            rgba(100, 130, 180, 0.4) 2%,
-            rgba(80, 110, 160, 0.5) 98%,
-            rgba(80, 110, 160, 0) 100%
-        );
-    }
-}
+
+
 
 
 /* ============================================================
@@ -491,6 +475,8 @@ code, kbd, samp {
     padding: 0.1em 0.3em;
 }
 
+
+
 pre {
     position: relative;
     font-family: var(--font-mono);
@@ -504,6 +490,8 @@ pre {
     line-height: 1.65;
 }
 
+
+
 pre code {
     font-size: 1em;
     background: none;
@@ -511,6 +499,8 @@ pre code {
     padding: 0;
     border-radius: 0;
 }
+
+
 
 
 /* ============================================================
@@ -534,9 +524,13 @@ pre code {
     font-style: italic;
 }
 
+
+
 #markdownBody blockquote em {
     font-style: normal;
 }
+
+
 
 /* ── Poem excerpt ──────────────────────────────────────────────────────────── */
 /* Usage: <figure class="poem-excerpt"><blockquote>…</blockquote>
@@ -556,6 +550,8 @@ pre code {
     position: relative;
 }
 
+
+
 /* blockquote — no overrides; inherits default dashed-left-line treatment */
 
 /* Figcaption: overrides the right-aligned italic image-caption default.
@@ -574,12 +570,16 @@ pre code {
     z-index: 2;
 }
 
+
+
 #markdownBody figure.poem-excerpt figcaption a {
     color: inherit;
     text-decoration: none;
     border-bottom: 1px solid var(--border);
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
+
+
 
 /* Stretched link: clicking anywhere on the figure navigates to the poem page. */
 #markdownBody figure.poem-excerpt figcaption a::after {
@@ -590,10 +590,14 @@ pre code {
     cursor: pointer;
 }
 
+
+
 #markdownBody figure.poem-excerpt figcaption a:hover {
     color: var(--text);
     border-color: var(--text-muted);
 }
+
+
 
 /* ── Prose excerpt (inline pull-quote from an article or book) ─────────────── */
 /* Usage: <figure class="prose-excerpt"><blockquote>…</blockquote>
@@ -611,6 +615,8 @@ pre code {
     position: relative;
 }
 
+
+
 /* blockquote — no overrides; inherits default dashed-left-line treatment */
 
 #markdownBody figure.prose-excerpt figcaption {
@@ -627,12 +633,16 @@ pre code {
     z-index: 2;
 }
 
+
+
 #markdownBody figure.prose-excerpt figcaption a {
     color: inherit;
     text-decoration: none;
     border-bottom: 1px solid var(--border);
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
+
+
 
 #markdownBody figure.prose-excerpt figcaption a::after {
     content: '';
@@ -642,10 +652,14 @@ pre code {
     cursor: pointer;
 }
 
+
+
 #markdownBody figure.prose-excerpt figcaption a:hover {
     color: var(--text);
     border-color: var(--text-muted);
 }
+
+
 
 
 /* ============================================================
@@ -657,14 +671,20 @@ pre code {
     padding-left: 1.75em;
 }
 
+
+
 #markdownBody li + li {
     margin-top: 0.4125rem; /* Quarter line-height */
 }
+
+
 
 #markdownBody li > p {
     margin: 0;
     text-indent: 0;
 }
+
+
 
 
 /* ============================================================
@@ -682,6 +702,8 @@ pre code {
     max-width: fit-content;
 }
 
+
+
 /* The block-rhythm rule above outranks `margin: 3.3rem auto` (its :is()
    takes the specificity of .code-block), so a figure narrower than the
    column sits flush left. `centered` centers one, such as a pair of
@@ -690,10 +712,14 @@ pre code {
     margin-inline: auto;
 }
 
+
+
 #markdownBody figure img {
     display: block;
     border: 1px solid var(--border-muted); /* Inner bounding box for the image */
 }
+
+
 
 /* Image figures: size the box to the image and constrain the caption to the
    same width. `display: table` + `caption-side: bottom` makes the figure's
@@ -703,10 +729,14 @@ pre code {
     display: table;
 }
 
+
+
 #markdownBody figure:has(> img) > figcaption {
     display: table-caption;
     caption-side: bottom;
 }
+
+
 
 #markdownBody figcaption {
     font-family: var(--font-sans);
@@ -717,6 +747,8 @@ pre code {
     font-style: italic;
     letter-spacing: 0.02em;
 }
+
+
 
 
 /* ============================================================
@@ -731,6 +763,8 @@ pre code {
     font-variant-numeric: lining-nums tabular-nums;
 }
 
+
+
 #markdownBody th,
 #markdownBody td {
     border: 1px solid var(--border);
@@ -738,11 +772,15 @@ pre code {
     text-align: left;
 }
 
+
+
 #markdownBody th {
     font-family: var(--font-sans);
     font-weight: 600;
     background-color: var(--bg-offset);
 }
+
+
 
 /* Narrow screens: a 4-column results table wants ~364px and the essay
    column is 260px at a 320px viewport, so the table used to widen the
@@ -756,12 +794,15 @@ pre code {
         table-layout: fixed;
     }
 
+
+
     #markdownBody :is(th, td) {
         padding: 0.35em 0.4em;
         overflow-wrap: anywhere;
         hyphens: auto;
-    }
-}
+    }}
+
+
 
 
 /* ============================================================
@@ -776,10 +817,14 @@ pre code {
     color: var(--text-muted);
 }
 
+
+
 .abstract p + p {
     text-indent: 0;
     margin-top: 0.825rem; /* Half line-height */
 }
+
+
 
 /* Paragraphs inside annotation bodies: no first-line indent.
    Annotations are short callouts, not body prose; the indent reads as a
@@ -788,6 +833,8 @@ pre code {
     text-indent: 0;
     margin-top: 0.825rem;
 }
+
+
 
 
 /* ============================================================
@@ -807,6 +854,8 @@ pre code {
 
 
 
+
+
 /* ============================================================
    PROOF ENVIRONMENT
    Traditional mathematical proof styling.
@@ -816,11 +865,15 @@ pre code {
     margin: 1.65rem 0;
 }
 
+
+
 /* "Proof." label — italic bold, matching LaTeX convention */
 .proof-label {
     font-style: italic;
     font-weight: 600;
 }
+
+
 
 /* Paragraphs inside proof: no extra indent after first */
 .proof p + p {
@@ -828,12 +881,16 @@ pre code {
     margin-top: 0.825rem;
 }
 
+
+
 /* QED tombstone — floated right so it sits at the end of the last line */
 .proof-qed {
     float: right;
     margin-left: 1em;
     font-style: normal;
 }
+
+
 
 
 /* ============================================================
@@ -844,6 +901,8 @@ pre code {
     font-variant-caps: all-small-caps;
     letter-spacing: 0.03em;
 }
+
+
 
 
 /* ============================================================
@@ -870,9 +929,13 @@ a[data-link-icon-type="svg"]::after {
     transition: opacity var(--transition-fast);
 }
 
+
+
 a[data-link-icon-type="svg"]:hover::after {
     opacity: 0.8;
 }
+
+
 
 /* Explicit [passage]{.link-icons-end}: the filter leaves the text links
    in place and collects their icons after the passage's punctuation. */
@@ -880,148 +943,43 @@ a.link-icon-deferred[data-link-icon-type="svg"]::after {
     content: none;
 }
 
+
+
 .link-icons-tail {
     white-space: nowrap;
 }
+
+
 
 a.link-icon-end {
     display: inline-block;
     text-decoration: none;
 }
 
+
+
 a.link-icon-end:focus-visible {
     outline: 1px solid currentColor;
     outline-offset: 2px;
 }
 
+
+
 a.link-icon-end:focus-visible::after {
     opacity: 1;
 }
+
+
 
 a[data-link-icon="external"]::after {
     mask-image: url('/images/link-icons/external.svg');
     -webkit-mask-image: url('/images/link-icons/external.svg');
 }
 
-a[data-link-icon="wikipedia"]::after {
-    mask-image: url('/images/link-icons/wikipedia.svg');
-    -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
-}
-a[data-link-icon="mtgwiki"]::after {
-    mask-image: url('/images/link-icons/mtgwiki.svg');
-    -webkit-mask-image: url('/images/link-icons/mtgwiki.svg');
-}
-a[data-link-icon="scryfall"]::after {
-    mask-image: url('/images/link-icons/scryfall.svg');
-    -webkit-mask-image: url('/images/link-icons/scryfall.svg');
-}
 
-a[data-link-icon="arxiv"]::after {
-    mask-image: url('/images/link-icons/arxiv.svg');
-    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
-}
-
-a[data-link-icon="doi"]::after {
-    mask-image: url('/images/link-icons/doi.svg');
-    -webkit-mask-image: url('/images/link-icons/doi.svg');
-}
-
-a[data-link-icon="github"]::after {
-    mask-image: url('/images/link-icons/github.svg');
-    -webkit-mask-image: url('/images/link-icons/github.svg');
-}
-
-a[data-link-icon="forgejo"]::after {
-    mask-image: url('/images/link-icons/forgejo.svg');
-    -webkit-mask-image: url('/images/link-icons/forgejo.svg');
-}
-
-a[data-link-icon="worldcat"]::after {
-    mask-image: url('/images/link-icons/worldcat.svg');
-    -webkit-mask-image: url('/images/link-icons/worldcat.svg');
-}
-
-a[data-link-icon="orcid"]::after {
-    mask-image: url('/images/link-icons/orcid.svg');
-    -webkit-mask-image: url('/images/link-icons/orcid.svg');
-}
-
-a[data-link-icon="internet-archive"]::after {
-    mask-image: url('/images/link-icons/internet-archive.svg');
-    -webkit-mask-image: url('/images/link-icons/internet-archive.svg');
-}
-
-a[data-link-icon="tensorflow"]::after {
-    mask-image: url('/images/link-icons/tensorflow.svg');
-    -webkit-mask-image: url('/images/link-icons/tensorflow.svg');
-}
-
-a[data-link-icon="anthropic"]::after {
-    mask-image: url('/images/link-icons/anthropic.svg');
-    -webkit-mask-image: url('/images/link-icons/anthropic.svg');
-}
-
-a[data-link-icon="openai"]::after {
-    mask-image: url('/images/link-icons/openai.svg');
-    -webkit-mask-image: url('/images/link-icons/openai.svg');
-}
-
-a[data-link-icon="twitter"]::after {
-    mask-image: url('/images/link-icons/twitter.svg');
-    -webkit-mask-image: url('/images/link-icons/twitter.svg');
-}
-
-a[data-link-icon="reddit"]::after {
-    mask-image: url('/images/link-icons/reddit.svg');
-    -webkit-mask-image: url('/images/link-icons/reddit.svg');
-}
-
-a[data-link-icon="youtube"]::after {
-    mask-image: url('/images/link-icons/youtube.svg');
-    -webkit-mask-image: url('/images/link-icons/youtube.svg');
-}
-
-a[data-link-icon="tiktok"]::after {
-    mask-image: url('/images/link-icons/tiktok.svg');
-    -webkit-mask-image: url('/images/link-icons/tiktok.svg');
-}
-
-a[data-link-icon="substack"]::after {
-    mask-image: url('/images/link-icons/substack.svg');
-    -webkit-mask-image: url('/images/link-icons/substack.svg');
-}
-
-a[data-link-icon="hacker-news"]::after {
-    mask-image: url('/images/link-icons/hacker-news.svg');
-    -webkit-mask-image: url('/images/link-icons/hacker-news.svg');
-}
-
-a[data-link-icon="lesswrong"]::after {
-    mask-image: url('/images/link-icons/lesswrong.svg');
-    -webkit-mask-image: url('/images/link-icons/lesswrong.svg');
-}
-
-a[data-link-icon="new-york-times"]::after {
-    mask-image: url('/images/link-icons/new-york-times.svg');
-    -webkit-mask-image: url('/images/link-icons/new-york-times.svg');
-}
-
-a[data-link-icon="nasa"]::after {
-    mask-image: url('/images/link-icons/nasa.svg');
-    -webkit-mask-image: url('/images/link-icons/nasa.svg');
-}
-
-a[data-link-icon="apple"]::after {
-    mask-image: url('/images/link-icons/apple.svg');
-    -webkit-mask-image: url('/images/link-icons/apple.svg');
-}
-
-a[data-link-icon="internal"]::after {
-    mask-image: url('/images/link-icons/internal.svg');
-    -webkit-mask-image: url('/images/link-icons/internal.svg');
-}
 
 a[data-link-icon="document"]::after {
     mask-image: url('/images/link-icons/document.svg');
     -webkit-mask-image: url('/images/link-icons/document.svg');
+}
 }

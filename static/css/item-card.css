@@ -1,3 +1,21 @@
+@layer engine {
+/* Item-card context: small inline glyph beside the kind badge.
+   Sized to read as a marker, not a competing figure. */
+.item-card-monogram {
+    flex-shrink: 0;
+    line-height: 0;
+    color: var(--text-muted);
+    margin-top: 0.15em;
+}
+
+
+.item-card-monogram .frontmatter-mark {
+    width: 72px;
+    height: 72px;
+}
+
+
+
 /* item-card.css — shared list-page components (item cards, count toggle, See Also) */
 
 /* ============================================================
@@ -18,15 +36,18 @@
     line-height: 1.45;
 }
 
+
 .see-also-list {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
+
 .see-also-item {
     padding: 0.03rem 0;
 }
+
 
 .see-also-name {
     color: var(--text-muted);
@@ -37,10 +58,12 @@
     transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
 }
 
+
 .see-also-name:hover {
     color: var(--text);
     text-decoration-color: var(--border-muted);
 }
+
 
 .see-also-dash {
     color: var(--text-faint);
@@ -48,9 +71,11 @@
     user-select: none;
 }
 
+
 .see-also-desc {
     color: var(--text-faint);
 }
+
 
 /* Hierarchy markers — parent up, children right-and-down.
    Subtle enough that it reads at a glance without calling attention. */
@@ -59,15 +84,18 @@
     color: var(--text-faint);
 }
 
+
 .see-also-child {
     padding-left: 0.9rem;
 }
+
 
 .see-also-child .see-also-name::before {
     content: "↳ ";
     color: var(--text-faint);
     padding-right: 0.1em;
 }
+
 
 
 
@@ -82,17 +110,20 @@
     margin-bottom: 1.75rem;
 }
 
+
 .list-controls-label {
     font-family: var(--font-sans);
     font-size: 0.75rem;
     color: var(--text-faint);
 }
 
+
 .list-controls-options {
     display: flex;
     flex-wrap: wrap;        /* at the largest text size they ran off a phone */
     gap: 0.3rem;
 }
+
 
 .list-count-btn {
     font-family: var(--font-sans);
@@ -106,16 +137,19 @@
     transition: border-color 0.1s, color 0.1s;
 }
 
+
 .list-count-btn:hover {
     border-color: var(--border-muted);
     color: var(--text);
 }
+
 
 .list-count-btn.is-active {
     border-color: var(--text-muted);
     color: var(--text);
     font-weight: 600;
 }
+
 
 /* ============================================================
    ENTRY LIST
@@ -129,6 +163,7 @@
     flex-direction: column;
 }
 
+
 .item-card {
     display: flex;
     gap: 0.9rem;
@@ -137,9 +172,11 @@
     border-bottom: 1px solid var(--border);
 }
 
+
 .item-card:first-child {
     border-top: 1px solid var(--border);
 }
+
 
 /* ============================================================
    KIND BADGE
@@ -158,6 +195,7 @@
     line-height: 1.6;
 }
 
+
 /* ============================================================
    ENTRY CONTENT
    ============================================================ */
@@ -166,6 +204,7 @@
     flex: 1;
     min-width: 0;
 }
+
 
 /* ============================================================
    TAG CHIPS
@@ -189,6 +228,7 @@
     margin-top: 0.35rem;
 }
 
+
 .item-card-tags .meta-tag {
     display: inline-flex;
     align-items: center;
@@ -198,6 +238,7 @@
     overflow-wrap: anywhere;
 }
 
+
 /* The inline "·" joiner assumes the chips share a text run; inside the
    flex row it would sit at the head of a wrapped line. The gap above
    does the separating now. */
@@ -205,12 +246,14 @@
     content: none;
 }
 
+
 .item-card-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
 }
+
 
 .item-card-title {
     font-family: var(--font-serif);
@@ -220,10 +263,12 @@
     line-height: 1.35;
 }
 
+
 .item-card-title:hover {
     text-decoration: underline;
     text-underline-offset: 0.15em;
 }
+
 
 /* Date gutter. The dateline wraps the date and the revision marker so
    .item-card-header's space-between still resolves to two columns
@@ -238,12 +283,14 @@
     flex-shrink: 0;
 }
 
+
 /* Separator between date and marker — same role as .see-also-dash. */
 .item-card-dateline-sep {
     color: var(--text-faint);
     font-size: 0.72rem;
     user-select: none;
 }
+
 
 .item-card-date {
     font-family: var(--font-sans);
@@ -253,6 +300,7 @@
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
 }
+
 
 /* Revision marker. The gutter says only that the item was revised; both
    dates and the note ride in a hover/focus popup (popups.js binds this
@@ -275,11 +323,13 @@
     transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
 }
 
+
 .item-card-revised:hover,
 .item-card-revised:focus-visible {
     color: var(--text-muted);
     text-decoration-color: var(--text-muted);
 }
+
 
 /* The original date rides inside the marker rather than in a data
    attribute so the popup reads it out of the DOM (no escaping question)
@@ -288,6 +338,7 @@
 .item-card-revised-from {
     display: none;
 }
+
 
 .item-card-abstract {
     font-family: var(--font-sans);
@@ -307,6 +358,7 @@
     overflow: hidden;
 }
 
+
 /* Library (and any other surface that sets $full-abstract$) renders the
    abstract unclamped. Resetting display drops the -webkit-box flex that
    drives the clamp; overflow reset keeps long abstracts visible. */
@@ -314,6 +366,7 @@
     display: block;
     overflow: visible;
 }
+
 
 /* Revision note — the most-recent 'revised:' entry's prose. On pointer
    devices it is deferred to the marker's popup, but the paragraph stays
@@ -336,12 +389,14 @@
     white-space: nowrap;
 }
 
+
 /* Metadata, not prose: cancel the 1.5em first-line indent this <p> would
    otherwise inherit from `#markdownBody p + p`. Scoped to #markdownBody
    because that rule carries an ID and would otherwise outrank a bare class. */
 #markdownBody .item-card-revision-note {
     text-indent: 0;
 }
+
 
 /* Touch-primary devices get no popups at all — popups.js's init()
    returns early on exactly this condition, since a hover popup costs a
@@ -359,15 +414,17 @@
         white-space: normal;
     }
 
+
     .item-card-revised {
         cursor: default;
         text-decoration: none;
     }
 
+
     .item-card-revised-from {
         display: inline;
-    }
-}
+    }}
+
 
 /* ============================================================
    MOBILE (≤540px)
@@ -385,6 +442,7 @@
         padding-left: 0;
     }
 
+
     /* Kind and figure share a line above the title, which takes the
        card's width. Beside them it had 70px at 320px and broke inside
        words ("Verifie d Infere nce"), and less at a larger text size. */
@@ -394,18 +452,22 @@
         gap: 0.35rem 0.65rem;
     }
 
+
     .item-card-main {
         flex-basis: 100%;
     }
+
 
     .item-card-monogram {
         margin: 0 0 0 auto;
     }
 
+
     .item-card-monogram .frontmatter-mark {
         width: 48px;
         height: 48px;
     }
+
 
     .item-card-kind {
         min-width: 0;
@@ -413,16 +475,19 @@
         font-size: 0.62rem;
     }
 
+
     .item-card-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.15rem;
     }
 
+
     .item-card-title {
         font-size: 0.95rem;
         overflow-wrap: anywhere;
     }
+
 
     /* The date neither wraps nor shrinks on a wide card; in this narrow
        column "24 September 2026" was wider than the column at 320px and
@@ -432,9 +497,11 @@
         flex-shrink: 1;
     }
 
+
     .item-card-date {
         font-size: 0.68rem;
     }
+
 
     /* The header stacks here, so the dateline is wider than its content and
        flex-end would right-align the date away from everything else. And a
@@ -444,7 +511,8 @@
         justify-content: flex-start;
     }
 
+
     .item-card-dateline-sep {
         display: none;
-    }
+    }}
 }

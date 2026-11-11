@@ -1,0 +1,252 @@
+@layer engine {
+/* ============================================================
+   PAGEFIND SEARCH UI
+   CSS custom property overrides so pagefind-ui matches the
+   site's design tokens. Pagefind reads these via var().
+   ============================================================ */
+
+#search {
+    margin-top: 1.65rem;
+    --pagefind-ui-scale: 0.85;
+    --pagefind-ui-primary: var(--text-muted);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-tag: var(--bg-offset);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 2px;
+    --pagefind-ui-font: var(--font-sans);
+}
+
+
+/* Pagefind renders results as an <ol> of <p>s inside #markdownBody, where
+   typography.css's prose rules reach them: the list margin and indent
+   pushed every result in under the count, and p + p gave each excerpt a
+   paragraph indent. The #markdownBody prefix outranks those rules. */
+#markdownBody #search ol {
+    margin: 0;
+    padding-left: 0;
+}
+
+
+#markdownBody #search p {
+    text-indent: 0;
+}
+
+
+/* With the box empty Pagefind "suppresses" its Clear button with opacity
+   alone, which leaves an invisible Tab stop: a keyboard reader landed on a
+   button they could not see. visibility also takes it out of the tab order
+   and the accessibility tree until there is something to clear. */
+#search .pagefind-ui__search-clear.pagefind-ui__suppressed {
+    visibility: hidden;
+}
+
+
+#search-timing {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em; /* reserve space to prevent layout shift */
+}
+
+
+/* Search bar: the Keyword / Semantic tabs, with the Filters toggle
+   (shared by both tabs) at the right end of the same rule. */
+.search-bar {
+    display: flex;
+    flex-wrap: wrap;        /* at 320px the tabs and Filters do not fit one row */
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+
+.search-tabs {
+    display: flex;
+    flex-wrap: wrap;        /* at the largest text size they ran off a phone */
+    gap: 0;
+}
+
+
+/* The bar's rule already sits directly above the panel. */
+#search-filters {
+    border-top: none;
+}
+
+
+.search-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.45rem 1rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+}
+
+
+.search-tab:hover       { color: var(--text-muted); }
+
+.search-tab.is-active   { color: var(--text); border-bottom-color: var(--text); }
+
+
+/* Search panels (keyword / semantic) — only active panel visible.
+   The inactive panel now also carries the `hidden` attribute, which the
+   global `[hidden]` rule in reset.css enforces; these class rules remain
+   the styling contract. */
+.search-panel           { display: none; }
+
+.search-panel.is-active { display: block; }
+
+
+/* ------------------------------------------------------------
+   NO-SCRIPT AND DEGRADED STATES
+   Short explanatory notes rendered beside controls that need
+   JavaScript, and the recovery row a failed semantic load offers.
+   Quiet by default: they are asides, not errors to shout about.
+   ------------------------------------------------------------ */
+
+.search-noscript,
+.filter-note,
+.transclude-error-note,
+.transclude-noscript-note {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin: 0.5rem 0;
+}
+
+
+.search-noscript,
+.transclude-error-note,
+.transclude-noscript-note {
+    border-left: 2px solid var(--border);
+    padding-left: 0.75em;
+}
+
+
+/* Filters.Transclusion writes this inside a <noscript>, so it is the
+   whole of a transcluded passage for a reader without scripting: it
+   carries the link to the passage's own page. Same treatment as the
+   error note — a quiet aside offering somewhere to go. */
+.transclude-noscript-note a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+
+.transclude-noscript-note a:hover {
+    color: var(--text);
+    text-decoration-color: var(--text-muted);
+}
+
+
+.transclude-error-link {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-underline-offset: 0.2em;
+}
+
+
+.transclude-error-link:hover {
+    color: var(--text);
+    text-decoration-color: var(--text-muted);
+}
+
+
+/* Recovery actions after a failed semantic load. The buttons inside
+   reuse .filter-btn, so only the row needs describing. */
+.semantic-fallback {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.75rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+
+/* Semantic query input — mirrors Pagefind UI style */
+.semantic-query-input {
+    width: 100%;
+    margin-top: 1.65rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+
+.semantic-query-input:focus { border-color: var(--text-muted); }
+
+
+.semantic-status {
+    font-family: var(--font-mono);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
+
+
+/* Semantic results list */
+.semantic-results-list {
+    list-style: none;
+    margin: 1.2rem 0 0;
+    padding: 0;
+}
+
+
+.semantic-result {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+
+.semantic-result:last-child { border-bottom: none; }
+
+
+.semantic-result-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+
+.semantic-result-title:hover { text-decoration: underline; }
+
+
+.semantic-result-heading {
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+}
+
+
+.semantic-result-excerpt {
+    margin: 0.3rem 0 0;
+    font-size: var(--text-size-small);
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+}

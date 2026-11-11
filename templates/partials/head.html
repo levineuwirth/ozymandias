@@ -33,68 +33,44 @@ $if(description)$<meta name="twitter:description" content="$description$">$endif
 <link rel="manifest" href="/site.webmanifest">
 <!-- V20: the faces of the first screen (site.yaml's font-preloads), fetched beside the stylesheets rather than after them -->
 $for(font-preloads)$<link rel="preload" href="$href$" as="font" type="font/woff2" crossorigin>
-$endfor$<link rel="stylesheet" href="$assets$/css/base.css">
-<link rel="stylesheet" href="$assets$/css/layout.css">
-<link rel="stylesheet" href="$assets$/css/typography.css">
+$endfor$<!-- Stylesheets in cascade order: the bundles (EngineFiles.cssBundles) serve
+     each run every page loads as one file, and what a page needs for itself is
+     linked between them where it falls. Engine rules are in @layer engine, the
+     site's in @layer site, which wins whatever the order; within a layer, order
+     decides ties as it did. -->
+<link rel="stylesheet" href="$assets$/css/core.css">
 $if(has-sidenotes)$<link rel="stylesheet" href="$assets$/css/sidenotes.css">$endif$
-$if(has-code)$<link rel="stylesheet" href="$assets$/css/syntax.css">$endif$
-<link rel="stylesheet" href="$assets$/css/components.css">
-<link rel="stylesheet" href="$assets$/css/gallery.css">
-$if(switch-popups)$<link rel="stylesheet" href="$assets$/css/popups.css">$endif$
-$if(switch-selection-toolbar)$<link rel="stylesheet" href="$assets$/css/selection-popup.css">$endif$
-$if(switch-annotations)$<link rel="stylesheet" href="$assets$/css/annotations.css">$endif$
-<link rel="stylesheet" href="$assets$/css/images.css">
-<!-- viz.css is deliberately ungated by page, unlike the Vega scripts further
-     down: only by the viz switch, whose stylesheet it is. Static .figure
-     divs need it and, per WRITING.md, do not set viz: true, so gating it by
-     page meant the only page with figures never loaded it.
-     Matplotlib writes no fill for default-coloured text, so without the
-     g[id^="text_"] rule in here every axis label, tick label and legend
-     entry rendered black on #121212 in dark mode. A few hundred bytes.
-     NB: template syntax is parsed inside HTML comments too - never write a
-     conditional here, even as prose, or it opens a real one. -->
-$if(switch-viz)$<link rel="stylesheet" href="$assets$/css/viz.css">$endif$
-<link rel="stylesheet" href="$assets$/css/marks.css">
-$if(home)$<link rel="stylesheet" href="$assets$/css/home.css">$endif$
 $if(library)$<link rel="stylesheet" href="$assets$/css/library.css">$endif$
-$if(library)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
-$if(links)$<link rel="stylesheet" href="$assets$/css/links.css">$endif$
 $if(search)$<link rel="stylesheet" href="$assets$/css/library.css">$endif$
+$if(library)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
 $if(list-page)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
-$if(memento-mori)$<link rel="stylesheet" href="$assets$/css/memento-mori.css">$endif$
-$if(catalog)$<link rel="stylesheet" href="$assets$/css/catalog.css">$endif$
-$if(commonplace)$<link rel="stylesheet" href="$assets$/css/commonplace.css">$endif$
 $if(now)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
-$if(now)$<link rel="stylesheet" href="$assets$/css/now.css">$endif$
 $if(vita)$<link rel="stylesheet" href="$assets$/css/item-card.css">$endif$
-$if(vita)$<link rel="stylesheet" href="$assets$/css/vita.css">$endif$
-$if(work)$<link rel="stylesheet" href="$assets$/css/work.css">$endif$
-$if(build)$<link rel="stylesheet" href="$assets$/css/build.css">$endif$
 $if(reading)$<link rel="stylesheet" href="$assets$/css/reading.css">$endif$
-$if(composition)$<link rel="stylesheet" href="$assets$/css/composition.css">$endif$
 $if(photography)$<link rel="stylesheet" href="$assets$/css/photography.css">$endif$
-$if(archive)$<link rel="stylesheet" href="$assets$/css/archive.css">$endif$
-$if(photography-map)$<link rel="stylesheet" href="/leaflet/leaflet.css">$endif$
-$if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.css">$endif$
-$if(photography-map)$<link rel="stylesheet" href="/leaflet/MarkerCluster.Default.css">$endif$
-$for(seasons)$<link rel="stylesheet" href="$assets$$season-stylesheet$" media="screen">
+$if(css-interact)$<link rel="stylesheet" href="$assets$/css/interact.css">$endif$
+$if(switch-code)$$if(has-code)$<link rel="stylesheet" href="$assets$/css/modules/syntax.css">$endif$$endif$
+$if(css-modules)$<link rel="stylesheet" href="$assets$/css/modules.css">$endif$
+$if(catalog)$<link rel="stylesheet" href="$assets$/css/modules/catalog.css">$endif$
+$if(commonplace)$<link rel="stylesheet" href="$assets$/css/modules/commonplace.css">$endif$
+$if(now)$<link rel="stylesheet" href="$assets$/css/modules/now.css">$endif$
+$if(vita)$<link rel="stylesheet" href="$assets$/css/modules/vita.css">$endif$
+$if(build)$<link rel="stylesheet" href="$assets$/css/modules/build.css">$endif$
+$if(composition)$<link rel="stylesheet" href="$assets$/css/modules/composition.css">$endif$
+$if(archive)$<link rel="stylesheet" href="$assets$/css/modules/archive.css">$endif$
+<link rel="stylesheet" href="$assets$/css/touch.css">
+$if(photography-map)$<link rel="preload" href="/leaflet/leaflet.css" as="style">
+<link rel="preload" href="/leaflet/MarkerCluster.css" as="style">
+<link rel="preload" href="/leaflet/MarkerCluster.Default.css" as="style">
+<link rel="stylesheet" href="$assets$/css/modules/leaflet.css">
+$endif$$for(page-stylesheets)$<link rel="stylesheet" href="$assets$/css/$name$.css">
+$endfor$$for(seasons)$<link rel="stylesheet" href="$assets$$season-stylesheet$" media="screen">
 $endfor$<link rel="stylesheet" href="$assets$/css/print.css" media="print">
-$if(math)$
-<!-- KaTeX 0.16.11, self-hosted under static/katex/ (audit X6): the npm
-     package's katex.min.js unchanged (its SHA-384 is the SRI these tags
-     carried from jsDelivr), the stylesheet trimmed to woff2 sources, woff2
-     fonts only. `math` is set from the rendered page
-     (Contexts.pageFeatureFields), so pages without math load none of it;
-     transclude.js loads it on demand when a transclusion brings math. To
-     upgrade: take dist/ from the new release, trim the stylesheet the same
-     way, and compare the math-heavy essays. The script tag is in
-     templates/default.html. -->
-<link rel="stylesheet" href="/katex/katex.min.css">
-$endif$
-$if(search)$
-<link rel="stylesheet" href="/pagefind/pagefind-ui.css">
-$endif$
-$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
+$if(math)$<link rel="preload" href="/katex/katex.min.css" as="style">
+<link rel="stylesheet" href="$assets$/css/modules/katex.css">
+$endif$$if(search)$<link rel="preload" href="/pagefind/pagefind-ui.css" as="style">
+<link rel="stylesheet" href="$assets$/css/modules/pagefind.css">
+$endif$$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
 $endfor$<script src="$assets$/js/utils.js"></script>
 <script src="$assets$/js/theme.js"></script>
 $if(switch-viz)$$if(viz)$

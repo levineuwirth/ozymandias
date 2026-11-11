@@ -1,3 +1,4 @@
+@layer engine {
 /* print.css — Clean paper output.
    Loaded LAST in head.html via <link media="print"> so its rules win
    the cascade at print page widths (~595–820 CSS px on A4/Letter),
@@ -7,44 +8,6 @@
    Hides chrome, expands body full-width, renders in black on white. */
 
 @media print {
-
-    /* ----------------------------------------------------------------
-       Force light on paper. The custom-property overrides drive the
-       rest of the cascade — use them consistently below instead of
-       reaching for hardcoded #fff/#000 again.
-    ---------------------------------------------------------------- */
-    /* :root:not([data-theme]) is the OS-dark fallback's own selector
-       (base.css), and at (0,2,0) it beat a bare :root here: with a dark
-       system setting and no saved theme, body text printed pale grey on
-       white (audit V02). Same specificity, later in the cascade, wins. */
-    :root,
-    :root:not([data-theme]),
-    [data-theme="dark"],
-    [data-theme="cappuccino"] {
-        --bg:           #ffffff;
-        --bg-nav:       #ffffff;
-        --bg-offset:    #ffffff;
-        --bg-subtle:    #f9f9f9;
-        --text:         #000000;
-        --text-muted:   #333333;
-        --text-faint:   #555555;
-        --border:       #cccccc;
-        --border-muted: #aaaaaa;
-        --rule:         #cccccc;
-    }
-
-    /* Reading-mode body warm tints would otherwise repaint pages cream,
-       or dark: each theme's reading-mode rule (reading.css) is more
-       specific than a bare body.reading-mode. */
-    body.reading-mode,
-    [data-theme] body.reading-mode,
-    :root:not([data-theme]) body.reading-mode {
-        --bg: #ffffff;
-        /* Cappuccino lifts these on the body for screen reading, so
-           overriding only the root leaves pale metadata on white paper. */
-        --text-muted: #333333;
-        --text-faint: #555555;
-    }
 
     /* ----------------------------------------------------------------
        Hide chrome.
@@ -85,6 +48,7 @@
         display: none !important;
     }
 
+
     /* ----------------------------------------------------------------
        Collapsed sections print in full (audit J07). collapse.js closes
        a section three ways (the `hidden` attribute, an inline
@@ -99,11 +63,13 @@
         overflow: visible !important;
     }
 
+
     /* The mobile TOC bar's screen rule also adds `body { padding-bottom: 2.5rem }`
        to clear the fixed strip — undo it on paper. */
     body {
         padding-bottom: 0 !important;
     }
+
 
     /* ----------------------------------------------------------------
        Layout — single full-width column
@@ -117,10 +83,12 @@
         padding: 0;
     }
 
+
     .page-shell {
         display: block !important;
         min-height: 0 !important;
     }
+
 
     #content {
         display: block !important;
@@ -128,6 +96,7 @@
         padding: 0 !important;
         margin: 0 !important;
     }
+
 
     #markdownBody,
     .page-shell > #markdownBody,
@@ -141,6 +110,7 @@
         padding: 0 !important;
     }
 
+
     /* ----------------------------------------------------------------
        Essay frontmatter — collapse the 3-column viewport-spanning grid
        to a single linear masthead. Mark slots already hidden above.
@@ -152,6 +122,7 @@
         border-bottom: 1px solid var(--border);
     }
 
+
     .frontmatter-title {
         max-width: 100% !important;
         width: 100% !important;
@@ -159,24 +130,29 @@
         justify-self: stretch !important;
     }
 
+
     .frontmatter-title > .page-title {
         font-size: 22pt;
         margin: 0 0 0.2em 0;
         line-height: 1.15;
     }
 
+
     .essay-subtitle {
         font-size: 12pt;
         margin: 0 0 0.4em 0;
     }
 
+
     .frontmatter-title .meta-description {
         text-align: left !important;
     }
 
+
     .frontmatter-title .meta-epistemic-strip {
         justify-content: flex-start !important;
     }
+
 
     .essay-tailmatter {
         max-width: 100% !important;
@@ -185,12 +161,14 @@
         margin: 0 0 1em 0 !important;
     }
 
+
     .essay-summary {
         background: transparent !important;
         border: 1px solid var(--border-muted);
         padding: 0.6em 0.8em !important;
         margin: 0.5em 0 1em 0 !important;
     }
+
 
     /* ----------------------------------------------------------------
        Notes — the list at the end of the body, as on narrow screens.
@@ -203,6 +181,7 @@
         color: var(--text);
         text-decoration: none;
     }
+
 
     /* ----------------------------------------------------------------
        User annotations — strip on-screen highlight backgrounds; keep
@@ -218,6 +197,7 @@
         text-underline-offset: 0.18em;
     }
 
+
     /* ----------------------------------------------------------------
        Figures — strip on-screen card chrome (bg-offset card, inner
        image border, drop shadow). Plain image + caption reads more
@@ -232,14 +212,17 @@
         max-width: 100% !important;
     }
 
+
     #markdownBody figure img {
         border: none !important;
     }
+
 
     #markdownBody figcaption {
         font-size: 9pt;
         margin-top: 0.3em;
     }
+
 
     /* ----------------------------------------------------------------
        Drop cap — quieten the magazine flourish; at 3.8em it prints as
@@ -252,13 +235,16 @@
         line-height: 0.9;
     }
 
+
     /* A drawn initial prints as the letter's own quiet dropcap. */
     .initial {
         display: none;
     }
+
     .initial-letter {
         font-size: inherit;
     }
+
 
     /* ----------------------------------------------------------------
        Page setup
@@ -266,6 +252,7 @@
     @page {
         margin: 2cm 2cm;
     }
+
 
     /* ----------------------------------------------------------------
        Typography adjustments
@@ -275,20 +262,24 @@
         break-after: avoid;
     }
 
+
     p, li, blockquote {
         orphans: 3;
         widows: 3;
     }
+
 
     pre, .code-block, figure, .exhibit, table {
         page-break-inside: avoid;
         break-inside: avoid;
     }
 
+
     /* The copy button is screen chrome; on paper it is an empty box. */
     .copy-btn {
         display: none !important;
     }
+
 
     /* Decorative inline link-icon glyphs (wikipedia W, arxiv X, github,
        etc.) — they render as an inline-block 0.75em × 0.75em masked
@@ -302,9 +293,11 @@
         display: none !important;
     }
 
+
     .link-icons-tail {
         display: none !important;
     }
+
 
     /* External links keep their default underline — readers can follow
        the live URL via the PDF's preserved link metadata. We don't
@@ -322,6 +315,7 @@
         box-shadow: none !important;
     }
 
+
     /* ----------------------------------------------------------------
        Page meta footer — keep epistemic + version history compact;
        collapse the auto-fit grid so columns don't get pushed onto a
@@ -334,19 +328,23 @@
         gap: 0.8em !important;
     }
 
+
     .meta-footer-full,
     .meta-footer-grid {
         width: 100% !important;
         max-width: 100% !important;
     }
 
+
     .meta-footer-grid {
         display: block !important;
     }
 
+
     .meta-footer-section {
         margin-bottom: 0.8em;
     }
+
 
     /* ----------------------------------------------------------------
        Item cards. On screen the revision note is visually hidden and
@@ -363,14 +361,16 @@
         white-space: normal;
     }
 
+
     .item-card-revised {
         text-decoration: none;
     }
 
+
     .item-card-revised-from {
         display: inline;
-    }
-}
+    }}
+
 
 /* Figures pan on screen (see viz.css); on paper there is nothing to pan,
    so let the whole figure through at whatever the page width allows rather
@@ -379,6 +379,8 @@
     overflow-x: visible;
 }
 
+
 .viz-scroll svg {
     min-width: 0;
+}
 }

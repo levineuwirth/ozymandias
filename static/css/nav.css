@@ -1,0 +1,620 @@
+@layer engine {
+/* ============================================================
+   SKIP LINK
+   ============================================================ */
+
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    z-index: 9999;
+    padding: 0.5em 1em;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+
+.skip-link:focus {
+    top: 0;
+}
+
+
+
+/* ============================================================
+   NAV
+   Two-row: primary links (always visible) + portal links
+   (collapsed by default, expanded via nav.js + localStorage).
+   ============================================================ */
+
+/* The nav is a size container so its layout can switch on its own width
+   in rem. A media query's rem is the browser default and ignores the
+   Text size setting; a container query's rem follows the root, so the
+   wrap points below scale with the text. */
+nav.site-nav {
+    container: site-nav / inline-size;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    font-family: var(--font-sans);
+}
+
+
+/* Row 1: centered primary links + right-side controls.
+   The side padding reserves room for the absolutely positioned logo
+   (left) and controls (right): the controls are about 4.9rem wide plus
+   their 1.25rem offset. Equal on both sides, so the links stay centred
+   on the page. */
+.nav-row-primary {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.65rem 6.75rem;
+}
+
+
+.nav-primary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.06em;
+}
+
+
+.nav-primary a {
+    text-decoration: none;
+    color: var(--text-muted);
+    padding: 0.15rem 0.85rem;
+    transition: color var(--transition-fast);
+}
+
+
+.nav-primary a:hover {
+    color: var(--text);
+}
+
+
+.nav-primary a + a {
+    border-left: 1px solid var(--border);
+}
+
+
+/* Home logo — square button flush into the top-left corner of the nav bar.
+   The site's mark lives in /logo-sprite.svg (the engine's default is a
+   ring) and is referenced with <use>: a traced mark can run to tens of
+   KB, cached once rather than inlined per page. Its two-tone cutout
+   still renders because CSS custom properties cascade into the
+   use-element shadow tree: the mark is drawn in --logo-ink and its
+   cutouts in --logo-bg. Mapping --logo-bg to --bg-nav (the button's own
+   surface) makes them read as the nav background showing through. Both
+   tokens are theme-driven in theme.css — override --nav-logo-fg /
+   --bg-nav there to restyle per theme. */
+.nav-logo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    text-decoration: none;
+    background-color: var(--bg-nav);
+    --logo-ink: var(--nav-logo-fg);
+    --logo-bg: var(--bg-nav);
+}
+
+.nav-logo__mark {
+    width: 76%;
+    height: 76%;
+    display: block;
+}
+
+
+/* Controls cluster: portals toggle + theme toggle, pinned right */
+.nav-controls {
+    position: absolute;
+    right: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+
+.nav-portal-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+}
+
+.nav-portal-toggle:hover {
+    color: var(--text-muted);
+}
+
+
+.nav-portal-arrow {
+    font-size: 0.6rem;
+    display: inline-block;
+    margin-right: 0.2em;
+    vertical-align: middle;
+}
+
+
+/* Settings button + panel */
+.settings-wrap {
+    position: relative;
+}
+
+
+.settings-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.settings-toggle:hover,
+.settings-toggle[aria-expanded="true"] {
+    color: var(--text-muted);
+}
+
+
+.settings-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 800;
+    min-width: 148px;
+    padding: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+    display: none;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+
+.settings-panel.is-open {
+    display: flex;
+}
+
+
+.settings-section {
+    padding: 0.3rem 0.2rem;
+}
+
+.settings-section + .settings-section {
+    border-top: 1px solid var(--border);
+    padding-top: 0.4rem;
+    margin-top: 0.1rem;
+}
+
+
+.settings-label {
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    margin-bottom: 0.3rem;
+    line-height: 1;
+}
+
+
+.settings-row {
+    display: flex;
+    gap: 0.3rem;
+}
+
+
+.settings-btn {
+    flex: 1;
+    background: var(--bg-offset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+                border-color var(--transition-fast);
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.settings-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--border);
+    color: var(--text);
+}
+
+.settings-btn.is-active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+}
+
+.settings-btn:disabled,
+.settings-btn[aria-disabled="true"] {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* The text size between A- and A+, as a share of the default; it resets
+   it. Figures of one width, so the row does not shift as it changes. */
+.settings-text-size {
+    font-variant-numeric: tabular-nums;
+    min-width: 3.6em;
+}
+
+.settings-btn--full {
+    width: 100%;
+    flex: none;
+    text-align: center;
+}
+
+
+/* --danger clears 4.5:1 on the button's own background in every theme
+   (audit V05; the old translucent red was 2.1–3.5:1). On hover the
+   background stays and the border takes the colour: Cappuccino's hover
+   ground, --border, is too mid-toned for any warning red to read on it.
+   Two classes, so it outranks .settings-btn:hover:not(:disabled), which
+   used to erase the red on hover. */
+.settings-btn.settings-btn--danger {
+    color: var(--danger);
+}
+
+.settings-btn.settings-btn--danger:hover:not(:disabled) {
+    background: var(--bg-offset);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+
+.settings-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+
+
+
+/* ============================================================
+   FOCUS MODE — header hide
+   TOC hide lives in layout.css.
+   Settings gear stays accessible at top-right.
+   ============================================================ */
+
+[data-focus-mode] body > header .site-nav {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+
+[data-focus-mode] .settings-wrap {
+    visibility: visible;
+    position: fixed;
+    top: 0.75rem;
+    right: 1.25rem;
+    z-index: 1000;
+}
+
+
+[data-focus-mode] .settings-panel {
+    position: fixed;
+    top: 2.5rem;
+    right: 1.25rem;
+}
+
+
+
+
+/* ============================================================
+   REDUCE MOTION
+   Collapses all transitions and animations site-wide.
+
+   There is ONE effective preference, and it is the union of two
+   inputs: the site's own Reduce Motion setting (theme.js stamps
+   [data-reduce-motion] on <html> before first paint, settings.js
+   toggles it) and the operating system's prefers-reduced-motion.
+   Previously only the site setting drove this global override while
+   a handful of components answered the media query on their own,
+   so an OS-level request left most of the site animating.
+
+   The same union is computed in JS — see the reducedMotion() helper
+   duplicated in nav.js and photography-slideshow.js — for the
+   behaviours CSS cannot reach (autoplay, scripted scrolling).
+
+   The selector includes the root element itself, not just its
+   descendants: `scroll-behavior: smooth` is declared on <html> in
+   reset.css, and `[data-reduce-motion] *` never matches the element
+   carrying the attribute.
+   ============================================================ */
+
+[data-reduce-motion],
+[data-reduce-motion] *,
+[data-reduce-motion] *::before,
+[data-reduce-motion] *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    :root,
+    :root *,
+    :root *::before,
+    :root *::after {
+        animation-duration:       0.01ms !important;
+        animation-iteration-count: 1     !important;
+        transition-duration:      0.01ms !important;
+        scroll-behavior:          auto   !important;
+    }}
+
+
+/* Mobile TOC bar — hidden by default; revealed whenever the desktop
+   TOC sidebar is hidden (see layout.css: #toc hides at ≤900px).
+   Declared here (before the media queries) so source-order cascade
+   lets the mobile rules win. */
+#toc-mobile-bar {
+    display: none;
+}
+
+
+/* ── Mobile TOC bar (≤900px — mirrors #toc hide breakpoint) ──────────
+   Fixed bottom strip: progress line + current section label.
+   toc.js sets --toc-progress and syncs the label. Uses (max-width)
+   rather than (pointer: coarse) so Android's "request desktop site"
+   mode — which fakes a ~980px viewport — correctly shows the desktop
+   sidebar TOC instead of this bar.
+   ──────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    /* Bottom padding so the last content line isn't hidden
+       behind the fixed mobile TOC bar. */
+    body {
+        padding-bottom: 2.5rem;
+    }
+
+
+    #toc-mobile-bar {
+        display: flex;
+        align-items: center;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 2.25rem;
+        background: var(--bg-nav);
+        border-top: 1px solid var(--border);
+        padding: 0 1rem;
+        z-index: 90;
+        overflow: hidden;
+    }
+
+
+    /* Progress track (faint full-width line at top of bar) */
+    #toc-mobile-bar::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: var(--border);
+    }
+
+
+    /* Progress fill — grows with scroll via --toc-progress */
+    #toc-mobile-bar::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        height: 2px;
+        width: calc(var(--toc-progress, 0) * 100%);
+        background: var(--text-muted);
+        transition: width 0.12s ease;
+    }
+
+
+    .toc-mobile-label {
+        font-family: var(--font-sans);
+        font-size: 0.68rem;
+        font-weight: 600;
+        font-variant-caps: all-small-caps;
+        letter-spacing: 0.07em;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }}
+
+
+/* ── Middle widths: the links wrap between logo and controls ─────────
+   One row of links is about 33.3rem; with the 2 × 6.75rem reserve it
+   needs a 47rem nav. Below that the links wrap into two centred rows.
+   The separators come off, since a wrapped row would start with one,
+   and the logo keeps its one-row size instead of growing with the row.
+   ──────────────────────────────────────────────────────────────────── */
+
+@container site-nav (width < 47.5rem) {
+    .nav-primary {
+        row-gap: 0.2rem;
+    }
+
+
+    .nav-primary a + a {
+        border-left: none;
+    }
+
+
+    .nav-logo {
+        max-width: 2.92rem; /* the one-row bar height: 2 × 0.65 + 0.8 × 1.65 + 0.3 */
+    }}
+
+
+/* ── Narrow nav ──────────────────────────────────────────────────────
+   Below 32rem two rows of links no longer fit between the logo and the
+   controls (the first four links are about 18.3rem). Bring the controls
+   into flow, wrap the row, add a separator line. 32rem is 640px at the
+   default text size and grows with the Text size setting.
+   ──────────────────────────────────────────────────────────────────── */
+
+@container site-nav (width <= 32rem) {
+    .nav-logo {
+        display: none;
+    }
+
+
+    .nav-row-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0.4rem 0.75rem;
+        gap: 0.25rem 0;
+    }
+
+
+    .nav-primary {
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 0;
+        font-size: 0.72rem;
+    }
+
+
+    /* Larger vertical padding → usable tap targets without extra markup */
+    .nav-primary a {
+        padding: 0.35rem 0.55rem;
+    }
+
+
+    /* border-left separators look broken on wrapped rows (the first link
+       of a new row still gets a left border). Replace with a gap. */
+    .nav-primary a + a {
+        border-left: none;
+        margin-left: 0.1rem;
+    }
+
+
+    /* Pull controls out of absolute positioning, span full width, center */
+    .nav-controls {
+        position: relative;
+        right: auto;
+        width: 100%;
+        justify-content: center;
+        padding-top: 0.3rem;
+        border-top: 1px solid var(--border);
+        margin-top: 0.15rem;
+    }
+
+
+    /* The settings panel hangs from the whole row, centered, not from the
+       gear, which sits mid-row here: from the gear it ran off the screen's
+       left, the more so with a season's button in the theme row. */
+    .settings-wrap {
+        position: static;
+    }
+
+
+    .settings-panel {
+        left: 0;
+        right: 0;
+        max-width: 22rem;
+        margin-inline: auto;
+    }
+
+
+    [data-focus-mode] .settings-panel {
+        left: 1.25rem;
+    }
+
+
+    .settings-row {
+        flex-wrap: wrap;
+    }
+
+
+    .nav-portal-toggle {
+        padding: 0.3rem 0;
+    }
+
+
+    /* Portal row: tighter side padding on narrow screens */
+    .nav-portals {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+
+    .nav-portals a {
+        padding: 0.3rem 0.55rem;
+    }}
+
+
+/* Row 2: portal links — hidden until opened: nav.js adds .is-open, and
+   theme.js marks <html> before the first paint if it was left open. */
+.nav-portals {
+    display: none;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0.4rem 1.5rem 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+
+.nav-portals.is-open,
+[data-portals-open] .nav-portals {
+    display: flex;
+}
+
+
+.nav-portals a {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    color: var(--text-faint);
+    padding: 0.1rem 0.7rem;
+    transition: color var(--transition-fast);
+}
+
+.nav-portals a + a {
+    border-left: 1px solid var(--border);
+}
+
+.nav-portals a:hover {
+    color: var(--text);
+}
+}

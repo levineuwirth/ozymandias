@@ -15,7 +15,10 @@ the end of its page, renamed with it, so its references still open them
 (the script paired them by a hardcoded id prefix the renaming defeated); and
 what arrives is announced to the page's other scripts, under the name they
 listen for: a code block in a passage gets copy.js's button, which nothing
-else gives it.
+else gives it; and math arriving on a page that has none loads KaTeX's
+stylesheet with the KaTeX sheet it imports preloaded beside it, so that
+request does not wait for the first (both were asked for one after the
+other).
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_transclude -v
 """
@@ -26,7 +29,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, page_styles,
+from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, imported_beside, page_styles,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
 from tests.target import requires_switch
@@ -90,6 +93,21 @@ CODE_HOST = """<!doctype html>
 </main></body></html>
 """
 
+# A passage with math, and a host page with none: nothing of KaTeX's is
+# loaded until the passage arrives.
+MATH_SOURCE = """<!doctype html><html lang="en"><head><title>Math</title></head><body>
+<main id="markdownBody"><p class="from-math">Euler: <span class="math inline">e^{i\\pi} + 1 = 0</span></p>
+</main></body></html>
+"""
+MATH_HOST = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Transcluded math</title>
+<script src="/js/utils.js"></script>
+<script src="/js/transclude.js" defer></script>
+</head><body><main id="markdownBody">
+<div class="transclude" id="t-math" data-src="/__fixture/math-source.html"></div>
+</main></body></html>
+"""
+
 
 @requires_switch("transclusion")
 @requires_browser
@@ -108,6 +126,8 @@ class Transclusion(unittest.TestCase):
             NOTES_HOST.format(styles=page_styles()), encoding="utf-8")
         (tmp / "fixtures" / "code-source.html").write_text(CODE_SOURCE, encoding="utf-8")
         (tmp / "fixtures" / "code-host.html").write_text(CODE_HOST, encoding="utf-8")
+        (tmp / "fixtures" / "math-source.html").write_text(MATH_SOURCE, encoding="utf-8")
+        (tmp / "fixtures" / "math-host.html").write_text(MATH_HOST, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
@@ -190,6 +210,23 @@ class Transclusion(unittest.TestCase):
                 self.expect(passage).to_have_class("transclude transclude--loaded")
                 self.expect(passage.locator("pre code.language-python")).to_be_visible()
                 self.expect(passage.locator(".copy-btn")).to_have_count(1)
+                self.assertEqual(errors, [])
+
+    @requires_switch("math")
+    def test_math_on_a_cold_page_does_not_wait_for_katex_s_stylesheet(self) -> None:
+        # modules/katex.css @imports katex.min.css into the engine's layer.
+        # Held, it must not hold that sheet back: transclude.js preloads it
+        # beside the stylesheet; answered, the sheet is imported, asked for
+        # once, and the passage's math is typeset.
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                context = self.browsers[browser].new_context()
+                self.addCleanup(context.close)
+                page = imported_beside(self, context, self.base + "/__fixture/math-host.html",
+                                       "/css/modules/katex.css", ["/katex/katex.min.css"])
+                errors = []
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                self.expect(page.locator("#t-math .from-math .katex")).to_have_count(1)
                 self.assertEqual(errors, [])
 
     def test_a_transcluded_section_brings_its_notes(self) -> None:

@@ -2,6 +2,7 @@
 title: Short Page
 date: 2026-02-01
 tags: [notes]
+stylesheets: [short-page]
 ---
 
 A short page that [the long essay](/essays/long/) links to by its title.

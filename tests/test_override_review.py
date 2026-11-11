@@ -30,10 +30,10 @@ class ContractTests(unittest.TestCase):
         terms = review.contract()
         optional = terms["templates"]["templates/partials/footer.html"]["optional"]
         optional.append({"selector": "a.footer-sig-link", "by": ["static/js/nav.js"]})
-        optional.append({"selector": ".footer-orn", "by": ["static/css/components.css"]})
+        optional.append({"selector": ".footer-orn", "by": ["static/css/aftermatter.css"]})
         self.assertEqual(review.contract_problems(terms), [
             "templates/partials/footer.html: a.footer-sig-link: static/js/nav.js does not name it",
-            "templates/partials/footer.html: .footer-orn: static/css/components.css does not name it",
+            "templates/partials/footer.html: .footer-orn: static/css/aftermatter.css does not name it",
         ])
 
     def test_a_hook_s_root_is_true_or_false(self):

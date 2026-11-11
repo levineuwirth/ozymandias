@@ -24,6 +24,7 @@ import threading
 import time
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 from collections.abc import Iterator
@@ -186,6 +187,40 @@ def off_season() -> datetime.datetime:
     while any(in_season(s, day) for s in config()["seasons"]):
         day += datetime.timedelta(days=1)
     return datetime.datetime(day.year, day.month, day.day, 12)
+
+
+_IMPORTED = """paths => paths.every(path => [...document.styleSheets].some(sheet => {
+    try {
+        return [...sheet.cssRules].some(rule => rule instanceof CSSImportRule
+            && rule.layerName === 'engine' && rule.styleSheet && rule.styleSheet.cssRules.length > 0
+            && new URL(rule.href, document.baseURI).pathname === path);
+    } catch (e) { return false; }
+}))"""
+
+
+def imported_beside(case: unittest.TestCase, context, url: str, wrapper: str, imported: list[str]):
+    """Open `url` in `context` with the stylesheet whose path ends in
+    `wrapper` held unanswered, and check that each sheet it @imports into
+    the engine's layer (`imported`, paths) is asked for while it is held:
+    preloaded beside it, not left to wait for it. Answered, each is
+    imported, and was asked for once. A page that loads the wrapper only
+    later (a transclusion bringing math) is waited for. Returns the page."""
+    held, asked = [], Counter()
+    context.route(re.compile(re.escape(wrapper) + r"$"), lambda route: held.append(route))
+    page = context.new_page()
+    page.on("request", lambda r: asked.update([urllib.parse.urlsplit(r.url).path]))
+    page.goto(url, wait_until="commit")
+    deadline = time.monotonic() + 10
+    while not (held and all(asked[p] for p in imported)) and time.monotonic() < deadline:
+        page.wait_for_timeout(50)
+    case.assertTrue(held, f"{url} did not ask for {wrapper}")
+    case.assertEqual({p: asked[p] for p in imported}, {p: 1 for p in imported},
+                     f"asked for while {wrapper} was held")
+    for route in held:
+        route.continue_()
+    page.wait_for_function(_IMPORTED, arg=imported, timeout=10_000)
+    case.assertEqual({p: asked[p] for p in imported}, {p: 1 for p in imported}, "asked for again")
+    return page
 
 
 def fake_answer(body, ctype: str = "application/json", status: int = 200) -> dict:

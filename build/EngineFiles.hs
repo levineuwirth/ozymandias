@@ -34,16 +34,22 @@ module EngineFiles
     , fromEngine
     , templateRules
     , staticRules
+    , Sheet (..)
+    , cssBundles
+    , bundlePlan
     , assetsField
     , staticImageDimensions
+    , hasImport
     ) where
 
 import           Control.Exception (IOException, catch)
-import           Control.Monad     (forM, forM_)
+import           Control.Monad     (forM, forM_, unless, when)
 import           Crypto.Hash       (Digest, SHA256, hash)
 import qualified Data.ByteString   as BS
 import qualified Data.ByteString.Char8 as BC
-import           Data.List         (sort, stripPrefix)
+import           Data.Char         (chr, digitToInt, isAsciiLower, isAsciiUpper, isDigit,
+                                    isHexDigit, toLower)
+import           Data.List         (intercalate, sort, stripPrefix)
 import           Data.Maybe        (fromMaybe)
 import qualified Data.Set          as Set
 import           Hakyll
@@ -123,11 +129,63 @@ templateRules twins = do
         create [fromFilePath (siteRelative (toFilePath engineTemplate))] $
             compile $ (loadBody engineTemplate :: Compiler Template) >>= makeItem
 
+-- | A stylesheet in a bundle: its name under @static/css/@ without @.css@,
+--   the site's file or else the engine's, and when it is in.
+data Sheet
+    = Always String
+    | Switched [String] String   -- ^ with any of these switches on
+
+-- | Stylesheets served as one, each a run of the files a page links in
+--   @head.html@ (or the score reader's template) at that place, in that
+--   order, so the cascade is the one their separate links made: a page
+--   asks for a handful of files where it asked for thirty. The files stay
+--   apart in the source, where a site overrides each by name, and are
+--   still served alone for what loads one on demand. A bundle with a
+--   switch is built only with it on; a page links one with
+--   @$if(css-NAME)$@ (@Config.bundleContext@), which is there when any of
+--   its files is in. What a page needs for itself (@has-code@, a
+--   collection's styles, the site's @stylesheets:@) stays linked by page,
+--   between them.
+cssBundles :: [(String, Maybe String, [Sheet])]
+cssBundles =
+    [ ("core", Nothing, map Always
+        [ "tokens", "theme", "fonts", "reset", "layout", "typography", "nav", "toc"
+        , "metadata", "aftermatter", "collapse", "search", "callouts", "frontmatter"
+        , "images", "stage", "site" ])
+    , ("interact", Nothing,
+        [ Switched ["popups"] "popups", Switched ["selection-toolbar"] "selection-popup"
+        , Switched ["annotations"] "annotations" ])
+    , ("modules", Nothing,
+        [ Switched ["code"] "modules/copy", Switched ["transclusion"] "modules/transclusion"
+        , Switched ["epistemic"] "modules/epistemic", Switched ["viz"] "modules/viz"
+        , Switched ["pdf-viewer"] "modules/pdf", Switched ["marks", "epistemic"] "modules/marks"
+        , Switched ["math", "music"] "modules/exhibits" ])
+    , ("score", Just "music",
+        map Always [ "tokens", "theme", "fonts", "reset", "nav", "toc", "metadata", "aftermatter"
+                   , "collapse", "search", "callouts", "stage" ]
+        ++ [ Switched ["epistemic"] "modules/epistemic", Switched ["transclusion"] "modules/transclusion"
+           , Switched ["code"] "modules/syntax", Switched ["code"] "modules/copy"
+           , Switched ["pdf-viewer"] "modules/pdf" ]
+        ++ map Always [ "touch", "modules/score-reader", "site" ])
+    ]
+
+-- | Each bundle the site builds, with the files in it, by its switches.
+bundlePlan :: (String -> Bool) -> [(String, [String])]
+bundlePlan on =
+    [ (name, files)
+    | (name, switch, sheets) <- cssBundles, maybe True on switch
+    , let files = [ file | sheet <- sheets, file <- included sheet ]
+    , not (null files) ]
+  where
+    included (Always file) = [file]
+    included (Switched switches file) = [file | any on switches]
+
 -- | Static files, the site's and the engine's, served without @static/@,
 --   but for @withheld@: those of the switches the site has off
---   ('Config.siteWithheld').
-staticRules :: (String -> Pattern) -> [String] -> Rules ()
-staticRules twins withheld = do
+--   ('Config.siteWithheld'). @on@ says which switches the site has on,
+--   for the stylesheet bundles ('cssBundles').
+staticRules :: (String -> Pattern) -> [String] -> (String -> Bool) -> Rules ()
+staticRules twins withheld on = do
     let inBoth glob = fromGlob glob .||. fromGlob (engineDir ++ "/" ++ glob)
         unused      = foldr ((.||.) . inBoth . ("static/" ++)) (fromList []) withheld
         served glob = (fromGlob glob .||. twins glob) .&&. complement unused
@@ -138,8 +196,11 @@ staticRules twins withheld = do
     -- and any new one a new URL: they call each other through globals, so
     -- they move together. Any change to the set moves all of them, and every
     -- page ('assetsField').
+    -- The bundles are made from those files, but which files go in follows
+    -- the switches, so the plan is part of what the version names.
+    let plan = bundlePlan on
     assets  <- getMatches firstParty
-    current <- preprocess (assetVersion assets)
+    current <- preprocess (assetVersion (show plan) assets)
     changed <- makePatternDependency firstParty
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
@@ -147,15 +208,47 @@ staticRules twins withheld = do
     rulesExtraDependencies [changed] $ do
         create [assetVersionId] $ compile (makeItem current)
 
-        -- CSS — must be matched before the broad rule to avoid
-        -- double-matching (compressCssCompiler vs. copyFileCompiler).
-        match (served "static/css/*") $ do
+        -- CSS, at any depth (modules/, seasons/) — must be matched before
+        -- the broad rule to avoid double-matching (compressCssCompiler vs.
+        -- copyFileCompiler).
+        match (served "static/css/**") $ do
             route   versioned
             compile compressCssCompiler
 
-        match (firstParty .&&. complement (inBoth "static/css/*")) $ do
+        match (firstParty .&&. complement (inBoth "static/css/**")) $ do
             route   versioned
             compile copyFileCompiler
+
+        -- Each bundle: its files, the site's or else the engine's, as the
+        -- rule above compiled them, one after another.
+        -- A file neither has is left out, for a probe site without the
+        -- engine's stylesheets; `site css-bundles` lists the plan, and the
+        -- engine's tests hold every file in it to exist. A file with an
+        -- @import fails the build: an @import counts only before a sheet's
+        -- other rules, so after the files ahead of it every browser drops
+        -- it, and with it the rules it would have brought.
+        forM_ plan $ \(name, files) -> do
+            found <- forM files $ \file -> do
+                let own    = fromFilePath ("static/css/" ++ file ++ ".css")
+                    engine = fromFilePath (engineDir ++ "/static/css/" ++ file ++ ".css")
+                site <- getMatches (fromList [own])
+                eng  <- getMatches (fromList [engine])
+                pure $ case (site, eng) of
+                    (_ : _, _) -> [own]
+                    (_, _ : _) -> [engine]
+                    _          -> []
+            let sources = concat found
+            unless (null sources) $ create [fromFilePath ("css-bundle/" ++ name)] $ do
+                route   $ constRoute ("assets/" ++ current ++ "/css/" ++ name ++ ".css")
+                compile $ do
+                    bodies <- forM sources $ \source -> do
+                        body <- loadBody source
+                        when (hasImport body) $ fail $ toFilePath source
+                            ++ ": @import in a stylesheet bundled into " ++ name ++ ".css, where it"
+                            ++ " is no longer first and browsers ignore it; put the rules in the"
+                            ++ " file itself, or load the sheet from a page's `stylesheets:`"
+                        pure body
+                    makeItem (intercalate "\n" bodies)
 
     -- All other static files (fonts, images, …). Build-time
     -- sidecars produced by the Python tooling (.dims.yaml, .exif.yaml,
@@ -182,17 +275,135 @@ staticRules twins withheld = do
     -- roots, and every identifier it sees must have an unversioned rule.
     match staticImageDimensions $ compile getResourceLBS
 
+-- | Whether a stylesheet has an @import rule: whether CSS's tokenizer
+--   (CSS Syntax 3, § 4.3) finds an at-keyword named @import in it,
+--   however spelled — any case, escapes such as @\69mport — and not in a
+--   comment, a string or a url(). Read alone, as a page's stylesheet is;
+--   a nested or misplaced one counts too.
+--
+--   Only what decides where those three begin and end is followed:
+--   escapes, and the tokens that would otherwise be taken for the start of
+--   a url() (a hash such as #url, a number's unit such as 1url, an
+--   at-keyword such as @url). Every other code point is a token of its own
+--   or ends one, and is passed over.
+hasImport :: String -> Bool
+hasImport = scan . newlines
+  where
+    scan s = case s of
+        [] -> False
+        '/' : '*' : r -> scan (afterComment r)
+        q : r | q == '"' || q == '\'' -> scan (afterString q r)
+        '#' : r | hashName r -> scan (snd (identSeq r))
+        '@' : r | startsIdent r -> let (name, r') = identSeq r
+                                   in  map asciiLower name == "import" || scan r'
+        '<' : '!' : '-' : '-' : r -> scan r
+        c : r | startsNumber s -> scan (numeric s)
+              | c == '-', '-' : '>' : r' <- r -> scan r'
+              | startsIdent s -> identLike s
+        _ : r -> scan r
+
+    -- An ident, a function or a url(); only a url() hides what follows.
+    identLike s = case identSeq s of
+        (name, '(' : r) | map asciiLower name == "url" -> case dropWhile space r of
+            q : _ | q == '"' || q == '\'' -> scan r     -- url("…") is a function
+            r'                             -> scan (afterUrl r')
+        (_, r) -> scan r
+
+    -- A number and any unit it has (which is never a url()).
+    numeric s = let r = power (fraction (digits (sign s)))
+                in  if startsIdent r then snd (identSeq r) else r
+      where sign (c : r) | c == '+' || c == '-' = r
+            sign r = r
+            digits = dropWhile isDigit
+            fraction ('.' : d : r) | isDigit d = digits r
+            fraction r = r
+            power (e : d : r) | e `elem` ("eE" :: String), isDigit d = digits r
+            power (e : p : d : r)
+                | e `elem` ("eE" :: String), p == '+' || p == '-', isDigit d = digits r
+            power r = r
+
+    afterComment ('*' : '/' : r) = r
+    afterComment (_ : r)         = afterComment r
+    afterComment []              = []
+
+    -- A string ends at its quote, or unclosed before a line break.
+    afterString q s = case s of
+        c : r | c == q        -> r
+        '\n' : _              -> s
+        '\\' : '\n' : r       -> afterString q r
+        '\\' : r              -> afterString q (snd (escaped r))
+        _ : r                 -> afterString q r
+        []                    -> []
+
+    -- An unquoted url() ends at its first unescaped parenthesis.
+    afterUrl s = case s of
+        ')' : r                       -> r
+        '\\' : r | not (lineStart r)  -> afterUrl (snd (escaped r))
+        _ : r                         -> afterUrl r
+        []                            -> []
+
+    identSeq s = case s of
+        c : r | identChar c -> first (c :) (identSeq r)
+        '\\' : r | not (lineStart r) -> let (c, r') = escaped r in first (c :) (identSeq r')
+        _ -> ([], s)
+      where first f (a, b) = (f a, b)
+
+    -- What follows a backslash: up to six hex digits and one space, or
+    -- one code point.
+    escaped s = case s of
+        c : _ | isHexDigit c ->
+            let (hex, r) = splitAt (length (takeWhile isHexDigit (take 6 s))) s
+                n        = foldl (\a d -> a * 16 + digitToInt d) 0 hex
+                c'       = if n == 0 || (n >= 0xD800 && n <= 0xDFFF) || n > 0x10FFFF
+                               then '\xFFFD' else chr n
+            in  (c', case r of w : r' | space w -> r'; _ -> r)
+        c : r -> (c, r)
+        []    -> ('\xFFFD', [])
+
+    startsIdent s = case s of
+        '-' : c : r -> identStart c || c == '-' || validEscape (c : r)
+        c : _       -> identStart c || validEscape s
+        []          -> False
+    startsNumber s = case s of
+        c : d : r | c == '+' || c == '-' -> isDigit d || (d == '.' && digitNext r)
+        '.' : r -> digitNext r
+        c : _   -> isDigit c
+        []      -> False
+      where digitNext (d : _) = isDigit d
+            digitNext []      = False
+    hashName s = case s of
+        c : _ -> identChar c || validEscape s
+        []    -> False
+    validEscape ('\\' : r) = not (lineStart r)
+    validEscape _          = False
+    lineStart ('\n' : _) = True
+    lineStart _          = False
+
+    identStart c = isAsciiUpper c || isAsciiLower c || c == '_' || c >= '\x80'
+    identChar c  = identStart c || isDigit c || c == '-'
+    space c      = c == ' ' || c == '\t' || c == '\n'
+    asciiLower c = if isAsciiUpper c then toLower c else c
+
+    -- Line breaks as CSS reads them; NUL as it reads that.
+    newlines s = case s of
+        '\r' : '\n' : r -> '\n' : newlines r
+        c : r | c == '\r' || c == '\f' -> '\n' : newlines r
+              | c == '\0'               -> '\xFFFD' : newlines r
+              | otherwise               -> c : newlines r
+        [] -> []
+
 -- | The item holding the first-party assets' version.
 assetVersionId :: Identifier
 assetVersionId = fromFilePath "asset-version"
 
--- | A hash of the files' paths as served, and their contents.
-assetVersion :: [Identifier] -> IO String
-assetVersion ids = do
+-- | A hash of the files' paths as served, and their contents, and of
+--   anything else that decides what is served there (the bundles' plan).
+assetVersion :: String -> [Identifier] -> IO String
+assetVersion extra ids = do
     parts <- forM (sort [(siteRelative (toFilePath i), toFilePath i) | i <- ids]) $ \(served, path) -> do
         bytes <- BS.readFile path
         pure (BC.pack served <> "\0" <> BC.pack (sha bytes))
-    pure (take 12 (sha (BS.concat parts)))
+    pure (take 12 (sha (BS.concat (BC.pack extra : parts))))
   where
     sha :: BS.ByteString -> String
     sha = show . (hash :: BS.ByteString -> Digest SHA256)

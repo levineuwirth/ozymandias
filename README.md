@@ -139,6 +139,52 @@ override is also held to `contract.yaml`, which no review clears: the
 templates a site may override, the fields the engine renders each with, and
 the hooks its scripts and styles need in the result.
 
+## Styling a site
+
+The stylesheets stay separate files in the source, and a page loads them in
+a few bundles, built in order (`build/EngineFiles.hs`'s `cssBundles`; `site
+css-bundles` prints a site's): `core.css` (`tokens.css`, `theme.css`,
+`fonts.css`, the structure sheets, `site.css`), `interact.css` and
+`modules.css` (the switches' sheets), with what a page needs for itself
+linked between them (sidenotes, a collection's styles, syntax colors where
+it has code). The engine ships empty `theme.css`, `fonts.css` and
+`site.css` hooks; override these in the site's `static/css/` and record them
+in `overrides.yaml`. A bundled sheet cannot `@import`: in a bundle the rule
+no longer comes first, and browsers ignore it with everything it would
+bring, so the build refuses one. A page's own stylesheet or a season's,
+linked alone, may.
+
+- `theme.css`: palettes, component color tokens and font stacks.
+- `fonts.css`: `@font-face` declarations, including generated fallback faces.
+  Point `tools/fonts.yaml`'s `fallbacks.css` at this file.
+- `site.css`: ornaments, brand icons, what every page of the site needs.
+- A page's own styles: `static/css/NAME.css`, named in its front matter
+  (`stylesheets: [NAME]`), loaded by that page alone.
+- A season's stylesheet (`site.yaml`'s `seasons`): screen only, scoped to
+  `[data-season]`, loaded after the site's own.
+
+Put every site stylesheet's rules inside `@layer site { ... }`, seasons
+and pages' own included: an unlayered sheet beats every layered rule,
+whatever its specificity (`tests/test_css_layers.py` checks a site's).
+`tokens.css` declares `@layer engine, site;` and supplies layout tokens,
+generic font stacks and a default light/dark palette. Structure and feature
+rules use `@layer engine`. A normal site declaration therefore wins over an
+engine declaration even when the engine uses an ID selector. CSS reverses
+the layer order for `!important`: the engine's (`[hidden]`, print
+visibility, about 70 in all) win over a site's `!important` too, so a site
+overriding one of those cannot, and should not try. Vendor styles enter the
+engine layer through the KaTeX, Leaflet and Pagefind wrappers in
+`modules/`, which `@import` them unchanged (their relative font and image
+URLs stay theirs, and Pagefind writes its sheet after the build); the head
+preloads each imported file, so it is fetched beside its wrapper, not after
+it.
+
+`frontmatter.css` and `callouts.css` are always present: the title grid and
+editorial callouts do not require the marks or math switches. The fixture
+site demonstrates a complete skin. A mechanical restyling records before
+and after builds with `tools/browser/preserve.py`; see its README for the
+comparison and snapshot completeness checks.
+
 ## The identity check
 
 `make test` checks every file the engine's repository holds, but its

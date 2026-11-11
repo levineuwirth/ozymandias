@@ -3,7 +3,8 @@
 was, recorded from a built site and compared with another record.
 
     preserve.py snapshot OUT [--root=DIR] [--pages=NAME,...] [--jobs=N]
-                             [--browser=chromium] [--shots=0]
+                             [--browser=chromium] [--shots=0] [--season=ID]
+                             [--volatile=SELECTOR,...] [--init=FILE]
     preserve.py compare BASE NEW [--report=DIR]
 
 A snapshot serves the site's _site (or --root) as nginx does
@@ -22,7 +23,10 @@ but from the site itself:
 
 What moves on its own (VOLATILE: a Leaflet map's interior) is recorded as
 an element without its insides, and masked in screenshots; the clock
-stands still, and each record waits until the page does.
+stands still, and each record waits until the page does. --season records
+a season worn (the clock inside its window, chosen as the theme), which the
+default's day outside every season never shows; --volatile and --init are
+for a targeted check of what VOLATILE masks (a script that holds it still).
 
 Elements are named by their path from <html> (tag and position among its
 siblings of that tag), so a record is only comparable with one of a site
@@ -39,6 +43,7 @@ import argparse
 import asyncio
 import datetime
 import gzip
+import hashlib
 import json
 import os
 import re
@@ -60,7 +65,7 @@ SHOT_HEIGHT = 6000
 # A change of colour is the computed styles' to catch, which they do to the
 # unit; the screenshots are for what styles don't name, never that faint.
 TOLERANCE = 2
-FORMAT = 1
+FORMAT = 2
 
 # What a reader sees of an element, and what places it: the properties a
 # move of CSS between files or layers could change without meaning to.
@@ -208,6 +213,19 @@ def off_season(root: Path) -> int:
     return int(moment.timestamp() * 1000)
 
 
+def in_season(root: Path, season: str) -> int:
+    """Noon UTC on the first day of site.yaml's season `season` in 2026, in
+    milliseconds: a moment that season dresses."""
+    import yaml
+    config = yaml.safe_load((root / "site.yaml").read_text(encoding="utf-8")) or {}
+    found = [s for s in config.get("seasons") or [] if s.get("id") == season]
+    if not found:
+        raise SystemExit(f"preserve: site.yaml has no season {season!r}")
+    month, day = map(int, found[0]["from"].split("-"))
+    moment = datetime.datetime(2026, month, day, 12, tzinfo=datetime.timezone.utc)
+    return int(moment.timestamp() * 1000)
+
+
 def enforcing_policy(root: Path) -> str:
     """The policy the site's nginx enforces, if it keeps one there."""
     conf = root / "nginx/security-headers.conf"
@@ -246,10 +264,13 @@ async def still(page, limit: int) -> None:
     await page.evaluate(STILL, [500, 10000, limit])
 
 
-async def context(browser, base: str, theme: str, size: int | None, moment: int, width: int):
+async def context(browser, base: str, theme: str, size: int | None, moment: int, width: int,
+                  init: str | None = None):
     ctx = await browser.new_context(viewport={"width": width, "height": HEIGHT},
                                     reduced_motion="reduce", device_scale_factor=1)
     await ctx.add_init_script(DATE_INIT % moment)
+    if init:
+        await ctx.add_init_script(init)
     await ctx.add_init_script(THEME_INIT % json.dumps(theme))
     if size is not None:
         await ctx.add_init_script(SIZE_INIT % size)
@@ -259,29 +280,30 @@ async def context(browser, base: str, theme: str, size: int | None, moment: int,
     return ctx
 
 
-async def record_styles(page, target: Path) -> None:
-    data = await page.evaluate(COLLECT, [PROPERTIES, VOLATILE])
+async def record_styles(page, target: Path, volatile: list[str]) -> None:
+    data = await page.evaluate(COLLECT, [PROPERTIES, volatile])
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(gzip.compress(json.dumps(data, separators=(",", ":")).encode(), mtime=0))
 
 
-async def record_page(browser, base, name, path, out: Path, moment, sizes, shots, errors):
+async def record_page(browser, base, name, path, out: Path, moment, sizes, shots, errors,
+                      themes, volatile, init):
     url = base + path
-    for theme in THEMES:
+    for theme in themes:
         for size in sizes:
-            ctx = await context(browser, base, theme, None if size == sizes[1] else size, moment, STYLE_WIDTH)
+            ctx = await context(browser, base, theme, None if size == sizes[1] else size, moment, STYLE_WIDTH, init)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: errors.setdefault(n, []).append(str(e)[:200]))
             try:
                 await settled(page, url)
                 await still(page, HEIGHT)
-                await record_styles(page, out / "styles" / name / f"{theme}-{size}.json.gz")
+                await record_styles(page, out / "styles" / name / f"{theme}-{size}.json.gz", volatile)
             finally:
                 await ctx.close()
         if not shots:
             continue
         for width in WIDTHS + ("print",):
-            ctx = await context(browser, base, theme, None, moment, STYLE_WIDTH if width == "print" else width)
+            ctx = await context(browser, base, theme, None, moment, STYLE_WIDTH if width == "print" else width, init)
             page = await ctx.new_page()
             try:
                 if width == "print":
@@ -299,24 +321,28 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
                 except Exception:
                     pass
                 await still(page, SHOT_HEIGHT)
-                await record_styles(page, out / "styles" / name / f"{theme}-view-{width}.json.gz")
+                await record_styles(page, out / "styles" / name / f"{theme}-view-{width}.json.gz", volatile)
                 height = await page.evaluate("document.scrollingElement.scrollHeight")
                 full = await page.evaluate("document.scrollingElement.scrollWidth")
                 target = out / "shots" / name / f"{theme}-{width}.png"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=str(target), full_page=True, animations="disabled", caret="hide",
                                       clip={"x": 0, "y": 0, "width": full, "height": min(height, SHOT_HEIGHT)},
-                                      mask=[page.locator(v) for v in VOLATILE], mask_color="#ff00ff")
+                                      mask=[page.locator(v) for v in volatile], mask_color="#ff00ff")
             finally:
                 await ctx.close()
 
 
-async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, browser_name: str, shots: bool):
+async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, browser_name: str, shots: bool,
+                   season: str | None = None, volatile: list[str] = VOLATILE, init: str | None = None):
+    """With `season`, the clock stands inside that season's window and each
+    page wears it (a reader who chose it), in place of the three themes."""
     from playwright.async_api import async_playwright
     root = site_root()
     engine = HERE.parents[1]
     sizes = text_sizes(engine)
-    moment = off_season(root)
+    moment = in_season(root, season) if season else off_season(root)
+    themes = [season] if season else list(THEMES)
     if not pages or jobs < 1:
         raise SystemExit("preserve: snapshot needs at least one page and --jobs >= 1")
     # Never mix a rerun with old records or an old completion marker. A failed
@@ -334,7 +360,8 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
 
             async def one(name, path):
                 async with gate:
-                    await record_page(browser, base, name, path, out, moment, sizes, shots, errors)
+                    await record_page(browser, base, name, path, out, moment, sizes, shots, errors,
+                                      themes, volatile, init)
 
             await asyncio.gather(*(one(n, path) for n, path in pages.items()))
             version = browser.version
@@ -345,7 +372,8 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     (out / "meta.json").write_text(json.dumps({
         "format": FORMAT, "complete": True,
         "site": str(root), "served": str(served), "browser": f"{browser_name} {version}",
-        "moment": moment, "volatile": VOLATILE, "themes": THEMES, "sizes": sizes, "widths": WIDTHS,
+        "moment": moment, "volatile": volatile, "themes": themes, "sizes": sizes, "widths": WIDTHS,
+        "season": season, "init": hashlib.sha256(init.encode()).hexdigest() if init else None,
         "style_width": STYLE_WIDTH, "height": HEIGHT, "shot_height": SHOT_HEIGHT,
         "properties": PROPERTIES, "shots": shots,
         "pages": pages, "errors": errors}, indent=1) + "\n")
@@ -375,7 +403,7 @@ def resolved(path: Path, properties: list[str]) -> dict[str, tuple]:
 
 
 SETTINGS = ("format", "browser", "moment", "volatile", "themes", "sizes", "widths",
-            "style_width", "height", "shot_height", "properties", "shots", "pages")
+            "style_width", "height", "shot_height", "properties", "shots", "pages", "season", "init")
 
 
 def inventory(meta: dict) -> dict[str, set[Path]]:
@@ -415,6 +443,12 @@ def manifest(root: Path) -> dict:
         if (not isinstance(values, list) or any(not isinstance(v, str) or not v for v in values) or
                 len(set(values)) != len(values) or (key != "volatile" and not values)):
             raise ValueError(f"invalid {key}")
+    if meta["season"] is not None and (not isinstance(meta["season"], str)
+                                       or not re.fullmatch(r"[A-Za-z0-9_-]+", meta["season"])):
+        raise ValueError("invalid season")
+    if meta["init"] is not None and (not isinstance(meta["init"], str)
+                                     or not re.fullmatch(r"[0-9a-f]{64}", meta["init"])):
+        raise ValueError("invalid init")
     pages = meta["pages"]
     if not isinstance(pages, dict) or not pages:
         raise ValueError("snapshot has no routes")
@@ -512,6 +546,10 @@ def main(argv: list[str]) -> int:
     s.add_argument("--jobs", type=int, default=int(os.environ.get("BROWSER_JOBS") or 3))
     s.add_argument("--browser", default="chromium", choices=["chromium", "firefox", "webkit"])
     s.add_argument("--shots", type=int, default=1)
+    s.add_argument("--season", help="record inside this site.yaml season, worn, in place of the themes")
+    s.add_argument("--volatile", help=f"selectors recorded without their insides and masked "
+                                      f"(default {','.join(VOLATILE)}; empty for none)")
+    s.add_argument("--init", type=Path, help="a script run before each page's own, as for a targeted check")
     c = sub.add_parser("compare")
     c.add_argument("base", type=Path)
     c.add_argument("new", type=Path)
@@ -528,8 +566,10 @@ def main(argv: list[str]) -> int:
             name, _, path = item.partition("=")
             chosen[name] = path or pages[name]
         pages = chosen
+    volatile = VOLATILE if args.volatile is None else [v for v in args.volatile.split(",") if v]
+    init = args.init.read_text(encoding="utf-8") if args.init else None
     asyncio.run(snapshot(args.out.resolve(), (args.root or root / "_site").resolve(), pages,
-                         args.jobs, args.browser, bool(args.shots)))
+                         args.jobs, args.browser, bool(args.shots), args.season, volatile, init))
     return 0
 
 

@@ -208,7 +208,7 @@ class AcrossADeploy(unittest.TestCase):
                 page.goto(self.base + ESSAY, wait_until="load")
                 asked = self.served(self.log, start)
                 self.assertEqual(asked.count(f"/assets/{version}/js/utils.js"), 1, asked)
-                self.assertEqual(asked.count(f"/assets/{version}/css/base.css"), 1, asked)
+                self.assertEqual(asked.count(f"/assets/{version}/css/core.css"), 1, asked)
                 self.assert_untroubled(trouble)
 
     def test_a_page_opened_after_the_deploy_runs_only_the_new_version(self) -> None:
@@ -266,7 +266,7 @@ class AcrossADeploy(unittest.TestCase):
                 self.assertGreater(highlighted, 0)
                 asked = self.served(self.log, start)
                 self.assertIn(f"/assets/{old}/js/prism.min.js", asked)
-                self.assertIn(f"/assets/{old}/css/syntax.css", asked)
+                self.assertIn(f"/assets/{old}/css/modules/syntax.css", asked)
                 self.assertEqual([p for p in asked if p.startswith(f"/assets/{new}/")], [])
                 self.assert_untroubled(trouble)
 
@@ -326,7 +326,7 @@ class AcrossADeploy(unittest.TestCase):
                     page = context.new_page()
                     page.goto(base + HOME, wait_until="load")
                     missing = self.missing(tmp / "csp-reports.jsonl")
-                    self.assertIn(f"/assets/{new}/css/base.css", missing)
+                    self.assertIn(f"/assets/{new}/css/core.css", missing)
                     self.assertIn(f"/assets/{new}/js/utils.js", missing)
                     self.assertEqual(page.evaluate(f"typeof window.{NEW}"), "undefined")
 

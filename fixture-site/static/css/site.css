@@ -1,0 +1,994 @@
+@layer site {
+/* home */
+
+.hp-pro-row,
+.hp-curiosity-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+    font-size: var(--text-size-small);
+    margin-top: 0.75rem;
+    /* Row items are separated by bare middots with no surrounding
+       whitespace, so the run offers the line-breaker no break
+       opportunity: on a 320–375px viewport the whole strip became one
+       ~474px unbreakable word and pushed the document past the
+       viewport. The wrapping is done by flex below, not by the text
+       engine. */
+    gap: 0 0.1rem;
+    min-width: 0;
+}
+
+.hp-pro-row > p,
+.hp-curiosity-row > p {
+    display: contents;
+}
+
+.hp-item {
+    display: inline-flex;
+    align-items: baseline;
+    white-space: nowrap;
+}
+
+.hp-pro-row {
+    margin-top: 2rem;
+}
+
+.hp-pro-row a,
+.hp-curiosity-row a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+    padding: 0.1rem 0.15rem;
+}
+
+.hp-pro-row a:hover,
+.hp-curiosity-row a:hover {
+    color: var(--text);
+}
+
+.hp-sep {
+    color: var(--text-faint);
+    padding: 0 0.2em;
+    user-select: none;
+    pointer-events: none;
+}
+
+.hp-latin {
+    text-align: right;
+    margin-top: 1.5rem;
+}
+
+.hp-latin p {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.hp-portals {
+    margin-top: 2.5rem;
+    font-family: var(--font-sans);
+}
+
+.hp-portal-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    padding: 0.2rem 0;
+}
+
+.hp-portal-name {
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-color: var(--border-muted);
+    text-decoration-thickness: 0.15em;
+    text-underline-offset: 0.2em;
+    text-decoration-skip-ink: auto;
+    transition: text-decoration-color var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.hp-portal-name:hover {
+    text-decoration-color: var(--link-hover-underline);
+}
+
+.hp-portal-dash {
+    color: var(--text-faint);
+    padding: 0 0.15em;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.hp-portal-desc {
+    font-size: var(--text-size-small);
+    color: var(--text-faint);
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+/* links */
+
+:root:where(html:has(.links-section)) {
+    --links-accent:        #524638;
+    --links-accent-muted:  #726758;
+    --links-intro-ink:     var(--text);
+}
+
+[data-theme="dark"]:where(html:has(.links-section)) {
+    --links-accent:        #b5a890;
+    --links-accent-muted:  #8d8373;
+}
+
+[data-theme="cappuccino"]:where(html:has(.links-section)) {
+    --links-accent:        #d0b888;
+    --links-accent-muted:  #c5a880;
+}
+
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]):where(html:has(.links-section)) {
+        --links-accent:        #b5a890;
+        --links-accent-muted:  #8d8373;
+    }}
+
+:where(html:has(.links-section)) #markdownBody > p:first-of-type {
+    max-width: 32rem;
+    margin: 1.5rem 0 2.75rem;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--links-intro-ink);
+}
+
+:where(html:has(.links-section)) #markdownBody > p:first-of-type::first-letter,
+:where(html:has(.links-section)) #markdownBody > p:first-of-type::first-line {
+    color: var(--links-intro-ink);
+}
+
+:where(html:has(.links-section)) .links-section {
+    margin-bottom: 3rem;
+}
+
+:where(html:has(.links-section)) #markdownBody .links-section h2 {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    color: var(--links-accent);
+    text-transform: none;
+    font-weight: 400;
+    margin: 0 0 0.9rem 0;
+}
+
+:where(html:has(.links-section)) .links-section-ornament {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    vertical-align: -0.12em;
+}
+
+:where(html:has(.links-section)) .links-section-ornament[data-ornament="academic"] {
+    mask-image: url('/images/dingbats/academic.svg');
+    -webkit-mask-image: url('/images/dingbats/academic.svg');
+}
+
+:where(html:has(.links-section)) .links-section-ornament[data-ornament="artistic"] {
+    mask-image: url('/images/dingbats/artistic.svg');
+    -webkit-mask-image: url('/images/dingbats/artistic.svg');
+}
+
+:where(html:has(.links-section)) .links-section-ornament[data-ornament="code"] {
+    mask-image: url('/images/dingbats/tech.svg');
+    -webkit-mask-image: url('/images/dingbats/tech.svg');
+}
+
+:where(html:has(.links-section)) .links-section-ornament[data-ornament="miscellaneous"] {
+    mask-image: url('/images/dingbats/trefoil.svg');
+    -webkit-mask-image: url('/images/dingbats/trefoil.svg');
+}
+
+:where(html:has(.links-section)) .links-section-ornament[data-ornament="professional"] {
+    mask-image: url('/images/dingbats/professional.svg');
+    -webkit-mask-image: url('/images/dingbats/professional.svg');
+}
+
+:where(html:has(.links-section)) .links-section + .links-section::before {
+    content: "";
+    display: block;
+    width: 240px;
+    max-width: 60%;
+    height: 24px;
+    margin: 2.5rem auto;
+    color: var(--links-accent-muted);
+    background-color: currentColor;
+    mask-image: url('/images/dingbats/library-divider.svg');
+    -webkit-mask-image: url('/images/dingbats/library-divider.svg');
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+}
+
+:where(html:has(.links-section)) #markdownBody .links-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+}
+
+:where(html:has(.links-section)) #markdownBody .links-section li {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+}
+/* work */
+
+:where(html:has(.work-name)) #markdownBody .page-title {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.12em;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-name {
+    margin: 0 0 0.9rem;
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-name p {
+    margin: 0;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-lede {
+    margin: 0 0 1.5rem;
+    font-family: var(--font-serif);
+    font-size: 1.02rem;
+    line-height: 1.55;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-lede p {
+    margin: 0 0 0.75rem;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-lede p:last-child {
+    margin-bottom: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-lede p:last-child strong {
+    display: block;
+    margin-top: 1.15rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-links {
+    margin: 0 0 1.9rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.8;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-links p {
+    margin: 0;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody h2 {
+    margin: 0 0 1.1rem;
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.09em;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-thesis {
+    margin: 0 0 2.5rem;
+    font-family: var(--font-serif);
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-thesis p {
+    margin: 0 0 0.8rem;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-thesis p:first-child {
+    color: var(--text-muted);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-thesis p:last-child {
+    margin-bottom: 0;
+    font-style: italic;
+    color: var(--text);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry {
+    margin: 0 0 1.7rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--border);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry:hover {
+    border-left-color: var(--border-muted);
+    transition: border-color var(--transition-fast);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry h3 {
+    margin: 0 0 0.2rem;
+    font-family: var(--font-serif);
+    font-size: 1.14rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry p {
+    margin: 0 0 0.6rem;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry h3 a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry h3 a:hover,
+:where(html:has(.work-name)) #markdownBody .work-entry h3 a:focus-visible {
+    border-bottom-color: var(--link-underline);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry h3 a[data-link-icon-type="svg"]::after {
+    content: none;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-meta {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-meta p {
+    margin: 0;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-limit {
+    margin: 0 0 0.6rem;
+    padding: 0;
+    background: none;
+    border-left: none;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-faint);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-limit p {
+    margin: 0;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-limit strong {
+    color: var(--text);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry-links {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    line-height: 1.8;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-entry-links p {
+    margin: 0;
+    text-indent: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more {
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more h3 {
+    margin: 1.6rem 0 0.5rem;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    font-variant: all-small-caps;
+    font-feature-settings: "smcp" 1;
+    letter-spacing: 0.07em;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more h3:first-child {
+    margin-top: 0;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    list-style: none;
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more li {
+    margin: 0 0 0.3rem;
+    text-indent: -1.1rem;
+    padding-left: 1.1rem;
+    color: var(--text-muted);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more li::before {
+    content: "·";
+    display: inline-block;
+    width: 1.1rem;
+    margin-left: -1.1rem;
+    color: var(--text-faint);
+}
+
+:where(html:has(.work-name)) #markdownBody .work-more li a {
+    color: var(--text);
+}
+
+
+/* ============================================================
+   NARROW SCREENS
+   Below the tablet breakpoint the left rules cost more in
+   horizontal space than they return in grouping, so they thin
+   out and the indent collapses.
+   ============================================================ */
+
+@media (max-width: 680px) {
+:where(html:has(.work-name)) #markdownBody .work-entry {
+        padding-left: 0.85rem;
+    }
+
+:where(html:has(.work-name)) #markdownBody .work-links,
+:where(html:has(.work-name)) #markdownBody .work-entry-links {
+        font-size: 0.72rem;
+    }
+
+:where(html:has(.work-name)) #markdownBody .work-lede {
+        font-size: 1rem;
+    }
+
+:where(html:has(.work-name)) #markdownBody .work-name {
+        font-size: 1.6rem;
+    }}
+
+
+/* Print: the page is a plausible thing to hand to someone on paper, so drop
+   the interactive ornament and let the offset grounds go white. */
+@media print {
+:where(html:has(.work-name)) #markdownBody .work-entry,
+:where(html:has(.work-name)) #markdownBody .work-limit {
+        border-left: none;
+        padding-left: 0;
+    }
+
+:where(html:has(.work-name)) #markdownBody .work-entry-links a::after {
+        content: " (" attr(href) ")";
+        font-size: 0.85em;
+        color: #555;
+    }}
+/* memento-mori */
+
+:where(html:has(#weeks-grid-wrapper)) #weeks-grid-wrapper {
+    margin: 2.5rem 0 1.5rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .weeks-grid {
+    display: grid;
+    grid-template-columns: repeat(52, 1fr);
+    gap: 2px;
+    width: 100%;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    cursor: default;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week--past {
+    background: var(--text);
+    border-color: var(--text);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week--current {
+    background: var(--text-muted);
+    border-color: var(--text);
+    box-shadow: 0 0 0 1.5px var(--text);
+    z-index: 1;
+    position: relative;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week--future {
+    background: transparent;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week--decade {
+    border-color: var(--text-muted);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week:hover {
+    opacity: 0.6;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .weeks-legend {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    /* The prose ID selector previously reset this paragraph's margin. */
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .weeks-tooltip {
+    position: fixed;
+    z-index: 500;
+    pointer-events: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 190px;
+    max-width: 240px;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .weeks-tooltip[hidden] {
+    display: none;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .tt-age {
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .tt-week {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .tt-date {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .tt-meta {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+    padding-top: 0.2rem;
+    border-top: 1px solid var(--border);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-backdrop[hidden] {
+    display: none;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem 1.5rem;
+    width: min(640px, calc(100vw - 2rem));
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    margin-bottom: 1.1rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-title {
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    grid-column: 1;
+    grid-row: 1;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-sub {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0.15rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-close {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    font-family: var(--font-ui);
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    align-self: start;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-close:hover {
+    color: var(--text);
+    border-color: var(--border);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .week-popup-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.75rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday--past .wday-dot {
+    background: var(--text);
+    border-color: var(--text);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday--today .wday-dot {
+    background: var(--text-muted);
+    border-color: var(--text);
+    box-shadow: 0 0 0 1.5px var(--text);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday--future .wday-dot {
+    background: transparent;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday-name {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday--today .wday-name {
+    color: var(--text);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday-date {
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday-daynum {
+    font-family: var(--font-ui);
+    font-size: 0.62rem;
+    color: var(--text-faint);
+    text-align: center;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .wday:hover .wday-daynum {
+    opacity: 1;
+}
+
+:where(html:has(#weeks-grid-wrapper)) #countdown-wrapper {
+    margin: 3rem 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-label {
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-value {
+    font-family: var(--font-mono);
+    /* A thirteen-figure number cannot wrap: no wider than the screen
+       allows, or at the largest text size it ran 75px off a phone. */
+    font-size: min(clamp(1.6rem, 5vw, 2.8rem), 9vw);
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-switcher {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-btn {
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-btn:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+:where(html:has(#weeks-grid-wrapper)) .countdown-btn.is-active {
+    color: var(--text);
+    border-color: var(--text);
+}
+/* --- Typographic ornaments ------------------------------------------ */
+
+/* asterism — ⁂ typographic asterism */
+body[data-dingbat="asterism"] #markdownBody hr::after {
+    content: "⁂";
+    letter-spacing: 0.5em;
+    padding-left: 0.5em;
+}
+
+/* asterisks — classic spaced asterisks used in print fiction */
+body[data-dingbat="asterisks"] #markdownBody hr::after {
+    content: "* * *";
+    letter-spacing: 0.4em;
+    padding-left: 0;
+    font-size: 1.3em;
+}
+
+/* --- SVG ornaments -------------------------------------------------- */
+/* Shared mask/sizing for every SVG-driven variant. The per-variant rules
+   below only supply the mask-image URL. */
+body[data-dingbat="fleuron"]  #markdownBody hr::after,
+body[data-dingbat="trefoil"]  #markdownBody hr::after,
+body[data-dingbat="lozenge"]  #markdownBody hr::after,
+body[data-dingbat="clef"]     #markdownBody hr::after,
+body[data-dingbat="memento"]  #markdownBody hr::after,
+body[data-dingbat="tech"]     #markdownBody hr::after,
+body[data-dingbat="ai"]       #markdownBody hr::after {
+    content: "";
+    width: 1.6em;
+    height: 1.6em;
+    font-size: 1em; /* override the 1.5em from the base rule */
+    vertical-align: middle;
+    letter-spacing: 0;
+    padding-left: 0;
+    background-color: currentColor;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+}
+
+body[data-dingbat="fleuron"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/fleuron.svg');
+    -webkit-mask-image: url('/images/dingbats/fleuron.svg');
+}
+
+body[data-dingbat="trefoil"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/trefoil.svg');
+    -webkit-mask-image: url('/images/dingbats/trefoil.svg');
+}
+
+body[data-dingbat="lozenge"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/lozenge.svg');
+    -webkit-mask-image: url('/images/dingbats/lozenge.svg');
+}
+
+body[data-dingbat="clef"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/clef.svg');
+    -webkit-mask-image: url('/images/dingbats/clef.svg');
+}
+
+body[data-dingbat="memento"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/memento.svg');
+    -webkit-mask-image: url('/images/dingbats/memento.svg');
+}
+
+body[data-dingbat="tech"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/tech.svg');
+    -webkit-mask-image: url('/images/dingbats/tech.svg');
+}
+
+body[data-dingbat="ai"] #markdownBody hr::after {
+    mask-image: url('/images/dingbats/ai.svg');
+    -webkit-mask-image: url('/images/dingbats/ai.svg');
+}
+
+
+
+a[data-link-icon="wikipedia"]::after {
+    mask-image: url('/images/link-icons/wikipedia.svg');
+    -webkit-mask-image: url('/images/link-icons/wikipedia.svg');
+}
+a[data-link-icon="mtgwiki"]::after {
+    mask-image: url('/images/link-icons/mtgwiki.svg');
+    -webkit-mask-image: url('/images/link-icons/mtgwiki.svg');
+}
+a[data-link-icon="scryfall"]::after {
+    mask-image: url('/images/link-icons/scryfall.svg');
+    -webkit-mask-image: url('/images/link-icons/scryfall.svg');
+}
+
+a[data-link-icon="arxiv"]::after {
+    mask-image: url('/images/link-icons/arxiv.svg');
+    -webkit-mask-image: url('/images/link-icons/arxiv.svg');
+}
+
+a[data-link-icon="doi"]::after {
+    mask-image: url('/images/link-icons/doi.svg');
+    -webkit-mask-image: url('/images/link-icons/doi.svg');
+}
+
+a[data-link-icon="github"]::after {
+    mask-image: url('/images/link-icons/github.svg');
+    -webkit-mask-image: url('/images/link-icons/github.svg');
+}
+
+a[data-link-icon="forgejo"]::after {
+    mask-image: url('/images/link-icons/forgejo.svg');
+    -webkit-mask-image: url('/images/link-icons/forgejo.svg');
+}
+
+a[data-link-icon="worldcat"]::after {
+    mask-image: url('/images/link-icons/worldcat.svg');
+    -webkit-mask-image: url('/images/link-icons/worldcat.svg');
+}
+
+a[data-link-icon="orcid"]::after {
+    mask-image: url('/images/link-icons/orcid.svg');
+    -webkit-mask-image: url('/images/link-icons/orcid.svg');
+}
+
+a[data-link-icon="internet-archive"]::after {
+    mask-image: url('/images/link-icons/internet-archive.svg');
+    -webkit-mask-image: url('/images/link-icons/internet-archive.svg');
+}
+
+a[data-link-icon="tensorflow"]::after {
+    mask-image: url('/images/link-icons/tensorflow.svg');
+    -webkit-mask-image: url('/images/link-icons/tensorflow.svg');
+}
+
+a[data-link-icon="anthropic"]::after {
+    mask-image: url('/images/link-icons/anthropic.svg');
+    -webkit-mask-image: url('/images/link-icons/anthropic.svg');
+}
+
+a[data-link-icon="openai"]::after {
+    mask-image: url('/images/link-icons/openai.svg');
+    -webkit-mask-image: url('/images/link-icons/openai.svg');
+}
+
+a[data-link-icon="twitter"]::after {
+    mask-image: url('/images/link-icons/twitter.svg');
+    -webkit-mask-image: url('/images/link-icons/twitter.svg');
+}
+
+a[data-link-icon="reddit"]::after {
+    mask-image: url('/images/link-icons/reddit.svg');
+    -webkit-mask-image: url('/images/link-icons/reddit.svg');
+}
+
+a[data-link-icon="youtube"]::after {
+    mask-image: url('/images/link-icons/youtube.svg');
+    -webkit-mask-image: url('/images/link-icons/youtube.svg');
+}
+
+a[data-link-icon="tiktok"]::after {
+    mask-image: url('/images/link-icons/tiktok.svg');
+    -webkit-mask-image: url('/images/link-icons/tiktok.svg');
+}
+
+a[data-link-icon="substack"]::after {
+    mask-image: url('/images/link-icons/substack.svg');
+    -webkit-mask-image: url('/images/link-icons/substack.svg');
+}
+
+a[data-link-icon="hacker-news"]::after {
+    mask-image: url('/images/link-icons/hacker-news.svg');
+    -webkit-mask-image: url('/images/link-icons/hacker-news.svg');
+}
+
+a[data-link-icon="lesswrong"]::after {
+    mask-image: url('/images/link-icons/lesswrong.svg');
+    -webkit-mask-image: url('/images/link-icons/lesswrong.svg');
+}
+
+a[data-link-icon="new-york-times"]::after {
+    mask-image: url('/images/link-icons/new-york-times.svg');
+    -webkit-mask-image: url('/images/link-icons/new-york-times.svg');
+}
+
+a[data-link-icon="nasa"]::after {
+    mask-image: url('/images/link-icons/nasa.svg');
+    -webkit-mask-image: url('/images/link-icons/nasa.svg');
+}
+
+a[data-link-icon="apple"]::after {
+    mask-image: url('/images/link-icons/apple.svg');
+    -webkit-mask-image: url('/images/link-icons/apple.svg');
+}
+
+a[data-link-icon="internal"]::after {
+    mask-image: url('/images/link-icons/internal.svg');
+    -webkit-mask-image: url('/images/link-icons/internal.svg');
+}
+}

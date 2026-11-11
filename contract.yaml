@@ -18,6 +18,15 @@
 #   optional what the engine binds to when it is there, which a site may
 #            leave out (and lose that behavior).
 # A template a site overrides needs an entry; one with no hooks says so.
+#
+# The stylesheets a site overrides (static/css/theme.css, fonts.css,
+# site.css, declared in overrides.yaml as templates are) need none: they
+# bind by the cascade, and, bundled, cannot @import (the build refuses
+# one). Their rules go inside `@layer site`, which wins over
+# the engine's `@layer engine` whatever the specificity, except against the
+# engine's !important declarations (`[hidden]`, print visibility): those win
+# over any site declaration, a site's !important too, since CSS reverses
+# the layer order for important ones. README.md, "Styling a site".
 contexts:
   identity:
     site-title: Example Site
@@ -81,5 +90,5 @@ templates:
     context: []
     hooks:
       - selector: .footer-ornament
-        by: [static/css/components.css, static/css/print.css]
+        by: [static/css/aftermatter.css, static/css/print.css]
         why: its width and ink, and hidden in print

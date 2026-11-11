@@ -1,3 +1,4 @@
+@layer engine {
 /* now.css — /current.html.
  *
  * The Now page is a research-first status surface curated like the
@@ -22,13 +23,15 @@
     margin-bottom: 3rem;
 }
 
+
 /* The page title remains the primary anchor — sized & weighted
-   by .page-title in components.css. Generous bottom margin gives
+   by .page-title in metadata.css. Generous bottom margin gives
    the masthead-date its own breathing room below. */
 .now-header .page-title {
     margin-top: 0;
     margin-bottom: 1.1rem;
 }
+
 
 .now-stamp {
     margin: 0;
@@ -38,6 +41,7 @@
     line-height: 1.15;
 }
 
+
 .now-stamp-label {
     font-family: var(--font-sans);
     font-size: 0.72rem;
@@ -45,6 +49,7 @@
     letter-spacing: 0.12em;
     color: var(--text-faint);
 }
+
 
 /* The masthead datum. Spectral italic at ~1.85rem so it carries
    presence as the page's thesis without competing with the
@@ -62,6 +67,7 @@
     font-feature-settings: "onum" 1, "tnum" 1;
 }
 
+
 /* Small italic footer line under the masthead — qualifies
    the absolute date with a human-readable "how recent." */
 .now-stamp-relative {
@@ -71,6 +77,7 @@
     color: var(--text-faint);
     margin-top: 0.3rem;
 }
+
 
 /* ============================================================
    INTRO PROSE
@@ -87,9 +94,11 @@
     line-height: 1.6;
 }
 
+
 .now-intro p:last-child {
     margin-bottom: 0;
 }
+
 
 /* ============================================================
    SECTION HEADINGS
@@ -101,6 +110,7 @@
 .now-section {
     margin-bottom: 2.75rem;
 }
+
 
 .now-section-heading {
     font-family: var(--font-serif);
@@ -114,6 +124,7 @@
     margin: 0 0 0.85rem 0;
 }
 
+
 /* The recently-shipped section uses a slightly fainter heading +
    a thin top divider to separate it visually from active work. */
 .now-section--shipped {
@@ -122,11 +133,13 @@
     border-top: 1px solid var(--border);
 }
 
+
 .now-section--shipped .now-section-heading {
     color: var(--text-faint);
     font-style: italic;
     letter-spacing: 0.11em;
 }
+
 
 /* ============================================================
    STATUS CHIP
@@ -141,6 +154,7 @@
     align-items: flex-start;
     margin-top: 0.25em;
 }
+
 
 .now-status {
     display: inline-block;
@@ -157,23 +171,32 @@
     white-space: nowrap;
 }
 
+
 /* Per-status accents — each is intentionally restrained. Active
    states (in-review, drafting, building) get slightly stronger
    ink; passive states (paused, shipped) recede. "accepted" is the
    one affirmative state — full ink and a solid, confident border. */
 .now-status--accepted  { color: var(--text); border-color: var(--text); font-weight: 600; }
+
 .now-status--in-review { color: var(--text); border-color: var(--text-muted); }
+
 .now-status--revising  { color: var(--text); border-color: var(--text-muted); }
+
 .now-status--drafting   { color: var(--text); }
+
 .now-status--building   { color: var(--text); }
+
 .now-status--early-stage { color: var(--text-muted); border-style: dashed; }
+
 /* A02: `opacity: 0.75` here (and 0.92 on .now-card--shipped below) was
    applied to text, which multiplies straight through the contrast
    calculation: --text-faint at 5.07:1 arrived on the page at 3.07:1.
    The recession these states want is carried by the dashed border and
    the faint ink alone — both of which survive a contrast check. */
 .now-status--paused     { color: var(--text-faint); border-style: dashed; }
+
 .now-status--shipped    { color: var(--text-faint); border-color: var(--text-faint); }
+
 
 .now-card--shipped {
     /* See the note on .now-status--paused: text opacity cannot be used to
@@ -181,6 +204,7 @@
        chip's faint ink and border already read as past-tense. */
     border-bottom-style: dashed;
 }
+
 
 /* ============================================================
    MOBILE
@@ -193,16 +217,19 @@
         margin-top: 0;
     }
 
+
     .now-status {
         font-size: 0.62rem;
         padding: 0.28em 0.45em 0.24em;
     }
 
+
     .now-stamp-date {
         font-size: 1.55rem;
     }
 
+
     .now-stamp-relative {
         font-size: 0.88rem;
-    }
+    }}
 }

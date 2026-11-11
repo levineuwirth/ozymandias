@@ -335,7 +335,7 @@ rules = do
 
     -- Static files and templates, the site's and the engine's that no site
     -- file overrides ("EngineFiles").
-    staticRules twins (siteWithheld cfg)
+    staticRules twins (siteWithheld cfg) (switchOn cfg)
     templateRules twins
 
     -- The repository and the public site carry the same licence texts.

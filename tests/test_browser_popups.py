@@ -184,7 +184,7 @@ REQUESTS = {
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Popups fixture</title>
-<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/reset.css">
 <link rel="stylesheet" href="/css/popups.css">
 <meta name="ozy:host" content="fixture.example">
 <meta name="ozy:popup-providers" content="{providers}">
@@ -223,7 +223,7 @@ PAGE = """<!doctype html>
 # with popups does, and a source reference to a Python file.
 CODE_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Highlighted popup fixture</title>
-<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/reset.css">
 <link rel="stylesheet" href="/css/popups.css">
 <meta name="ozy:host" content="fixture.example">
 <script src="/js/utils.js"></script>

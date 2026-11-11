@@ -1,3 +1,4 @@
+@layer engine {
 /* Photography section — Phase 1 minimal styles.
  *
  * Phase 2 will introduce the masonry / grid / chronological mode toggle,
@@ -18,6 +19,7 @@
     margin: 0 auto;
 }
 
+
 /* Single-photo entries keep their own centred header; series pages use the
  * essay frontmatter grid instead (see .photo-series-frontmatter below). */
 .photo-header {
@@ -25,17 +27,21 @@
     text-align: center;
 }
 
+
 .photo-header .page-title {
     margin-bottom: 0.9rem;
 }
+
 
 .photo-header .meta-row {
     justify-content: center;
 }
 
+
 .photo-header .photo-captured {
     margin-top: 0.35rem;
 }
+
 
 /* ---------------------------------------------------------------------------
  * Series frontmatter — the essay header, with photographs in it.
@@ -51,9 +57,11 @@
     align-items: start;
 }
 
+
 .photo-series-lead {
     margin: 0;
 }
+
 
 .photo-series-lead img {
     width: 100%;
@@ -66,6 +74,7 @@
     border: 1px solid var(--border);
     padding: 0.3rem;
 }
+
 
 /* Statistics, in the register of /build/ and /stats/ — this site already
  * treats counting things as worth showing. Tabular figures so the values
@@ -81,6 +90,7 @@
     gap: 0.15rem;
 }
 
+
 .photo-series-stats .stat-row {
     display: grid;
     grid-template-columns: 3.6rem minmax(0, 1fr);
@@ -88,17 +98,20 @@
     align-items: baseline;
 }
 
+
 .photo-series-stats dt {
     font-variant: all-small-caps;
     letter-spacing: 0.08em;
     color: var(--text-faint);
 }
 
+
 .photo-series-stats dd {
     margin: 0;
     color: var(--text-muted);
     overflow-wrap: anywhere;
 }
+
 
 /* Below the grid's breakpoint the marks stack under the title, where a
  * fixed narrow column makes no sense. */
@@ -113,26 +126,30 @@
         margin: 0 auto;
     }
 
+
     .photo-series-stats {
         align-items: center;
     }
 
+
     .photo-series-stats .stat-row {
         grid-template-columns: 3.6rem auto;
         justify-content: center;
-    }
-}
+    }}
+
 
 .photo-figure {
     margin: 1rem 0 1.25rem;
     text-align: center;
 }
 
+
 .photo-figure img {
     max-width: 100%;
     height: auto;
     cursor: zoom-in;
 }
+
 
 .photo-caption {
     margin-top: 0.5rem;
@@ -141,14 +158,17 @@
     font-size: 0.95em;
 }
 
+
 .photo-captured {
     color: var(--text-muted);
     font-size: 0.95em;
 }
 
+
 .photo-location {
     font-style: italic;
 }
+
 
 /* Color palette strip (Phase 1 stub; populated by Phase 3 auto-extraction
  * once tools/extract-palette.py lands). Renders only when frontmatter has
@@ -160,10 +180,12 @@
     height: 0.75rem;
 }
 
+
 .photo-swatch {
     flex: 1;
     border-radius: 1px;
 }
+
 
 /* Per-photo metadata block — camera, lens, exposure, etc. Two-column
  * description list, definition-list semantics for accessibility. */
@@ -178,6 +200,7 @@
     font-size: 0.9em;
 }
 
+
 .photo-meta dt {
     font-weight: 600;
     color: var(--text-muted);
@@ -185,13 +208,16 @@
     letter-spacing: 0.02em;
 }
 
+
 .photo-meta dd {
     margin: 0;
 }
 
+
 .photo-license {
     color: inherit;
 }
+
 
 .photo-external-links {
     margin: 0.75rem 0 1.25rem;
@@ -199,15 +225,18 @@
     color: var(--text-muted);
 }
 
+
 .photo-external-links .meta-label {
     margin-right: 0.5rem;
     text-transform: lowercase;
     letter-spacing: 0.02em;
 }
 
+
 .photo-external-link {
     color: var(--text);
 }
+
 
 /* ---------------------------------------------------------------------------
  * Section landing — /photography/
@@ -219,12 +248,14 @@
     color: var(--text-muted);
 }
 
+
 .photography-empty {
     text-align: center;
     color: var(--text-faint);
     font-style: italic;
     margin: 4rem auto;
 }
+
 
 /* ---------------------------------------------------------------------------
  * Mode toggle UI
@@ -239,6 +270,7 @@
     margin-bottom: 1.5rem;
 }
 
+
 /* "Photography" is one word: at the title's 2.6rem it is wider than a
    320px screen's column and cannot wrap, so the page scrolled sideways
    (WCAG 1.4.10). Capped at 12vw it fits; above ~430px nothing changes.
@@ -247,6 +279,7 @@
 #markdownBody .photography-header .page-title {
     font-size: min(2.6rem, 12vw);
 }
+
 
 /* Mode toggle.
  *
@@ -265,12 +298,14 @@
     margin: 0 0 1.75rem;
 }
 
+
 .photography-mode-toggle {
     display: inline-flex;
     gap: 0.3rem;
     flex-wrap: wrap;
     justify-content: center;
 }
+
 
 /* A06 moved the slideshow launch out of the mode group (it is an action,
    not a view), so the button styling is scoped to .photography-controls
@@ -293,11 +328,13 @@
         border-color var(--transition-fast);
 }
 
+
 .photography-controls .mode-btn:hover {
     color: var(--text);
     border-color: var(--text-muted);
     text-decoration: none;
 }
+
 
 .photography-controls .mode-btn.is-active,
 .photography-controls .mode-btn[aria-current] {
@@ -306,14 +343,16 @@
     font-weight: 600;
 }
 
+
 .photography-controls .mode-btn:focus-visible {
     outline: 2px solid var(--text-muted);
     outline-offset: 2px;
 }
 
+
 @media (prefers-reduced-motion: reduce) {
-    .photography-controls .mode-btn { transition: none; }
-}
+    .photography-controls .mode-btn { transition: none; }}
+
 
 /* ---------------------------------------------------------------------------
  * Grid container — base + per-mode rules.
@@ -331,6 +370,7 @@
     display: grid;
 }
 
+
 /* Masonry — variable-height cells respecting native aspect ratios.
  * grid-auto-rows + JS-applied grid-row spans synthesize true masonry. */
 .photography-grid[data-photography-mode="masonry"] {
@@ -346,11 +386,13 @@
     align-items: stretch;
 }
 
+
 .photography-grid[data-photography-mode="masonry"] .photo-card-img {
     width: 100%;
     height: auto;
     display: block;
 }
+
 
 /* Uniform grid — a dense contact sheet.
  *
@@ -367,10 +409,12 @@
     gap: 0.4rem;
 }
 
+
 .photography-grid[data-photography-mode="grid"] .photo-card-link {
     position: relative;
     display: block;
 }
+
 
 .photography-grid[data-photography-mode="grid"] .photo-card-img {
     width: 100%;
@@ -379,6 +423,7 @@
     display: block;
     background: var(--bg-muted);
 }
+
 
 /* The caption rides over the frame rather than below it, so tiles stay
  * flush and the grid reads as one field of images.
@@ -410,12 +455,14 @@
     pointer-events: none;
 }
 
+
 .photography-grid[data-photography-mode="grid"] .photo-card-link:hover .photo-card-meta,
 .photography-grid[data-photography-mode="grid"] .photo-card-link:focus-visible .photo-card-meta,
 .photography-grid[data-photography-mode="grid"] .photo-card:focus-within .photo-card-meta {
     opacity: 1;
     transform: translateY(0);
 }
+
 
 .photography-grid[data-photography-mode="grid"] .photo-card-title {
     font-weight: 500;
@@ -428,10 +475,12 @@
     overflow: hidden;
 }
 
+
 .photography-grid[data-photography-mode="grid"] .photo-card-date {
     color: rgba(255, 255, 255, 0.72);
     font-size: 0.92em;
 }
+
 
 /* A hover-only affordance is no affordance on a touchscreen. Where hover
  * does not exist, the caption is simply always shown. */
@@ -439,14 +488,14 @@
     .photography-grid[data-photography-mode="grid"] .photo-card-meta {
         opacity: 1;
         transform: none;
-    }
-}
+    }}
+
 
 @media (prefers-reduced-motion: reduce) {
     .photography-grid[data-photography-mode="grid"] .photo-card-meta {
         transition: none;
-    }
-}
+    }}
+
 
 /* Chronological — single column, large, contemplative. */
 .photography-grid[data-photography-mode="chronological"] {
@@ -455,16 +504,19 @@
     gap: 3rem;
 }
 
+
 .photography-grid[data-photography-mode="chronological"] .photo-card-img {
     width: 100%;
     height: auto;
     display: block;
 }
 
+
 .photography-grid[data-photography-mode="chronological"] .photo-card-meta {
     margin-top: 0.75rem;
     font-size: 1em;
 }
+
 
 /* Series lead image.
  *
@@ -481,6 +533,7 @@
     cursor: zoom-in;
 }
 
+
 /* ---------------------------------------------------------------------------
  * Card chrome — shared across all three modes
  * --------------------------------------------------------------------------- */
@@ -489,6 +542,7 @@
     margin: 0;
 }
 
+
 .photo-card-link {
     display: block;
     text-decoration: none;
@@ -496,9 +550,11 @@
     overflow: hidden;
 }
 
+
 .photo-card-img {
     background: var(--bg-muted);
 }
+
 
 .photo-card-meta {
     display: flex;
@@ -509,15 +565,18 @@
     font-size: 0.9em;
 }
 
+
 .photo-card-title {
     font-weight: 500;
 }
+
 
 .photo-card-date {
     color: var(--text-muted);
     font-variant-numeric: oldstyle-nums;
     flex-shrink: 0;
 }
+
 
 /* ---------------------------------------------------------------------------
  * Darkroom lightbox — photography pages only
@@ -530,6 +589,7 @@
 .lightbox-overlay.darkroom {
     background: #000;
 }
+
 
 .lightbox-overlay.darkroom .lightbox-vignette {
     position: absolute;
@@ -544,11 +604,13 @@
     transition: opacity 200ms ease;
 }
 
+
 .lightbox-overlay:not(.darkroom) .lightbox-vignette,
 .lightbox-overlay:not(.darkroom) .lightbox-info-toggle,
 .lightbox-overlay:not(.darkroom) .lightbox-info-panel {
     display: none;
 }
+
 
 .lightbox-overlay.darkroom .lightbox-caption {
     color: rgba(255, 255, 255, 0.78);
@@ -559,9 +621,11 @@
     text-align: center;
 }
 
+
 .lightbox-overlay.darkroom .lightbox-close {
     color: rgba(255, 255, 255, 0.8);
 }
+
 
 /* "i" toggle button — top-right corner alongside the close button. */
 .lightbox-info-toggle {
@@ -583,11 +647,13 @@
     transition: background 120ms ease, border-color 120ms ease;
 }
 
+
 .lightbox-info-toggle:hover,
 .lightbox-info-toggle[aria-pressed="true"] {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.7);
 }
+
 
 /* Info panel — slides in from below; muted serif for the EXIF strip. */
 .lightbox-info-panel {
@@ -605,10 +671,12 @@
     pointer-events: none;
 }
 
+
 .lightbox-overlay.is-info-visible .lightbox-info-panel {
     transform: translate(-50%, 0);
     pointer-events: auto;
 }
+
 
 .lightbox-info-panel dl {
     display: grid;
@@ -618,6 +686,7 @@
     font-size: 0.9em;
 }
 
+
 .lightbox-info-panel dt {
     font-weight: 500;
     color: rgba(255, 255, 255, 0.55);
@@ -625,10 +694,12 @@
     letter-spacing: 0.04em;
 }
 
+
 .lightbox-info-panel dd {
     margin: 0;
     color: rgba(255, 255, 255, 0.92);
 }
+
 
 /* ---------------------------------------------------------------------------
  * Map page — /photography/map/
@@ -651,6 +722,7 @@
     background: var(--bg-muted);
 }
 
+
 .photography-map--empty,
 .photography-map--error {
     display: flex;
@@ -659,6 +731,7 @@
     text-align: center;
     padding: 2rem;
 }
+
 
 .photography-map-empty,
 .photography-map-error,
@@ -669,6 +742,7 @@
     font-style: italic;
 }
 
+
 .photography-map-note {
     margin: 0.5rem 0 2rem;
     color: var(--text-faint);
@@ -676,12 +750,14 @@
     max-width: 48rem;
 }
 
+
 .photography-map-note code {
     background: var(--bg-muted);
     padding: 0 0.3em;
     border-radius: 2px;
     font-size: 0.9em;
 }
+
 
 /* Tooltip content — rendered by photography-map.js inside Leaflet's
  * default tooltip wrapper. The wrapper class .photography-map-tooltip-wrap
@@ -698,15 +774,18 @@
     font-family: inherit;
 }
 
+
 /* Leaflet draws tooltip arrows via ::before; recolor to match. */
 .leaflet-tooltip.photography-map-tooltip-wrap::before {
     border-top-color: var(--border);
 }
 
+
 .photography-map-tooltip {
     width: 14rem;
     max-width: 16rem;
 }
+
 
 .photography-map-tooltip-img {
     display: block;
@@ -717,11 +796,13 @@
     border-bottom: 1px solid var(--border);
 }
 
+
 .photography-map-tooltip-title {
     padding: 0.4rem 0.6rem 0.1rem;
     font-weight: 500;
     line-height: 1.2;
 }
+
 
 .photography-map-tooltip-date {
     padding: 0 0.6rem 0.4rem;
@@ -729,6 +810,7 @@
     font-size: 0.85em;
     font-variant-numeric: oldstyle-nums;
 }
+
 
 /* ---------------------------------------------------------------------------
  * By-year index — /photography/by-year/
@@ -743,11 +825,13 @@
     gap: 0.25rem;
 }
 
+
 .photography-by-year-back {
     margin: 0 0 1rem;
     color: var(--text-muted);
     font-size: 0.9em;
 }
+
 
 .photography-by-year-list {
     list-style: none;
@@ -756,9 +840,11 @@
     max-width: 24rem;
 }
 
+
 .photography-by-year-item {
     margin: 0;
 }
+
 
 .photography-by-year-link {
     display: flex;
@@ -771,14 +857,17 @@
     transition: color 120ms ease;
 }
 
+
 .photography-by-year-link:hover {
     color: var(--text);
 }
+
 
 .photography-by-year-year {
     font-size: 1.4em;
     font-variant-numeric: oldstyle-nums;
 }
+
 
 .photography-by-year-count {
     color: var(--text-muted);
@@ -787,15 +876,18 @@
     letter-spacing: 0.04em;
 }
 
+
 .photography-by-year-count::before {
     content: "";
     display: inline-block;
     width: 0;
 }
 
+
 .photography-by-year-count::after {
     content: " photographs";
 }
+
 
 /* ---------------------------------------------------------------------------
  * Contact sheet — /photography/contact-sheet/
@@ -820,6 +912,7 @@
     gap: 1.25rem;
 }
 
+
 .contact-frame {
     counter-increment: contact-frame-no;
     margin: 0;
@@ -829,9 +922,11 @@
     transition: transform 120ms ease;
 }
 
+
 .contact-frame:hover {
     transform: scale(1.015);
 }
+
 
 .contact-frame-link {
     display: block;
@@ -840,6 +935,7 @@
     position: relative;
 }
 
+
 .contact-frame-img {
     width: 100%;
     aspect-ratio: 3 / 2;
@@ -847,6 +943,7 @@
     display: block;
     background: #2a2a2a;
 }
+
 
 .contact-frame-link::before {
     /* Frame number — analog convention: oldstyle figures, mono,
@@ -861,6 +958,7 @@
     letter-spacing: 0.05em;
 }
 
+
 .contact-frame-label {
     display: block;
     margin-top: 0.35rem;
@@ -872,6 +970,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
 
 /* ---------------------------------------------------------------------------
  * Series landing — /photography/<series>/
@@ -893,11 +992,13 @@
     text-wrap: balance;
 }
 
+
 .photo-series-prose {
     max-width: 36rem;
     margin: 1.5rem 0;
     color: var(--text);
 }
+
 
 /* ---------------------------------------------------------------------------
  * Slideshow
@@ -912,6 +1013,7 @@ body.slideshow-open {
     overflow: hidden;
 }
 
+
 .slideshow-overlay {
     /* Inherits position, layout, and — critically — the opacity/visibility
      * hiding from .lightbox-overlay in images.css. Only the differences are
@@ -923,6 +1025,7 @@ body.slideshow-open {
     background: #000;
 }
 
+
 .slideshow-figure {
     margin: 0;
     display: flex;
@@ -932,6 +1035,7 @@ body.slideshow-open {
     max-width: min(100%, 1600px);
     min-height: 0;
 }
+
 
 .slideshow-img {
     max-width: 100%;
@@ -945,6 +1049,7 @@ body.slideshow-open {
     display: block;
 }
 
+
 .slideshow-caption {
     text-align: center;
     color: rgba(255, 255, 255, 0.8);
@@ -955,9 +1060,11 @@ body.slideshow-open {
     max-width: 48rem;
 }
 
+
 .slideshow-title {
     font-size: 0.98rem;
 }
+
 
 .slideshow-date {
     font-size: 0.82rem;
@@ -965,11 +1072,13 @@ body.slideshow-open {
     font-variant-numeric: oldstyle-nums;
 }
 
+
 .slideshow-bar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
+
 
 .slideshow-btn {
     background: none;
@@ -983,15 +1092,18 @@ body.slideshow-open {
     transition: color 120ms ease, border-color 120ms ease;
 }
 
+
 .slideshow-btn:hover {
     color: #fff;
     border-color: rgba(255, 255, 255, 0.55);
 }
 
+
 .slideshow-btn:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.75);
     outline-offset: 2px;
 }
+
 
 .slideshow-close {
     position: absolute;
@@ -1000,6 +1112,7 @@ body.slideshow-open {
     font-size: 1.4rem;
     padding: 0.15rem 0.6rem;
 }
+
 
 .slideshow-counter {
     margin: 0 0 0 0.6rem;
@@ -1010,14 +1123,16 @@ body.slideshow-open {
     letter-spacing: 0.06em;
 }
 
+
 @media (max-width: 540px) {
     .slideshow-img { max-height: calc(100vh - 13rem); }
-    .slideshow-counter { display: none; }
-}
+
+    .slideshow-counter { display: none; }}
+
 
 @media (prefers-reduced-motion: reduce) {
-    .slideshow-btn { transition: none; }
-}
+    .slideshow-btn { transition: none; }}
+
 
 /* ---------------------------------------------------------------------------
  * Map pins
@@ -1036,6 +1151,7 @@ body.slideshow-open {
     border: none;
 }
 
+
 .photography-map-pin span {
     display: flex;
     align-items: center;
@@ -1053,9 +1169,11 @@ body.slideshow-open {
     transition: transform var(--transition-fast);
 }
 
+
 .photography-map-pin:hover span {
     transform: scale(1.12);
 }
+
 
 /* Clusters keep the plugin's light green, yellow and orange bubbles in
    either theme, and their count inherited the page's text colour: in the
@@ -1065,6 +1183,7 @@ body.slideshow-open {
     color: #1a1a1a;
 }
 
+
 /* Thumbnail strip inside a place tooltip — a glance at what is there,
    capped at four so the tooltip stays a tooltip. */
 .photography-map-strip {
@@ -1072,6 +1191,7 @@ body.slideshow-open {
     gap: 2px;
     margin-bottom: 0.4rem;
 }
+
 
 .photography-map-strip-img {
     width: 46px;
@@ -1081,6 +1201,7 @@ body.slideshow-open {
     background: var(--bg-muted);
 }
 
+
 .photography-map-tooltip--group .photography-map-tooltip-meta {
     font-family: var(--font-sans);
     font-size: 0.68rem;
@@ -1088,6 +1209,7 @@ body.slideshow-open {
     font-variant-numeric: tabular-nums;
 }
 
+
 @media (prefers-reduced-motion: reduce) {
-    .photography-map-pin span { transition: none; }
+    .photography-map-pin span { transition: none; }}
 }

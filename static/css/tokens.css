@@ -1,0 +1,455 @@
+@layer engine, site;
+@layer engine {
+/* ============================================================
+   CUSTOM PROPERTIES (light mode defaults)
+   ============================================================ */
+
+:root {
+    --text-size:       23px;
+    --text-size-small: 0.85em;
+    --line-height:     1.65;
+    --body-max-width:  800px;
+    --page-padding:    1.5rem;
+    --nav-height:      3rem;
+    --transition-fast:    0.15s ease;
+    --transition-medium:  0.28s ease;
+    --rule:        var(--border-muted);
+    --font-ui:     var(--font-sans);
+    --bg-subtle:   var(--bg-offset);
+}
+
+
+/* Initial narrow-screen estimate. nav.js measures the rendered header
+   and replaces --nav-height, including after text-size or layout changes. */
+@media (max-width: 540px) {
+    :root {
+    --nav-height: 7rem;
+}}
+/* ============================================================
+   CUSTOM PROPERTIES (light mode defaults)
+   ============================================================ */
+
+:root {
+    --bg:              #faf8f4;
+    --bg-nav:          #faf8f4;
+    --nav-logo-fg:     #1a1a1a;
+    --bg-offset:       #f2f0eb;
+    --text:            #1a1a1a;
+    --text-muted:      #555555;
+    --text-faint:      #6e6a64;
+    --border:          #cccccc;
+    --danger:          #9e2f2f;
+    --border-muted:    #aaaaaa;
+    --link:            #1a1a1a;
+    --link-underline:  #6e6a64;
+    --link-hover:      #1a1a1a;
+    --link-hover-underline: #1a1a1a;
+    --link-visited:    #444444;
+    --selection-bg:    #1a1a1a;
+    --selection-text:  #faf8f4;
+    --initial-glow:    drop-shadow(0 0 0.28em rgba(150, 105, 40, 0.30));
+    --font-serif: Georgia, serif;
+    --font-sans: sans-serif;
+    --font-mono: monospace;
+    --hm-0: #e8e8e4;
+    --hm-1: #b4b4b0;
+    --hm-2: #787874;
+    --hm-3: #424240;
+    --hm-4: #1a1a1a;
+}
+
+
+
+
+/* ============================================================
+   DARK MODE (Refined to Charcoal & Ink)
+   ============================================================ */
+
+/* Explicit dark mode */
+[data-theme="dark"] {
+    --bg:              #121212;
+    --bg-nav:          #181818;
+    --nav-logo-fg:     #d4d0c8;
+    --bg-offset:       #1a1a1a;
+    --text:            #d4d0c8;
+    --text-muted:      #8c8881;
+    --text-faint:      #8b8680;
+    --border:          #333333;
+    --danger:          #e08a84;
+    --border-muted:    #444444;
+    --link:            #d4d0c8;
+    --link-underline:  #8b8680;
+    --link-hover:      #ffffff;
+    --link-hover-underline: #ffffff;
+    --link-visited:    #a39f98;
+    --selection-bg:    #d4d0c8;
+    --selection-text:  #121212;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
+    --bg-subtle:       var(--bg-offset);
+    --hm-0: #252524;
+    --hm-1: #484844;
+    --hm-2: #6e6e6a;
+    --hm-3: #9e9e9a;
+    --hm-4: #d4d0c8;
+}
+
+
+
+/* System dark mode fallback */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --bg:              #121212;
+    --bg-nav:          #181818;
+    --nav-logo-fg:     #d4d0c8;
+    --bg-offset:       #1a1a1a;
+    --text:            #d4d0c8;
+    --text-muted:      #8c8881;
+    --text-faint:      #8b8680;
+    --border:          #333333;
+    --danger:          #e08a84;
+    --border-muted:    #444444;
+    --link:            #d4d0c8;
+    --link-underline:  #8b8680;
+    --link-hover:      #ffffff;
+    --link-hover-underline: #ffffff;
+    --link-visited:    #a39f98;
+    --selection-bg:    #d4d0c8;
+    --selection-text:  #121212;
+    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
+    --bg-subtle:       var(--bg-offset);
+    --hm-0: #252524;
+    --hm-1: #484844;
+    --hm-2: #6e6e6a;
+    --hm-3: #9e9e9a;
+    --hm-4: #d4d0c8;
+}}
+:root {
+    --highlight-background: linear-gradient(
+        104deg,
+        rgba(250, 235, 120, 0) 0%,
+        rgba(250, 235, 120, 0.8) 2%,
+        rgba(250, 220, 100, 0.9) 98%,
+        rgba(250, 220, 100, 0) 100%
+    );
+}
+
+[data-theme="dark"] {
+    --highlight-background: linear-gradient(
+            104deg,
+            rgba(100, 130, 180, 0) 0%,
+            rgba(100, 130, 180, 0.4) 2%,
+            rgba(80, 110, 160, 0.5) 98%,
+            rgba(80, 110, 160, 0) 100%
+        );
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --highlight-background: linear-gradient(
+            104deg,
+            rgba(100, 130, 180, 0) 0%,
+            rgba(100, 130, 180, 0.4) 2%,
+            rgba(80, 110, 160, 0.5) 98%,
+            rgba(80, 110, 160, 0) 100%
+        );
+}
+}
+
+:root {
+    --annotation-amber-background: rgba(245, 158,  11, 0.32);
+    --annotation-sage-background: rgba(107, 158, 120, 0.34);
+    --annotation-steel-background: rgba(112, 150, 184, 0.34);
+    --annotation-rose-background: rgba(200, 116, 116, 0.34);
+}
+
+[data-theme="dark"] {
+    --annotation-amber-background: rgba(245, 158,  11, 0.40);
+    --annotation-sage-background: rgba(107, 158, 120, 0.42);
+    --annotation-steel-background: rgba(112, 150, 184, 0.42);
+    --annotation-rose-background: rgba(200, 116, 116, 0.42);
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --annotation-amber-background: rgba(245, 158,  11, 0.40);
+    --annotation-sage-background: rgba(107, 158, 120, 0.42);
+    --annotation-steel-background: rgba(112, 150, 184, 0.42);
+    --annotation-rose-background: rgba(200, 116, 116, 0.42);
+}
+}
+
+:root {
+    --score-thumbnail-mix-blend-mode: multiply;
+    --score-thumbnail-filter: none;
+    --score-thumbnail-opacity: 1;
+}
+
+[data-theme="dark"] {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+}
+
+:root {
+    --shelf-detail-opacity: 0.75;
+    --score-thumbnail-mix-blend-mode: multiply;
+    --score-thumbnail-filter: none;
+    --score-thumbnail-opacity: 1;
+}
+
+[data-theme="dark"] {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) {
+    --score-thumbnail-filter: invert(1);
+    --score-thumbnail-mix-blend-mode: screen;
+    --score-thumbnail-opacity: 0.8;
+}
+}
+
+/* Default syntax palette.
+   File syntax follows bat's ANSI theme; shell syntax follows fish's roles.
+   The same tokens style essay blocks, transclusions and source popups.
+   No blue; coral is reserved for errors and removed diff lines.
+   Reference: oneiros-config/dotfiles/.config/{foot/foot.ini,fish/config.fish}.
+*/
+
+:root {
+    --syntax-fg: #1c1a17;
+    --syntax-param: #1c1a17;
+    --syntax-comment: var(--text-faint);
+    --syntax-red: #a3341f;
+    --syntax-sage: #5f6b38;
+    --syntax-amber: #8b671d;
+    --syntax-plum: #7a5c72;
+    --syntax-rose: #8a4436;
+    --syntax-teal: #4f6660;
+}
+
+
+
+[data-theme="dark"] {
+    --syntax-fg: #e8e8e8;
+    --syntax-param: #d8d8d8;
+    --syntax-comment: #828282;
+    --syntax-red: #e0604a;
+    --syntax-sage: #8f9a63;
+    --syntax-amber: #d3a05c;
+    --syntax-plum: #a2849f;
+    --syntax-rose: #c2887a;
+    --syntax-teal: #8fa39e;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --syntax-fg: #e8e8e8;
+    --syntax-param: #d8d8d8;
+    --syntax-comment: #828282;
+    --syntax-red: #e0604a;
+    --syntax-sage: #8f9a63;
+    --syntax-amber: #d3a05c;
+    --syntax-plum: #a2849f;
+    --syntax-rose: #c2887a;
+    --syntax-teal: #8fa39e;
+}}
+/* catalog.css — /music/, the catalogue of works (templates/music-catalog.html,
+   build/Catalog.hs).
+
+   Two parts. The shelf is the page's one bold element: every work as the
+   spine of a bound score, oldest to newest, each as thick as its score is
+   long, with one work standing face-out to show its first page. Below it,
+   the catalogue proper — quiet, set like the movement list on each work's
+   own page (composition.css), so the index and the works read as one
+   edition. */
+
+.music-index {
+    --shelf-paper: #fffdfa;
+}
+
+
+
+
+[data-theme="dark"]       .music-index {
+    --shelf-paper: #1c1c1c;
+}
+
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .music-index {
+    --shelf-paper: #1c1c1c;
+}}
+
+
+
+/* ------------------------------------------------------------------
+   Paper
+   The frontispiece's sheet matches the reader's, theme by theme, so
+   the page a reader clicks is the page they land on.
+------------------------------------------------------------------ */
+
+.composition {
+    --comp-paper: #fffdfa;
+}
+
+
+
+
+[data-theme="dark"]       .composition {
+    --comp-paper: #1c1c1c;
+}
+
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .composition {
+    --comp-paper: #1c1c1c;
+}}
+/* library.css — Library + Bibliography page components, plus the
+   epistemic-filter UI that now lives on /search.html. */
+
+/* ============================================================
+   LIBRARY PALETTE — scoped warm "candlelight" accent
+   Only loaded on /library.html (via $if(library)$) and /search.html,
+   so defining at :root here is effectively page-scoped. Consumed by
+   section headings, the divider, the intro blockquote, and the
+   "more on this shelf" link to give the library page a fine-press
+   feel without touching global colors.
+   ============================================================ */
+
+:root {
+    --library-accent: #524638;
+    --library-accent-muted: #726758;
+    --library-intro-ink: #3c3328;
+}
+
+
+
+[data-theme="dark"] {
+    --library-accent: #b5a890;
+    --library-accent-muted: #8d8373;
+    --library-intro-ink: #c8beac;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --library-accent: #b5a890;
+    --library-accent-muted: #8d8373;
+    --library-intro-ink: #c8beac;
+}}
+
+
+/* ============================================================
+   READING MODE — BASE
+   Slightly warmer background; narrower, book-like measure.
+   The class is applied to <body> by default.html.
+   ============================================================ */
+
+body.reading-mode {
+    --bg: #fdf9f1;
+}
+
+
+
+[data-theme="dark"] body.reading-mode {
+    --bg: #1c1917;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) body.reading-mode {
+    --bg: #1c1917;
+}}
+/* score-reader.css — Full-page score reader layout.
+   Used only on /music/{slug}/score/ pages via score-reader-default.html.
+
+   Two ideas drive the design. The sheet is the only bright object on
+   screen — it sits on the theme's ground with a hairline edge and a soft
+   shadow, reading as paper on a stand rather than as a document bleeding
+   into the background. And the chrome recedes: after a few seconds of
+   stillness the bar and the page-turn affordances fade, because a score
+   reader should show a score. */
+
+.score-reader-page {
+    --score-paper: #fffdfa;
+}
+
+
+
+[data-theme="dark"]       .score-reader-page {
+    --score-paper: #1c1c1c;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .score-reader-page {
+    --score-paper: #1c1c1c;
+}}
+/* print.css — Clean paper output.
+   Loaded LAST in head.html via <link media="print"> so its rules win
+   the cascade at print page widths (~595–820 CSS px on A4/Letter),
+   which otherwise trip every screen breakpoint below 900px (mobile
+   TOC bar, body bottom padding).
+
+   Hides chrome, expands body full-width, renders in black on white. */
+
+@media print {
+
+    /* ----------------------------------------------------------------
+       The score reader has its own print presentation; keep its palette.
+       Force other pages light on paper. The custom-property overrides drive the
+       rest of the cascade — use them consistently below instead of
+       reaching for hardcoded #fff/#000 again.
+    ---------------------------------------------------------------- */
+    /* :root:not([data-theme]) is the OS-dark fallback's own selector
+       (tokens.css), and at (0,2,0) it beat a bare :root here: with a dark
+       system setting and no saved theme, body text printed pale grey on
+       white (audit V02). Same specificity, later in the cascade, wins. */
+    :root:where(:not(:has(body.score-reader-page))),
+    :root:not([data-theme]):where(:not(:has(body.score-reader-page))),
+    [data-theme="dark"]:where(:not(:has(body.score-reader-page))),
+    [data-theme="cappuccino"]:where(:not(:has(body.score-reader-page))) {
+    --bg: #ffffff;
+    --bg-nav: #ffffff;
+    --bg-offset: #ffffff;
+    --bg-subtle: #f9f9f9;
+    --text: #000000;
+    --text-muted: #333333;
+    --text-faint: #555555;
+    --border: #cccccc;
+    --border-muted: #aaaaaa;
+    --rule: #cccccc;
+}
+
+
+    /* Reading-mode body warm tints would otherwise repaint pages cream,
+       or dark: each theme's reading-mode rule (reading.css) is more
+       specific than a bare body.reading-mode. */
+    body.reading-mode,
+    [data-theme] body.reading-mode,
+    :root:not([data-theme]) body.reading-mode {
+    --bg: #ffffff;
+    --text-muted: #333333;
+    --text-faint: #555555;
+}}
+}

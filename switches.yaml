@@ -31,6 +31,7 @@ archive:
   kind: capability
   default: false
   routes: [/archive/]
+  assets: [css/modules/archive.css]
   about: >-
     Link archiving: /archive/ and a page per entry from archive/manifest.yaml,
     the fetch stage of the build (tools/archive.py), archive annotations on
@@ -41,7 +42,7 @@ music:
   default: false
   section: music
   assets: [js/score-reader.js, js/score-follow.js, js/music-shelf.js,
-           css/composition.css, css/catalog.css, css/score-reader.css]
+           css/modules/composition.css, css/modules/catalog.css, css/modules/score-reader.css]
   about: >-
     Compositions: /music/ and its catalog, a page and a score reader per work
     under content/music/, their scores, recordings and timing maps, the
@@ -53,7 +54,7 @@ music:
 math:
   kind: capability
   default: false
-  assets: [katex/**, js/katex-bootstrap.js, licenses/KaTeX-MIT.txt]
+  assets: [css/modules/katex.css, katex/**, js/katex-bootstrap.js, licenses/KaTeX-MIT.txt]
   about: >-
     TeX math: Markdown's $ and $$ read as math (PandocOptions.withMath, in
     every reader of a page, an abstract or a caption) and typeset by the
@@ -62,16 +63,16 @@ math:
 code:
   kind: capability
   default: false
-  assets: [js/prism.min.js, js/copy.js, css/syntax.css]
+  assets: [js/prism.min.js, js/copy.js, css/modules/syntax.css, css/modules/copy.css]
   about: >-
     Code blocks highlighted by Prism (Filters.Code names each block's
     language as Prism reads it, and pages with one load prism.min.js and
-    syntax.css) and given a copy button (copy.js, on every page).
+    modules/syntax.css) and given a copy button (copy.js, modules/copy.css, on every page).
 
 viz:
   kind: capability
   default: false
-  assets: [js/viz.js, css/viz.css]
+  assets: [js/viz.js, css/modules/viz.css]
   about: >-
     Figures drawn by Python scripts (Filters.Viz): a .figure's SVG and a
     .visualization's Vega-Lite spec, which a page with `viz: true` loads
@@ -82,7 +83,7 @@ viz:
 pdf-viewer:
   kind: capability
   default: false
-  assets: [pdfjs/**]
+  assets: [css/modules/pdf.css, pdfjs/**]
   about: >-
     The vendored PDF.js viewer (static/pdfjs/, which the build downloads):
     a site's own PDFs, linked from a page or a .bib entry's `file:`, open
@@ -118,7 +119,7 @@ code-refs:
 epistemic:
   kind: capability
   default: false
-  assets: [templates/epistemic-figure-reference.svg]
+  assets: [css/modules/epistemic.css, templates/epistemic-figure-reference.svg]
   about: >-
     A page's epistemic profile, from its front matter (status, confidence,
     importance, evidence, scope, novelty, practicality, peer-status): the
@@ -134,15 +135,16 @@ marks:
   about: >-
     Monograms (Marks.hs): a page's mark.svg in its title's left slot, or a
     placeholder roundel, in item cards and popups, and the build page's
-    coverage of them. Without it the slot is left empty (marks.css, which
-    also lays out the frontmatter grid, stays loaded) and no candidate
-    mark is read or depended on.
+    coverage of them. Without it the slot is left empty; frontmatter.css
+    still lays out the title grid. The marks stylesheet is shared with
+    epistemic figures, and loads when either switch is on. No candidate
+    monogram is read or depended on when marks is off.
 
 vita:
   kind: capability
   default: false
   contexts: [vita, projects]
-  assets: [css/vita.css]
+  assets: [css/modules/vita.css]
   about: >-
     A CV page and a projects index (Vita.hs), standalone pages with the
     vita and projects contexts, rendered from yaml-source/data/*.yml (the
@@ -152,7 +154,7 @@ vita:
 commonplace:
   kind: capability
   default: false
-  assets: [css/commonplace.css, js/commonplace.js]
+  assets: [css/modules/commonplace.css, js/commonplace.js]
   about: >-
     A commonplace book (Commonplace.hs): /commonplace.html from
     content/commonplace.md and data/commonplace.yaml, by theme or by date.
@@ -162,7 +164,7 @@ now:
   kind: capability
   default: false
   contexts: [now]
-  assets: [css/now.css, js/now.js]
+  assets: [css/modules/now.css, js/now.js]
   about: >-
     A now page (Now.hs): a standalone page with the now context, from
     data/now.yaml, whose stamp now.js dates in the reader's calendar, and
@@ -196,6 +198,7 @@ build-page:
   kind: generated
   default: false
   routes: [/build/]
+  assets: [css/modules/build.css]
   about: >-
     /build/: the build's telemetry (corpus, pages, links, output,
     repository, timing), and the footer's link to it.
@@ -337,7 +340,7 @@ photography:
   default: false
   section: photography
   assets: [js/photography-modes.js, js/photography-slideshow.js, js/photography-map.js,
-           css/photography.css, leaflet/**]
+           css/photography.css, css/modules/leaflet.css, leaflet/**]
   about: >-
     Photographs: /photography/, a page per frame and series under
     content/photography/, their images and sidecars, the by-year, contact-sheet
@@ -367,7 +370,7 @@ similar-links:
 transclusion:
   kind: capability
   default: false
-  assets: [js/transclude.js]
+  assets: [js/transclude.js, css/modules/transclusion.css]
   about: >-
     A {{slug}} or {{slug#section}} line as another page's passage, filled in
     by transclude.js. Without it the line is a link to that passage.

@@ -1,3 +1,4 @@
+@layer engine {
 /* ── Commonplace ──────────────────────────────────────────────────────────── */
 
 /* ── Intro ────────────────────────────────────────────────────────────────── */
@@ -7,6 +8,7 @@
     margin-bottom: 0.5rem;
 }
 
+
 /* ── View toggle ──────────────────────────────────────────────────────────── */
 
 .cp-view-toggle {
@@ -14,6 +16,7 @@
     gap: 0.5rem;
     margin: 1.5rem 0 2.5rem;
 }
+
 
 .cp-toggle-btn {
     font-family: var(--font-ui);
@@ -28,15 +31,18 @@
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
+
 .cp-toggle-btn:hover {
     color: var(--text);
     border-color: var(--text-muted);
 }
 
+
 .cp-toggle-btn.is-active {
     color: var(--text);
     border-color: var(--text);
 }
+
 
 /* ── Theme sections ───────────────────────────────────────────────────────── */
 
@@ -52,9 +58,11 @@
     border-bottom: 1px solid var(--border);
 }
 
+
 .cp-theme-section:first-child .cp-theme-heading {
     margin-top: 0;
 }
+
 
 /* ── Entry ────────────────────────────────────────────────────────────────── */
 
@@ -64,10 +72,12 @@
     border-bottom: 1px solid var(--border-muted);
 }
 
+
 .cp-entry:last-child {
     border-bottom: none;
     padding-bottom: 0;
 }
+
 
 /* ── Quote block — overrides default #markdownBody blockquote ─────────────── */
 
@@ -78,10 +88,12 @@
     margin: 0 0 0.5rem;
 }
 
+
 #markdownBody .cp-quote p {
     margin: 0;
     line-height: 1.75;
 }
+
 
 /* ── Attribution ──────────────────────────────────────────────────────────── */
 
@@ -92,6 +104,7 @@
     margin: 0;
 }
 
+
 .cp-attribution a {
     color: inherit;
     text-decoration: none;
@@ -99,10 +112,12 @@
     transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
+
 .cp-attribution a:hover {
     color: var(--text);
     border-color: var(--text-muted);
 }
+
 
 /* ── Commentary ───────────────────────────────────────────────────────────── */
 
@@ -114,6 +129,7 @@
     margin: 0.7rem 0 0;
 }
 
+
 /* ── Tags ─────────────────────────────────────────────────────────────────── */
 
 .cp-tags {
@@ -122,6 +138,7 @@
     gap: 0.3rem;
     margin-top: 0.7rem;
 }
+
 
 .cp-tag {
     font-family: var(--font-ui);
@@ -133,9 +150,11 @@
     border: 1px solid var(--border-muted);
 }
 
+
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 
 .cp-empty {
     color: var(--text-muted);
     font-style: italic;
+}
 }

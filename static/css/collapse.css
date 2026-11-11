@@ -1,0 +1,51 @@
+@layer engine {
+/* ============================================================
+   COLLAPSIBLE SECTIONS
+   collapse.js wraps h2/h3 content in .section-body divs and
+   injects .section-toggle buttons into the heading elements.
+   ============================================================ */
+
+.section-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+
+.section-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 0 0 0 0.5em;
+    font-size: 0.5em;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.1em;
+    opacity: 0;
+    transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+
+h2:hover .section-toggle,
+h3:hover .section-toggle,
+.section-toggle:hover,
+.section-toggle:focus {
+    opacity: 1;
+}
+
+
+.section-toggle:hover {
+    color: var(--text-muted);
+}
+
+
+.section-toggle::before {
+    content: '▼';
+}
+
+
+.section-toggle[aria-expanded="false"]::before {
+    content: '▶';
+}
+}

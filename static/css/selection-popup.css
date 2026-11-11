@@ -1,3 +1,4 @@
+@layer engine {
 /* selection-popup.css — Custom text-selection toolbar */
 
 /* ============================================================
@@ -37,12 +38,14 @@
     -webkit-user-select: none;
 }
 
+
 .selection-popup.is-visible {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
     pointer-events: auto;
 }
+
 
 /* Caret pointing down (popup is above selection) */
 .selection-popup::after {
@@ -55,6 +58,7 @@
     pointer-events: none;
 }
 
+
 /* Flip: caret pointing up (popup is below selection) */
 .selection-popup.is-below::after {
     top: auto;
@@ -62,6 +66,7 @@
     border-top-color: transparent;
     border-bottom-color: var(--text);
 }
+
 
 
 /* ============================================================
@@ -85,9 +90,10 @@
     transition: background 0.1s ease;
 }
 
+
 .selection-popup-btn:hover,
 .selection-popup-btn:focus-visible {
     background: rgba(128, 128, 128, 0.2);
     outline: none;
 }
-
+}

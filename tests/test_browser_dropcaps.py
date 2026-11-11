@@ -88,7 +88,7 @@ class Dropcaps(unittest.TestCase):
                               cwd=SITE_ROOT, capture_output=True, text=True, check=True)
         body = done.stdout.split("<!-- render-fixture: body -->", 1)[1].split("<!-- render-fixture:", 1)[0]
         return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Initials</title>'
-                '<link rel="stylesheet" href="/css/base.css"><link rel="stylesheet" href="/css/typography.css">'
+                '<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/theme.css"><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/reset.css"><link rel="stylesheet" href="/css/typography.css">'
                 '<link rel="stylesheet" href="/css/print.css" media="print"></head>'
                 f'<body><main id="markdownBody">{body}</main></body></html>')
 

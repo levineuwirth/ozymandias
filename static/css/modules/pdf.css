@@ -1,0 +1,83 @@
+@layer engine {
+/* ============================================================
+   PDF EMBED
+   Inline PDF.js viewer iframes rendered from {{pdf:...}} directives.
+   ============================================================ */
+
+.pdf-embed-wrapper {
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--bg-subtle);
+}
+
+
+.pdf-embed {
+    display: block;
+    width: 100%;
+    height: 70vh;
+    min-height: 420px;
+    border: none;
+}
+
+
+@media (max-width: 600px) {
+    .pdf-embed {
+        height: 60vh;
+        min-height: 300px;
+    }}
+
+
+/* ── Archive affordance ─────────────────────────────────────────────────────
+   The superscript "A" appended after a body link whose target is preserved
+   in the local archive (build/Filters/Archive.hs). Loaded site-wide because
+   the marker appears in essay/prose content, not on archive pages. */
+
+.archive-affordance {
+    font-size: 0.7em;
+    margin-left: 0.15em;
+    line-height: 0;
+}
+
+
+.archive-affordance a {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-faint);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0 0.25em;
+}
+
+
+.archive-affordance a:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+    background: var(--bg-subtle);
+}
+
+
+/* Dead-link flip — a body link whose archived target is `rotted` has its
+   href redirected to the local copy (build/Filters/Archive.hs). A dotted
+   underline marks the link as redirected; its marker becomes a solid chip
+   reading "archived" rather than the quiet bordered "A". */
+.archive-rotted {
+    text-decoration-style: dotted;
+}
+
+
+.archive-affordance--rotted a {
+    color: var(--bg);
+    background: var(--text-muted);
+    border-color: var(--text-muted);
+}
+
+
+.archive-affordance--rotted a:hover {
+    color: var(--bg);
+    background: var(--text);
+    border-color: var(--text);
+}
+}

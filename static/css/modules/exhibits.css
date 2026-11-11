@@ -1,7 +1,4 @@
-/* gallery.css — Exhibit system (always-visible inline blocks with overlay
-   expansion) and annotation system (static or collapsible callout boxes). */
-
-
+@layer engine {
 /* ============================================================
    EXHIBIT WRAPPER
    Base styles shared by all exhibit types.
@@ -15,6 +12,8 @@
 }
 
 
+
+
 /* ============================================================
    MATH FOCUSABLE
    Wrapper injected around every .katex-display by gallery.js.
@@ -26,6 +25,7 @@
     display: block;
     cursor: zoom-in;
 }
+
 
 /* Expand glyph — decorative affordance, not interactive */
 .exhibit-expand {
@@ -45,9 +45,11 @@
     user-select: none;
 }
 
+
 .math-focusable:hover .exhibit-expand {
     opacity: 1;
 }
+
 
 /* Caption tooltip — appears above the math on hover, like alt text */
 .math-focusable[data-caption]::after {
@@ -75,9 +77,12 @@
     z-index: 10;
 }
 
+
 .math-focusable[data-caption]:hover::after {
     opacity: 1;
 }
+
+
 
 
 /* ============================================================
@@ -94,12 +99,14 @@
     border-bottom: 1px solid var(--border-muted);
 }
 
+
 .exhibit--proof .exhibit-header-label {
     font-style: italic;
     font-weight: 600;
     color: var(--text);
     flex-shrink: 0;
 }
+
 
 .exhibit--proof .exhibit-header-name {
     font-family: var(--font-sans);
@@ -108,90 +115,6 @@
 }
 
 
-/* ============================================================
-   ANNOTATION
-   Editorial callout boxes: definitions, notes, remarks, warnings.
-   Two variants: static (always visible) and collapsible.
-   ============================================================ */
-
-.annotation {
-    position: relative;
-    margin: 1.65rem 0;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-}
-
-.annotation-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.5rem 0.85rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-offset);
-}
-
-.annotation-label {
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-weight: 600;
-    font-variant-caps: all-small-caps;
-    letter-spacing: 0.06em;
-    color: var(--text-faint);
-    flex-shrink: 0;
-}
-
-.annotation-name {
-    font-family: var(--font-sans);
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-style: italic;
-    flex: 1;
-    min-width: 0;
-}
-
-.annotation-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    color: var(--text-faint);
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
-    transition: color var(--transition-fast);
-    white-space: nowrap;
-}
-
-.annotation-toggle:hover {
-    color: var(--text-muted);
-}
-
-.annotation-body {
-    padding: 0.825rem 0.85rem;
-}
-
-/* Collapsible variant: body hidden until toggled.
-   Only max-height transitions — padding applies instantly so that
-   scrollHeight reads the correct full height before the animation starts. */
-.annotation--collapsible .annotation-body {
-    overflow: hidden;
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    transition: max-height 0.35s ease;
-}
-
-.annotation--collapsible.is-open .annotation-body {
-    padding-top: 0.825rem;
-    padding-bottom: 0.825rem;
-}
-
-/* Static variant: always open, no toggle */
-.annotation--static .annotation-header {
-    border-bottom: 1px solid var(--border);
-}
 
 
 /* ============================================================
@@ -212,9 +135,11 @@
     justify-content: center;
 }
 
+
 #gallery-overlay[hidden] {
     display: none;
 }
+
 
 /* Content stage — large light area centered in the dark screen.
    Fixed width (not max-width) so JS can detect overflow for font fitting. */
@@ -231,11 +156,13 @@
     cursor: default; /* undo zoom-out from parent */
 }
 
+
 #gallery-overlay-body .katex-display {
     /* font-size is set entirely by JS after measuring — no CSS value here */
     overflow-x: hidden;
     margin: 0;
 }
+
 
 /* Close — top right of screen */
 #gallery-overlay-close {
@@ -253,9 +180,11 @@
     transition: color var(--transition-fast);
 }
 
+
 #gallery-overlay-close:hover {
     color: rgba(255, 255, 255, 0.95);
 }
+
 
 /* Group name — top center of screen */
 #gallery-overlay-name {
@@ -273,6 +202,7 @@
     pointer-events: none;
 }
 
+
 /* Caption — bottom center of screen, above counter */
 #gallery-overlay-caption {
     position: absolute;
@@ -288,10 +218,12 @@
     pointer-events: none;
 }
 
+
 #gallery-overlay-caption:empty,
 #gallery-overlay-caption[hidden] {
     display: none;
 }
+
 
 /* Counter — bottom center of screen */
 #gallery-overlay-counter {
@@ -305,6 +237,7 @@
     pointer-events: none;
     white-space: nowrap;
 }
+
 
 /* Nav buttons — floating at the screen edges, vertically centered */
 .gallery-nav-btn {
@@ -322,17 +255,23 @@
     transition: color var(--transition-fast);
 }
 
+
 .gallery-nav-btn:hover:not(:disabled) {
     color: rgba(255, 255, 255, 0.9);
 }
+
 
 .gallery-nav-btn:disabled {
     opacity: 0;
     pointer-events: none;
 }
 
+
 #gallery-overlay-prev { left: 1rem; }
+
 #gallery-overlay-next { right: 1rem; }
+
+
 
 
 /* ============================================================
@@ -348,6 +287,7 @@
     cursor: zoom-in;
 }
 
+
 /* Reset #markdownBody figure box styles — must use ID+class to beat
    the specificity of `#markdownBody figure` (0,1,1 vs 0,1,0). */
 #markdownBody figure.score-fragment {
@@ -359,10 +299,12 @@
     margin: 2rem 0;  /* override the base 3.3rem auto */
 }
 
+
 .score-fragment-inner {
     display: block;
     line-height: 0; /* collapse inline gap below the SVG block */
 }
+
 
 /* Make the score SVG responsive and theme-aware.
    CSS width/height override the SVG's own width/height presentation
@@ -384,10 +326,12 @@
     fill: currentColor;
 }
 
+
 /* Remove LilyPond's white background rectangle */
 .score-fragment-inner svg > rect:first-child {
     fill: none;
 }
+
 
 /* Expand glyph: top-right corner, not vertically centred */
 .score-fragment .exhibit-expand {
@@ -395,9 +339,11 @@
     transform: none;
 }
 
+
 .score-fragment:hover .exhibit-expand {
     opacity: 1;
 }
+
 
 /* A07: on score figures the glyph is a real <button> (a <figure> may not
    take role="button"), so it needs pointer events of its own and must
@@ -413,15 +359,18 @@
     color: var(--text-faint);
 }
 
+
 .exhibit-expand-btn:focus-visible {
     opacity: 1;
     outline: 2px solid var(--text);
     outline-offset: 2px;
 }
 
+
 .exhibit-expand-btn:hover {
     color: var(--text);
 }
+
 
 .score-caption {
     font-family: var(--font-sans);
@@ -432,6 +381,8 @@
     margin-top: 0.65rem;
     line-height: 1.4;
 }
+
+
 
 
 /* ============================================================
@@ -449,6 +400,7 @@
     max-height: calc(100vh - 12rem);
 }
 
+
 #gallery-overlay-body.is-score svg {
     width: 100%;
     height: auto;
@@ -457,9 +409,12 @@
     color: var(--text);
 }
 
+
 #gallery-overlay-body.is-score svg > rect:first-child {
     fill: none;
 }
+
+
 
 
 /* ============================================================
@@ -475,6 +430,7 @@
     padding-left: 0.75rem;
 }
 
+
 .toc-exhibits-inline a {
     display: flex;
     align-items: baseline;
@@ -486,9 +442,11 @@
     transition: color var(--transition-fast);
 }
 
+
 .toc-exhibits-inline a:hover {
     color: var(--text-muted);
 }
+
 
 /* Contained Herein — collapsible global exhibit index */
 .toc-contained {
@@ -496,6 +454,7 @@
     padding-top: 0.6rem;
     border-top: 1px solid var(--border);
 }
+
 
 .toc-contained-toggle {
     display: flex;
@@ -517,9 +476,11 @@
     transition: color var(--transition-fast);
 }
 
+
 .toc-contained-toggle:hover {
     color: var(--text-muted);
 }
+
 
 .toc-contained-arrow {
     font-size: 0.55rem;
@@ -528,9 +489,11 @@
     flex-shrink: 0;
 }
 
+
 .toc-contained.is-open .toc-contained-arrow {
     transform: rotate(90deg);
 }
+
 
 .toc-contained-list {
     list-style: none;
@@ -539,13 +502,16 @@
     display: none;
 }
 
+
 .toc-contained.is-open .toc-contained-list {
     display: block;
 }
 
+
 .toc-contained-list li {
     margin: 0.2rem 0;
 }
+
 
 .toc-contained-list a {
     display: flex;
@@ -557,9 +523,11 @@
     transition: color var(--transition-fast);
 }
 
+
 .toc-contained-list a:hover {
     color: var(--text-muted);
 }
+
 
 .toc-exhibit-type-badge {
     font-size: 0.6rem;
@@ -567,4 +535,5 @@
     letter-spacing: 0.05em;
     color: var(--text-faint);
     flex-shrink: 0;
+}
 }

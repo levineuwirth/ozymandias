@@ -757,8 +757,9 @@ getLocStats :: IO (Int, Int, Int, Int, Int, Int)
 getLocStats = do
     (hf, hl)  <- countLinesDir "build"      ".hs"  (const False)
     (cf, cl)  <- countLinesDir "static/css" ".css" (const False)
+    (mf, ml)  <- countLinesDir "static/css/modules" ".css" (const False)
     (jf, jl)  <- countLinesDir "static/js"  ".js"  (".min.js" `isSuffixOf`)
-    return (hf, hl, cf, cl, jf, jl)
+    return (hf, hl, cf + mf, cl + ml, jf, jl)
 
 -- ---------------------------------------------------------------------------
 -- IO: git stats

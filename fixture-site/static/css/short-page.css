@@ -1,0 +1,5 @@
+/* The short page's own styles, which only it loads (its front matter's
+   stylesheets: [short-page]), in the site's layer. */
+@layer site {
+.short-page-only { font-style: italic; }
+}

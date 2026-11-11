@@ -1,3 +1,4 @@
+@layer engine {
 /* sidenotes.css — Notes: an endnote list, set in the margin when there is room.
    The Haskell Sidenotes filter converts Pandoc footnotes to:
      <sup class="sidenote-ref" id="snref-a"><a href="#fn-a">a</a></sup>
@@ -35,6 +36,7 @@
     font-feature-settings: normal;
 }
 
+
 .sidenote-ref a {
     color: var(--text-faint);
     text-decoration: none;
@@ -42,10 +44,12 @@
     transition: color var(--transition-fast);
 }
 
+
 .sidenote-ref a:hover,
 .sidenote-ref.is-active a {
     color: var(--text);
 }
+
 
 
 /* ============================================================
@@ -61,11 +65,13 @@ section.footnotes {
     border-top: 1px solid var(--border-muted);
 }
 
+
 section.footnotes .footnotes-list {
     list-style: none;
     margin: 0;
     padding: 0;
 }
+
 
 .footnote-item {
     position: relative;
@@ -76,6 +82,7 @@ section.footnotes .footnotes-list {
     color: var(--text-muted);
 }
 
+
 .footnote-label {
     position: absolute;
     left: 0;
@@ -85,6 +92,7 @@ section.footnotes .footnotes-list {
     color: var(--text-faint);
 }
 
+
 /* A note is block content: paragraphs, lists, quotations, code. Its
    blocks sit closer than the body's, and its paragraphs carry no
    indent. The first paragraph flows on the label's line. */
@@ -92,20 +100,25 @@ section.footnotes .footnotes-list {
     margin: 0 0 0.5em;
     text-indent: 0;
 }
+
 #markdownBody .footnote-item > .footnote-label + p {
     display: inline;
 }
+
 #markdownBody .footnote-item > :is(ul, ol, blockquote, pre, .code-block, figure, table) {
     margin: 0.5em 0;
 }
+
 #markdownBody .footnote-item > :last-child {
     margin-bottom: 0;
 }
+
 
 .footnote-item:target,
 .footnote-item.is-active {
     color: var(--text);
 }
+
 
 .footnote-back {
     margin-left: 0.35em;
@@ -115,9 +128,11 @@ section.footnotes .footnotes-list {
     transition: color var(--transition-fast), opacity var(--transition-fast);
 }
 
+
 .footnote-back:hover {
     color: var(--text-muted);
 }
+
 
 
 /* ============================================================
@@ -142,12 +157,14 @@ section.footnotes .footnotes-list {
         min-height: var(--sidenote-extent, 0px);
     }
 
+
     /* The list's items leave it for the margin; nothing of it shows. */
     #markdownBody[data-sidenotes="margin"] section.footnotes {
         margin: 0;
         padding: 0;
         border: 0;
     }
+
 
     #markdownBody[data-sidenotes="margin"] .footnote-item {
         position: absolute;
@@ -166,6 +183,7 @@ section.footnotes .footnotes-list {
         hanging-punctuation: none;
     }
 
+
     /* An inline box on the first line, as wide as it is pulled back:
        it shares the line's baseline and takes none of its width. */
     #markdownBody[data-sidenotes="margin"] .footnote-label {
@@ -177,6 +195,7 @@ section.footnotes .footnotes-list {
         text-align: right;
         transition: color var(--transition-fast);
     }
+
     /* A note that opens with a list or code has no first line of text
        to share: the letter hangs beside the top. */
     #markdownBody[data-sidenotes="margin"] .footnote-item:not(:has(> .footnote-label + p)) > .footnote-label {
@@ -185,6 +204,7 @@ section.footnotes .footnotes-list {
         top: 0.35em;
         margin: 0;
     }
+
 
     #markdownBody[data-sidenotes="margin"] .footnote-item::before {
         content: "";
@@ -196,22 +216,27 @@ section.footnotes .footnotes-list {
         opacity: 0;
         transition: opacity var(--transition-fast);
     }
+
     #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible)::before {
         opacity: 1;
     }
+
     #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible),
     #markdownBody[data-sidenotes="margin"] .footnote-item:is(.is-active, :focus-visible) .footnote-label {
         color: var(--text);
     }
+
     /* The hairline and the color mark keyboard focus here. */
     #markdownBody[data-sidenotes="margin"] .footnote-item:focus-visible {
         outline: none;
     }
 
+
     /* Its reference is in a closed section. */
     #markdownBody[data-sidenotes="margin"] .footnote-item.is-unplaced {
         display: none;
     }
+
 
     /* Pushed far below its reference and now the active note: it sits
        on the reference's line, over the notes around it. The spread
@@ -225,15 +250,17 @@ section.footnotes .footnotes-list {
                     -0.25rem 0 0 calc(0.75rem + 1px) var(--border-muted);
     }
 
+
     /* The reference is beside the note: the way back shows only to a
        reader already in the note. */
     #markdownBody[data-sidenotes="margin"] .footnote-back {
         opacity: 0;
     }
+
     #markdownBody[data-sidenotes="margin"] .footnote-item:is(:hover, :focus-within) .footnote-back {
         opacity: 1;
-    }
-}
+    }}
+
 
 /* ============================================================
    MOBILE SIDENOTE POPUP
@@ -265,9 +292,11 @@ section.footnotes .footnotes-list {
     color: var(--text);
 }
 
+
 .sidenote-popup::backdrop {
     background: rgba(0, 0, 0, 0.45);
 }
+
 
 .sidenote-popup-bar {
     position: sticky;
@@ -281,12 +310,14 @@ section.footnotes .footnotes-list {
     background: var(--bg);
 }
 
+
 .sidenote-popup-title {
     font-family: var(--font-sans);
     font-size: 0.8rem;
     letter-spacing: 0.04em;
     color: var(--text-faint);
 }
+
 
 .sidenote-popup-close {
     background: none;
@@ -298,15 +329,18 @@ section.footnotes .footnotes-list {
     padding: 0.1rem 0.35rem;
 }
 
+
 .sidenote-popup-close:hover {
     color: var(--text);
 }
+
 
 .sidenote-popup-body {
     list-style: none;
     margin: 0;
     padding: 0;
 }
+
 
 /* The list item keeps its content; the sheet sets its type. */
 .sidenote-popup .footnote-item {
@@ -317,23 +351,29 @@ section.footnotes .footnotes-list {
     color: inherit;
 }
 
+
 .sidenote-popup .footnote-item p {
     margin: 0 0 0.5em;
 }
+
 
 /* The bar's title names the note. */
 .sidenote-popup .footnote-label {
     display: none;
 }
+
 .sidenote-popup .footnote-item > :is(ul, ol, blockquote, pre, .code-block, figure, table) {
     margin: 0.5em 0;
 }
+
 
 .sidenote-popup .footnote-item:focus {
     outline: none;
 }
 
+
 /* The close button is the way back. */
 .sidenote-popup .footnote-back {
     display: none;
+}
 }

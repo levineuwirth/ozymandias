@@ -1,3 +1,4 @@
+@layer engine {
 /* viz.css — Styles for inline data visualizations (.viz-figure, .viz-interactive) */
 
 /* ============================================================
@@ -8,6 +9,7 @@
     margin: 2rem 0;
     break-inside: avoid;
 }
+
 
 /* Wide figures pan instead of shrinking.
    Matplotlib bakes label text at a fixed size in user units, so scaling a
@@ -23,12 +25,14 @@
     overscroll-behavior-x: contain;
 }
 
+
 .viz-scroll svg {
     width: 100%;
     min-width: var(--viz-natural-width, 0);
     height: auto;
     display: block;
 }
+
 
 /* The wrapper is focusable so the region is scrollable by keyboard, not
    only by touch or trackpad (WCAG 2.1.1). That costs a tab stop on figures
@@ -37,6 +41,7 @@
     outline: 2px solid var(--text);
     outline-offset: 2px;
 }
+
 
 
 /* Theme every default-black fill: text, and any shape with a black face.
@@ -70,6 +75,7 @@
     fill: currentColor;
 }
 
+
 /* ============================================================
    Interactive figures (Vega-Lite via vega-embed)
    ============================================================ */
@@ -79,21 +85,25 @@
     break-inside: avoid;
 }
 
+
 .vega-container {
     width: 100%;
     overflow: hidden;
 }
+
 
 /* vega-embed injects a <div> containing a <canvas> or <svg> */
 .vega-container > div {
     width: 100% !important;
 }
 
+
 .vega-container canvas,
 .vega-container svg {
     max-width: 100%;
     display: block;
 }
+
 
 /* ============================================================
    Captions (shared)
@@ -109,6 +119,7 @@
     color: var(--text);
 }
 
+
 .viz-caption {
     font-size: var(--text-size-small);
     color: var(--text-muted);
@@ -116,6 +127,7 @@
     margin-top: 0.5rem;
     font-style: italic;
 }
+
 
 /* ============================================================
    Error display (build-time script failures)
@@ -128,4 +140,5 @@
     font-family: var(--font-mono);
     font-size: var(--text-size-small);
     margin: 1.5rem 0;
+}
 }

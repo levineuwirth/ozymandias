@@ -1,0 +1,142 @@
+@layer engine {
+/* ============================================================
+   EPISTEMIC METADATA BLOCK
+   Compact display (status chip + confidence % + dot scales)
+   with an expandable <details> for the full profile.
+   ============================================================ */
+
+/* Status chip */
+.ep-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+
+/* Every labeled row beneath the primary line shares one class so new
+   epistemic fields can be added in the template without touching CSS.
+   Used by confidence, importance, evidence, scope, novelty, practicality. */
+.ep-row {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+}
+
+.ep-row::before { content: "·\00a0"; color: var(--border); }
+
+
+/* Dot scale (importance / evidence) — only ever used nested inside an
+   .ep-row wrapper, which already supplies the centerdot separator. */
+.ep-dots {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    line-height: 1;
+    vertical-align: 0.15em;
+}
+
+.ep-row .ep-dots::before { content: none; }
+
+
+/* Trust chip on the primary row — bordered numeric chip plus a small-caps
+   "trust" label, mirroring .ep-status typography so the two sit together. */
+.ep-trust {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.ep-score {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: normal;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    border: 1px solid var(--border-muted);
+    border-radius: 2px;
+    padding: 0.05em 0.5em;
+    margin-right: 0.25em;
+}
+
+
+/* Definition list for expanded profile */
+.ep-expanded {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 0.75rem;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+
+.ep-expanded dt {
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.04em;
+}
+
+
+.ep-expanded dd {
+    margin: 0;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+}
+
+
+
+
+/* ============================================================
+   COMPACT-STRIP CHIP ADDITIONS
+   ============================================================ */
+
+/* Inline trend arrow (↑ ↓ →) appended to the confidence percentage.
+   No leading separator — sits flush against the value it modifies. */
+.ep-trend {
+    display: inline-block;
+    margin-left: 0.15em;
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    vertical-align: 0.05em;
+}
+
+.ep-row .ep-trend::before { content: none; }
+
+
+/* Peer-status chip — same typography as .ep-status, distinct
+   data-term so future revisions can style it differently. */
+.ep-peer-status {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.ep-peer-status::before {
+    content: "·\00a0";
+    color: var(--border);
+}
+
+
+/* Retracted: strikethrough across the chip text — the spec's
+   §4.1 visual marker for a retracted piece. */
+.ep-peer-status--retracted {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+
+/* Proved-confidence variant: same row typography, italic to
+   differentiate from a numeric XX% confidence chip. */
+.ep-row--proved {
+    font-style: italic;
+}
+}

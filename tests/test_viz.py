@@ -4,7 +4,7 @@ Covers the contract between three pieces that have to agree about colour:
 
   * ``content/**/figures/*.py``  — matplotlib scripts, which emit black
   * ``build/Filters/Viz.hs``     — ``processColors``, which rewrites it
-  * ``static/css/viz.css``       — which themes what is left
+  * ``static/css/modules/viz.css``       — which themes what is left
 
 That contract silently broke once already. ``processColors`` was written as a
 literal mirror of ``Filters.Score``, whose SVG comes from Lilypond and uses
@@ -42,7 +42,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from tests._helpers import SITE_ROOT, engine_path, script_env
+from tests._helpers import SITE_ROOT, engine_path, loads_stylesheet, script_env
 from tests.target import requires_switch
 
 SITE_DIR = SITE_ROOT / "_site"
@@ -208,11 +208,11 @@ class BuiltPageTests(unittest.TestCase):
         # tells authors static .figure divs do not need viz: true — so the
         # one page with figures never loaded it, and every axis label, tick
         # label and legend entry rendered black on #121212 in dark mode.
+        # It may load inside a bundle (modules.css) rather than by its own tag.
         for path, html in self.pages:
             with self.subTest(page=path.name):
-                self.assertIn(
-                    "css/viz.css",
-                    html,
+                self.assertTrue(
+                    loads_stylesheet(SITE_DIR, html, "css/modules/viz.css"),
                     "page has a .viz-figure but does not load viz.css — "
                     "figure text will not follow the theme",
                 )
@@ -493,7 +493,7 @@ UNRENDERED = {"defs", "clipPath", "mask", "marker", "pattern", "symbol"}
 def css_fill_selectors() -> set[str]:
     """Selectors whose rule sets `fill: currentColor`, without !important."""
     found: set[str] = set()
-    for css in CSS_DIR.glob("*.css"):
+    for css in CSS_DIR.rglob("*.css"):
         text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S)
         for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
             if re.search(r"(?<![\w-])fill\s*:\s*currentColor\s*(;|$)", body, re.I):

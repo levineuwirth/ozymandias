@@ -40,7 +40,7 @@ class TemplateIdentityTests(unittest.TestCase):
         build = Path(tmp.name)
         (build / "Probe.hs").write_text('''{-# LANGUAGE OverloadedStrings #-}
 import Config
-import Contexts (contentKindField)
+import Contexts (contentKindField, pageStylesheetsField)
 import Dingbat (dingbatField)
 import EngineFiles (assetsField)
 import qualified Patterns as P
@@ -58,7 +58,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> scriptContext <> seasonContext <> switchContext <> assetsField <> constField "home" "true"
+    let ctx = identityContext <> navigationContext <> scriptContext <> seasonContext <> switchContext <> bundleContext <> pageStylesheetsField <> assetsField <> constField "home" "true"
               <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"

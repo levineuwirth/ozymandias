@@ -30,9 +30,10 @@ main = getArgs >>= \\args -> case args of
     "resolve" : paths -> mapM_ (resolveFile >=> putStrLn) paths
     "existing" : paths -> mapM_ (existingFile >=> print) paths
     "files" : dirs -> mapM_ (filesIn >=> mapM_ putStrLn) dirs
+    "imports" : sheets -> mapM_ (print . hasImport) sheets
     _ -> hakyll $ do
         twins <- engineTwins
-        staticRules twins []
+        staticRules twins [] (const True)
         templateRules twins
         configRules
         dims <- makePatternDependency (staticImageDimensions .&&. hasNoVersion)
@@ -158,6 +159,71 @@ class EngineFilesTests(unittest.TestCase):
         self.assertFalse((self.root / "_site/js").exists())
         self.assertFalse((self.root / "_site/css").exists())
 
+    def test_css_compression_preserves_layers_and_nested_media(self):
+        self.write("engine/static/css/tokens.css", """
+            @layer engine, site;
+            @layer engine { @media (min-width: 1px) { #content p { color: red; } } }
+        """)
+        self.write("static/css/theme.css", "@layer site { p { color: blue; } }")
+        self.run_probe("build")
+        self.assertEqual(self.asset("css/tokens.css"),
+                         "@layer engine,site;@layer engine{@media (min-width:1px){#content p{color:red}}}")
+        self.assertEqual(self.asset("css/theme.css"), "@layer site{p{color:blue}}")
+
+    def test_a_bundled_stylesheet_may_not_import(self):
+        # In a bundle an @import no longer comes first, and browsers drop it
+        # with the rules it brings: the build refuses one, naming the file.
+        # Text that only names an @import, in a string or a comment, is not
+        # one.
+        self.write("engine/static/css/tokens.css", "@layer engine, site;")
+        self.write("static/css/theme.css", '/* @import */ @layer site { p::after { content: "@import"; } }')
+        self.run_probe("build")
+        self.assertIn('content:"@import"', self.asset("css/core.css"))
+        for spelling in ('@IMPORT url("/css/extra.css") layer(site);',
+                         '@\\69mport url("/palette.css") layer(site);'):
+            with self.subTest(spelling=spelling):
+                self.write("static/css/theme.css", spelling + "\n@layer site { p { color: blue; } }")
+                done = subprocess.run([str(self.binary), "build"], cwd=self.root, env=script_env(),
+                                      capture_output=True, text=True, timeout=60)
+                self.assertNotEqual(done.returncode, 0, done.stdout)
+                self.assertIn("static/css/theme.css: @import in a stylesheet bundled into core.css",
+                              done.stdout + done.stderr)
+
+    def test_an_import_is_found_as_css_reads_it(self):
+        # Each sheet below is one that Chromium and Firefox, given it alone,
+        # do or do not import from; a sheet the guard misses is an import a
+        # bundle silently drops. An @import is found however its name is
+        # spelled, and not in a comment, a string or a url(): so what starts
+        # and ends those must be read as CSS reads it.
+        imports = [
+            '@\\69mport url("/palette.css") layer(site);',       # escapes in the name
+            '@\\49 MPORT url(i.css);',
+            '@i\\m\\p\\o\\r\\t url(i.css);',
+            '@\\000069mport url(i.css);',
+            '@\\69\r\nmport url(i.css);',                    # CRLF is one space
+            '@\\69\fmport url(i.css);',
+            '@layer a\\"b; @import url(i.css); /* " */',      # an escaped quote opens no string
+            '@x url(/*); @import url(i.css); /* */',           # nor does /* open a comment in a url()
+            "@x url(a'b); @import url(i.css); /* ' */",        # nor a quote
+            '@x \\75rl(/*); @import url(i.css); /* */',        # url( spelled with an escape
+            '@x <!--url(/*); @import url(i.css); /* */',
+            '@x "\\41\n"; @import url(i.css); "',              # an escape takes the line break
+            '@x "a\n; @import url(i.css); "',                  # an unclosed string ends at the line
+            '@x url( "a)/*"); @import url(i.css); /* */',      # a quoted url() is a function
+        ]
+        others = [
+            '/* @import */', 'p::after { content: "@import"; }', "@x url(@import);",
+            "\\@import url(i.css);", "@importx url(i.css);", "@-import url(i.css);",
+            "@/**/import url(i.css);",
+            '@x #url(/*); @import url(i.css); /* */',          # a hash, not a url(
+            '@x 1url(/*); @import url(i.css); /* */',          # a unit, not a url(
+        ]
+        found = self.run_probe("imports", *imports, *others).split()
+        for sheet, answer in zip(imports + others, found):
+            with self.subTest(sheet=sheet):
+                self.assertEqual(answer, "True" if sheet in imports else "False")
+        self.assertEqual(len(found), len(imports) + len(others))
+
     def test_the_version_follows_the_files_and_every_file_and_page_follow_it(self):
         self.write("engine/static/css/base.css", "a {\n  color: red;\n}\n", mtime=1000)
         self.write("engine/static/js/engine.js", "one();\n", mtime=1000)
@@ -179,8 +245,9 @@ class EngineFilesTests(unittest.TestCase):
         self.assertEqual(self.versions(), {first, second})
         self.assertEqual(self.asset("js/engine.js"), "two();\n")
         self.assertEqual(self.asset("css/base.css"), "a{color:red}")
-        # Below the top directory a stylesheet is copied, not compressed.
-        self.assertEqual(self.asset("css/seasons/dusk.css"), "b {\n  color: blue;\n}\n")
+        # Below the top directory a stylesheet is compressed too: modules/
+        # holds most of the engine's, and a bundle is made of them as built.
+        self.assertEqual(self.asset("css/seasons/dusk.css"), "b{color:blue}")
         self.assertEqual(self.built(f"assets/{first}/js/engine.js"), "one();\n")
         # A site's own file counts, and an override of an engine file.
         self.write("static/css/site.css", "c{}", mtime=4000)
@@ -382,7 +449,10 @@ class EngineDefaultsTests(unittest.TestCase):
                 if path.is_file():
                     named.update(url for url in IMAGE_URL.findall(path.read_text(errors="replace"))
                                  if not url.startswith(DOWNLOADED))
-        self.assertGreater(len(named), 40)
+        # Brand icons now belong to the site's skin. The engine still
+        # names its generic link icons and default identity assets.
+        self.assertTrue({"/favicon.svg", "/og-image.png", "/images/link-icons/external.svg",
+                         "/images/link-icons/document.svg"}.issubset(named), named)
         static = engine_path("static")
         self.assertEqual(sorted(u for u in named if not (static / u.lstrip("/")).is_file()), [])
 

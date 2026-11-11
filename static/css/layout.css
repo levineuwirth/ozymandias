@@ -1,3 +1,4 @@
+@layer engine {
 /* layout.css — Three-column page structure: TOC | body | sidenotes */
 
 /* ============================================================
@@ -17,10 +18,11 @@
     min-height: calc(100dvh - var(--nav-height, 4rem));
 }
 
+
 /* ============================================================
    HEADER
    Full-width, sits above the three-column area.
-   (Nav styles live in components.css)
+   (Nav styles live in nav.css)
    ============================================================ */
 
 /* Site-nav header only.
@@ -40,6 +42,7 @@ body > header:not(.essay-frontmatter) {
     z-index: 100;
 }
 
+
 /* ============================================================
    CONTENT AREA
    Three-column grid: [toc 220px] [body] [phantom 220px]
@@ -58,10 +61,11 @@ body > header:not(.essay-frontmatter) {
     padding: 2rem var(--page-padding);
 }
 
+
 /* ============================================================
    LEFT COLUMN — TABLE OF CONTENTS
    Sticky sidebar, collapses below a breakpoint.
-   (TOC content + scroll tracking in toc.js / components.css)
+   (TOC content + scroll tracking in toc.js / toc.css)
    ============================================================ */
 
 #toc {
@@ -73,6 +77,7 @@ body > header:not(.essay-frontmatter) {
     padding-right: 1.5rem;
     align-self: start;
 }
+
 
 /* ============================================================
    CENTER COLUMN — MAIN BODY
@@ -89,6 +94,7 @@ body > header:not(.essay-frontmatter) {
     min-width: 0;
 }
 
+
 /* ============================================================
    STANDALONE PAGES (no #content wrapper)
    essay-index, blog-index, tag-index, page, blog-post, search —
@@ -104,11 +110,12 @@ body > header:not(.essay-frontmatter) {
     flex: 1 0 auto;
 }
 
+
 @media (max-width: 680px) {
     .page-shell > #markdownBody {
         padding: 1.25rem var(--page-padding);
-    }
-}
+    }}
+
 
 
 /* ============================================================
@@ -128,6 +135,7 @@ body > header:not(.essay-frontmatter) {
     margin-top: auto;
 }
 
+
 .footer-left {
     display: flex;
     flex-wrap: wrap;
@@ -137,20 +145,24 @@ body > header:not(.essay-frontmatter) {
     row-gap: 0.3rem;
 }
 
+
 .footer-left a {
     color: var(--text-faint);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
+
 .footer-left a:hover {
     color: var(--text-muted);
 }
+
 
 .footer-center {
     font-size: 0.72rem;
     color: var(--text-faint);
 }
+
 
 .footer-license a {
     color: var(--text-faint);
@@ -158,9 +170,11 @@ body > header:not(.essay-frontmatter) {
     transition: color var(--transition-fast);
 }
 
+
 .footer-license a:hover {
     color: var(--text-muted);
 }
+
 
 .footer-totop {
     background: none;
@@ -174,14 +188,17 @@ body > header:not(.essay-frontmatter) {
     transition: color var(--transition-fast);
 }
 
+
 .footer-totop:hover {
     color: var(--text-muted);
 }
+
 
 .footer-right {
     flex: 1;
     text-align: right;
 }
+
 
 .footer-build-link {
     font-size: 0.72rem;
@@ -190,10 +207,12 @@ body > header:not(.essay-frontmatter) {
     text-decoration: none;
 }
 
+
 .footer-build-link:hover {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
+
 
 
 /* ============================================================
@@ -215,14 +234,15 @@ body > header:not(.essay-frontmatter) {
     display: none;
 }
 
+
 /*  Below ~900px: hide the TOC.
     #markdownBody stays in grid-column 2, so it remains centered
     with the phantom right column still balancing it. */
 @media (max-width: 900px) {
     #toc {
         display: none;
-    }
-}
+    }}
+
 
 /*  Below ~680px: collapse to single-column, full-width body. */
 @media (max-width: 680px) {
@@ -231,10 +251,12 @@ body > header:not(.essay-frontmatter) {
         padding: 1.25rem var(--page-padding);
     }
 
+
     #markdownBody {
         grid-column: 1;
         width: 100%;
     }
+
 
     /* Footer: stack vertically so three sections don't fight for width. */
     .page-shell > footer {
@@ -245,18 +267,20 @@ body > header:not(.essay-frontmatter) {
         text-align: center;
     }
 
+
     .footer-left {
         justify-content: center;
     }
 
+
     .footer-right {
         text-align: center;
-    }
-}
+    }}
+
 
 /*  Below ~900px: body spans full width (TOC hidden, no phantom column). */
 @media (max-width: 900px) and (min-width: 681px) {
     #markdownBody {
         grid-column: 1 / -1;
-    }
+    }}
 }

@@ -1,0 +1,107 @@
+@layer engine {
+/* ============================================================
+   COPY BUTTON
+   Injected by copy.js as a *sibling* of each <pre>, inside a
+   .code-block positioning context — never as a child. Three
+   things follow from that, and they are the reason for it:
+
+     1. The button sits outside the <pre>'s scroll box, so it
+        stays in the corner when long lines are scrolled
+        sideways instead of drifting off with the code.
+     2. It is out of flow, so it cannot shorten or indent the
+        block's first line the way a float does.
+     3. It is not in the copied subtree, so the copied text
+        needs no scrubbing.
+
+   Placement: the <pre> reserves 1.65rem of top padding, so a
+   ~22px control pinned to the top-right overlays empty gutter
+   rather than code — true at every viewport width, which is
+   what makes it safe to leave visible on touch.
+   ============================================================ */
+
+.code-block {
+    position: relative;
+}
+
+
+/* The wrapper inherits the block's vertical rhythm; the <pre>
+   inside it must not double it. */
+#markdownBody .code-block > pre {
+    margin: 0;
+}
+
+
+.copy-btn {
+    position: absolute;
+    top: 0.36rem;
+    right: 0.4rem;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    padding: 0;
+
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, color 0.12s ease,
+                border-color 0.12s ease, background-color 0.12s ease;
+}
+
+
+.copy-btn-glyph {
+    width: 0.82rem;
+    height: 0.82rem;
+    display: block;
+}
+
+
+/* Idle shows the clipboard; the copied/error state shows the tick. */
+.copy-btn-glyph--done { display: none; }
+
+.copy-btn[data-state] .copy-btn-glyph--idle { display: none; }
+
+.copy-btn[data-state] .copy-btn-glyph--done { display: block; }
+
+
+/* Revealed by intent only: pointing at the block, tabbing to the
+   button, or having just used it. */
+.code-block:hover .copy-btn,
+.copy-btn:focus-visible,
+.copy-btn[data-state] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+
+.copy-btn:hover {
+    color: var(--text-muted);
+    background: var(--bg);
+    border-color: var(--border-muted);
+}
+
+
+.copy-btn:focus-visible {
+    outline: 1px solid var(--border);
+    outline-offset: 1px;
+}
+
+
+.copy-btn[data-state="copied"] { color: var(--text-muted); }
+
+.copy-btn[data-state="error"]  { color: var(--text-faint); }
+
+
+@media (prefers-reduced-motion: reduce) {
+    .copy-btn { transition: none; }}
+}

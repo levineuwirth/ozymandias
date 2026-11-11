@@ -1,0 +1,313 @@
+@layer engine {
+/* ============================================================
+   PAGE TITLE
+   ============================================================ */
+
+.page-title {
+    font-family: var(--font-sans);
+    font-size: 2.6rem;
+    font-weight: 600;
+    margin: 0 0 1.65rem 0;
+    line-height: 1.1;
+    color: var(--text);
+    /* Long compound titles ("Post-Quantum", "Micro-Architectural") are
+       wider than a 260px column at 320 CSS pixels. break-word only
+       splits a word that cannot fit on a line of its own, so ordinary
+       titles are untouched. */
+    overflow-wrap: break-word;
+}
+
+
+
+
+/* ============================================================
+   METADATA BLOCK
+   Vertical sequence above the body: tags, description,
+   authors (optional), jump links to bottom footer sections.
+   ============================================================ */
+
+.metadata {
+    margin-bottom: 2.475rem;
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+
+.meta-row {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+
+/* Tags, authors, jump links: centered */
+.meta-tags,
+.meta-authors,
+.meta-pagelinks {
+    text-align: center;
+}
+
+
+/* Description: blockquote style, left-aligned */
+.meta-description {
+    font-style: italic;
+    padding-left: 1.25em;
+    border-left: 2px solid var(--border);
+    color: var(--text-muted);
+}
+
+
+/* Tags: centered row of small-caps links separated by middots */
+.meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    /* WCAG 2.2 SC 2.5.8: adjacent chips previously touched and were only
+       22.4 x 30. The padding + min-height below take each chip past
+       24 x 24 on its own, which is what the criterion asks for; the gap
+       keeps them from reading as one word. */
+    gap: 0.15rem 0.1rem;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    min-width: 0;
+}
+
+
+.meta-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 0.25rem;
+    color: var(--text-faint);
+    text-decoration: none;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.06em;
+    overflow-wrap: anywhere;
+    transition: color var(--transition-fast);
+}
+
+
+.meta-tag:hover {
+    color: var(--text-muted);
+}
+
+
+/* The middot separator moves from a leading ::before to a trailing
+   ::after. As a flex row the chips now wrap, and a leading separator
+   would open a wrapped line with a dangling "·"; a trailing one reads
+   as a continuation, the way a line-ending hyphen does. */
+.meta-tag + .meta-tag::before {
+    content: none;
+}
+
+
+.meta-tags .meta-tag:not(:last-child)::after,
+.item-card-tags .meta-tag:not(:last-child)::after {
+    content: "·";
+    color: var(--text-faint);
+    margin-left: 0.45em;
+    margin-right: -0.2em;
+    letter-spacing: 0;
+    font-variant-caps: normal;
+}
+
+
+/* Cancel the first chip's leading padding so the row still aligns with
+   the text block above it. */
+.meta-tags,
+.item-card-tags {
+    margin-left: -0.25rem;
+}
+
+
+/* Affiliation: institution name below author, in sans to contrast the serif author row */
+.meta-affiliation {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+
+.meta-affiliation a {
+    color: var(--text-faint);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+
+.meta-affiliation a:hover {
+    color: var(--text-muted);
+}
+
+
+/* Authors: "by" label + name */
+.meta-authors {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+}
+
+.meta-authors .meta-label {
+    font-variant-caps: all-small-caps;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    margin-right: 0.4rem;
+}
+
+
+/* Jump links: inline, separated by middots */
+.meta-pagelinks {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.meta-pagelinks a {
+    color: var(--text-faint);
+    text-decoration: none;
+}
+
+.meta-pagelinks a:hover {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.meta-pagelinks a + a::before {
+    content: " · ";
+    color: var(--border);
+    display: inline-block;
+    text-decoration: none;
+    white-space: pre;
+}
+
+
+/* Top-of-page parallel tag strip — surfaces the full epistemic profile
+   inline so a reader sees status, trust score, and every orientation
+   axis at a glance, without scrolling to the footer. The trust chip
+   anchors the left edge; status sits next to it; the labeled rows
+   follow with their leading centerdot separators. Wraps freely. */
+.meta-epistemic-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem 0.55rem;
+}
+
+
+
+
+/* ============================================================
+   PAGINATION NAV
+   ============================================================ */
+
+.paginate-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-muted);
+    font-family: var(--font-sans);
+}
+
+
+.paginate-btn {
+    color: var(--text-faint);
+    text-decoration: none;
+    font-size: 1rem;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+
+.paginate-btn:hover {
+    color: var(--text-muted);
+}
+
+
+.paginate-info {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+
+
+
+/* ============================================================
+   COLLECTION LANDING PAGES
+   templates/collection.html — the index a poetry or fiction
+   collection's index.md renders: an optional standfirst, the
+   scaffold prose, then the collection's own children.
+
+   The list itself is .essay-list, shared with the section
+   indexes, so only the collection-specific parts are described
+   here: the standfirst, the Contents section around the list,
+   and the empty state that stands in for it.
+   ============================================================ */
+
+.collection-abstract {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: 0 0 1.5rem;
+    max-width: 34em;
+}
+
+
+/* A rule above the heading separates the collection's own prose from
+   the machine-generated list below it, which is the one boundary a
+   reader needs on this page. */
+.collection-contents {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+
+/* The id selector is deliberate: typography.css sets `#markdownBody h2`
+   to the 1.85rem body heading, and a class-only rule loses to it. This is
+   a label for a generated list, not another section of the author's
+   prose, so it wants the small-caps register the site uses for meta rows
+   rather than the display size. */
+#markdownBody .collection-contents > h2 {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 1rem;
+}
+
+
+/* Numbered by the <ol>, but the numbers are noise beside titles that
+   already read in order. */
+.collection-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+
+.collection-empty {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    margin: 0;
+}
+}

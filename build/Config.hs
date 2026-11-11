@@ -8,7 +8,7 @@ module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
     , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
     , Standalone (..), PageKind (..), Season (..), standaloneDir, engineSources, engineContentDirs
-    , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, registryPath
+    , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, bundleContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
     , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext
     , manifestRules
@@ -16,7 +16,7 @@ module Config
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
-import EngineFiles (assetsField, engineDir)
+import EngineFiles (assetsField, bundlePlan, engineDir)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
@@ -785,6 +785,18 @@ switchContext = Context $ \key _ _ -> case stripPrefix "switch-" key of
             Nothing    -> fail ("a template asks for " ++ key ++ ": " ++ name ++ " is not in " ++ registryPath)
             Just True  -> pure (StringField "true")
             Just False -> noResult ("the " ++ name ++ " switch is off")
+
+-- | @$css-NAME$@, present when the site builds stylesheet bundle NAME
+--   ('EngineFiles.cssBundles'): when any of its files is in, by the
+--   switches. A page links a bundle only if it is there.
+bundleContext :: Context a
+bundleContext = Context $ \key _ _ -> case stripPrefix "css-" key of
+    Nothing   -> noResult ("not a bundle: " ++ key)
+    Just name -> do
+        cfg <- loadConfig
+        if name `elem` map fst (bundlePlan (switchOn cfg))
+            then pure (StringField "true")
+            else noResult ("no " ++ name ++ " bundle")
 
 loadFeed :: FilePath -> Compiler (SiteConfig, FeedSpec)
 loadFeed path = do

@@ -1,3 +1,4 @@
+@layer engine {
 /* annotations.css — User highlight marks and annotation tooltip */
 
 /* ============================================================
@@ -16,6 +17,8 @@ mark.user-annotation {
     box-decoration-break: clone;
 }
 
+
+
 /* A highlight across elements is a mark per text node (annotations.js):
    where one joins the next, no padding or rounding between them, so the
    text keeps its spacing and the highlight reads as one. */
@@ -24,39 +27,41 @@ mark.user-annotation.ann-joins-prev {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
+
+
 mark.user-annotation.ann-joins-next {
     padding-right: 0;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
 
+
+
 /* Double class = specificity (0,2,1), beats UA mark rule and the base reset above */
-mark.user-annotation.user-annotation--amber { background-color: rgba(245, 158,  11, 0.32); }
-mark.user-annotation.user-annotation--sage  { background-color: rgba(107, 158, 120, 0.34); }
-mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.34); }
-mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.34); }
+mark.user-annotation.user-annotation--amber {
+    background-color: var(--annotation-amber-background);
+}
+
+
+mark.user-annotation.user-annotation--sage  {
+    background-color: var(--annotation-sage-background);
+}
+
+
+mark.user-annotation.user-annotation--steel {
+    background-color: var(--annotation-steel-background);
+}
+
+
+mark.user-annotation.user-annotation--rose  {
+    background-color: var(--annotation-rose-background);
+}
+
+
 
 mark.user-annotation:hover { filter: brightness(0.80); }
 
-/* Dark mode — slightly more opaque so highlights stay visible */
-[data-theme="dark"] mark.user-annotation.user-annotation--amber { background-color: rgba(245, 158,  11, 0.40); }
-[data-theme="dark"] mark.user-annotation.user-annotation--sage  { background-color: rgba(107, 158, 120, 0.42); }
-[data-theme="dark"] mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.42); }
-[data-theme="dark"] mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.42); }
 
-/* Cappuccino — dark warm bg, so highlights need dark-mode-level opacity */
-[data-theme="cappuccino"] mark.user-annotation.user-annotation--amber { background-color: rgba(245, 180,  70, 0.42); }
-[data-theme="cappuccino"] mark.user-annotation.user-annotation--sage  { background-color: rgba(130, 175, 140, 0.42); }
-[data-theme="cappuccino"] mark.user-annotation.user-annotation--steel { background-color: rgba(140, 170, 200, 0.42); }
-[data-theme="cappuccino"] mark.user-annotation.user-annotation--rose  { background-color: rgba(220, 140, 140, 0.42); }
-
-/* System dark mode fallback (for prefers-color-scheme without explicit data-theme) */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) mark.user-annotation.user-annotation--amber { background-color: rgba(245, 158,  11, 0.40); }
-    :root:not([data-theme]) mark.user-annotation.user-annotation--sage  { background-color: rgba(107, 158, 120, 0.42); }
-    :root:not([data-theme]) mark.user-annotation.user-annotation--steel { background-color: rgba(112, 150, 184, 0.42); }
-    :root:not([data-theme]) mark.user-annotation.user-annotation--rose  { background-color: rgba(200, 116, 116, 0.42); }
-}
 
 /* ============================================================
    ANNOTATION TOOLTIP
@@ -88,6 +93,8 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     pointer-events: none;
 }
 
+
+
 /* Opening: visible at once, as the picker below is. Enter on a highlight
    moves focus to Delete, and showTooltip hides the tooltip for a moment
    to measure it: with visibility fading in, the browser refused that
@@ -99,11 +106,15 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     transition: opacity 0.12s ease, visibility 0s;
 }
 
+
+
 .ann-tooltip-note {
     margin-bottom: 0.35rem;
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+
 
 .ann-tooltip-meta {
     display: flex;
@@ -112,10 +123,14 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     gap: 0.5rem;
 }
 
+
+
 .ann-tooltip-date {
     opacity: 0.55;
     font-size: 0.68rem;
 }
+
+
 
 .ann-tooltip-delete {
     background: none;
@@ -130,7 +145,11 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     transition: opacity 0.1s ease;
 }
 
+
+
 .ann-tooltip-delete:hover { opacity: 1; }
+
+
 
 /* ============================================================
    ANNOTATE PICKER
@@ -160,6 +179,8 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     pointer-events: none;
 }
 
+
+
 /* Opening: visible at once. While visibility was still transitioning from
    hidden, the browser refused the focus() selection-popup.js gives the
    note field, and the keyboard was left on the page behind (as with the
@@ -171,12 +192,16 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     transition: opacity 0.12s ease, visibility 0s;
 }
 
+
+
 .ann-picker-swatches {
     display: flex;
     gap: 0.45rem;
     margin-bottom: 0.5rem;
     align-items: center;
 }
+
+
 
 .ann-picker-swatch {
     width: 1.05rem;
@@ -190,16 +215,28 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     transition: transform 0.1s ease, border-color 0.1s ease;
 }
 
+
+
 .ann-picker-swatch--amber { background: rgba(245, 158,  11, 0.9); }
+
+
 .ann-picker-swatch--sage  { background: rgba(107, 158, 120, 0.9); }
+
+
 .ann-picker-swatch--steel { background: rgba(112, 150, 184, 0.9); }
+
+
 .ann-picker-swatch--rose  { background: rgba(200, 116, 116, 0.9); }
+
+
 
 .ann-picker-swatch.is-selected,
 .ann-picker-swatch:focus-visible {
     border-color: var(--bg);
     transform: scale(1.2);
 }
+
+
 
 .ann-picker-note {
     display: block;
@@ -216,11 +253,17 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     outline: none;
 }
 
+
+
 .ann-picker-note::placeholder { opacity: 0.5; }
+
+
 
 .ann-picker-note:focus {
     border-color: rgba(255, 255, 255, 0.45);
 }
+
+
 
 /* Shown when a selection cannot be anchored (annotations.js). */
 .ann-picker-error {
@@ -230,10 +273,14 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     color: var(--danger);
 }
 
+
+
 .ann-picker-actions {
     display: flex;
     justify-content: flex-end;
 }
+
+
 
 .ann-picker-submit {
     background: rgba(255, 255, 255, 0.15);
@@ -248,14 +295,23 @@ mark.user-annotation:hover { filter: brightness(0.80); }
     transition: background 0.1s ease;
 }
 
+
+
 .ann-picker-submit:hover {
     background: rgba(255, 255, 255, 0.28);
 }
+
+
 
 /* ============================================================
    REDUCE MOTION
    ============================================================ */
 
 [data-reduce-motion] mark.user-annotation { transition: none; }
+
+
 [data-reduce-motion] .ann-tooltip         { transition: none; }
+
+
 [data-reduce-motion] .ann-picker          { transition: none; }
+}
