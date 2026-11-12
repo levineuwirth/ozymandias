@@ -38,6 +38,8 @@ module EngineFiles
     , Sheet (..)
     , cssBundles
     , bundlePlan
+    , scriptModules
+    , modulePlan
     , assetsField
     , staticImageDimensions
     , hasImport
@@ -191,11 +193,38 @@ bundlePlan :: (String -> Bool) -> [(String, [String])]
 bundlePlan on =
     [ (name, files)
     | (name, switch, sheets) <- cssBundles, maybe True on switch
-    , let files = [ file | sheet <- sheets, file <- included sheet ]
+    , let files = concatMap (sheetFiles on) sheets
     , not (null files) ]
-  where
-    included (Always file) = [file]
-    included (Switched switches file) = [file | any on switches]
+
+-- | A sheet's file, if the site's switches let it in.
+sheetFiles :: (String -> Bool) -> Sheet -> [String]
+sheetFiles _ (Always file) = [file]
+sheetFiles on (Switched switches file) = [file | any on switches]
+
+-- | Scripts served with their switches' modules after them. Each module
+--   is a file of its own in the source (@static/js/NAME/…@, which a site
+--   overrides by path as any other) and, on the page, part of the one
+--   file its script always was, so a switch costs no request. A module
+--   comes in only with its switch, or one of them, on, in the order here,
+--   which is the order they run in: one that another uses comes first
+--   (@popups/source@ before the source and code popups). The modules are
+--   not published alone.
+scriptModules :: [(String, [Sheet])]
+scriptModules =
+    [ ("popups",
+        [ Switched ["epistemic"] "popups/epistemic"
+        , Switched ["source-refs", "code-refs"] "popups/source"
+        , Switched ["source-refs"] "popups/source-refs"
+        , Switched ["code-refs"] "popups/code-refs"
+        , Switched ["pdf-viewer"] "popups/pdf"
+        , Switched ["signature-link"] "popups/signature"
+        , Switched ["music"] "popups/music"
+        , Switched ["photography"] "popups/photography" ])
+    ]
+
+-- | Each script with modules, and the modules the site serves with it.
+modulePlan :: (String -> Bool) -> [(String, [String])]
+modulePlan on = [ (name, concatMap (sheetFiles on) sheets) | (name, sheets) <- scriptModules ]
 
 -- | Static files, the site's and the engine's, served without @static/@,
 --   but for @withheld@: those of the switches the site has off
@@ -215,10 +244,14 @@ staticRules twins withheld on themes = do
     -- they move together. Any change to the set moves all of them, and every
     -- page ('assetsField').
     -- The bundles are made from those files, but which files go in follows
-    -- the switches, so the plan is part of what the version names.
-    let plan = bundlePlan on
+    -- the switches, so the plan is part of what the version names; as are
+    -- the modules each script is served with.
+    let plan    = bundlePlan on
+        modules = modulePlan on
+        hosts   = foldr ((.||.) . inBoth . (\n -> "static/js/" ++ n ++ ".js")) (fromList []) (map fst modules)
+        parts   = foldr ((.||.) . inBoth . (\n -> "static/js/" ++ n ++ "/**")) (fromList []) (map fst modules)
     assets  <- getMatches firstParty
-    current <- preprocess (assetVersion (show plan) assets)
+    current <- preprocess (assetVersion (show (plan, modules)) assets)
     changed <- makePatternDependency firstParty
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
@@ -243,9 +276,24 @@ staticRules twins withheld on themes = do
                            | otherwise                            = id
                 fmap (compressCss . copies) <$> getResourceString
 
-        match (firstParty .&&. complement (inBoth "static/css/**")) $ do
+        match (firstParty .&&. complement (inBoth "static/css/**" .||. hosts .||. parts)) $ do
             route   versioned
             compile copyFileCompiler
+
+        -- A script's modules ('scriptModules'), read for it and not
+        -- published alone.
+        match (served "static/js/**" .&&. parts) $ compile getResourceString
+
+        -- Each script with modules: itself, then those the switches let in,
+        -- the site's file or else the engine's. With none, its own bytes.
+        forM_ modules $ \(name, files) -> do
+            sources <- concat <$> mapM (siteOrEngine . (\f -> "static/js/" ++ f ++ ".js")) files
+            match (served ("static/js/" ++ name ++ ".js")) $ do
+                route   versioned
+                compile $ do
+                    host   <- getResourceString
+                    bodies <- mapM loadBody sources
+                    makeItem (intercalate "\n" (itemBody host : bodies))
 
         -- Each bundle: its files, the site's or else the engine's, as the
         -- rule above compiled them, one after another.
@@ -256,16 +304,7 @@ staticRules twins withheld on themes = do
         -- other rules, so after the files ahead of it every browser drops
         -- it, and with it the rules it would have brought.
         forM_ plan $ \(name, files) -> do
-            found <- forM files $ \file -> do
-                let own    = fromFilePath ("static/css/" ++ file ++ ".css")
-                    engine = fromFilePath (engineDir ++ "/static/css/" ++ file ++ ".css")
-                site <- getMatches (fromList [own])
-                eng  <- getMatches (fromList [engine])
-                pure $ case (site, eng) of
-                    (_ : _, _) -> [own]
-                    (_, _ : _) -> [engine]
-                    _          -> []
-            let sources = concat found
+            sources <- concat <$> mapM (siteOrEngine . (\f -> "static/css/" ++ f ++ ".css")) files
             unless (null sources) $ create [fromFilePath ("css-bundle/" ++ name)] $ do
                 route   $ constRoute ("assets/" ++ current ++ "/css/" ++ name ++ ".css")
                 compile $ do
@@ -302,6 +341,19 @@ staticRules twins withheld on themes = do
     -- Claim shadowed sidecars too: the dependency pattern covers both
     -- roots, and every identifier it sees must have an unversioned rule.
     match staticImageDimensions $ compile getResourceLBS
+
+-- | A static file's identifier: the site's, or else the engine's; none
+--   when neither has it.
+siteOrEngine :: FilePath -> Rules [Identifier]
+siteOrEngine rel = do
+    let own    = fromFilePath rel
+        engine = fromFilePath (engineDir ++ "/" ++ rel)
+    site <- getMatches (fromList [own])
+    eng  <- getMatches (fromList [engine])
+    pure $ case (site, eng) of
+        (_ : _, _) -> [own]
+        (_, _ : _) -> [engine]
+        _          -> []
 
 -- | Whether a stylesheet has an @import rule: whether CSS's tokenizer
 --   (CSS Syntax 3, § 4.3) finds an at-keyword named @import in it,

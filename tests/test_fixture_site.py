@@ -405,6 +405,27 @@ class FixtureBuilds(unittest.TestCase):
                     self.assertEqual((css / f"{bundle}.css").read_text(),
                                      "\n".join((css / f"{file}.css").read_text() for file in files))
 
+    def test_each_script_is_served_with_its_switches_modules(self):
+        # What `site script-modules` plans for each build: the script as
+        # it is, then each module the switches let in, the site's or else
+        # the engine's, and no other module.
+        for build in self.builds:
+            site = self.sites[build.name]
+            plan = json.loads(subprocess.run([str(site_binary()), "script-modules"], cwd=site, env=script_env(),
+                                             capture_output=True, text=True, check=True).stdout)
+            js = next((site / "_site/assets").iterdir()) / "js"
+            for script, modules in plan.items():
+                with self.subTest(build=build.name, script=script):
+                    served = js / f"{script}.js"
+                    if not served.is_file():
+                        continue   # the script's own switch is off
+                    def source(rel):
+                        own = site / f"static/js/{rel}.js"
+                        return (own if own.is_file() else engine_path(f"static/js/{rel}.js")).read_text()
+                    self.assertEqual(served.read_text(), "\n".join([source(script)] + [source(m) for m in modules]))
+                    self.assertFalse((js / script).exists(), "a module is published alone")
+            self.assertIn("popups", plan)
+
     def test_a_page_s_own_stylesheets_are_its_alone(self):
         site = self.sites["minimal"]
         own = switch_checks.text(site, "short-page.html")

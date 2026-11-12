@@ -19,7 +19,12 @@
 
    A site asks only the providers its site.yaml lists in popup-providers
    (ozySite.popupProviders, 4 to 14 above); local annotations, citations and
-   internal pages need no listing.
+   internal pages need no listing. What other switches bring (the epistemic
+   block and its terms, source files, GitHub snapshots, PDFs, the PGP
+   signature) are modules, static/js/popups/*.js, served after this file
+   in the same one by the site's switches (EngineFiles.scriptModules); they
+   bind through window.ozyPopups, as a site's own script may ("Binding",
+   below).
 
    For those it lists, production nginx CSP must add to connect-src:
      https://*.wikipedia.org  https://api.crossref.org
@@ -101,127 +106,110 @@
         });
     }
 
-    /* Epistemic term definitions — concise summaries,
-       shown on hover for filter labels, metadata strip items, etc. */
-    var EP_DEFS = {
-        status:       'A controlled vocabulary describing where the work stands: Draft, Working model, Durable, Refined, Superseded, or Deprecated.',
-        /* templates/partials/metadata-header.html tags this one too; it
-           had no entry, so hovering it showed nothing. */
-        'peer-status': 'The external review state: unreviewed, under review, peer reviewed, published, or retracted. Distinct from status, the author\u2019s own position: a piece can be Durable and unreviewed at the same time.',
-        confidence:   'An integer from 0\u2013100, representing the author\u2019s credence in the central thesis.',
-        importance:   'How much the author thinks this matters, on a 1\u20135 dot scale. Useful for orienting a reader who has limited time.',
-        evidence:     'How well-evidenced the claims are, on a 1\u20135 scale. High importance and low evidence indicates a speculative position.',
-        trust:        'A 0\u2013100 score derived automatically from confidence (60%) and evidence quality (40%). Answers \u201chow much should you trust the central claim?\u201d and nothing else.',
-        scope:        'An orientation from personal to civilizational. Not a rating\u2009\u2014\u2009deliberately not folded into the trust score.',
-        novelty:      'An orientation from conventional to innovative. Not a rating\u2009\u2014\u2009deliberately not folded into the trust score.',
-        practicality: 'An orientation from abstract to exceptional. Not a rating\u2009\u2014\u2009deliberately not folded into the trust score.',
-        stability:    'Auto-computed from git history. Very new or barely-touched documents are volatile; actively-revised are revising; older settled documents are fairly stable, stable, or established.'
+    /* ------------------------------------------------------------------
+       Binding: which provider an element gets
+
+       Each binder is a selector and what to show for an element it finds,
+       at an order. bindTargets runs them lowest first, and an element
+       keeps the first provider bound to it (bind()), so a specific kind
+       claims its links before the generic internal and external ones. A
+       source reference with a same-origin href (../source/data/x.json)
+       used to be claimed as an internal page, which showed nothing (audit
+       J08). The engine's own binders are here; the rest come with their
+       switches, served after this file in the same one
+       (static/js/popups/*.js, EngineFiles.jsModules), and a site's script
+       may add its own through window.ozyPopups before the page has loaded
+       (contract.yaml's scripts):
+
+          10  epistemic term definitions  [data-ep-term]        epistemic
+          20  citation markers            a.cite-link           here
+          30  the epistemic jump link     a[href="#epistemic"]  epistemic
+          40  source-file references      a.source-ref          source-refs
+          50  GitHub code references      a[data-code-ref]      code-refs
+          60  PDF links                   a.pdf-link            pdf-viewer
+          70  the PGP signature link      a.footer-sig-link     signature-link
+          80  internal links              same-origin hrefs     here
+          90  external links              PROVIDERS             here
+         100  dates                       [data-date-start]     here
+         110  item-card revision markers  .item-card-revised    here
+    ------------------------------------------------------------------ */
+
+    var BINDERS  = [];   /* {order, selector, pick(el): a provider, or null} */
+    var EXCLUDED = [];   /* containers whose internal links are their own preview */
+    var SHOWN    = [];   /* each called with the popup once it is shown and placed */
+
+    function addBinder(order, selector, pick) {
+        BINDERS.push({order: order, selector: selector, pick: pick});
+        /* Stable: binders of one order keep the order they came in. */
+        BINDERS.sort(function (a, b) { return a.order - b.order; });
+    }
+
+    window.ozyPopups = {
+        /* `content(target)`, a Promise of HTML, a Node, or null for no
+           popup, for the elements `selector` finds, at `order`. */
+        bind: function (order, selector, content) {
+            addBinder(order, selector, function () { return content; });
+        },
+        /* Internal links inside `selector` get no preview: what is there
+           is its own (a photograph's card, a score's spine). */
+        exclude: function (selector) { EXCLUDED.push(selector); },
+        /* `fn(popup)` once a popup is shown and placed, for what needs its
+           layout (the source popup's line band). */
+        onShow: function (fn) { SHOWN.push(fn); },
+        truncate: function (s, limit) { return truncate(s, limit); }
     };
 
+    /* Citation markers */
+    addBinder(20, 'a.cite-link[href^="#ref-"]', function () { return citationContent; });
+
+    /* Internal links — absolute (/foo) and relative (../../foo) same-origin hrefs.
+       relativizeUrls in Hakyll makes index-page links relative, so we must match both. */
+    addBinder(80, 'a[href^="/"], a[href^="./"], a[href^="../"]', function (el) {
+        for (var i = 0; i < EXCLUDED.length; i++) {
+            if (el.closest(EXCLUDED[i])) return null;
+        }
+
+        /* Author links, backlink source links, and Related items always get popups */
+        var inAuthors  = el.closest('.meta-authors');
+        var isBacklink = el.classList.contains('backlink-source');
+        var isSimilar  = el.classList.contains('similar-link');
+        /* PDF-typed Related items are handled below by the pdf-link binder */
+        if (isSimilar && el.classList.contains('pdf-link')) return null;
+        if (!inAuthors && !isBacklink && !isSimilar) {
+            if (el.closest('nav, #toc, footer, .page-meta-footer, .metadata')) return null;
+            if (el.classList.contains('cite-link') || el.classList.contains('meta-tag')) return null;
+            if (el.classList.contains('pdf-link')) return null;
+            if (el.classList.contains('content-divider-logo') || el.classList.contains('aftermatter-logo')) return null;
+        }
+        return internalContent;
+    });
+
+    /* External links — single dispatcher handles all providers */
+    addBinder(90, 'a[href^="http"]', function (el) {
+        if (el.closest('nav, #toc, footer, .page-meta-footer')) return null;
+        return getProvider(el.getAttribute('href') || '');
+    });
+
+    /* Date hover popups — any element tagged with data-date-start.
+       Handles the frontmatter range link, version-history list items,
+       last-reviewed in the epistemic block, blog post dates, etc. */
+    addBinder(100, '[data-date-start]', function () { return dateContent; });
+
+    /* Item-card revision markers (/new, library, tag pages). The card
+       gutter says only "Revised"; the dates and the note live here. */
+    addBinder(110, '.item-card-revised', function () { return revisionContent; });
+
     function bindTargets(root) {
-        /* Epistemic term definitions — filter labels, metadata strip, footer */
-        root.querySelectorAll('[data-ep-term]').forEach(function (el) {
-            bind(el, epistemicTermContent);
-        });
-
-        /* Citation markers */
-        root.querySelectorAll('a.cite-link[href^="#ref-"]').forEach(function (el) {
-            bind(el, citationContent);
-        });
-
-        /* Epistemic jump link — preview of the status/confidence/dot block */
-        root.querySelectorAll('a[href="#epistemic"]').forEach(function (el) {
-            bind(el, epistemicContent);
-        });
-
-        /* Source-file references — wrapped at build time by
-           build/Filters/SourceRefs.hs around inline `path` and Forgejo
-           links. These specific kinds are bound before the generic
-           internal- and external-link loops below: bind() keeps an
-           element's first binding, and a source reference with a
-           same-origin href (../source/data/x.json) used to be claimed as
-           an internal page, which showed nothing (audit J08). Other
-           links to a forge get no popup: Forgejo sends no CORS headers, and
-           an Anubis in front of one refuses anonymous API requests. */
-        root.querySelectorAll('a.source-ref[data-source-path]').forEach(function (el) {
-            bind(el, sourceContent);
-        });
-
-        /* GitHub code references — blob / tree / commit links that
-           tools/code-refs.py snapshotted at build time and
-           build/Filters/CodeRefs.hs tagged. Bound before the external
-           dispatcher so the repository-card provider does not claim
-           them; untagged GitHub links still fall through to it. */
-        root.querySelectorAll('a[data-code-ref][data-code-src]').forEach(function (el) {
-            bind(el, codeRefContent);
-        });
-
-        /* PDF links — rewritten to viewer URL by Links.hs; thumbnail on hover */
-        root.querySelectorAll('a.pdf-link[data-pdf-src]').forEach(function (el) {
-            bind(el, pdfContent);
-        });
-
-        /* PGP signature links in footer */
-        root.querySelectorAll('a.footer-sig-link').forEach(function (el) {
-            bind(el, sigContent);
-        });
-
-        /* Internal links — absolute (/foo) and relative (../../foo) same-origin hrefs.
-           relativizeUrls in Hakyll makes index-page links relative, so we must match both. */
-        root.querySelectorAll('a[href^="/"], a[href^="./"], a[href^="../"]').forEach(function (el) {
-            /* Photography cards are their own preview.
-               A card already shows the photograph, and in grid mode reveals
-               the title over it on hover — so the generic internal-link
-               popup fires at the same moment, in the same gesture, saying
-               the same thing in a floating panel that covers neighbouring
-               frames. The in-picture caption supersedes it here. This is
-               scoped to the grid, so a photograph linked from prose still
-               gets the normal popup. */
-            if (el.closest('.photography-grid')) return;
-
-            /* The music shelf is its own preview, for the same reason:
-               pointing at a spine turns that score face-out beside it,
-               and a popup would cover the page it has just shown. */
-            if (el.closest('.shelf')) return;
-
-            /* Author links, backlink source links, and Related items always get popups */
-            var inAuthors  = el.closest('.meta-authors');
-            var isBacklink = el.classList.contains('backlink-source');
-            var isSimilar  = el.classList.contains('similar-link');
-            /* PDF-typed Related items are handled below by the pdf-link binder */
-            if (isSimilar && el.classList.contains('pdf-link')) return;
-            if (!inAuthors && !isBacklink && !isSimilar) {
-                if (el.closest('nav, #toc, footer, .page-meta-footer, .metadata')) return;
-                if (el.classList.contains('cite-link') || el.classList.contains('meta-tag')) return;
-                if (el.classList.contains('pdf-link')) return;
-                if (el.classList.contains('content-divider-logo') || el.classList.contains('aftermatter-logo')) return;
-            }
-            bind(el, internalContent);
-        });
-
-        /* External links — single dispatcher handles all providers */
-        root.querySelectorAll('a[href^="http"]').forEach(function (el) {
-            if (el.closest('nav, #toc, footer, .page-meta-footer')) return;
-            var provider = getProvider(el.getAttribute('href') || '');
-            if (provider) bind(el, provider);
-        });
-
-        /* Date hover popups — any element tagged with data-date-start.
-           Handles the frontmatter range link, version-history list items,
-           last-reviewed in the epistemic block, blog post dates, etc. */
-        root.querySelectorAll('[data-date-start]').forEach(function (el) {
-            bind(el, dateContent);
-        });
-
-        /* Item-card revision markers (/new, library, tag pages). The card
-           gutter says only "Revised"; the dates and the note live here. */
-        root.querySelectorAll('.item-card-revised').forEach(function (el) {
-            bind(el, revisionContent);
+        BINDERS.forEach(function (b) {
+            root.querySelectorAll(b.selector).forEach(function (el) {
+                var provider = b.pick(el);
+                if (provider) bind(el, provider);
+            });
         });
     }
 
-    /* Public re-init hook used by transclude.js after it injects new
-       content into the DOM. Idempotent — bind() marks each element so
+    /* Public re-init hook used by window.ozyEnhance (utils.js) after new
+       content enters the DOM. Idempotent — bind() marks each element so
        repeated calls don't stack listeners. */
     window.reinitPopups = function (container) {
         if (!popup) return;          /* init() not yet run / touch device */
@@ -262,7 +250,7 @@
 
     function bind(el, provider) {
         /* Idempotent: skip elements that already have a popup binding,
-           so reinitPopups() called from transclude.js cannot stack
+           so reinitPopups() called from ozyEnhance cannot stack
            listeners on already-bound nodes. */
         if (el.dataset.popupBound === '1') return;
         el.dataset.popupBound = '1';
@@ -305,7 +293,7 @@
                 popup.classList.toggle('link-popup--rich',
                     !!popup.querySelector('.popup-provider'));
                 positionPopup(target);
-                placeSourceMark(popup);
+                SHOWN.forEach(function (fn) { fn(popup); });
                 popup.classList.add('is-visible');
                 popup.setAttribute('aria-hidden', 'false');
                 popup.inert = false;
@@ -1088,521 +1076,6 @@
     function store(href, html) {
         cache[href] = html;
         return html;
-    }
-
-    /* Epistemic jump link — pulls the parallel-tag strip from the top of
-       the page (which holds the author-declared orientation tags) and
-       the expanded DL from the #epistemic footer section (which holds
-       the git-derived stability/last-reviewed/trend). The popup combines
-       both so a reader hovering the link mid-page sees the full profile
-       without scrolling.
-
-       Returns a DocumentFragment instead of an HTML string so the popup
-       receives cloned nodes (defense in depth — if a future change ever
-       allowed user-authored HTML into the source section, the popup
-       would still see exactly the same already-rendered DOM rather than
-       a re-parsed string). */
-    function epistemicContent() {
-        var wrap = document.createElement('div');
-        wrap.className = 'popup-epistemic';
-
-        var strip = document.querySelector('.meta-epistemic-strip');
-        if (strip) {
-            wrap.appendChild(strip.cloneNode(true));
-        }
-
-        var section = document.getElementById('epistemic');
-        var expanded = section ? section.querySelector('.ep-expanded') : null;
-        if (expanded) {
-            wrap.appendChild(expanded.cloneNode(true));
-        }
-
-        if (!strip && !expanded) return Promise.resolve(null);
-        return Promise.resolve(wrap);
-    }
-
-    /* Epistemic term definition — shows a concise description for any
-       element tagged with data-ep-term="<field>", and a link to the page that
-       explains them all, if the site names one. */
-    function epistemicTermContent(target) {
-        var term = target.dataset.epTerm;
-        var def  = term && EP_DEFS[term];
-        if (!def) return Promise.resolve(null);
-        var words = term.replace(/-/g, ' ');           /* peer-status: "Peer status" */
-        var label = words.charAt(0).toUpperCase() + words.slice(1);
-        var site  = window.ozySite;
-        return Promise.resolve(
-            '<div class="popup-ep-term">'
-            + (site.epistemicAbout
-                ? '<div class="popup-source" data-popup-source="about">'
-                  + '<a href="' + esc(site.epistemicAbout) + '">' + esc(site.epistemicAboutLabel) + '</a>'
-                  + '</div>'
-                : '')
-            + '<div class="popup-title">' + esc(label) + '</div>'
-            + '<div class="popup-abstract">' + esc(def) + '</div>'
-            + '</div>'
-        );
-    }
-
-    /* Local PDF — shows the build-time first-page thumbnail (.thumb.png).
-       Returns null (no popup) if the thumbnail file does not exist. */
-    function pdfContent(target) {
-        var src   = target.dataset.pdfSrc;
-        if (!src) return Promise.resolve(null);
-        var thumb = src.replace(/\.pdf$/i, '.thumb.png');
-        if (cache[thumb]) return Promise.resolve(cache[thumb]);
-        /* HEAD request: verify thumbnail exists before committing to a popup. */
-        return fetch(thumb, { method: 'HEAD', credentials: 'same-origin' })
-            .then(function (r) {
-                if (!r.ok) return null;
-                return store(thumb,
-                    '<div class="popup-pdf">'
-                    + '<img class="popup-pdf-thumb" src="' + esc(thumb) + '" alt="PDF first page">'
-                    + '</div>');
-            })
-            .catch(function () { return null; });
-    }
-
-    /* Source-file preview — fetches /source/<path> (a same-origin copy
-       emitted by the source-preview Hakyll rule) and renders it with
-       renderSourcePopup; a Markdown file instead gets its sectioned
-       prose rendering (/source/<path>.sections.json, MarkdownSections.hs)
-       unless the link asks for a line range.
-
-       Raw responses are cached (cachedFetch); rendering is repeated per
-       hover so a cached entry never gets re-parented (a Node can only
-       live in one place at a time). */
-    function sourceContent(target) {
-        var path = target.dataset.sourcePath;
-        if (!path) return Promise.resolve(null);
-        var opts = sourceOpts(target, 'view full file');
-        var raw  = '/source/' + path;
-        return sourceOrProse(path, raw, raw + '.sections.json', null, opts);
-    }
-
-    /* Shared by source-ref and GitHub blob popups: prose for Markdown
-       (falling back to the raw text if its rendering is missing), code
-       for everything else. */
-    function sourceOrProse(path, rawUrl, sectionsUrl, meta, opts) {
-        var asCode = function () {
-            return cachedFetch(rawUrl, 'text').then(function (text) {
-                return text == null ? null : renderSourcePopup(path, text, meta, opts);
-            });
-        };
-        if (!isMarkdown(path) || opts.range) return asCode();
-        return cachedFetch(sectionsUrl, 'json').then(function (doc) {
-            if (doc && doc.sections && doc.sections.length) {
-                return renderMarkdownPopup(path, doc, meta, opts);
-            }
-            return asCode();
-        });
-    }
-
-    function isMarkdown(path) { return /\.(md|markdown)$/i.test(path); }
-
-    /* What the link's fragment asks for — a line range (#L12, #L12-L30,
-       as GitHub and Forgejo write them) or a heading id — plus the
-       click-through target for the popup's footer. */
-    function sourceOpts(target, footerLabel) {
-        var hash = '';
-        try { hash = decodeURIComponent((target.hash || '').slice(1)); }
-        catch (_) { /* malformed escape: treat as no fragment */ }
-        var m = /^L(\d+)(?:-L?(\d+))?$/.exec(hash);
-        var range = null;
-        if (m) {
-            var a = +m[1], b = m[2] ? +m[2] : a;
-            range = [Math.min(a, b), Math.max(a, b)];
-        }
-        return {
-            range:    range,
-            fragment: m ? '' : hash,
-            href:     target.href,
-            footer:   footerLabel
-        };
-    }
-
-    /* Code body for source and GitHub blob popups: a line-number gutter,
-       Prism highlighting, and — when the link names a line range — a
-       band over those lines, scrolled into view by scheduleShow. Files
-       longer than WINDOW lines show a window (around the range, when
-       there is one); the footer says which lines, and links through. */
-    function renderSourcePopup(path, text, meta, opts) {
-        var WINDOW = 400;
-        opts = opts || {};
-        var lines = text.split('\n');
-        if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
-        var n     = lines.length;
-        var range = opts.range && opts.range[0] <= n
-            ? [opts.range[0], Math.min(opts.range[1], n)] : null;
-
-        var start = 1;
-        if (n > WINDOW && range) {
-            start = Math.max(1, Math.min(range[0] - 20, n - WINDOW + 1));
-        }
-        var end  = Math.min(n, start + WINDOW - 1);
-        var lang = languageFromPath(path);
-
-        var wrap = document.createElement('div');
-        wrap.className = 'popup-source-code';
-        wrap.appendChild(sourceHeader(path, meta, range
-            ? 'L' + range[0] + (range[1] > range[0] ? '–' + range[1] : '') : ''));
-
-        var scroll = document.createElement('div');
-        scroll.className = 'popup-source-scroll';
-        var body = document.createElement('div');
-        body.className = 'popup-source-lines';
-
-        var gutter = document.createElement('pre');
-        gutter.className = 'popup-source-gutter';
-        gutter.setAttribute('aria-hidden', 'true');
-        var nums = [];
-        for (var i = start; i <= end; i++) nums.push(i);
-        gutter.textContent = nums.join('\n');
-        body.appendChild(gutter);
-
-        var pre  = document.createElement('pre');
-        pre.className = lang ? 'popup-source-pre language-' + lang : 'popup-source-pre';
-        var code = document.createElement('code');
-        if (lang) code.className = 'language-' + lang;
-        code.textContent = lines.slice(start - 1, end).join('\n');
-        pre.appendChild(code);
-        body.appendChild(pre);
-
-        if (range && range[0] >= start && range[0] <= end) {
-            var mark = document.createElement('div');
-            mark.className = 'popup-source-mark';
-            mark.style.setProperty('--mark-from', range[0] - start);
-            mark.style.setProperty('--mark-lines', Math.min(range[1], end) - range[0] + 1);
-            body.appendChild(mark);
-        }
-
-        scroll.appendChild(body);
-        wrap.appendChild(scroll);
-
-        var partial = start > 1 || end < n;
-        wrap.appendChild(sourceFooter(opts,
-            partial ? 'lines ' + start + '–' + end + ' of ' + n : ''));
-        /* A page without inline code does not preload Prism. The shared
-           loader highlights this detached preview before it is shown. */
-        if (lang && typeof window.ozyHighlightCode === 'function') {
-            return window.ozyHighlightCode(wrap).then(function () { return wrap; });
-        }
-        return wrap;
-    }
-
-    /* Place the line-range band from the gutter's used line-height, not
-       from CSS calc() on --line: that is rem-based, the root size varies
-       by viewport, and engines snap line boxes to whole pixels, so the
-       calc drifts a fraction of a pixel per line and is visibly off by
-       line 20. Needs layout, so it runs once the popup is in the
-       document; then scrolls the band into view with two lines of
-       lead-in. */
-    function placeSourceMark(root) {
-        var mark   = root.querySelector('.popup-source-mark');
-        var gutter = mark && mark.parentNode.querySelector('.popup-source-gutter');
-        if (!gutter) return;
-        var cs    = getComputedStyle(gutter);
-        var padT  = parseFloat(cs.paddingTop) || 0;
-        /* The used line-height, in px. (The gutter's box height is no
-           use: flex stretches it to the code column, which carries an
-           extra strut of descent below its last line.) */
-        var lineH = parseFloat(cs.lineHeight);
-        if (!(lineH > 0)) return;
-        var from  = +mark.style.getPropertyValue('--mark-from') || 0;
-        var lines = +mark.style.getPropertyValue('--mark-lines') || 1;
-        mark.style.left   = gutter.offsetWidth + 'px';
-        mark.style.top    = (padT + from * lineH) + 'px';
-        mark.style.height = (lines * lineH) + 'px';
-        var scroller = mark.closest('.popup-source-scroll');
-        if (scroller) scroller.scrollTop = Math.max(0, padT + (from - 2) * lineH);
-    }
-
-    /* Prose body for Markdown: the section the fragment names (with its
-       subsections), or the whole document when there is none or it
-       names no heading. The HTML comes from MarkdownSections.hs, which
-       renders it at build time from a sanitised AST — raw HTML off, only
-       absolute http(s) links, no images, no ids — so it is inserted
-       as-is. */
-    function renderMarkdownPopup(path, doc, meta, opts) {
-        var secs = doc.sections;
-        var from = 0, to = secs.length, excerpt = null;
-        if (opts.fragment) {
-            for (var i = 0; i < secs.length; i++) {
-                if (secs[i].id === opts.fragment) { from = i; break; }
-            }
-            if (i < secs.length) {
-                excerpt = secs[from];
-                for (to = from + 1; to < secs.length; to++) {
-                    if (secs[to].level <= excerpt.level) break;
-                }
-            }
-        }
-
-        var html = '';
-        for (var k = from; k < to; k++) {
-            var s = secs[k];
-            /* The excerpt's own heading is already in the header strip. */
-            if (s.level > 0 && !(excerpt && k === from)) {
-                html += '<div class="popup-md-heading popup-md-h' + Math.min(s.level, 4) + '">'
-                      + s.heading + '</div>';
-            }
-            html += s.html;
-        }
-
-        var wrap = document.createElement('div');
-        wrap.className = 'popup-source-code popup-source-prose';
-        wrap.appendChild(sourceHeader(path, meta,
-            excerpt ? '§ ' + stripTags(excerpt.heading) : ''));
-        var body = document.createElement('div');
-        body.className = 'popup-md';
-        body.innerHTML = html;
-        wrap.appendChild(body);
-        wrap.appendChild(sourceFooter(opts,
-            excerpt ? 'section ' + (from + 1) + ' of ' + secs.length : ''));
-        return wrap;
-    }
-
-    function stripTags(html) {
-        var t = document.createElement('template');
-        t.innerHTML = html;
-        return t.content.textContent.trim();
-    }
-
-    /* Footer strip: an optional note ("lines 1–400 of 912") and the
-       click-through, which is the link itself — fragment included, so
-       GitHub or Forgejo opens at the same place. */
-    function sourceFooter(opts, note) {
-        var foot = document.createElement('div');
-        foot.className = 'popup-source-truncated';
-        if (note) foot.appendChild(document.createTextNode(note + ' · '));
-        if (opts.href) {
-            var a = document.createElement('a');
-            a.href = opts.href;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-            a.textContent = (opts.footer || 'view full file') + ' →';
-            foot.appendChild(a);
-        }
-        return foot;
-    }
-
-    /* Header strip for source and code-reference popups: the path, an
-       optional locator after it (a line range, or "§ Results"), and
-       optionally a quieter line naming the repository and revision. */
-    function sourceHeader(path, meta, locator) {
-        var label = document.createElement('div');
-        label.className = 'popup-source-path';
-        label.textContent = path;
-        if (locator) {
-            var loc = document.createElement('span');
-            loc.className = 'popup-source-locator';
-            loc.textContent = locator;
-            label.appendChild(loc);
-        }
-        if (meta) {
-            var m = document.createElement('div');
-            m.className = 'popup-source-rev';
-            m.textContent = meta;
-            label.appendChild(m);
-        }
-        return label;
-    }
-
-    /* ------------------------------------------------------------------
-       Code references — GitHub blob / tree / commit snapshots.
-
-       tools/code-refs.py stores each linked object under /code-refs/
-       at build time; build/Filters/CodeRefs.hs puts its location and
-       revision on the link as data-code-* attributes. Everything here
-       is same-origin: no GitHub API call, no rate limit, and the popup
-       shows exactly the revision the link is pinned to.
-    ------------------------------------------------------------------ */
-
-    function codeRefContent(target) {
-        var d    = target.dataset;
-        var kind = d.codeRef;
-        var src  = d.codeSrc;
-        if (!src || !/^\/code-refs\//.test(src)) return Promise.resolve(null);
-
-        var info = {
-            repo:   d.codeRepo || '',
-            sha:    d.codeSha || '',
-            path:   d.codePath || '',
-            date:   d.codeDate || '',
-            branch: d.codeBranch || ''
-        };
-
-        if (kind === 'blob') {
-            return sourceOrProse(info.path, src,
-                src.replace(/\.txt$/, '.sections.json'),
-                revisionLine(info), sourceOpts(target, 'view on GitHub'));
-        }
-        if (kind === 'tree') {
-            return cachedFetch(src, 'json').then(function (tree) {
-                return tree ? renderTreePopup(info, tree) : null;
-            });
-        }
-        if (kind === 'commit') {
-            return cachedFetch(src, 'json').then(function (c) {
-                return c ? renderCommitPopup(info, c) : null;
-            });
-        }
-        return Promise.resolve(null);
-    }
-
-    /* Same-origin fetch of a snapshot, memoised by URL. The raw text or
-       parsed JSON is cached, never a rendered node: a Node can only have
-       one parent, so each hover renders afresh. */
-    function cachedFetch(url, as) {
-        var key = as + ':' + url;
-        if (cache[key] !== undefined) return Promise.resolve(cache[key]);
-        return fetch(url, { credentials: 'same-origin' })
-            .then(function (r) { return r.ok ? (as === 'json' ? r.json() : r.text()) : null; })
-            .then(function (v) { if (v != null) cache[key] = v; return v; })
-            .catch(function () { return null; });
-    }
-
-    /* "JamesPetrie/VerInf @ 3508ef1 · 20 Sep 2026" — or, for a link to
-       a branch, which snapshot of that branch the popup is showing. */
-    function revisionLine(info) {
-        var short = info.sha.slice(0, 7);
-        var date  = formatDay(info.date);
-        if (info.branch) {
-            return info.repo + ' · ' + info.branch + ' as of ' + short
-                 + (date ? ', ' + date : '');
-        }
-        return info.repo + ' @ ' + short + (date ? ' · ' + date : '');
-    }
-
-    function formatDay(iso) {
-        var d = iso ? new Date(iso) : null;
-        if (!d || isNaN(d.getTime())) return '';
-        return d.toLocaleDateString('en-GB',
-            { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-    }
-
-    /* First paragraph of a README that is prose rather than a heading,
-       badge row, or HTML block — markup stripped to plain text. */
-    function readmeLead(text) {
-        var paras = String(text).split(/\n\s*\n/);
-        for (var i = 0; i < paras.length; i++) {
-            var p = paras[i].trim();
-            if (!p || /^(#|!\[|\[!\[|<|```|---|\|)/.test(p)) continue;
-            return p.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-                    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-                    .replace(/[`*_]/g, '')
-                    .replace(/\s+/g, ' ');
-        }
-        return '';
-    }
-
-    /* The snapshot commit's own message is deliberately not shown: it
-       describes whatever change happened to land last, which is rarely
-       about the directory linked. The revision line is what matters. */
-    function renderTreePopup(info, tree) {
-        var MAX_ENTRIES = 24;
-        var entries = tree.entries || [];
-        var html = '<div class="popup-source-code popup-code-ref">';
-        var path = info.path ? info.path.replace(/\/?$/, '/') : info.repo + '/';
-        var rev  = revisionLine(info);
-        html += '<div class="popup-source-path">' + esc(path)
-              + '<div class="popup-source-rev">' + esc(rev) + '</div></div>';
-        html += '<div class="popup-code-body">';
-        var lead = tree.readme ? readmeLead(tree.readme.text) : '';
-        if (lead) html += '<div class="popup-abstract">' + esc(truncate(lead, 320)) + '</div>';
-        html += '<ul class="popup-code-list">';
-        entries.slice(0, MAX_ENTRIES).forEach(function (e) {
-            var dir = e.type === 'dir';
-            html += '<li class="' + (dir ? 'is-dir' : 'is-file') + '">'
-                  + esc(e.name) + (dir ? '/' : '') + '</li>';
-        });
-        html += '</ul></div>';
-        if (entries.length > MAX_ENTRIES) {
-            var n = entries.length - MAX_ENTRIES;
-            html += '<div class="popup-source-truncated">' + n + ' more entr'
-                  + (n === 1 ? 'y' : 'ies') + '</div>';
-        }
-        return html + '</div>';
-    }
-
-    function renderCommitPopup(info, c) {
-        var MAX_FILES = 12;
-        var lines   = String(c.message || '').split('\n');
-        var subject = lines[0] || '';
-        var body    = lines.slice(1).join('\n').trim();
-        var files   = c.files || [];
-        var total   = +(c.files_total != null ? c.files_total : files.length) || 0;
-        var st      = c.stats || {};
-
-        var html = '<div class="popup-source-code popup-code-ref">';
-        html += '<div class="popup-source-path">' + esc(info.repo) + ' @ '
-              + esc(String(c.sha || info.sha).slice(0, 7))
-              + '<div class="popup-source-rev">'
-              + esc([c.author, formatDay(c.date)].filter(Boolean).join(' · '))
-              + '</div></div>';
-        html += '<div class="popup-code-body">';
-        html += '<div class="popup-code-subject">' + esc(subject) + '</div>';
-        if (body) html += '<div class="popup-abstract">' + esc(truncate(body, 420)) + '</div>';
-        html += '<div class="popup-code-stat">' + total + ' file' + (total === 1 ? '' : 's')
-              + (st.additions != null ? ' · <ins>+' + (+st.additions) + '</ins>' : '')
-              + (st.deletions != null ? ' <del>−' + (+st.deletions) + '</del>' : '')
-              + '</div>';
-        html += '<ul class="popup-code-list popup-code-files">';
-        files.slice(0, MAX_FILES).forEach(function (f) {
-            html += '<li><span class="popup-code-file">' + esc(f.filename) + '</span>'
-                  + '<span class="popup-code-delta"><ins>+' + (+f.additions || 0) + '</ins> '
-                  + '<del>−' + (+f.deletions || 0) + '</del></span></li>';
-        });
-        html += '</ul></div>';
-        if (total > MAX_FILES) {
-            var n = total - MAX_FILES;
-            html += '<div class="popup-source-truncated">' + n + ' more file'
-                  + (n === 1 ? '' : 's') + '</div>';
-        }
-        return html + '</div>';
-    }
-
-    /* Map a path's extension (or basename, for Makefile) onto the set
-       of Prism languages bundled in /js/prism.min.js: bash, haskell,
-       javascript, css, markup, yaml, python, makefile. Returns null
-       when no mapping applies; the caller falls back to plain text. */
-    function languageFromPath(path) {
-        var basename = path.split('/').pop();
-        if (basename === 'Makefile') return 'makefile';
-        var m = path.match(/\.([a-z0-9]+)$/i);
-        if (!m) return null;
-        switch (m[1].toLowerCase()) {
-            case 'hs':
-            case 'cabal':   return 'haskell';
-            case 'js':
-            case 'mjs':     return 'javascript';
-            case 'css':     return 'css';
-            case 'html':
-            case 'svg':     return 'markup';
-            case 'py':      return 'python';
-            case 'sh':
-            case 'bash':
-            case 'conf':    return 'bash';
-            case 'yaml':
-            case 'yml':     return 'yaml';
-            case 'md':      return 'markup';
-            default:        return null;
-        }
-    }
-
-    /* PGP signature — fetch the .sig file and display ASCII armor */
-    function sigContent(target) {
-        var href = target.getAttribute('href');
-        if (!href) return Promise.resolve(null);
-        if (cache[href]) return Promise.resolve(cache[href]);
-        return fetch(href, { credentials: 'same-origin' })
-            .then(function (r) { return r.ok ? r.text() : null; })
-            .then(function (text) {
-                if (!text) return null;
-                var html = '<div class="popup-sig"><pre>' + esc(text.trim()) + '</pre></div>';
-                cache[href] = html;
-                return html;
-            });
     }
 
     /* ------------------------------------------------------------------
