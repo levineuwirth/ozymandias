@@ -9,7 +9,7 @@ import System.Environment    (getArgs)
 import System.Exit           (die)
 import System.FilePath       ((</>))
 import EngineFiles           (bundlePlan, engineDir, readThemes)
-import Themes                (Themes (..), Theme (..), themeLabel)
+import Themes                (Themes (..), Theme (..), systemDark, themeLabel)
 import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
@@ -83,7 +83,8 @@ writeBuildStamp = do
 -- that gets a page, and @site expand-tags@ the pages the tags on stdin would
 -- get ('Tags.pagedTags'), for tools/scaffold-photos.py; @site
 -- strip-template-comments@ filters stdin as templates are ('Utils.stripHtmlComments'),
--- for its test; @site version@ the digest of the sources it was compiled
+-- for its test, and @site system-dark@ as tokens.css and theme.css are
+-- ('Themes.systemDark'); @site version@ the digest of the sources it was compiled
 -- from ("EngineVersion"); @site css-bundles@ the stylesheet bundles it builds
 -- and their files, by the site's switches (EngineFiles.cssBundles); @site
 -- themes@ the site's themes, as its stylesheets declare them ("Themes"). A build refuses to run with other sources under
@@ -131,6 +132,7 @@ main = do
             getContents >>= mapM_ putStrLn . (if switchOn cfg "tag-pages" then pagedTags cfg else const [])
                           . lines
         ["strip-template-comments"] -> interact stripHtmlComments
+        ["system-dark"] -> readThemes >>= interact . systemDark . themeDark
         ["list-tags"] -> do
             dev <- isDevBuild
             cfg <- readSiteConfig

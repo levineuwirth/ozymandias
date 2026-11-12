@@ -88,11 +88,64 @@ class SiteThemes(unittest.TestCase):
         done = self.themes('[data-theme="dusk"] { color-scheme: dark; }', None)
         self.assertIn("no theme is listed beside :root", done.stderr)
 
+    def system_dark(self, css: str) -> str:
+        with tempfile.TemporaryDirectory(prefix="site-system-dark-") as tmp:
+            root = Path(tmp)
+            (root / "static/css").mkdir(parents=True)
+            (root / "static/css/tokens.css").write_text(TOKENS, encoding="utf-8")
+            done = subprocess.run([str(self.binary), "system-dark"], cwd=root, env=script_env(),
+                                  input=css, capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return done.stdout
+
+    def test_the_dark_theme_s_rules_are_copied_for_a_dark_system(self):
+        css = """@layer site {
+[data-theme="dark"] { --bg: #000; /* a } in a comment */ }
+[data-theme="dark"]  .x, [data-theme="sepia"] .x, [data-theme="dark"]:where(.y) { color: "}"; }
+[data-theme="sepia"] { --bg: #704214; }
+:root:not([data-theme]) .z, [data-theme="dark"] .z { color: red; }
+@media print { [data-theme="dark"] { --bg: #fff; } }
+}
+"""
+        out = self.system_dark(css)
+        # Each copy right after its rule; only the dark theme's selectors,
+        # but for one already there; none from inside another at-rule.
+        self.assertEqual(out, """@layer site {
+[data-theme="dark"] { --bg: #000; /* a } in a comment */ }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) { --bg: #000; /* a } in a comment */ }}
+
+[data-theme="dark"]  .x, [data-theme="sepia"] .x, [data-theme="dark"]:where(.y) { color: "}"; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) .x,
+:root:not([data-theme]):where(.y) { color: "}"; }}
+
+[data-theme="sepia"] { --bg: #704214; }
+:root:not([data-theme]) .z, [data-theme="dark"] .z { color: red; }
+@media print { [data-theme="dark"] { --bg: #fff; } }
+}
+""")
+
+    def test_without_a_dark_theme_nothing_is_copied(self):
+        with tempfile.TemporaryDirectory(prefix="site-system-dark-") as tmp:
+            done = subprocess.run([str(self.binary), "system-dark"], cwd=tmp, env=script_env(),
+                                  input='[data-theme="dark"] { --bg: #000; }', capture_output=True,
+                                  text=True, timeout=60)
+        self.assertEqual(done.stdout, '[data-theme="dark"] { --bg: #000; }')
+
     def test_the_engine_s_own_are_light_and_dark(self):
         found = self.read(engine_path("static/css/tokens.css").read_text(encoding="utf-8"), "")
         self.assertEqual([(t["id"], t["scheme"]) for t in found["themes"]],
                          [("light", "light"), ("dark", "dark")])
         self.assertEqual((found["light"], found["dark"]), ("light", "dark"))
+
+
+def hand_copies(css: str) -> list[str]:
+    """Each rule a stylesheet writes for :root:not([data-theme]) in
+    @media (prefers-color-scheme: dark): the system-dark copies the build
+    makes, by hand. tests/test_site_css_tokens.py asks of a site's."""
+    css = re.sub(r"/\*.*?\*/", " ", css, flags=re.S)
+    return re.findall(r"@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{\s*(:root:not\(\[data-theme\]\)[^{]*)", css)
 
 
 # Engine files that may name themes: the default palette, the fixture
@@ -131,6 +184,13 @@ class NoThemeNamed(unittest.TestCase):
                  for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
                  if quoted.search(line)]
         self.assertEqual(found, [])
+
+    def test_no_theme_file_copies_the_dark_theme_by_hand(self):
+        # The build writes them (Themes.systemDark); a hand copy beside it
+        # would be a second place to keep in step.
+        for rel in ("static/css/tokens.css", "fixture-site/static/css/theme.css"):
+            with self.subTest(rel=rel):
+                self.assertEqual(hand_copies(engine_path(rel).read_text(encoding="utf-8")), [])
 
     def test_no_engine_file_names_a_site_s_theme(self):
         mine = self.fixture_themes() - {"light", "dark"}

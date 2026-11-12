@@ -10,10 +10,12 @@
 --   @:root, [data-theme="light"]@, is the one a reader who chose none
 --   wears. Each theme declares @color-scheme@, @light@ or @dark@, in one of
 --   its rules (the last declared counts, as in the cascade); the first dark
---   one is what a reader who chose none wears when the system prefers dark.
+--   one is what a reader who chose none wears when the system prefers dark,
+--   and the build writes each of its rules again for that ('systemDark'),
+--   so no stylesheet repeats them by hand.
 module Themes
     ( Themes (..), Theme (..), CssRule (..)
-    , scanThemes, themeLabel, cssRules, themeSelector
+    , scanThemes, systemDark, themeLabel, cssRules, themeSelector
     , themesId, loadThemes, themeContext
     ) where
 
@@ -35,7 +37,7 @@ data Themes = Themes
     , themeDark  :: Maybe String    -- ^ worn with none chosen, the system preferring dark
     } deriving (Eq, Show, Read)
 
--- | A rule of a stylesheet, as 'scanThemes' needs it.
+-- | A rule of a stylesheet, as 'systemDark' and 'scanThemes' need it.
 data CssRule = CssRule
     { ruleTop       :: Bool       -- ^ at the top level or in an @layer
     , ruleSelectors :: [String]   -- ^ comments out, whitespace collapsed
@@ -71,6 +73,25 @@ scanThemes sources = if null ids then Right (Themes [] "" Nothing) else do
     slug v = case v of
         c : _ -> c /= '-' && all (`elem` (['a'..'z'] ++ ['0'..'9'] ++ "-")) v
         _     -> False
+
+-- | A stylesheet with each of its rules for the theme @dark@ followed by a
+--   copy for a reader who chose no theme while the system prefers dark:
+--   @[data-theme="dark"] .x@ again as @:root:not([data-theme]) .x@, in
+--   @\@media (prefers-color-scheme: dark)@. Only a rule 'scanThemes' reads
+--   is copied (none in another at-rule), and only its selectors for that
+--   theme, but for one its list already has.
+systemDark :: Maybe String -> String -> String
+systemDark Nothing css = css
+systemDark (Just dark) css = go 0 css [(ruleEnd r, copy r) | r <- cssRules css, ruleTop r, not (null (wanted r))]
+  where
+    wanted r = [ s' | s <- ruleSelectors r, Just (i, rest) <- [themeSelector s], i == dark
+                    , let s' = ":root:not([data-theme])" ++ rest, s' `notElem` ruleSelectors r ]
+    copy r = "\n@media (prefers-color-scheme: dark) {\n" ++ intercalate ",\n" (wanted r)
+             ++ " {" ++ ruleBody r ++ "}}\n"
+    go _ rest [] = rest
+    go at rest ((end, text) : more) =
+        let (before, after) = splitAt (end - at) rest
+        in  before ++ text ++ go end after more
 
 -- | A selector that begins with @[data-theme="ID"]@ (or @'ID'@, or @ID@):
 --   the id and what follows it.

@@ -203,9 +203,15 @@ first appear, labeled from their ids (`sepia-night` is "Sepia night").
 The engine's are `light` and `dark`; a site adds its own in `theme.css`
 and needs no change to a script or template. The one beside `:root`
 (`tokens.css`'s `:root, [data-theme="light"]`) is worn with none chosen.
-`site themes` lists them, and the build fails on a theme with no
-`color-scheme`, on two beside `:root`, and on a season (`site.yaml`) whose
-base is not a theme or whose id is one.
+A reader who chose none while the system prefers dark wears the first
+theme whose `color-scheme` is dark: the build writes each of that theme's
+rules in `tokens.css` and `theme.css` again for them, as
+`:root:not([data-theme])` in `@media (prefers-color-scheme: dark)`, so a
+stylesheet has no such copies of its own (`site system-dark` shows what
+it writes; the tests refuse a hand copy). `site themes` lists the themes,
+and the build fails on a theme with no `color-scheme`, on two beside
+`:root`, and on a season (`site.yaml`) whose base is not a theme or whose
+id is one.
 
 Each theme declares its `color-scheme`, `light` or `dark`, in its rule, as
 `tokens.css`'s light and dark do (a site redefining those inherits theirs):

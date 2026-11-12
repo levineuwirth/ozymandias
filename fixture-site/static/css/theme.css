@@ -98,36 +98,6 @@
     --hm-3: #b09575;
     --hm-4: #ead0a0;
 }
-
-
-/* System dark mode fallback */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    --bg:              #121212;
-    --bg-nav:          #181818;
-    --nav-logo-fg:     #d4d0c8;
-    --bg-offset:       #1a1a1a;
-    --text:            #d4d0c8;
-    --text-muted:      #8c8881;
-    --text-faint:      #8b8680;
-    --border:          #333333;
-    --danger:          #e08a84;
-    --border-muted:    #444444;
-    --link:            #d4d0c8;
-    --link-underline:  #8b8680;
-    --link-hover:      #ffffff;
-    --link-hover-underline: #ffffff;
-    --link-visited:    #a39f98;
-    --selection-bg:    #d4d0c8;
-    --selection-text:  #121212;
-    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
-    --bg-subtle:       var(--bg-offset);
-    --hm-0: #252524;
-    --hm-1: #484844;
-    --hm-2: #6e6e6a;
-    --hm-3: #9e9e9a;
-    --hm-4: #d4d0c8;
-}}
 :root { --divider-logo: url("/images/link-icons/internal.svg"); }
 :root {
     --highlight-background: linear-gradient(
@@ -147,18 +117,6 @@
             rgba(80, 110, 160, 0.5) 98%,
             rgba(80, 110, 160, 0) 100%
         );
-}
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --highlight-background: linear-gradient(
-            104deg,
-            rgba(100, 130, 180, 0) 0%,
-            rgba(100, 130, 180, 0.4) 2%,
-            rgba(80, 110, 160, 0.5) 98%,
-            rgba(80, 110, 160, 0) 100%
-        );
-}
 }
 
 [data-theme="cappuccino"] {
@@ -185,15 +143,6 @@
     --annotation-rose-background: rgba(200, 116, 116, 0.42);
 }
 
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --annotation-amber-background: rgba(245, 158,  11, 0.40);
-    --annotation-sage-background: rgba(107, 158, 120, 0.42);
-    --annotation-steel-background: rgba(112, 150, 184, 0.42);
-    --annotation-rose-background: rgba(200, 116, 116, 0.42);
-}
-}
-
 [data-theme="cappuccino"] {
     --annotation-amber-background: rgba(245, 180,  70, 0.42);
     --annotation-sage-background: rgba(130, 175, 140, 0.42);
@@ -211,14 +160,6 @@
     --score-thumbnail-filter: invert(1);
     --score-thumbnail-mix-blend-mode: screen;
     --score-thumbnail-opacity: 0.8;
-}
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --score-thumbnail-filter: invert(1);
-    --score-thumbnail-mix-blend-mode: screen;
-    --score-thumbnail-opacity: 0.8;
-}
 }
 
 [data-theme="cappuccino"] {
@@ -245,14 +186,6 @@
     --score-thumbnail-filter: invert(1);
     --score-thumbnail-mix-blend-mode: screen;
     --score-thumbnail-opacity: 0.8;
-}
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --score-thumbnail-filter: invert(1);
-    --score-thumbnail-mix-blend-mode: screen;
-    --score-thumbnail-opacity: 0.8;
-}
 }
 
 /* modules/code */
@@ -303,20 +236,6 @@
     --syntax-rose: #d69f90;
     --syntax-teal: #a8bcb7;
 }
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    --syntax-fg: #e8e8e8;
-    --syntax-param: #d8d8d8;
-    --syntax-comment: #828282;
-    --syntax-red: #e0604a;
-    --syntax-sage: #8f9a63;
-    --syntax-amber: #d3a05c;
-    --syntax-plum: #a2849f;
-    --syntax-rose: #c2887a;
-    --syntax-teal: #8fa39e;
-}}
 /* modules/catalog */
 /* catalog.css — /music/, the catalogue of works (templates/music-catalog.html,
    build/Catalog.hs).
@@ -342,13 +261,6 @@
 [data-theme="cappuccino"] .music-index {
     --shelf-paper: #5e4230;
 }
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .music-index {
-    --shelf-paper: #1c1c1c;
-}}
 /* modules/composition */
 
 
@@ -373,13 +285,6 @@
 [data-theme="cappuccino"] .composition {
     --comp-paper: #5e4230;
 }
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .composition {
-    --comp-paper: #1c1c1c;
-}}
 /* library */
 /* library.css — Library + Bibliography page components, plus the
    epistemic-filter UI that now lives on /search.html. */
@@ -411,14 +316,6 @@
     --accent-muted: #c5a880;
     --library-intro-ink: #dcc296;
 }
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    --accent: #b5a890;
-    --accent-muted: #8d8373;
-    --library-intro-ink: #c8beac;
-}}
 /* reading */
 
 
@@ -443,12 +340,6 @@ body.reading-mode {
     --text-muted: #dcc49c;
     --text-faint: #d4bc98;
 }
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) body.reading-mode {
-    --bg: #1c1917;
-}}
 /* modules/score-reader */
 /* score-reader.css — Full-page score reader layout.
    Used only on /music/{slug}/score/ pages via score-reader-default.html.
@@ -472,12 +363,6 @@ body.reading-mode {
 [data-theme="cappuccino"] .score-reader-page {
     --score-paper: #5e4230;
 }
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .score-reader-page {
-    --score-paper: #1c1c1c;
-}}
 /* print.css — Clean paper output.
    Loaded LAST in head.html via <link media="print"> so its rules win
    the cascade at print page widths (~595–820 CSS px on A4/Letter),

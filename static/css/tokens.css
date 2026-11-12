@@ -123,7 +123,10 @@
    its color-scheme, light or dark: the browser draws its own parts to
    match (scrollbars, form fields, the backdrop behind an embedded frame,
    and the scheme the frame's own page sees), and viz.js picks its charts'
-   palette by it. Print is light. */
+   palette by it. Print is light. A reader who chose none while the system
+   prefers dark wears the first dark theme: the build writes each of its
+   rules again, as :root:not([data-theme]) in @media (prefers-color-scheme:
+   dark), after the rule (Themes.systemDark), so no stylesheet does. */
 :root, [data-theme="light"] {
     color-scheme:      light;
     --bg:              #faf8f4;
@@ -189,38 +192,6 @@
     --hm-3: #9e9e9a;
     --hm-4: #d4d0c8;
 }
-
-
-
-/* System dark mode fallback */
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    color-scheme:      dark;
-    --bg:              #121212;
-    --bg-nav:          #181818;
-    --nav-logo-fg:     #d4d0c8;
-    --bg-offset:       #1a1a1a;
-    --text:            #d4d0c8;
-    --text-muted:      #8c8881;
-    --text-faint:      #8b8680;
-    --border:          #333333;
-    --danger:          #e08a84;
-    --border-muted:    #444444;
-    --link:            #d4d0c8;
-    --link-underline:  #8b8680;
-    --link-hover:      #ffffff;
-    --link-hover-underline: #ffffff;
-    --link-visited:    #a39f98;
-    --selection-bg:    #d4d0c8;
-    --selection-text:  #121212;
-    --initial-glow:    drop-shadow(0 0 0.3em rgba(235, 200, 140, 0.28));
-    --bg-subtle:       var(--bg-offset);
-    --hm-0: #252524;
-    --hm-1: #484844;
-    --hm-2: #6e6e6a;
-    --hm-3: #9e9e9a;
-    --hm-4: #d4d0c8;
-}}
 :root {
     --highlight-background: linear-gradient(
         104deg,
@@ -241,18 +212,6 @@
         );
 }
 
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --highlight-background: linear-gradient(
-            104deg,
-            rgba(100, 130, 180, 0) 0%,
-            rgba(100, 130, 180, 0.4) 2%,
-            rgba(80, 110, 160, 0.5) 98%,
-            rgba(80, 110, 160, 0) 100%
-        );
-}
-}
-
 :root {
     --annotation-amber-background: rgba(245, 158,  11, 0.32);
     --annotation-sage-background: rgba(107, 158, 120, 0.34);
@@ -267,15 +226,6 @@
     --annotation-rose-background: rgba(200, 116, 116, 0.42);
 }
 
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --annotation-amber-background: rgba(245, 158,  11, 0.40);
-    --annotation-sage-background: rgba(107, 158, 120, 0.42);
-    --annotation-steel-background: rgba(112, 150, 184, 0.42);
-    --annotation-rose-background: rgba(200, 116, 116, 0.42);
-}
-}
-
 :root {
     --score-thumbnail-mix-blend-mode: multiply;
     --score-thumbnail-filter: none;
@@ -286,14 +236,6 @@
     --score-thumbnail-filter: invert(1);
     --score-thumbnail-mix-blend-mode: screen;
     --score-thumbnail-opacity: 0.8;
-}
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --score-thumbnail-filter: invert(1);
-    --score-thumbnail-mix-blend-mode: screen;
-    --score-thumbnail-opacity: 0.8;
-}
 }
 
 :root {
@@ -307,14 +249,6 @@
     --score-thumbnail-filter: invert(1);
     --score-thumbnail-mix-blend-mode: screen;
     --score-thumbnail-opacity: 0.8;
-}
-
-@media (prefers-color-scheme: dark) {
-:root:not([data-theme]) {
-    --score-thumbnail-filter: invert(1);
-    --score-thumbnail-mix-blend-mode: screen;
-    --score-thumbnail-opacity: 0.8;
-}
 }
 
 /* Default syntax palette.
@@ -349,21 +283,6 @@
     --syntax-rose: #c2887a;
     --syntax-teal: #8fa39e;
 }
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    --syntax-fg: #e8e8e8;
-    --syntax-param: #d8d8d8;
-    --syntax-comment: #828282;
-    --syntax-red: #e0604a;
-    --syntax-sage: #8f9a63;
-    --syntax-amber: #d3a05c;
-    --syntax-plum: #a2849f;
-    --syntax-rose: #c2887a;
-    --syntax-teal: #8fa39e;
-}}
 /* catalog.css — /music/, the catalogue of works (templates/music-catalog.html,
    build/Catalog.hs).
 
@@ -387,14 +306,6 @@
 
 
 
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .music-index {
-    --shelf-paper: #1c1c1c;
-}}
-
-
-
 /* ------------------------------------------------------------------
    Paper
    The frontispiece's sheet matches the reader's, theme by theme, so
@@ -411,14 +322,6 @@
 [data-theme="dark"]       .composition {
     --comp-paper: #1c1c1c;
 }
-
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .composition {
-    --comp-paper: #1c1c1c;
-}}
 /* library.css — Library + Bibliography page components, plus the
    epistemic-filter UI that now lives on /search.html. */
 
@@ -446,15 +349,6 @@
 }
 
 
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-    --accent: #b5a890;
-    --accent-muted: #8d8373;
-    --library-intro-ink: #c8beac;
-}}
-
-
 /* ============================================================
    READING MODE — BASE
    Slightly warmer background; narrower, book-like measure.
@@ -470,13 +364,6 @@ body.reading-mode {
 [data-theme="dark"] body.reading-mode {
     --bg: #1c1917;
 }
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) body.reading-mode {
-    --bg: #1c1917;
-}}
 /* score-reader.css — Full-page score reader layout.
    Used only on /music/{slug}/score/ pages via score-reader-default.html.
 
@@ -496,13 +383,6 @@ body.reading-mode {
 [data-theme="dark"]       .score-reader-page {
     --score-paper: #1c1c1c;
 }
-
-
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .score-reader-page {
-    --score-paper: #1c1c1c;
-}}
 /* print.css — Clean paper output.
    Loaded LAST in head.html via <link media="print"> so its rules win
    the cascade at print page widths (~595–820 CSS px on A4/Letter),
@@ -520,7 +400,7 @@ body.reading-mode {
        reaching for hardcoded #fff/#000 again.
     ---------------------------------------------------------------- */
     /* :root:not([data-theme]) is the OS-dark fallback's own selector
-       (tokens.css), and at (0,2,0) it beat a bare :root here: with a dark
+       (the copies the build writes of the dark theme's rules), and at (0,2,0) it beat a bare :root here: with a dark
        system setting and no saved theme, body text printed pale grey on
        white (audit V02). Same specificity, later in the cascade, wins. */
     :root:where(:not(:has(body.score-reader-page))),

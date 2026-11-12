@@ -59,7 +59,7 @@ import           Hakyll
 import           System.Directory  (doesFileExist, listDirectory)
 import           System.FilePath   ((</>))
 
-import           Themes            (Themes, scanThemes, themesId)
+import           Themes            (Themes (..), scanThemes, systemDark, themesId)
 import           Utils             (stripHtmlComments, stripPrefixRoute)
 
 -- | Where the engine sits in the site.
@@ -91,9 +91,13 @@ resolveFile rel = fromMaybe rel <$> existingFile rel
 --   failure naming what is wrong with them.
 readThemes :: IO Themes
 readThemes = do
-    sources <- forM ["static/css/tokens.css", "static/css/theme.css"] $ \rel ->
+    sources <- forM themeSheets $ \rel ->
         existingFile rel >>= maybe (pure "") (fmap (T.unpack . TE.decodeUtf8) . BS.readFile)
     either (fail . ("themes: " ++)) pure (scanThemes sources)
+
+-- | The stylesheets that declare a site's themes, in cascade order.
+themeSheets :: [FilePath]
+themeSheets = ["static/css/tokens.css", "static/css/theme.css"]
 
 -- | The entries directly in a site directory and in the engine's, each
 --   name once, at the path 'resolveFile' would give it. A missing directory
@@ -230,7 +234,14 @@ staticRules twins withheld on themes = do
         -- copyFileCompiler).
         match (served "static/css/**") $ do
             route   versioned
-            compile compressCssCompiler
+            compile $ do
+                path <- toFilePath <$> getUnderlying
+                -- The theme files' rules for the dark theme again, for a
+                -- reader who chose none while the system prefers dark
+                -- (Themes.systemDark): no stylesheet repeats them by hand.
+                let copies | siteRelative path `elem` themeSheets = systemDark (themeDark themes)
+                           | otherwise                            = id
+                fmap (compressCss . copies) <$> getResourceString
 
         match (firstParty .&&. complement (inBoth "static/css/**")) $ do
             route   versioned
