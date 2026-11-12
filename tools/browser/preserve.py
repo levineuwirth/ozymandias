@@ -207,6 +207,17 @@ def text_sizes(engine: Path) -> tuple[int, str, int]:
     return low, "default", high
 
 
+def validate_themes(themes: list[str]) -> None:
+    """Theme/season record names must not alias each other or system looks."""
+    if not themes or len(set(themes)) != len(themes):
+        raise ValueError("theme record names must be nonempty and unique")
+    for theme in themes:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", theme):
+            raise ValueError(f"invalid theme record name: {theme!r}")
+        if theme.startswith("system-"):
+            raise ValueError("theme record names beginning system- are reserved for system preferences")
+
+
 def site_themes(served: Path) -> list[str]:
     """The served site's themes, in its settings panel's order: its home
     page's ozy:themes meta (build/Themes.hs)."""
@@ -216,6 +227,10 @@ def site_themes(served: Path) -> list[str]:
     themes = found.group(1).split() if found else []
     if not themes:
         raise SystemExit(f"preserve: {home} names no themes (no ozy:themes meta)")
+    try:
+        validate_themes(themes)
+    except ValueError as e:
+        raise SystemExit(f"preserve: {home}: {e}") from e
     return themes
 
 
@@ -377,6 +392,10 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     sizes = text_sizes(engine)
     moment = in_season(root, season) if season else off_season(root)
     themes = [season] if season else site_themes(served)
+    try:
+        validate_themes(themes)
+    except ValueError as e:
+        raise SystemExit(f"preserve: {e}") from e
     systems = [] if season else list(SYSTEMS)
     if not pages or jobs < 1:
         raise SystemExit("preserve: snapshot needs at least one page and --jobs >= 1")
@@ -485,8 +504,7 @@ def manifest(root: Path) -> dict:
     if (not isinstance(systems, list) or len(set(map(str, systems))) != len(systems)
             or any(s not in SYSTEMS for s in systems)):
         raise ValueError("invalid systems")
-    if any(t.startswith("system-") for t in meta["themes"]):
-        raise ValueError("a theme named system-* would share a record with a system preference")
+    validate_themes(meta["themes"])
     if meta["season"] is not None and (not isinstance(meta["season"], str)
                                        or not re.fullmatch(r"[A-Za-z0-9_-]+", meta["season"])):
         raise ValueError("invalid season")

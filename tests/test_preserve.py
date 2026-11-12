@@ -276,6 +276,20 @@ class Settings(unittest.TestCase):
                 '<head><meta name="ozy:themes" content="light dark sepia" data-light="light"></head>')
             self.assertEqual(preserve.site_themes(served), ["light", "dark", "sepia"])
 
+    def test_bad_theme_names_fail_before_a_snapshot_starts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for names in ('light system-dark', 'light system-custom', 'light light', 'light ../escape'):
+                with self.subTest(names=names):
+                    (root / 'index.html').write_text(f'<meta name="ozy:themes" content="{names}">')
+                    out = root / 'record'
+                    with patch.object(preserve, 'off_season', return_value=1), \
+                         patch.object(preserve, 'serve') as server:
+                        with self.assertRaisesRegex(SystemExit, 'preserve:'):
+                            asyncio.run(preserve.snapshot(out, root, {'home': '/'}, 1, 'chromium', False))
+                        server.assert_not_called()
+                        self.assertFalse(out.exists())
+
     def test_the_clock_stands_on_a_day_no_season_dresses(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -19,7 +19,7 @@ module Themes
     , themesId, loadThemes, themeContext
     ) where
 
-import Control.Monad (forM, forM_, unless)
+import Control.Monad (forM, forM_, unless, when)
 import Data.Char     (isSpace, toLower, toUpper)
 import Data.List     (intercalate, isPrefixOf, nub)
 import Data.Maybe    (listToMaybe)
@@ -40,6 +40,7 @@ data Themes = Themes
 -- | A rule of a stylesheet, as 'systemDark' and 'scanThemes' need it.
 data CssRule = CssRule
     { ruleTop       :: Bool       -- ^ at the top level or in an @layer
+    , ruleCopyable  :: Bool       -- ^ within style-rule grouping at-rules only
     , ruleSelectors :: [String]   -- ^ comments out, whitespace collapsed
     , ruleBody      :: String     -- ^ between its braces, as written
     , ruleEnd       :: Int        -- ^ the offset just past its closing brace
@@ -58,8 +59,11 @@ scanThemes sources = if null ids then Right (Themes [] "" Nothing) else do
     let value name i = listToMaybe (reverse
             [ v | r <- rules, i `elem` alone r || (i == light && ruleSelectors r == [":root"])
                 , Just v <- [declared name (ruleBody r)] ])
-    forM_ ids $ \i -> unless (slug i) $ Left
-        ("theme ids must be lowercase letters, digits and hyphens: " ++ i)
+    forM_ ids $ \i -> do
+        unless (slug i) $ Left
+            ("theme ids must be lowercase letters, digits and hyphens: " ++ i)
+        when ("system-" `isPrefixOf` i) $ Left
+            ("theme ids beginning system- are reserved for system-preference records: " ++ i)
     themes <- forM ids $ \i -> case value "color-scheme" i of
         Just v | v `elem` ["light", "dark"] -> Right (Theme i v (value "--bg" i))
         Just v  -> Left ("theme " ++ i ++ "'s color-scheme must be light or dark, not " ++ v)
@@ -77,12 +81,13 @@ scanThemes sources = if null ids then Right (Themes [] "" Nothing) else do
 -- | A stylesheet with each of its rules for the theme @dark@ followed by a
 --   copy for a reader who chose no theme while the system prefers dark:
 --   @[data-theme="dark"] .x@ again as @:root:not([data-theme]) .x@, in
---   @\@media (prefers-color-scheme: dark)@. Only a rule 'scanThemes' reads
---   is copied (none in another at-rule), and only its selectors for that
---   theme, but for one its list already has.
+--   @\@media (prefers-color-scheme: dark)@. Copies stay beside their rule,
+--   inside its existing layer, media, supports, container or scope context.
+--   Unlike discovery, copying includes conditional theme overrides. Other
+--   at-rules (e.g. keyframes) do not contain eligible style rules.
 systemDark :: Maybe String -> String -> String
 systemDark Nothing css = css
-systemDark (Just dark) css = go 0 css [(ruleEnd r, copy r) | r <- cssRules css, ruleTop r, not (null (wanted r))]
+systemDark (Just dark) css = go 0 css [(ruleEnd r, copy r) | r <- cssRules css, ruleCopyable r, not (null (wanted r))]
   where
     wanted r = [ s' | s <- ruleSelectors r, Just (i, rest) <- [themeSelector s], i == dark
                     , let s' = ":root:not([data-theme])" ++ rest, s' `notElem` ruleSelectors r ]
@@ -97,15 +102,20 @@ systemDark (Just dark) css = go 0 css [(ruleEnd r, copy r) | r <- cssRules css, 
 --   the id and what follows it.
 themeSelector :: String -> Maybe (String, String)
 themeSelector s = do
-    r <- stripPrefix' "[data-theme=" s
-    case r of
+    attr <- stripPrefix' "[" (stripComments s)
+    afterName <- stripPrefix' "data-theme" (spaces attr)
+    afterEquals <- stripPrefix' "=" (spaces afterName)
+    case spaces afterEquals of
         q : t | q == '"' || q == '\'' -> case break (== q) t of
-            (i, _ : ']' : rest) | not (null i) -> Just (i, rest)
-            _                                  -> Nothing
-        t -> case span (\c -> c /= ']' && not (isSpace c)) t of
-            (i, ']' : rest) | not (null i) -> Just (i, rest)
-            _                              -> Nothing
-  where stripPrefix' p v = if p `isPrefixOf` v then Just (drop (length p) v) else Nothing
+            (i, _ : rest) -> closed i rest
+            _             -> Nothing
+        t -> uncurry closed (span (\c -> c /= ']' && not (isSpace c)) t)
+  where
+    spaces = dropWhile isSpace
+    closed i rest = case spaces rest of
+        ']' : more | not (null i) -> Just (i, more)
+        _                        -> Nothing
+    stripPrefix' p v = if p `isPrefixOf` v then Just (drop (length p) v) else Nothing
 
 -- | A theme's name in the settings panel: its id, capitalized, hyphens as
 --   spaces.
@@ -125,29 +135,31 @@ declared name body = listToMaybe (reverse
 -- | The rules of a stylesheet, in order. A block at-rule's rules are its
 --   children; only an @layer's count as top level.
 cssRules :: String -> [CssRule]
-cssRules = (\(rules, _, _) -> rules) . items True 0
+cssRules = (\(rules, _, _) -> rules) . items True True 0
   where
-    items top n s = case s of
+    items top copyable n s = case s of
         []                   -> ([], n, [])
         '}' : r              -> ([], n + 1, r)
-        c : r | isSpace c    -> items top (n + 1) r
-        '/' : '*' : r        -> let (k, r') = comment r in items top (n + 2 + k) r'
+        c : r | isSpace c    -> items top copyable (n + 1) r
+        '/' : '*' : r        -> let (k, r') = comment r in items top copyable (n + 2 + k) r'
         _ -> let (prelude, k, r) = upTo s in case r of
-            ';' : r' -> items top (n + k + 1) r'
+            ';' : r' -> items top copyable (n + k + 1) r'
             '{' : r'
                 | "@" `isPrefixOf` prelude ->
-                    let inner = top && atName prelude == "layer"
-                        (rules, n', r'') = items inner (n + k + 1) r'
-                        (more, n'', r''') = items top n' r''
+                    let name = atName prelude
+                        inner = top && name == "layer"
+                        copies = copyable && name `elem` ["layer", "media", "supports", "container", "scope", "starting-style"]
+                        (rules, n', r'') = items inner copies (n + k + 1) r'
+                        (more, n'', r''') = items top copyable n' r''
                     in  (rules ++ more, n'', r''')
                 | otherwise ->
                     let (body, k', r'') = block r'
                         end = n + k + 1 + k'
-                        rule = CssRule top (map collapse (splitTop ',' prelude)) body end
-                        (more, n'', r''') = items top end r''
+                        rule = CssRule top copyable (map collapse (splitTop ',' prelude)) body end
+                        (more, n'', r''') = items top copyable end r''
                     in  (rule : more, n'', r''')
-            _ -> items top (n + k) r     -- a stray '}' (closes this level) or the end
-    atName = takeWhile (\c -> not (isSpace c) && c /= '{') . drop 1
+            _ -> items top copyable (n + k) r     -- a stray '}' (closes this level) or the end
+    atName = map toLower . takeWhile (\c -> not (isSpace c) && c /= '(') . drop 1
 
 -- | A prelude, comments out, up to the '{', ';' or '}' that ends it: the
 --   text, how many characters it took, and the rest from that one on.

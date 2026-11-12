@@ -68,6 +68,18 @@ class SiteThemes(unittest.TestCase):
     def test_a_site_without_the_stylesheets_has_none(self):
         self.assertEqual(self.read(None, None), {"themes": [], "light": "", "dark": None})
 
+    def test_selector_whitespace_and_comments_do_not_change_discovery_or_copies(self):
+        for selector in ('[data-theme = "night"]', "[ data-theme\t=\t'night' ]",
+                         '[data-theme/**/=/**/night/**/]',
+                         '[/*attr*/ data-theme /*equals*/ = /*value*/ "night" /*end*/]'):
+            with self.subTest(selector=selector):
+                found = self.read(TOKENS, f'{selector} {{ color-scheme: dark; }}')
+                self.assertIn('night', [t['id'] for t in found['themes']])
+                # The same spelling must work in descendant rules, too.
+                rule = f'{selector.replace("night", "dark")} .x {{ color: white; }}'
+                out = self.system_dark(rule)
+                self.assertIn(':root:not([data-theme]) .x { color: white; }', out)
+
     def test_without_a_dark_theme_none_is_worn_for_a_dark_system(self):
         found = self.read(":root, [data-theme=\"day-light\"] { color-scheme: light; }", None)
         self.assertEqual(found["themes"][0]["label"], "Day light")
@@ -79,6 +91,8 @@ class SiteThemes(unittest.TestCase):
             ('[data-theme="dusk"] { --bg: #222; }', "theme dusk declares no color-scheme"),
             ('[data-theme="dusk"] { color-scheme: normal; }', "color-scheme must be light or dark, not normal"),
             ('[data-theme="Dusk"] { color-scheme: dark; }', "theme ids must be lowercase"),
+            ('[data-theme="system-dark"] { color-scheme: dark; }', "system- are reserved"),
+            ('[data-theme="system-custom"] { color-scheme: light; }', "system- are reserved"),
             (':root, [data-theme="dusk"] { color-scheme: dark; }', "one theme may be listed beside :root"),
         ):
             with self.subTest(theme=theme):
@@ -109,7 +123,7 @@ class SiteThemes(unittest.TestCase):
 """
         out = self.system_dark(css)
         # Each copy right after its rule; only the dark theme's selectors,
-        # but for one already there; none from inside another at-rule.
+        # but for one already there. Conditional overrides keep their context.
         self.assertEqual(out, """@layer site {
 [data-theme="dark"] { --bg: #000; /* a } in a comment */ }
 @media (prefers-color-scheme: dark) {
@@ -122,9 +136,27 @@ class SiteThemes(unittest.TestCase):
 
 [data-theme="sepia"] { --bg: #704214; }
 :root:not([data-theme]) .z, [data-theme="dark"] .z { color: red; }
-@media print { [data-theme="dark"] { --bg: #fff; } }
+@media print { [data-theme="dark"] { --bg: #fff; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme]) { --bg: #fff; }}
+ }
 }
 """)
+
+    def test_copies_stay_inside_nested_conditional_rules(self):
+        for at in ('@media (max-width: 600px)', '@supports (display: grid)',
+                   '@container (width < 600px)', '@scope (.panel)',
+                   '@MEDIA(max-width: 600px)'):
+            with self.subTest(at=at):
+                rule = '[ data-theme = "dark" ] .x { color: white; }'
+                css = f'@layer site {{ {at} {{ @supports (color: red) {{ {rule} }} }} }}'
+                expected = css.replace(rule, rule + '\n@media (prefers-color-scheme: dark) {\n'
+                                       ':root:not([data-theme]) .x { color: white; }}\n')
+                self.assertEqual(self.system_dark(css), expected)
+        # Keyframes and unknown at-rules are not style-rule groups.
+        for at in ('@keyframes pulse', '@unknown'):
+            css = f'{at} {{ [data-theme="dark"] {{ color: white; }} }}'
+            self.assertEqual(self.system_dark(css), css)
 
     def test_without_a_dark_theme_nothing_is_copied(self):
         with tempfile.TemporaryDirectory(prefix="site-system-dark-") as tmp:
