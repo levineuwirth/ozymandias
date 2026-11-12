@@ -1,4 +1,6 @@
-"""Inline-code email actions, using current source files without a site build.
+"""Inline-code email actions, using current source files without a site build
+(selection-popup.js with its code module after it, as a build with the code
+switch serves them).
 
 Native mail links are intercepted before navigation; no mail app is launched.
 RUN_BROWSER_TESTS=1 .venv/bin/python -m unittest tests.test_browser_email -v
@@ -20,6 +22,7 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/css/selection-popup.css">
 <script src="/js/utils.js"></script>
 <script src="/js/selection-popup.js" defer></script>
+<script src="/js/selection-popup/code.js" defer></script>
 </head><body><main id="markdownBody">
 <p><code id="address">abuse@egihosting.com</code></p>
 <p id="prose">abuse@egihosting.com</p>

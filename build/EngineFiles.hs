@@ -220,6 +220,9 @@ scriptModules =
         , Switched ["signature-link"] "popups/signature"
         , Switched ["music"] "popups/music"
         , Switched ["photography"] "popups/photography" ])
+    , ("selection-popup",
+        [ Switched ["code"] "selection-popup/code"
+        , Switched ["math"] "selection-popup/math" ])
     ]
 
 -- | Each script with modules, and the modules the site serves with it.
