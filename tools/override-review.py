@@ -287,8 +287,24 @@ def contract_problems(terms: dict) -> list[str]:
     """What is wrong with the contract itself: its shape, a template the
     engine lacks, a hook no file it names binds to."""
     problems = []
-    if set(terms) != {"contexts", "templates"}:
-        return [f"contract: has {sorted(terms)}, not contexts and templates"]
+    if set(terms) != {"contexts", "templates", "scripts"}:
+        return [f"contract: has {sorted(terms)}, not contexts, templates and scripts"]
+    for name, entry in (terms["scripts"] or {}).items():
+        if not isinstance(entry, dict) or set(entry) != {"by", "use"}:
+            problems.append(f"scripts: {name}: an entry has by and use")
+            continue
+        path = ENGINE / entry["by"]
+        if not path.is_file():
+            problems.append(f"scripts: {name}: no engine file {entry['by']}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        # A global the file assigns, or an event name it quotes.
+        if name.startswith("window."):
+            defined = re.search(rf"(?:window|global)\.{re.escape(name[7:])}\s*=", text)
+        else:
+            defined = re.search(rf"['\"]{re.escape(name)}['\"]", text)
+        if not defined:
+            problems.append(f"scripts: {name}: {entry['by']} does not define it")
     for template, entry in terms["templates"].items():
         if not template.startswith("templates/") or not (ENGINE / template).is_file():
             problems.append(f"{template}: not an engine template")

@@ -139,6 +139,21 @@ override is also held to `contract.yaml`, which no review clears: the
 templates a site may override, the fields the engine renders each with, and
 the hooks its scripts and styles need in the result.
 
+A script is better extended than copied. A site's own script, loaded after
+the engine's (a page's `js:` front matter), registers into what
+`contract.yaml`'s `scripts` lists:
+- `window.ozyPopups`: a preview for its own elements;
+- `window.ozySelection`: a selection toolbar context or action;
+- `window.ozyPhotography`: a layout of the photography grid;
+- `ozy:content-added` and `window.ozyEnhance`: content added after load.
+
+What a switch adds to `popups.js` and `selection-popup.js` is a module of
+its own (`static/js/popups/`, `static/js/selection-popup/`), served inside
+that one file with the switch on (`site script-modules`), and overridable
+by path like any other file. An element that draws how far the reader is
+through the page carries `data-read-progress`: `reading.js` keeps
+`--read-progress`, from 0 to 1, on it.
+
 ## Styling a site
 
 The stylesheets stay separate files in the source, and a page loads them in

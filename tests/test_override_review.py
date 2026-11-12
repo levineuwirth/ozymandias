@@ -43,6 +43,19 @@ class ContractTests(unittest.TestCase):
             "templates/partials/ornament.html: a hook has a selector, the files that bind it (by), why,"
             " and perhaps root: true"])
 
+    def test_a_script_registry_names_the_file_that_defines_it(self):
+        terms = review.contract()
+        terms["scripts"]["window.ozyNoSuch"] = {"by": "static/js/utils.js", "use": "nothing"}
+        terms["scripts"]["ozy:no-such-event"] = {"by": "static/js/utils.js", "use": "nothing"}
+        terms["scripts"]["window.ozyPopups"]["by"] = "static/js/no-such.js"
+        terms["scripts"]["window.ozyEnhance"] = {"by": "static/js/utils.js"}
+        self.assertEqual(review.contract_problems(terms), [
+            "scripts: window.ozyEnhance: an entry has by and use",
+            "scripts: window.ozyPopups: no engine file static/js/no-such.js",
+            "scripts: window.ozyNoSuch: static/js/utils.js does not define it",
+            "scripts: ozy:no-such-event: static/js/utils.js does not define it",
+        ])
+
     def test_entries_must_name_engine_templates_groups_and_hooks(self):
         terms = review.contract()
         terms["templates"]["templates/no-such.html"] = {"hooks": []}

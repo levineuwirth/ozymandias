@@ -27,6 +27,57 @@
 # engine's !important declarations (`[hidden]`, print visibility): those win
 # over any site declaration, a site's !important too, since CSS reverses
 # the layer order for important ones. README.md, "Styling a site".
+#
+# scripts: what a site's own script may extend instead of copying an engine
+#   file (JS is extended, not copied): each a global or an event, the engine
+#   file that provides it (by), which tools/override-review.py holds to
+#   defining it, and how to use it. A site's script comes after the
+#   engine's, deferred (a page's `js:` front matter, or a template
+#   override), and registers before the page has loaded;
+#   tests/test_browser_registries.py is one.
+scripts:
+  ozy:content-added:
+    by: static/js/utils.js
+    use: >-
+      A bubbling event on content inserted after load (a transclusion, or a
+      site script's own), once per insertion, with detail {container,
+      source}, after the engine's own scripts have seen it:
+      document.addEventListener('ozy:content-added', e => init(e.detail.container)).
+  window.ozyEnhance:
+    by: static/js/utils.js
+    use: >-
+      ozyEnhance(container[, {source, force}]) announces content a site's
+      script inserted: sidenotes, popups and collapsing sections take it
+      up, code and math in it are highlighted and typeset (with the code
+      and math switches), and ozy:content-added follows. Once per
+      container unless forced.
+  window.ozyPopups:
+    by: static/js/popups.js
+    use: >-
+      With the popups switch. bind(order, selector, content) gives the
+      elements selector finds a preview, content(target) returning a
+      Promise of HTML, a Node, or null for none, among the engine's
+      binders by order (popups.js, "Binding": an element keeps the first);
+      exclude(selector) gives internal links inside it none; onShow(fn) is
+      called with the popup once it is shown and placed.
+  window.ozySelection:
+    by: static/js/selection-popup.js
+    use: >-
+      With the selection-toolbar switch. context(name, test, buttons) adds
+      a context the selection is in when test(element, range) says so,
+      shown with buttons({oneWord, text}) (HTML; btn(action, label) makes
+      one); codeExtra(fn) adds HTML after Copy for selected code;
+      action(name, fn) is what a button with data-action=name does, given
+      the selected text and the button.
+  window.ozyPhotography:
+    by: static/js/photography-modes.js
+    use: >-
+      With the photography switch. registerMode(name, {enter(grid),
+      leave(grid)}) adds a layout of the photography grid, or replaces one
+      of the engine's (grid, masonry, chronological): the toggle's
+      data-mode and the grid's data-photography-mode, which a site's CSS
+      keys its rules off; the reader's choice is kept as the engine's are.
+
 contexts:
   identity:
     site-title: Example Site
@@ -83,7 +134,7 @@ templates:
         by: [static/js/nav.js]
         why: the build time, filled from /build/time.txt
       - selector: a.footer-sig-link
-        by: [static/js/popups.js]
+        by: [static/js/popups/signature.js]
         why: the signature's popup
 
   templates/partials/ornament.html:

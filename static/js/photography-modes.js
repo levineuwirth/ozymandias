@@ -1,7 +1,8 @@
 /* Photography section — view mode toggle and masonry row-span computation.
  *
  * Mode toggle:
- *   - Three modes: masonry (default), grid, chronological.
+ *   - Three modes: grid (default), masonry, chronological; a site's
+ *     script may add or replace one (window.ozyPhotography.registerMode).
  *   - Selection persists to localStorage under "photography-mode".
  *   - Mode is applied as data-photography-mode on .photography-grid;
  *     CSS keys all per-mode rules off this attribute.
@@ -25,9 +26,26 @@
     'use strict';
 
     var STORAGE_KEY = 'photography-mode';
-    // Modes applied inline on /photography/ (CSS toggle). "map" is a
-    // separate page and is excluded here so it follows normal navigation.
-    var VALID_MODES = ['masonry', 'grid', 'chronological'];
+
+    /* Modes applied inline on /photography/ (CSS toggle), by name: the
+       toggle's data-mode and the grid's data-photography-mode, which CSS
+       keys each mode's rules off. "map" is a separate page and is not one,
+       so it follows normal navigation. Each has `enter(grid)`, run when it
+       is applied, and `leave(grid)`, when another replaces it, both
+       optional. A site's script registers its own before the page has
+       loaded (a deferred script after this one; contract.yaml's scripts),
+       or replaces one of these by its name. */
+    var MODES = Object.create(null);
+
+    window.ozyPhotography = {
+        registerMode: function (name, hooks) {
+            MODES[name] = hooks || {};
+        }
+    };
+
+    function isMode(name) {
+        return !!name && Object.prototype.hasOwnProperty.call(MODES, name);
+    }
     // Grid is the default: it shows the most frames per screen and keeps
     // chrome off the pictures until one is pointed at. Masonry is the
     // deliberate second choice, for reading rather than scanning.
@@ -101,7 +119,7 @@
         function readStoredMode() {
             try {
                 var stored = window.localStorage.getItem(STORAGE_KEY);
-                if (stored && VALID_MODES.indexOf(stored) !== -1) {
+                if (isMode(stored)) {
                     return stored;
                 }
             } catch (e) { /* localStorage unavailable */ }
@@ -117,8 +135,11 @@
         // Mode toggle
         // ----------------------------------------------------------------
 
+        var current = null;
+
         function applyMode(mode) {
             if (!grid) return;
+            if (current && current !== mode && MODES[current].leave) MODES[current].leave(grid);
             grid.setAttribute('data-photography-mode', mode);
             updateImageSizes(grid);
             /* A06: the controls are a labelled navigation group, not a
@@ -137,15 +158,8 @@
                     btn.removeAttribute('aria-current');
                 }
             });
-            if (mode === 'masonry') {
-                // Measure after the browser has applied the new column
-                // template, not before: applyRowSpan reads card.clientWidth,
-                // and the track width it needs is the one the mode it is
-                // switching *into* produces.
-                window.requestAnimationFrame(applyAllRowSpans);
-            } else {
-                clearAllRowSpans();
-            }
+            current = mode;
+            if (MODES[mode].enter) MODES[mode].enter(grid);
         }
 
         toggleButtons.forEach(function (btn) {
@@ -157,7 +171,7 @@
                 // applying it inline or following a link. This is what
                 // makes the round-trip through /photography/map/ remember
                 // which grid view to land on.
-                if (VALID_MODES.indexOf(mode) !== -1) {
+                if (isMode(mode)) {
                     writeStoredMode(mode);
                 }
 
@@ -165,7 +179,7 @@
                 // apply masonry/grid/chronological inline and suppress
                 // the anchor's default navigation. The "map" link
                 // ALWAYS navigates — there's no inline alternative.
-                if (grid && VALID_MODES.indexOf(mode) !== -1) {
+                if (grid && isMode(mode)) {
                     e.preventDefault();
                     applyMode(mode);
                 }
@@ -235,6 +249,20 @@
                 card.style.gridRowEnd = '';
             });
         }
+
+        /* The engine's modes, but for one a site's script has replaced.
+           Masonry sets each card's row span, measured after the browser has
+           applied the new column template, not before: applyRowSpan reads
+           card.clientWidth, and the track width it needs is the one the
+           mode it is switching *into* produces; it clears them on leaving. */
+        [['grid', {}],
+         ['masonry', {
+             enter: function () { window.requestAnimationFrame(applyAllRowSpans); },
+             leave: clearAllRowSpans
+         }],
+         ['chronological', {}]].forEach(function (m) {
+            if (!isMode(m[0])) MODES[m[0]] = m[1];
+        });
 
         // Refine spans once each image's natural dimensions are known.
         // No-op when the grid is absent (e.g. on the map page).
