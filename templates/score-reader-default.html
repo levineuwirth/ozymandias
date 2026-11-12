@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="$assets$/css/score.css">
 <!-- utils.js must precede theme.js: theme.js reads saved settings via
      window.ozyUtils.safeStorage and silently restores nothing without it. -->
+<meta name="ozy:themes" content="$theme-ids$" data-light="$theme-light$"$if(theme-dark)$ data-dark="$theme-dark$"$endif$>
 $for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$">
 $endfor$<script src="$assets$/js/utils.js"></script>
 <script src="$assets$/js/theme.js"></script>

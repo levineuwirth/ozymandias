@@ -19,6 +19,7 @@ from tests._helpers import engine_path, script_env, load_tool
 
 TOOL = engine_path("tools/browser/preserve.py")
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>One</title>
+<meta name="ozy:themes" content="light dark cappuccino" data-light="light" data-dark="dark">
 <link rel="stylesheet" href="/style.css"></head>
 <body><p>A paragraph with <a href="/elsewhere" class="out">a link</a>.</p></body></html>
 """

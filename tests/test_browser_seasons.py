@@ -29,7 +29,7 @@ from pathlib import Path
 
 from tests import target
 from tests._browser import (BROWSERS, asset_root, check_site, enforcing_csp, off_season, require_playwright,
-                            requires_browser, site_server)
+                            requires_browser, site_server, site_themes)
 from tests.target import route
 
 PAGE = route("essay")
@@ -136,13 +136,13 @@ class Seasons(unittest.TestCase):
                 self.open_panel(page)
                 self.expect(self.season_button(page)).to_be_visible()
                 self.expect(self.season_button(page)).to_have_attribute("aria-pressed", "true")
-                for theme in ("light", "dark", "cappuccino"):
+                for theme in site_themes()[0]:
                     self.expect(self.button(page, "theme-" + theme)).to_have_attribute("aria-pressed", "false")
                 self.expect_stage(page)
 
     def test_a_stored_theme_keeps_it_off(self) -> None:
         for browser in BROWSERS:
-            for theme in ("light", "dark", "cappuccino"):
+            for theme in site_themes()[0]:
                 with self.subTest(browser=browser, theme=theme):
                     page = self.open_page(browser, self.inside, theme=theme)
                     self.assertEqual(self.html(page, "data-theme"), theme)

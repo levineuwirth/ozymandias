@@ -314,8 +314,8 @@
    fill: currentColor covers what Filters.Score cannot rewrite: a glyph that
    declares no fill at all and leans on SVG's initial black. MuseScore
    writes its notation that way (noteheads, clefs, accidentals, beams), so
-   without this a MuseScore fragment drew near-invisible on the dark and
-   cappuccino pages. It is inherited, not forced, so any fill an engraver
+   without this a MuseScore fragment drew near-invisible on a dark
+   theme's pages. It is inherited, not forced, so any fill an engraver
    wrote explicitly still wins. Same rule as .score-page in
    score-reader.css. */
 .score-fragment-inner svg {

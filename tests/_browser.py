@@ -98,6 +98,17 @@ def page_styles(path: str | None = None) -> str:
                      for href, media in links)
 
 
+def site_themes() -> tuple[list[str], str]:
+    """This build's themes, in its settings panel's order, and the one worn
+    with none chosen and the system light: its home page's ozy:themes meta
+    (build/Themes.hs)."""
+    found = re.search(r'<meta name="ozy:themes" content="([^"]*)" data-light="([^"]*)"',
+                      (SITE / "index.html").read_text(encoding="utf-8"))
+    if not found:
+        raise AssertionError("_site/index.html has no ozy:themes meta")
+    return found.group(1).split(), found.group(2)
+
+
 def asset_root() -> str:
     """Where this build's first-party JS and CSS are: /assets/<version>
     (EngineFiles.staticRules), as its home page names it."""

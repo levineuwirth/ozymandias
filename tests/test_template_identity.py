@@ -28,7 +28,8 @@ class SiteMetaTags(unittest.TestCase):
         utils = engine_path("static/js/utils.js").read_text(encoding="utf-8")
         head = engine_path("templates/partials/head.html").read_text(encoding="utf-8")
         read = set(re.findall(r"siteValue\('([a-z-]+)'", utils))
-        written = set(re.findall(r'<meta name="ozy:([a-z-]+)"', head)) - {"assets", "season"}
+        # theme.js and settings.js read assets, season and themes.
+        written = set(re.findall(r'<meta name="ozy:([a-z-]+)"', head)) - {"assets", "season", "themes"}
         self.assertEqual(read, written)
 
 
@@ -42,6 +43,7 @@ class TemplateIdentityTests(unittest.TestCase):
 import Config
 import Contexts (contentKindField, pageStylesheetsField)
 import Dingbat (dingbatField)
+import Themes (themeContext)
 import EngineFiles (assetsField)
 import qualified Patterns as P
 import qualified Tags as T
@@ -58,7 +60,7 @@ main = hakyll $ do
         item <- getResourceBody
         tpl <- compileTemplateItem (fmap stripHtmlComments item)
         pure (itemSetBody tpl item)
-    let ctx = identityContext <> navigationContext <> scriptContext <> seasonContext <> switchContext <> bundleContext <> pageStylesheetsField <> assetsField <> constField "home" "true"
+    let ctx = identityContext <> navigationContext <> scriptContext <> seasonContext <> themeContext <> switchContext <> bundleContext <> pageStylesheetsField <> assetsField <> constField "home" "true"
               <> constField "title" "Piece"
               <> constField "url" "/probe" <> constField "canonical-url" "/probe"
               <> bodyField "body"

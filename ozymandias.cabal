@@ -48,6 +48,7 @@ executable site
         Stability
         SvgColor
         Tags
+        Themes
         Pagination
         Citations
         BibExtras

@@ -22,6 +22,7 @@ import Control.Monad (forM_, (>=>))
 import EngineFiles
 import Compilers (essayCompiler, photographyCompiler)
 import Config (configRules)
+import Themes (Themes (..))
 import Hakyll
 import System.Environment (getArgs)
 
@@ -33,7 +34,7 @@ main = getArgs >>= \\args -> case args of
     "imports" : sheets -> mapM_ (print . hasImport) sheets
     _ -> hakyll $ do
         twins <- engineTwins
-        staticRules twins [] (const True)
+        staticRules twins [] (const True) (Themes [] "" Nothing)
         templateRules twins
         configRules
         dims <- makePatternDependency (staticImageDimensions .&&. hasNoVersion)

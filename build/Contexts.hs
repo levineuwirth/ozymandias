@@ -82,6 +82,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryPrimaryField, versionHistoryRestField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
+import Themes       (themeContext)
 import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
@@ -743,6 +744,7 @@ siteCtx =
     <> assetsField
     <> navigationContext
     <> seasonContext
+    <> themeContext
     <> switchContext
     <> bundleContext
     <> pageStylesheetsField

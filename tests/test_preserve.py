@@ -238,6 +238,7 @@ class Compare(unittest.TestCase):
         output = self.report.parent / "interrupted"
         with patch.object(preserve, "text_sizes", return_value=(17, "default", 29)), \
              patch.object(preserve, "off_season", return_value=1), \
+             patch.object(preserve, "site_themes", return_value=["light", "dark"]), \
              patch.object(preserve, "serve", side_effect=RuntimeError("interrupted")) as server:
             with self.assertRaisesRegex(RuntimeError, "interrupted"):
                 asyncio.run(preserve.snapshot(output, self.base, {"home": "/"}, 1, "chromium", True))
@@ -252,6 +253,7 @@ class Compare(unittest.TestCase):
         before = {p: p.read_bytes() for p in self.base.rglob("*") if p.is_file()}
         with patch.object(preserve, "text_sizes", return_value=(17, "default", 29)), \
              patch.object(preserve, "off_season", return_value=1), \
+             patch.object(preserve, "site_themes", return_value=["light", "dark"]), \
              patch.object(preserve, "serve") as server:
             with self.assertRaisesRegex(SystemExit, "already exists"):
                 asyncio.run(preserve.snapshot(self.base, self.base, {"home": "/"}, 1, "chromium", True))
@@ -264,6 +266,15 @@ class Settings(unittest.TestCase):
         low, base, high = preserve.text_sizes(engine_path(""))
         self.assertEqual(base, "default")
         self.assertTrue(0 < low < high, (low, high))
+
+    def test_the_themes_are_the_served_site_s(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            served = Path(tmp)
+            with self.assertRaisesRegex(SystemExit, "names no themes"):
+                preserve.site_themes(served)
+            (served / "index.html").write_text(
+                '<head><meta name="ozy:themes" content="light dark sepia" data-light="light"></head>')
+            self.assertEqual(preserve.site_themes(served), ["light", "dark", "sepia"])
 
     def test_the_clock_stands_on_a_day_no_season_dresses(self):
         with tempfile.TemporaryDirectory() as tmp:

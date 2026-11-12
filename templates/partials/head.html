@@ -70,7 +70,8 @@ $if(math)$<link rel="preload" href="/katex/katex.min.css" as="style">
 <link rel="stylesheet" href="$assets$/css/modules/katex.css">
 $endif$$if(search)$<link rel="preload" href="/pagefind/pagefind-ui.css" as="style">
 <link rel="stylesheet" href="$assets$/css/modules/pagefind.css">
-$endif$$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
+$endif$<meta name="ozy:themes" content="$theme-ids$" data-light="$theme-light$"$if(theme-dark)$ data-dark="$theme-dark$"$endif$>
+$for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
 $endfor$<script src="$assets$/js/utils.js"></script>
 <script src="$assets$/js/theme.js"></script>
 $if(switch-viz)$$if(viz)$

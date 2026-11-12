@@ -92,9 +92,7 @@
     ------------------------------------------------------------------ */
 
     function handle(action) {
-        if      (action === 'theme-light')      setTheme('light');
-        else if (action === 'theme-dark')       setTheme('dark');
-        else if (action === 'theme-cappuccino') setTheme('cappuccino');
+        if      (action.indexOf('theme-') === 0)  setTheme(action.slice(6));
         else if (action.indexOf('season-') === 0) setSeason(action.slice(7));
         else if (action.indexOf('text-') === 0) {
             if (!SIZES) return;
@@ -152,12 +150,18 @@
         });
     }
 
+    /* With none chosen, the theme the stylesheets give (ozy:themes'
+       data-light, or data-dark while the system prefers dark). */
     function currentTheme() {
         var season = document.documentElement.getAttribute('data-season');
         if (season) return season;
         var attr = document.documentElement.getAttribute('data-theme');
         if (attr) return attr;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        var meta = document.querySelector('meta[name="ozy:themes"]');
+        if (!meta) return null;
+        var dark = meta.getAttribute('data-dark');
+        return dark && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? dark : meta.getAttribute('data-light');
     }
 
     function syncThemeButtons() {

@@ -40,7 +40,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+import functools
 import io
+import json
 import os
 import re
 import subprocess
@@ -55,14 +57,14 @@ SITE_ROOT = sitelib.SITE_ROOT
 SVG_NS = "{http://www.w3.org/2000/svg}"
 XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
 
-# Site theme backgrounds and foregrounds (--bg, --text), from
-# static/css/base.css. currentColor resolves to these, so a figure has to
-# stay legible against every one.
-THEMES = {
-    "light": ("#faf8f4", "#1a1a1a"),
-    "dark": ("#121212", "#d4d0c8"),
-    "cappuccino": ("#553a28", "#ead0a0"),
-}
+@functools.cache
+def site_themes() -> dict[str, str]:
+    """Each of the site's themes and its page background (--bg), as its
+    stylesheets declare them (`site themes`, build/Themes.hs). currentColor
+    resolves against these, so a figure has to stay legible on every one."""
+    found = json.loads(subprocess.check_output([sitelib.site_binary(), "themes"],
+                                               cwd=SITE_ROOT, text=True))
+    return {t["id"]: t["bg"] for t in found["themes"] if t.get("bg") and parse_hex(t["bg"])}
 
 BODY_MAX_WIDTH = 800     # --body-max-width in base.css
 MIN_LABEL_PX = 9.0       # below this, axis labels stop being readable
@@ -232,7 +234,7 @@ def check_text_contrast(svg: str) -> list[str]:
         fg = parse_hex(m.group(1))
         if fg is None:
             continue
-        for theme, (page_bg, _) in THEMES.items():
+        for theme, page_bg in site_themes().items():
             page = parse_hex(page_bg)
             assert page is not None
             candidates = backdrops + [page]

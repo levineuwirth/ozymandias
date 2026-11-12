@@ -116,11 +116,15 @@
    CUSTOM PROPERTIES (light mode defaults)
    ============================================================ */
 
-/* Each theme declares its color-scheme, light or dark: the browser draws
-   its own parts to match (scrollbars, form fields, the backdrop behind an
-   embedded frame, and the scheme the frame's own page sees), and viz.js
-   picks its charts' palette by it. Print is light. */
-:root {
+/* THEMES
+   A theme is a rule for [data-theme="ID"] alone, here or in a site's
+   theme.css (build/Themes.hs reads them, in order, for the settings
+   panel); the one beside :root is worn with none chosen. Each declares
+   its color-scheme, light or dark: the browser draws its own parts to
+   match (scrollbars, form fields, the backdrop behind an embedded frame,
+   and the scheme the frame's own page sees), and viz.js picks its charts'
+   palette by it. Print is light. */
+:root, [data-theme="light"] {
     color-scheme:      light;
     --bg:              #faf8f4;
     --bg-nav:          #faf8f4;
@@ -521,8 +525,7 @@ body.reading-mode {
        white (audit V02). Same specificity, later in the cascade, wins. */
     :root:where(:not(:has(body.score-reader-page))),
     :root:not([data-theme]):where(:not(:has(body.score-reader-page))),
-    [data-theme="dark"]:where(:not(:has(body.score-reader-page))),
-    [data-theme="cappuccino"]:where(:not(:has(body.score-reader-page))) {
+    [data-theme]:where(:not(:has(body.score-reader-page))) {
     color-scheme: light;
     --bg: #ffffff;
     --bg-nav: #ffffff;

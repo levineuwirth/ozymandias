@@ -34,7 +34,7 @@ import Compilers  (essayCompiler, postCompiler, pageCompiler, poetryCompiler, fi
                    compositionCompiler, sidecarCompiler)
 import Catalog      (musicCatalogCtx)
 import Commonplace  (commonplaceCtx)
-import EngineFiles  (engineTwins, siteRelative, staticImageDimensions, staticRules, templateRules)
+import EngineFiles  (engineTwins, readThemes, siteRelative, staticImageDimensions, staticRules, templateRules)
 import Now          (nowCtx, nowLastUpdated)
 import Vita         (vitaCtx, projectsCtx)
 import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCtx, fictionCtx, compositionCtx,
@@ -335,7 +335,8 @@ rules = do
 
     -- Static files and templates, the site's and the engine's that no site
     -- file overrides ("EngineFiles").
-    staticRules twins (siteWithheld cfg) (switchOn cfg)
+    themes <- preprocess readThemes
+    staticRules twins (siteWithheld cfg) (switchOn cfg) themes
     templateRules twins
 
     -- The repository and the public site carry the same licence texts.

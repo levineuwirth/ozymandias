@@ -27,7 +27,7 @@ import unittest
 from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
-                            requires_browser, site_server)
+                            requires_browser, site_server, site_themes)
 from tests.target import requires_switch, route
 
 PAGE = route("essay")
@@ -166,16 +166,18 @@ class SettingsPanel(unittest.TestCase):
         background = "getComputedStyle(document.body).backgroundColor"
         # A replaced transition rejects `finished` (AbortError); settled all the same.
         settled = "Promise.all(document.body.getAnimations().map(a => a.finished.catch(() => null)))"
+        themes, light = site_themes()
         for browser in BROWSERS:
             page = self.open_page(browser)
             colours = {}
-            for theme in ("dark", "cappuccino", "light"):
+            # Each a change from the last: the one worn with none chosen last.
+            for theme in [t for t in themes if t != light] + [light]:
                 with self.subTest(browser=browser, theme=theme):
                     self.open_panel(page)
                     self.button(page, f"theme-{theme}").click()
                     self.assertEqual(self.html(page, "data-theme"), theme)
                     self.assertEqual(self.stored(page, "theme"), theme)
-                    for other in ("light", "dark", "cappuccino"):
+                    for other in themes:
                         self.expect(self.button(page, f"theme-{other}")).to_have_attribute(
                             "aria-pressed", "true" if other == theme else "false")
                     page.evaluate(settled)          # the background fades between themes
@@ -184,7 +186,7 @@ class SettingsPanel(unittest.TestCase):
                     self.assertEqual(self.html(page, "data-theme"), theme)
                     self.assertEqual(page.evaluate(background), colours[theme])
             with self.subTest(browser=browser, part="each theme its own colour"):
-                self.assertEqual(len(set(colours.values())), 3, colours)
+                self.assertEqual(len(set(colours.values())), len(themes), colours)
 
     SIZE = "getComputedStyle(document.documentElement).fontSize"
 

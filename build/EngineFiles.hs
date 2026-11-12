@@ -29,6 +29,7 @@ module EngineFiles
     , siteRelative
     , existingFile
     , resolveFile
+    , readThemes
     , filesIn
     , engineTwins
     , fromEngine
@@ -52,10 +53,13 @@ import           Data.Char         (chr, digitToInt, isAsciiLower, isAsciiUpper,
 import           Data.List         (intercalate, sort, stripPrefix)
 import           Data.Maybe        (fromMaybe)
 import qualified Data.Set          as Set
+import qualified Data.Text         as T
+import qualified Data.Text.Encoding as TE
 import           Hakyll
 import           System.Directory  (doesFileExist, listDirectory)
 import           System.FilePath   ((</>))
 
+import           Themes            (Themes, scanThemes, themesId)
 import           Utils             (stripHtmlComments, stripPrefixRoute)
 
 -- | Where the engine sits in the site.
@@ -81,6 +85,15 @@ existingFile rel = do
 --   fails to read it names the file where a site would put it.
 resolveFile :: FilePath -> IO FilePath
 resolveFile rel = fromMaybe rel <$> existingFile rel
+
+-- | The site's themes ("Themes"), from its tokens.css and theme.css, each
+--   its own or else the engine's (one neither has reads as empty), or a
+--   failure naming what is wrong with them.
+readThemes :: IO Themes
+readThemes = do
+    sources <- forM ["static/css/tokens.css", "static/css/theme.css"] $ \rel ->
+        existingFile rel >>= maybe (pure "") (fmap (T.unpack . TE.decodeUtf8) . BS.readFile)
+    either (fail . ("themes: " ++)) pure (scanThemes sources)
 
 -- | The entries directly in a site directory and in the engine's, each
 --   name once, at the path 'resolveFile' would give it. A missing directory
@@ -183,9 +196,10 @@ bundlePlan on =
 -- | Static files, the site's and the engine's, served without @static/@,
 --   but for @withheld@: those of the switches the site has off
 --   ('Config.siteWithheld'). @on@ says which switches the site has on,
---   for the stylesheet bundles ('cssBundles').
-staticRules :: (String -> Pattern) -> [String] -> (String -> Bool) -> Rules ()
-staticRules twins withheld on = do
+--   for the stylesheet bundles ('cssBundles'); @themes@ are its themes
+--   ('readThemes'), kept for pages as 'Themes.themesId'.
+staticRules :: (String -> Pattern) -> [String] -> (String -> Bool) -> Themes -> Rules ()
+staticRules twins withheld on themes = do
     let inBoth glob = fromGlob glob .||. fromGlob (engineDir ++ "/" ++ glob)
         unused      = foldr ((.||.) . inBoth . ("static/" ++)) (fromList []) withheld
         served glob = (fromGlob glob .||. twins glob) .&&. complement unused
@@ -207,6 +221,9 @@ staticRules twins withheld on = do
 
     rulesExtraDependencies [changed] $ do
         create [assetVersionId] $ compile (makeItem current)
+        -- Read from the stylesheets as the rules are, and made again with
+        -- the version: any change to the CSS is a change to it.
+        create [themesId] $ compile (makeItem (show themes))
 
         -- CSS, at any depth (modules/, seasons/) — must be matched before
         -- the broad rule to avoid double-matching (compressCssCompiler vs.

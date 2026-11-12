@@ -11,9 +11,13 @@
     var store = window.ozyUtils && window.ozyUtils.safeStorage;
     function safeGet(key) { return store ? store.get(key) : null; }
 
-    /* Theme */
+    /* Theme: one of the site's (head.html's ozy:themes meta, from its
+       stylesheets' [data-theme] rules; build/Themes.hs). */
+    var themesMeta = document.querySelector('meta[name="ozy:themes"]');
+    var themes = themesMeta ? (themesMeta.getAttribute('content') || '').split(' ') : [];
+    function isTheme(id) { return !!id && themes.indexOf(id) >= 0; }
     var storedTheme = safeGet('theme');
-    if (storedTheme === 'dark' || storedTheme === 'light' || storedTheme === 'cappuccino') {
+    if (isTheme(storedTheme)) {
         document.documentElement.setAttribute('data-theme', storedTheme);
     }
 
@@ -54,7 +58,6 @@
        a season later. Malformed metas are skipped. */
     var root = document.documentElement;
     var today = new Date(), day = (today.getMonth() + 1) * 100 + today.getDate();
-    var themes = ['dark', 'light', 'cappuccino'];
     var open = [], worn = null;
     function monthDay(value) {
         var m = /^(\d\d)-(\d\d)$/.exec(value || '');
@@ -63,13 +66,13 @@
     Array.prototype.forEach.call(document.querySelectorAll('meta[name="ozy:season"]'), function (meta) {
         var id = meta.getAttribute('content'), base = meta.getAttribute('data-base');
         var from = monthDay(meta.getAttribute('data-from')), to = monthDay(meta.getAttribute('data-to'));
-        if (!id || themes.indexOf(base) < 0 || from === null || to === null) return;
+        if (!id || !isTheme(base) || from === null || to === null) return;
         var isOpen = from <= to ? day >= from && day <= to : day >= from || day <= to;
         if (isOpen) open.push(id);
         if (storedTheme === id) {
             root.setAttribute('data-theme', base);
             if (isOpen) worn = meta;
-        } else if (isOpen && !worn && themes.indexOf(storedTheme) < 0 && !storedSeason()) {
+        } else if (isOpen && !worn && !isTheme(storedTheme) && !storedSeason()) {
             worn = meta;
         }
     });

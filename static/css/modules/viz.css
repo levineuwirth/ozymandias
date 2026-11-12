@@ -53,8 +53,8 @@
    declares none of its own, glyph <use> elements included, picks it up.
 
    This rule once reached only the text groups (g[id^="text_"]). Black
-   shapes then stayed black, near-invisible on the dark and cappuccino
-   pages: the Proof Broker figure's arrowheads drew hollow. Setting it on
+   shapes then stayed black, near-invisible on a dark theme's pages: the
+   Proof Broker figure's arrowheads drew hollow. Setting it on
    the root matches .score-page in score-reader.css, and
    tests/test_viz.py (ImplicitFillTests) now fails on any shape left
    without a fill it can inherit.

@@ -16,10 +16,11 @@ module Config
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
-import EngineFiles (assetsField, bundlePlan, engineDir)
+import EngineFiles (assetsField, bundlePlan, engineDir, readThemes)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
+import Themes (Themes (..), Theme (..))
 import Data.Bifunctor (first)
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
@@ -107,10 +108,6 @@ data Season = Season
     , seasonScript :: Maybe String
     } deriving (Eq, Show)
 
--- | The themes a season can dress: theme.js's, settings.js's and base.css's.
-seasonBases :: [String]
-seasonBases = ["light", "dark", "cappuccino"]
-
 instance FromJSON Season where
     parseJSON = withObject "season" $ \o -> do
         onlyKeys ["id", "label", "base", "from", "to", "stylesheet", "script"] o
@@ -118,11 +115,7 @@ instance FromJSON Season where
                     <*> o .: "from" <*> o .: "to" <*> o .: "stylesheet" <*> o .:? "script"
         unless (slug (seasonId s)) $
             fail ("season id must be lowercase letters, digits and hyphens: " ++ seasonId s)
-        when (seasonId s `elem` seasonBases) $
-            fail ("season id names a theme: " ++ seasonId s)
         singleLine "season label" (seasonLabel s)
-        unless (seasonBase s `elem` seasonBases) $
-            fail ("season base must be one of " ++ intercalate ", " seasonBases ++ ": " ++ seasonBase s)
         forM_ [("from", seasonFrom s), ("to", seasonTo s)] $ \(key, day) ->
             unless (monthDay day) $
                 fail ("season " ++ key ++ " must be a day of the year as MM-DD: " ++ day)
@@ -637,7 +630,20 @@ readSiteConfig :: IO SiteConfig
 readSiteConfig = do
     registry <- BS.readFile registryPath
     site     <- BS.readFile "site.yaml"
-    either fail pure (decodeConfig registry site)
+    c        <- either fail pure (decodeConfig registry site)
+    themes   <- map themeId . themeList <$> readThemes
+    either (fail . ("site.yaml: " ++)) (const (pure c)) (seasonsDress themes c)
+
+-- | Each season dresses one of the site's themes (its stylesheets',
+--   "Themes"), and is named apart from them, as theme.js and settings.js
+--   tell a stored season from a stored theme by name. A probe site with no
+--   themes has its seasons unchecked.
+seasonsDress :: [String] -> SiteConfig -> Either String ()
+seasonsDress [] _ = Right ()
+seasonsDress themes c = forM_ (siteSeasons c) $ \s -> do
+    when (seasonId s `elem` themes) $ Left ("season id names a theme: " ++ seasonId s)
+    unless (seasonBase s `elem` themes) $ Left
+        ("season base must be one of the themes, " ++ intercalate ", " themes ++ ": " ++ seasonBase s)
 
 configRules :: Rules ()
 configRules = match ("site.yaml" .||. fromGlob registryPath) $ compile getResourceBody

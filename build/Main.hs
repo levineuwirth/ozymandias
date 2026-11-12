@@ -8,7 +8,8 @@ import System.Directory      (createDirectoryIfMissing, doesFileExist)
 import System.Environment    (getArgs)
 import System.Exit           (die)
 import System.FilePath       ((</>))
-import EngineFiles           (bundlePlan, engineDir)
+import EngineFiles           (bundlePlan, engineDir, readThemes)
+import Themes                (Themes (..), Theme (..), themeLabel)
 import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
@@ -84,7 +85,8 @@ writeBuildStamp = do
 -- strip-template-comments@ filters stdin as templates are ('Utils.stripHtmlComments'),
 -- for its test; @site version@ the digest of the sources it was compiled
 -- from ("EngineVersion"); @site css-bundles@ the stylesheet bundles it builds
--- and their files, by the site's switches (EngineFiles.cssBundles). A build refuses to run with other sources under
+-- and their files, by the site's switches (EngineFiles.cssBundles); @site
+-- themes@ the site's themes, as its stylesheets declare them ("Themes"). A build refuses to run with other sources under
 -- engine/ than those ('checkSources'), when two items share an output
 -- path, or when site.yaml links a page of a switch it has off that nothing
 -- else builds ('withCheckedRoutes').
@@ -95,6 +97,12 @@ main = do
         ["config"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode
         ["version"] -> putStrLn ("ozymandias sources " ++ compiledSourceHash)
         ["css-bundles"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode . Map.fromList . bundlePlan . switchOn
+        ["themes"] -> readThemes >>= \t -> LBS.putStrLn $ Aeson.encode $ Map.fromList
+            [ ("themes" :: String, Aeson.toJSON
+                [ Map.fromList [ ("id" :: String, Aeson.toJSON (themeId x)), ("label", Aeson.toJSON (themeLabel (themeId x)))
+                               , ("scheme", Aeson.toJSON (themeScheme x)), ("bg", Aeson.toJSON (themeBg x)) ]
+                | x <- themeList t ])
+            , ("light", Aeson.toJSON (themeLight t)), ("dark", Aeson.toJSON (themeDark t)) ]
         ["config", "--make"] -> readSiteConfig >>= putStr . configMake
         ["render-fixture", path] -> renderFixture path
         ["render-template", template, context, work] -> renderTemplate template context work

@@ -9,8 +9,9 @@ was, recorded from a built site and compared with another record.
 
 A snapshot serves the site's _site (or --root) as nginx does
 (serve.py, with the site's enforcing policy when it has one) and visits each
-page of its route list (tests/routes.yaml, routes.py) in each theme, chosen
-(stored as a reader's choice, the system light), and with none chosen under
+page of its route list (tests/routes.yaml, routes.py) in each of its themes
+(its index.html's ozy:themes meta, as the build wrote it), chosen (stored as
+a reader's choice, the system light), and with none chosen under
 each system preference (system-light, system-dark: what the CSS's
 prefers-color-scheme rules give a reader who never chose), with the clock
 set to a day no season dresses, motion reduced, and nothing fetched but
@@ -58,7 +59,6 @@ HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent)]
 from routes import Routes  # noqa: E402
 
-THEMES = ("light", "dark", "cappuccino")
 # A reader who chose no theme, under each system preference: recorded as
 # system-<scheme>, which no theme may be named.
 SYSTEMS = ("light", "dark")
@@ -205,6 +205,18 @@ def text_sizes(engine: Path) -> tuple[int, str, int]:
         raise SystemExit("preserve: utils.js's TEXT_SIZE not found")
     low, high = map(int, m.groups())
     return low, "default", high
+
+
+def site_themes(served: Path) -> list[str]:
+    """The served site's themes, in its settings panel's order: its home
+    page's ozy:themes meta (build/Themes.hs)."""
+    home = served / "index.html"
+    found = re.search(r'<meta name="ozy:themes" content="([^"]*)"',
+                      home.read_text(encoding="utf-8") if home.is_file() else "")
+    themes = found.group(1).split() if found else []
+    if not themes:
+        raise SystemExit(f"preserve: {home} names no themes (no ozy:themes meta)")
+    return themes
 
 
 def off_season(root: Path) -> int:
@@ -364,7 +376,7 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     engine = HERE.parents[1]
     sizes = text_sizes(engine)
     moment = in_season(root, season) if season else off_season(root)
-    themes = [season] if season else list(THEMES)
+    themes = [season] if season else site_themes(served)
     systems = [] if season else list(SYSTEMS)
     if not pages or jobs < 1:
         raise SystemExit("preserve: snapshot needs at least one page and --jobs >= 1")

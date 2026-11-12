@@ -23,11 +23,7 @@
             <div class="settings-panel" aria-hidden="true">
                 <div class="settings-section">
                     <div class="settings-label">Theme</div>
-                    <div class="settings-row">
-                        <button class="settings-btn" data-action="theme-light">Light</button>
-                        <button class="settings-btn" data-action="theme-dark">Dark</button>
-                        <button class="settings-btn" data-action="theme-cappuccino">Cappuccino</button>$for(seasons)$
-                        <button class="settings-btn" data-action="season-$season-id$" hidden>$season-label$</button>$endfor$
+                    <div class="settings-row">$partial("templates/partials/theme-buttons.html")$
                     </div>
                 </div>
             </div>

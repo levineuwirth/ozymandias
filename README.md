@@ -196,6 +196,17 @@ and delay. A media query cannot read a custom property, so the breakpoints
 are literals, listed in `tokens.css`. `tests/test_css_tokens.py` keeps the
 engine's stylesheets to these tokens and that list.
 
+A site's themes are its stylesheets': each rule for `[data-theme="ID"]`
+alone, at the top level of `tokens.css` or `theme.css` or in an `@layer`
+there, is a theme, and the settings panel offers them in the order they
+first appear, labeled from their ids (`sepia-night` is "Sepia night").
+The engine's are `light` and `dark`; a site adds its own in `theme.css`
+and needs no change to a script or template. The one beside `:root`
+(`tokens.css`'s `:root, [data-theme="light"]`) is worn with none chosen.
+`site themes` lists them, and the build fails on a theme with no
+`color-scheme`, on two beside `:root`, and on a season (`site.yaml`) whose
+base is not a theme or whose id is one.
+
 Each theme declares its `color-scheme`, `light` or `dark`, in its rule, as
 `tokens.css`'s light and dark do (a site redefining those inherits theirs):
 the browser draws scrollbars, form fields and an embedded frame's backdrop

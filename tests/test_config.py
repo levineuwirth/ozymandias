@@ -34,6 +34,10 @@ class ConfigTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
         self.config = write_site_config(self.root)
+        # The engine's themes, light and dark, which seasons dress.
+        css = self.root / "engine/static/css"
+        css.mkdir(parents=True, exist_ok=True)
+        (css / "tokens.css").symlink_to(engine_path("static/css/tokens.css"))
 
     def write_config(self):
         (self.root / "site.yaml").write_text(json.dumps(self.config), encoding="utf-8")
@@ -423,6 +427,9 @@ class ConfigTests(unittest.TestCase):
             {"id": "spring-2", "label": "Spring", "base": "cappuccino", "from": "03-20", "to": "03-20",
              "stylesheet": "/css/seasons/spring.css"},
         ]
+        # A site's own theme is a base too: theme.css's cappuccino.
+        (self.root / "static/css").mkdir(parents=True)
+        (self.root / "static/css/theme.css").write_text('[data-theme="cappuccino"] { color-scheme: dark; }')
         self.config["seasons"] = seasons
         self.write_config()
         done = self.run_site("config")

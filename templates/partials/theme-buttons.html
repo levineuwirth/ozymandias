@@ -1,0 +1,6 @@
+<!-- The Theme row's buttons, in both settings panels (nav.html's and the
+     score reader's): the site's themes, from its stylesheets ("Themes"),
+     then its seasons, each shown by settings.js while its window is open. -->
+$for(themes)$
+<button type="button" class="settings-btn" data-action="theme-$theme-id$">$theme-label$</button>$endfor$$for(seasons)$
+<button type="button" class="settings-btn" data-action="season-$season-id$" hidden>$season-label$</button>$endfor$
