@@ -196,6 +196,12 @@ and delay. A media query cannot read a custom property, so the breakpoints
 are literals, listed in `tokens.css`. `tests/test_css_tokens.py` keeps the
 engine's stylesheets to these tokens and that list.
 
+Each theme declares its `color-scheme`, `light` or `dark`, in its rule, as
+`tokens.css`'s light and dark do (a site redefining those inherits theirs):
+the browser draws scrollbars, form fields and an embedded frame's backdrop
+to match, and charts (`viz.js`) take their light or dark palette from it.
+A site whose print rules recolor its themes sets it back to `light` there.
+
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture
 site demonstrates a complete skin. A mechanical restyling records before

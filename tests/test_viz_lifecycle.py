@@ -1,4 +1,5 @@
-"""Vega views must not leak or render out of order during a theme change."""
+"""Vega views must not leak or render out of order during a theme change,
+and take the palette of the color-scheme the theme in force declares."""
 import json
 import shutil
 import subprocess
@@ -27,6 +28,11 @@ global.document = {
 };
 global.MutationObserver = class { constructor(cb) { changed = cb; } observe() {} };
 global.matchMedia = () => ({matches: dark, addEventListener(name, cb) {systemChanged = cb;}});
+// The stylesheets' part: each theme's color-scheme (tokens.css, theme.css);
+// with none chosen, none declared here.
+const SCHEMES = {light: 'light', dark: 'dark', 'night-ink': 'dark', both: 'light dark'};
+global.getComputedStyle = el => ({getPropertyValue: name =>
+  name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : ''});
 global.vegaEmbed = (el, spec) => {
   const id = calls.length; calls.push(spec.config);
   return new Promise((resolve, reject) => pending.push({reject,
@@ -79,3 +85,21 @@ dark = false; systemChanged(); await tick();
 console.log(JSON.stringify({calls: calls.length, released}));
 ''')
         self.assertEqual(data, {'calls': 3, 'released': [0, 1]})
+
+    def test_the_palette_is_the_color_scheme_s_whatever_the_theme_is_called(self):
+        data = self.probe(r'''
+const marks = [];
+const settle = async () => { await tick(); pending[pending.length-1].resolve(); await tick();
+  marks.push(calls[calls.length-1].mark.color); };
+ready(); await settle();
+for (const t of ['night-ink', 'light', 'both']) { theme(t); await settle(); }
+dark = true; theme('both'); await settle();
+console.log(JSON.stringify(marks));
+''')
+        # None chosen and the system light; a site's own dark theme; light;
+        # a scheme of both, which defers to the system, light then dark.
+        self.assertEqual(data[1], data[4])
+        self.assertEqual(data[0], data[2])
+        self.assertEqual(data[0], data[3])
+        self.assertEqual(data[1], '#d4d0c8')
+        self.assertNotEqual(data[0], data[1])

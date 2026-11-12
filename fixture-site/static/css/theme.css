@@ -72,6 +72,7 @@
    ============================================================ */
 
 [data-theme="cappuccino"] {
+    color-scheme:      dark;
     --bg:              #553a28;
     --bg-nav:          #503626;
     --nav-logo-fg:     #ead0a0;
@@ -501,6 +502,7 @@ body.reading-mode {
     :root:not([data-theme]):where(:not(:has(body.score-reader-page))),
     [data-theme="dark"]:where(:not(:has(body.score-reader-page))),
     [data-theme="cappuccino"]:where(:not(:has(body.score-reader-page))) {
+    color-scheme: light;
     --bg: #ffffff;
     --bg-nav: #ffffff;
     --bg-offset: #ffffff;

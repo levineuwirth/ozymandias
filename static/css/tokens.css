@@ -116,7 +116,12 @@
    CUSTOM PROPERTIES (light mode defaults)
    ============================================================ */
 
+/* Each theme declares its color-scheme, light or dark: the browser draws
+   its own parts to match (scrollbars, form fields, the backdrop behind an
+   embedded frame, and the scheme the frame's own page sees), and viz.js
+   picks its charts' palette by it. Print is light. */
 :root {
+    color-scheme:      light;
     --bg:              #faf8f4;
     --bg-nav:          #faf8f4;
     --nav-logo-fg:     #1a1a1a;
@@ -154,6 +159,7 @@
 
 /* Explicit dark mode */
 [data-theme="dark"] {
+    color-scheme:      dark;
     --bg:              #121212;
     --bg-nav:          #181818;
     --nav-logo-fg:     #d4d0c8;
@@ -185,6 +191,7 @@
 /* System dark mode fallback */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
+    color-scheme:      dark;
     --bg:              #121212;
     --bg-nav:          #181818;
     --nav-logo-fg:     #d4d0c8;
@@ -516,6 +523,7 @@ body.reading-mode {
     :root:not([data-theme]):where(:not(:has(body.score-reader-page))),
     [data-theme="dark"]:where(:not(:has(body.score-reader-page))),
     [data-theme="cappuccino"]:where(:not(:has(body.score-reader-page))) {
+    color-scheme: light;
     --bg: #ffffff;
     --bg-nav: #ffffff;
     --bg-offset: #ffffff;

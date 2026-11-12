@@ -88,16 +88,15 @@
   };
 
   // -------------------------------------------------------------------------
-  // Theme detection (matches theme.js logic)
+  // Theme detection: the color-scheme the theme in force declares
+  // (tokens.css, a site's theme.css), so a site's own themes need no list
+  // here; the system's preference only if it declares neither or both.
   // -------------------------------------------------------------------------
 
   function isDark() {
-    var t = document.documentElement.dataset.theme;
-    if (t === 'dark')  return true;
-    /* cappuccino is a dark-brown theme (light text on #553a28) — charts
-       need the dark palette or axis labels become unreadable. */
-    if (t === 'cappuccino') return true;
-    if (t === 'light') return false;
+    var scheme = getComputedStyle(document.documentElement).getPropertyValue('color-scheme');
+    var dark = /(^|\s)dark(\s|$)/.test(scheme), light = /(^|\s)light(\s|$)/.test(scheme);
+    if (dark !== light) return dark;
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
