@@ -9,9 +9,12 @@ was, recorded from a built site and compared with another record.
 
 A snapshot serves the site's _site (or --root) as nginx does
 (serve.py, with the site's enforcing policy when it has one) and visits each
-page of its route list (tests/routes.yaml, routes.py) in each theme, with the
-clock set to a day no season dresses, motion reduced, and nothing fetched
-but from the site itself:
+page of its route list (tests/routes.yaml, routes.py) in each theme, chosen
+(stored as a reader's choice, the system light), and with none chosen under
+each system preference (system-light, system-dark: what the CSS's
+prefers-color-scheme rules give a reader who never chose), with the clock
+set to a day no season dresses, motion reduced, and nothing fetched but
+from the site itself:
 
   styles   the computed style of every element under <html> but <head>, and
            of each ::before and ::after that has content, for PROPERTIES,
@@ -56,6 +59,9 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]
 from routes import Routes  # noqa: E402
 
 THEMES = ("light", "dark", "cappuccino")
+# A reader who chose no theme, under each system preference: recorded as
+# system-<scheme>, which no theme may be named.
+SYSTEMS = ("light", "dark")
 WIDTHS = (320, 768, 1280, 1600)
 STYLE_WIDTH = 1280
 HEIGHT = 900
@@ -65,7 +71,7 @@ SHOT_HEIGHT = 6000
 # A change of colour is the computed styles' to catch, which they do to the
 # unit; the screenshots are for what styles don't name, never that faint.
 TOLERANCE = 2
-FORMAT = 3
+FORMAT = 4
 
 # What a reader sees of an element, and what places it: the properties a
 # move of CSS between files or layers could change without meaning to.
@@ -95,7 +101,7 @@ PROPERTIES = [
     "grid-row-start", "grid-row-end", "grid-auto-flow", "column-count", "column-width",
     "object-fit", "aspect-ratio", "cursor", "pointer-events", "user-select",
     "fill", "stroke", "stroke-width", "content", "counter-increment", "counter-reset",
-    "scroll-margin-top", "caret-color", "accent-color",
+    "scroll-margin-top", "caret-color", "accent-color", "color-scheme",
 ]
 
 # What moves on its own, timed by script, so that two records of one build
@@ -269,14 +275,22 @@ async def still(page, limit: int) -> None:
     await page.evaluate(STILL, [500, 10000, limit])
 
 
-async def context(browser, base: str, theme: str, size: int | None, moment: int, width: int,
-                  init: str | None = None):
+def looks(themes: list[str], systems: list[str]) -> list[tuple[str, str | None, str]]:
+    """Each recorded look: its record name, the theme stored as the reader's
+    choice (None: no choice), and the system's color scheme."""
+    return [(t, t, "light") for t in themes] + [(f"system-{s}", None, s) for s in systems]
+
+
+async def context(browser, base: str, theme: str | None, size: int | None, moment: int, width: int,
+                  init: str | None = None, scheme: str = "light"):
     ctx = await browser.new_context(viewport={"width": width, "height": HEIGHT},
-                                    reduced_motion="reduce", device_scale_factor=1)
+                                    reduced_motion="reduce", color_scheme=scheme,
+                                    device_scale_factor=1)
     await ctx.add_init_script(DATE_INIT % moment)
     if init:
         await ctx.add_init_script(init)
-    await ctx.add_init_script(THEME_INIT % json.dumps(theme))
+    if theme is not None:
+        await ctx.add_init_script(THEME_INIT % json.dumps(theme))
     if size is not None:
         await ctx.add_init_script(SIZE_INIT % size)
     # Nothing but the site itself: tiles, CDNs and providers are refused.
@@ -292,23 +306,25 @@ async def record_styles(page, target: Path, volatile: list[str]) -> None:
 
 
 async def record_page(browser, base, name, path, out: Path, moment, sizes, shots, errors,
-                      themes, volatile, init):
+                      themes, systems, volatile, init):
     url = base + path
-    for theme in themes:
+    for look, stored, scheme in looks(themes, systems):
         for size in sizes:
-            ctx = await context(browser, base, theme, None if size == "default" else size, moment, STYLE_WIDTH, init)
+            ctx = await context(browser, base, stored, None if size == "default" else size, moment,
+                                STYLE_WIDTH, init, scheme)
             page = await ctx.new_page()
             page.on("pageerror", lambda e, n=name: errors.setdefault(n, []).append(str(e)[:200]))
             try:
                 await settled(page, url)
                 await still(page, HEIGHT)
-                await record_styles(page, out / "styles" / name / f"{theme}-{size}.json.gz", volatile)
+                await record_styles(page, out / "styles" / name / f"{look}-{size}.json.gz", volatile)
             finally:
                 await ctx.close()
         if not shots:
             continue
         for width in WIDTHS + ("print",):
-            ctx = await context(browser, base, theme, None, moment, STYLE_WIDTH if width == "print" else width, init)
+            ctx = await context(browser, base, stored, None, moment,
+                                STYLE_WIDTH if width == "print" else width, init, scheme)
             page = await ctx.new_page()
             try:
                 if width == "print":
@@ -326,10 +342,10 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
                 except Exception:
                     pass
                 await still(page, SHOT_HEIGHT)
-                await record_styles(page, out / "styles" / name / f"{theme}-view-{width}.json.gz", volatile)
+                await record_styles(page, out / "styles" / name / f"{look}-view-{width}.json.gz", volatile)
                 height = await page.evaluate("document.scrollingElement.scrollHeight")
                 full = await page.evaluate("document.scrollingElement.scrollWidth")
-                target = out / "shots" / name / f"{theme}-{width}.png"
+                target = out / "shots" / name / f"{look}-{width}.png"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=str(target), full_page=True, animations="disabled", caret="hide",
                                       clip={"x": 0, "y": 0, "width": full, "height": min(height, SHOT_HEIGHT)},
@@ -341,13 +357,15 @@ async def record_page(browser, base, name, path, out: Path, moment, sizes, shots
 async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, browser_name: str, shots: bool,
                    season: str | None = None, volatile: list[str] = VOLATILE, init: str | None = None):
     """With `season`, the clock stands inside that season's window and each
-    page wears it (a reader who chose it), in place of the three themes."""
+    page wears it (a reader who chose it), in place of the themes and the
+    system preferences."""
     from playwright.async_api import async_playwright
     root = site_root()
     engine = HERE.parents[1]
     sizes = text_sizes(engine)
     moment = in_season(root, season) if season else off_season(root)
     themes = [season] if season else list(THEMES)
+    systems = [] if season else list(SYSTEMS)
     if not pages or jobs < 1:
         raise SystemExit("preserve: snapshot needs at least one page and --jobs >= 1")
     # Never mix a rerun with old records or an old completion marker. A failed
@@ -366,7 +384,7 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
             async def one(name, path):
                 async with gate:
                     await record_page(browser, base, name, path, out, moment, sizes, shots, errors,
-                                      themes, volatile, init)
+                                      themes, systems, volatile, init)
 
             await asyncio.gather(*(one(n, path) for n, path in pages.items()))
             version = browser.version
@@ -377,7 +395,8 @@ async def snapshot(out: Path, served: Path, pages: dict[str, str], jobs: int, br
     (out / "meta.json").write_text(json.dumps({
         "format": FORMAT, "complete": True,
         "site": str(root), "served": str(served), "browser": f"{browser_name} {version}",
-        "moment": moment, "volatile": volatile, "themes": themes, "sizes": sizes, "widths": WIDTHS,
+        "moment": moment, "volatile": volatile, "themes": themes, "systems": systems,
+        "sizes": sizes, "widths": WIDTHS,
         "season": season, "init": hashlib.sha256(init.encode()).hexdigest() if init else None,
         "style_width": STYLE_WIDTH, "height": HEIGHT, "shot_height": SHOT_HEIGHT,
         "properties": PROPERTIES, "shots": shots,
@@ -407,7 +426,7 @@ def resolved(path: Path, properties: list[str]) -> dict[str, tuple]:
     return {e[0]: (style(e[1]), style(e[2]), style(e[3])) for e in elements}
 
 
-SETTINGS = ("format", "browser", "moment", "volatile", "themes", "sizes", "widths",
+SETTINGS = ("format", "browser", "moment", "volatile", "themes", "systems", "sizes", "widths",
             "style_width", "height", "shot_height", "properties", "shots", "pages", "season", "init")
 
 
@@ -415,12 +434,12 @@ def inventory(meta: dict) -> dict[str, set[Path]]:
     """The full recording matrix, derived from settings rather than files found."""
     styles, shots = set(), set()
     for name in meta["pages"]:
-        for theme in meta["themes"]:
-            styles.update(Path(name) / f"{theme}-{size}.json.gz" for size in meta["sizes"])
+        for look, _, _ in looks(meta["themes"], meta["systems"]):
+            styles.update(Path(name) / f"{look}-{size}.json.gz" for size in meta["sizes"])
             if meta["shots"]:
                 for width in [*meta["widths"], "print"]:
-                    styles.add(Path(name) / f"{theme}-view-{width}.json.gz")
-                    shots.add(Path(name) / f"{theme}-{width}.png")
+                    styles.add(Path(name) / f"{look}-view-{width}.json.gz")
+                    shots.add(Path(name) / f"{look}-{width}.png")
     return {"styles": styles, "shots": shots}
 
 
@@ -450,6 +469,12 @@ def manifest(root: Path) -> dict:
         if (not isinstance(values, list) or any(not isinstance(v, str) or not v for v in values) or
                 len(set(values)) != len(values) or (key != "volatile" and not values)):
             raise ValueError(f"invalid {key}")
+    systems = meta["systems"]
+    if (not isinstance(systems, list) or len(set(map(str, systems))) != len(systems)
+            or any(s not in SYSTEMS for s in systems)):
+        raise ValueError("invalid systems")
+    if any(t.startswith("system-") for t in meta["themes"]):
+        raise ValueError("a theme named system-* would share a record with a system preference")
     if meta["season"] is not None and (not isinstance(meta["season"], str)
                                        or not re.fullmatch(r"[A-Za-z0-9_-]+", meta["season"])):
         raise ValueError("invalid season")

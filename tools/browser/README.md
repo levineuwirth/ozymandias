@@ -69,7 +69,7 @@ server, and `BROWSER_OFFLINE=1` refuses every request that would leave it.
 | `printcheck.py` | PDF.js thumbnails and print images under the CSP |
 | `prod_smoke.py` | a few checks against production; `lib.suppress_reports`, so test traffic never reaches the report log (aborting `/csp-report` alone let Firefox's through) |
 | `cls_check.py`, `footer_check.py` | layout shift, and the footer build time from `/build/time.txt` |
-| `preserve.py` | Phase B's preservation record: `snapshot OUT` keeps every element's computed style (and its `::before`, `::after`) on each route, in each theme, at the smallest, default and largest text sizes, and screenshots at 320, 768, 1280 and 1600px and in print; `compare BASE NEW` names each element, property and screenshot that differs, and exits 1 if any does. The clock stands still and each record waits until the page does; a Leaflet map's interior is masked |
+| `preserve.py` | Phase B's preservation record: `snapshot OUT` keeps every element's computed style (and its `::before`, `::after`) on each route, in each theme and with none chosen under the system's light and dark preference, at the smallest, default and largest text sizes, and screenshots at 320, 768, 1280 and 1600px and in print; `compare BASE NEW` names each element, property and screenshot that differs, and exits 1 if any does. The clock stands still and each record waits until the page does; a Leaflet map's interior is masked |
 
 A mechanical change (Phase B) keeps both: record the build before it and
 after it, compare, and compare the page bodies with `sitediff.py
@@ -90,6 +90,13 @@ captures still select the smallest and largest reader settings. All three
 remain separate even if the default equals an endpoint. Formats 1 and 2
 must be recorded again; their numeric default labels are not accepted as
 format 3 records.
+
+Format 4 adds a reader who chose no theme, with the system preferring
+light and then dark: `system-light-*` and `system-dark-*` beside each
+theme's records (no theme may be named `system-*`), so the CSS's
+`prefers-color-scheme` rules are recorded too. It also records each
+element's `color-scheme`. A season record has neither. Format 3 snapshots
+must be recorded again.
 
 Every screenshot also has a computed-style record at its width and media
 (`*-view-320.json.gz`, through `*-view-print.json.gz`). This catches even

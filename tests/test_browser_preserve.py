@@ -78,7 +78,7 @@ class Preserve(unittest.TestCase):
                 snapshot = self.snapshot(f"size-{size}", "--shots=0")
                 meta = json.loads((snapshot / "meta.json").read_text())
                 self.assertEqual(meta["sizes"], [17, "default", 29])
-                for theme in ("light", "dark", "cappuccino"):
+                for theme in ("light", "dark", "cappuccino", "system-light", "system-dark"):
                     for label, expected in ((17, 17), ("default", size), (29, 29)):
                         path = snapshot / "styles/home" / f"{theme}-{label}.json.gz"
                         styles = preserve.resolved(path, meta["properties"])
@@ -114,7 +114,7 @@ class Preserve(unittest.TestCase):
         changed = self.snapshot("changed")
         done = self.run_tool("compare", str(first), str(changed))
         self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
-        for theme in ("light", "dark", "cappuccino"):
+        for theme in ("light", "dark", "cappuccino", "system-light", "system-dark"):
             for width in (320, "print"):
                 self.assertIn(f"home/{theme}-view-{width}.json.gz: html>body:1 background-color: "
                               "'rgb(100, 100, 100)' -> 'rgb(101, 100, 100)'", done.stdout)
@@ -124,7 +124,27 @@ class Preserve(unittest.TestCase):
         self.assertNotIn("view-768", done.stdout)
         self.assertNotIn("view-1280", done.stdout)
         self.assertNotIn("view-1600", done.stdout)
-        self.assertIn("preserve: 6 difference(s)", done.stdout)
+        self.assertIn("preserve: 10 difference(s)", done.stdout)
+
+    def test_a_reader_who_chose_no_theme_is_recorded_under_each_system_preference(self):
+        (self.site / "_site/style.css").write_text(STYLE + """
+            @media (prefers-color-scheme: dark) { :root:not([data-theme]) body { background: rgb(1, 2, 3); } }
+            [data-theme="dark"] body { background: rgb(4, 5, 6); }
+        """)
+        (self.site / "_site/index.html").write_text(PAGE.replace("</head>",
+            "<script>try { var t = localStorage.getItem('theme');"
+            " if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script></head>"))
+        snapshot = self.snapshot("systems", "--shots=0")
+        preserve = load_tool("browser/preserve.py", "preserve_browser_systems")
+        meta = json.loads((snapshot / "meta.json").read_text())
+        self.assertEqual(meta["systems"], ["light", "dark"])
+        background = {}
+        for look in ("light", "dark", "cappuccino", "system-light", "system-dark"):
+            styles = preserve.resolved(snapshot / "styles/home" / f"{look}-default.json.gz", meta["properties"])
+            background[look] = styles["html>body:1"][0]["background-color"]
+        self.assertEqual(background, {"light": "rgba(0, 0, 0, 0)", "dark": "rgb(4, 5, 6)",
+                                      "cappuccino": "rgba(0, 0, 0, 0)",
+                                      "system-light": "rgba(0, 0, 0, 0)", "system-dark": "rgb(1, 2, 3)"})
 
 
 if __name__ == "__main__":

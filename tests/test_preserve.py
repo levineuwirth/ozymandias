@@ -5,7 +5,8 @@ screenshots, and compares two records (its own browser test drives a real
 browser). These build records by hand: a difference in one element's
 property, a pseudo-element that appears, elements that differ (the bodies
 did), a screenshot's pixels, a file only one side has; and nothing for
-records that are the same, or screenshots whose pixels are."""
+records that are the same, or screenshots whose pixels are. A reader who
+chose no theme is recorded under each system preference beside the themes."""
 
 import asyncio
 import gzip
@@ -54,14 +55,15 @@ class Compare(unittest.TestCase):
         # that deliberately damage coverage. Do not derive these from inventory().
         meta = {"format": preserve.FORMAT, "complete": True, "browser": "chromium test",
                 "moment": 1, "volatile": [".leaflet-container"],
-                "themes": ["light", "dark", "cappuccino"], "sizes": [17, "default", 29],
+                "themes": ["light", "dark", "cappuccino"], "systems": ["light", "dark"],
+                "sizes": [17, "default", 29],
                 "widths": [320, 768, 1280, 1600], "style_width": 1280,
                 "height": 900, "shot_height": 6000, "properties": PROPS,
                 "shots": True, "pages": {"home": "/"}, "season": None, "init": None}
         for root in (self.base, self.new):
             root.mkdir()
             (root / "meta.json").write_text(json.dumps(meta))
-            for theme in ("light", "dark", "cappuccino"):
+            for theme in ("light", "dark", "cappuccino", "system-light", "system-dark"):
                 for size in (17, "default", 29):
                     record(root, f"home/{theme}-{size}.json.gz", [BLACK], [["html", 0, None, None]])
                 for width in (320, 768, 1280, 1600, "print"):
@@ -170,7 +172,7 @@ class Compare(unittest.TestCase):
     def test_recording_settings_must_match(self):
         path = self.new / "meta.json"
         original = json.loads(path.read_text())
-        for key, value in {"browser": "firefox test", "moment": 2, "height": 1000,
+        for key, value in {"browser": "firefox test", "moment": 2, "height": 1000, "systems": ["light"],
                            "style_width": 1600, "shot_height": 9000, "volatile": [],
                            "pages": {"home": "/other"}, "properties": PROPS + ["width"]}.items():
             with self.subTest(key=key):
@@ -178,6 +180,26 @@ class Compare(unittest.TestCase):
                 code, text = self.compare()
                 self.assertEqual(code, 1)
                 self.assertIn(f"incompatible recording setting: {key}", text)
+
+    def test_no_theme_chosen_is_recorded_under_each_system_preference(self):
+        record(self.new, "home/system-dark-default.json.gz", [BLACK, RED], [["html", 1, None, None]])
+        code, text = self.compare()
+        self.assertEqual(code, 1)
+        self.assertIn("home/system-dark-default.json.gz: html color: 'rgb(0, 0, 0)' -> 'rgb(255, 0, 0)'", text)
+        (self.base / "shots/home/system-light-print.png").unlink()
+        self.assertIn("base: missing shots/home/system-light-print.png", self.compare()[1])
+        self.assertEqual(preserve.looks(["light", "sepia"], ["light", "dark"]),
+                         [("light", "light", "light"), ("sepia", "sepia", "light"),
+                          ("system-light", None, "light"), ("system-dark", None, "dark")])
+
+    def test_systems_are_light_and_dark_and_no_theme_takes_their_names(self):
+        path = self.new / "meta.json"
+        original = json.loads(path.read_text())
+        for change in ({"systems": ["dusk"]}, {"systems": ["dark", "dark"]}, {"systems": "dark"},
+                       {"themes": ["light", "system-dark"]}):
+            with self.subTest(change=change):
+                path.write_text(json.dumps({**original, **change}))
+                self.assertIn("new: invalid snapshot", self.compare()[1])
 
     def test_default_capture_cannot_be_replaced_by_a_numeric_size(self):
         path = self.new / "meta.json"
