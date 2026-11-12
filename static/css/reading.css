@@ -4,7 +4,8 @@
 
 /* ============================================================
    SCROLL PROGRESS BAR
-   A 2px warm-gray line fixed at the very top of the viewport.
+   A 2px warm-gray line fixed at the very top of the viewport, as far
+   across as reading.js's --read-progress says.
    z-index 200 sits above the sticky nav (z-index 100).
    ============================================================ */
 
@@ -13,7 +14,7 @@
     top: 0;
     left: 0;
     height: 2px;
-    width: 0%;
+    width: calc(var(--read-progress, 0) * 100%);
     background-color: var(--text-faint);
     z-index: 200;
     pointer-events: none;

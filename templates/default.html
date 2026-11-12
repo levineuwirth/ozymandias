@@ -28,7 +28,7 @@ $if(has-exhibits)$<script src="$assets$/js/gallery.js" defer></script>$endif$
 $if(has-sidenotes)$<script src="$assets$/js/sidenotes.js" defer></script>$endif$
 <script src="$assets$/js/lightbox.js" defer></script>
 $if(home)$$if(switch-random)$<script src="$assets$/js/random.js" defer></script>$endif$$endif$
-$if(reading)$$if(switch-reading-progress)$<script src="$assets$/js/reading.js" defer></script>$endif$$endif$
+$if(switch-reading-progress)$$if(reading)$<script src="$assets$/js/reading.js" defer></script>$else$$if(toc)$<script src="$assets$/js/reading.js" defer></script>$endif$$endif$$endif$
 $if(now)$<script src="$assets$/js/now.js" defer></script>$endif$
 $if(commonplace)$<script src="$assets$/js/commonplace.js" defer></script>$endif$
 $if(photography)$<script src="$assets$/js/photography-modes.js" defer></script>$endif$

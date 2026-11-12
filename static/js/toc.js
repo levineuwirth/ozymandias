@@ -1,5 +1,6 @@
-/* toc.js — Sticky TOC with IntersectionObserver scroll tracking,
-   horizontal progress indicator, and expand/collapse.
+/* toc.js — Sticky TOC with IntersectionObserver scroll tracking and
+   expand/collapse. Its progress line draws reading.js's --read-progress
+   (the aside is marked data-read-progress).
    Loaded with defer.
 */
 (function () {
@@ -86,17 +87,6 @@
         }
 
 
-        // Progress indicator — drives the horizontal bar under .toc-header
-        // and the mobile bar's progress line.
-        function updateProgress() {
-            const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-            const progress = scrollable > 0 ? Math.min(1, window.scrollY / scrollable) : 0;
-            toc.style.setProperty('--toc-progress', progress);
-            if (mobileBar) mobileBar.style.setProperty('--toc-progress', progress);
-        }
-        window.addEventListener('scroll', updateProgress, { passive: true });
-        updateProgress();
-
         // The set of headings currently intersecting the trigger band.
         const visible = new Set();
 
@@ -112,8 +102,10 @@
                 if (top) { activate(top.id); }
             } else {
                 // Nothing in the trigger band: activate the last heading
-                // whose top edge is above the sticky nav bar.
-                const navHeight = (document.querySelector('header') || {}).offsetHeight || 0;
+                // whose top edge is above the sticky nav bar, as nav.js
+                // measures it (--nav-height, in px once it has).
+                const navHeight = parseFloat(getComputedStyle(document.documentElement)
+                    .getPropertyValue('--nav-height')) || 0;
                 let candidate = null;
                 for (const h of headings) {
                     if (h.getBoundingClientRect().top < navHeight + 16) candidate = h;

@@ -31,7 +31,7 @@
     $if(switch-new)$<a href="/new.html" class="content-divider-logo"><span class="visually-hidden">New</span></a>$else$<span class="content-divider-logo" aria-hidden="true"></span>$endif$
 </div>
 <div id="content">
-    <aside id="toc" aria-label="Table of contents" data-pagefind-ignore="all">
+    <aside id="toc" aria-label="Table of contents" data-pagefind-ignore="all" data-read-progress>
         <div class="toc-header">
             <span class="toc-active-label">Contents</span>
             <button class="toc-toggle" aria-label="Toggle table of contents" aria-expanded="true">&#9662;</button>
@@ -44,7 +44,7 @@
         $body$
     </main>
 </div>
-<div id="toc-mobile-bar" aria-hidden="true">
+<div id="toc-mobile-bar" aria-hidden="true" data-read-progress>
     <span class="toc-mobile-label">Contents</span>
 </div>
 $partial("templates/partials/page-footer.html")$

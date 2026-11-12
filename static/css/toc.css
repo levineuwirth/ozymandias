@@ -2,8 +2,8 @@
 /* ============================================================
    TABLE OF CONTENTS
    Sticky left sidebar (position: sticky set in layout.css).
-   toc.js manages: .is-active links, .is-collapsed state,
-   and the --toc-progress custom property for the progress bar.
+   toc.js manages: .is-active links and .is-collapsed state; the
+   progress bar draws reading.js's --read-progress.
    ============================================================ */
 
 #toc {
@@ -43,7 +43,7 @@
     position: absolute;
     bottom: 0; left: 0;
     height: 1px;
-    width: calc(var(--toc-progress, 0) * 100%);
+    width: calc(var(--read-progress, 0) * 100%);
     background: var(--text-muted);
     transition: width calc(0.12s * var(--motion-scale)) ease;
 }

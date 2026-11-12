@@ -397,7 +397,7 @@ nav.site-nav {
 
 /* ── Mobile TOC bar (≤900px — mirrors #toc hide breakpoint) ──────────
    Fixed bottom strip: progress line + current section label.
-   toc.js sets --toc-progress and syncs the label. Uses (max-width)
+   reading.js sets --read-progress; toc.js syncs the label. Uses (max-width)
    rather than (pointer: coarse) so Android's "request desktop site"
    mode — which fakes a ~980px viewport — correctly shows the desktop
    sidebar TOC instead of this bar.
@@ -435,13 +435,13 @@ nav.site-nav {
     }
 
 
-    /* Progress fill — grows with scroll via --toc-progress */
+    /* Progress fill — grows with scroll via --read-progress */
     #toc-mobile-bar::after {
         content: '';
         position: absolute;
         top: 0; left: 0;
         height: 2px;
-        width: calc(var(--toc-progress, 0) * 100%);
+        width: calc(var(--read-progress, 0) * 100%);
         background: var(--text-muted);
         transition: width calc(0.12s * var(--motion-scale)) ease;
     }

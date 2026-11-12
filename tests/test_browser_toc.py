@@ -1,8 +1,9 @@
 """The table of contents, in Chromium and Firefox, on a built essay.
 
 static/js/toc.js marks the section being read in the contents and names
-it in the contents' header (and in the narrow screens' bar), drives the
-reading-progress line, and folds the contents away and back.
+it in the contents' header (and in the narrow screens' bar), and folds the
+contents away and back; its progress line draws reading.js's
+--read-progress (with the reading-progress switch).
 
 Checked: at the top the header names the page (its title in the body, or
 "Contents"); scrolling a section into
@@ -10,7 +11,8 @@ reading position marks its entry, alone, for sight and for assistive
 technology (aria-current), and names it; a deep link marks its section
 from the start; folding the contents takes its links out of the tab order
 and the accessibility tree, and unfolding restores them; progress runs
-from 0 at the top to 1 at the foot; on a phone the bar names the section.
+from 0 at the top to 1 at the foot, the line drawn is that much of the
+header, and a resize keeps it; on a phone the bar names the section.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_toc -v
 """
@@ -23,7 +25,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import requires_switch, route
 
 ESSAY = route("essay")
 
@@ -35,7 +37,9 @@ STATE = """() => {
     return {active, current,
             label: toc.querySelector('.toc-active-label').textContent.trim(),
             mobile: (document.querySelector('#toc-mobile-bar .toc-mobile-label') || {}).textContent,
-            progress: parseFloat(toc.style.getPropertyValue('--toc-progress'))};
+            progress: parseFloat(toc.style.getPropertyValue('--read-progress')),
+            line: parseFloat(getComputedStyle(toc.querySelector('.toc-header'), '::after').width)
+                / toc.querySelector('.toc-header').getBoundingClientRect().width};
 }"""
 
 FRAMES = "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
@@ -140,6 +144,7 @@ class TableOfContents(unittest.TestCase):
                 page.keyboard.press("Tab")
                 self.assertTrue(page.evaluate("document.activeElement.matches('#toc a[data-target]')"))
 
+    @requires_switch("reading-progress")
     def test_progress(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -149,7 +154,15 @@ class TableOfContents(unittest.TestCase):
                 self.assertAlmostEqual(self.state(page)["progress"], 1, places=2)
                 page.evaluate("window.scrollTo({top: (document.documentElement.scrollHeight - innerHeight) / 2,"
                               " behavior: 'instant'})")
-                self.assertAlmostEqual(self.state(page)["progress"], 0.5, delta=0.02)
+                state = self.state(page)
+                self.assertAlmostEqual(state["progress"], 0.5, delta=0.02)
+                # What is drawn: that much of the header (reduced motion, no transition).
+                self.assertAlmostEqual(state["line"], state["progress"], delta=0.01)
+                # A narrower window makes the page longer: the measure follows.
+                page.set_viewport_size({"width": 1000, "height": 900})
+                page.wait_for_timeout(200)
+                y = page.evaluate("scrollY / (document.documentElement.scrollHeight - innerHeight)")
+                self.assertAlmostEqual(self.state(page)["progress"], y, delta=0.01)
 
     def test_the_phone_bar_names_the_section(self) -> None:
         for browser in BROWSERS:
