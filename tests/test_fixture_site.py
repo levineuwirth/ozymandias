@@ -31,7 +31,7 @@ from xml.etree import ElementTree
 import yaml
 from bs4 import BeautifulSoup
 
-from tests import fixture_variants, switch_checks
+from tests import fixture_variants, switch_checks, target
 from tests._helpers import ENGINE, engine_path, load_tool, requires_cabal, script_env, site_binary
 
 FIXTURE = engine_path("fixture-site")
@@ -321,6 +321,14 @@ class FixtureBuilds(unittest.TestCase):
         # A site that lists none has only its own previews: the engine's default.
         minimal = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
         self.assertNotIn("ozy:popup-providers", minimal)
+        # The switches on, which utils.js reads to load a switch's files on demand.
+        for name, page in (("full", full), ("minimal", minimal)):
+            with self.subTest(switches=name):
+                settings = yaml.safe_load((self.sites[name] / "site.yaml").read_text(encoding="utf-8"))
+                on = sorted(k for k, v in target.switches(settings).items() if v)
+                found = re.search(r'<meta name="ozy:switches" content="([^"]*)">', page)
+                self.assertIsNotNone(found)
+                self.assertEqual(sorted(found.group(1).split()), on)
 
     def test_a_poem_by_someone_else_names_them_and_its_year(self):
         self.refused("full")

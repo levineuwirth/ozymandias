@@ -90,15 +90,21 @@ def cache_control(path):
     return 'no-cache'
 
 def versioned_fixture(page):
-    """A fixture page, with the version of the build being served."""
+    """A fixture page, with the version of the build being served, and its
+    switches (utils.js loads a switch's files on demand only with it on),
+    unless the page names its own."""
     with open(os.path.join(ROOT, 'index.html'), encoding='utf-8') as f:
-        found = re.search(r'<meta name="ozy:assets" content="([^"]+)">', f.read())
+        home = f.read()
+    found = re.search(r'<meta name="ozy:assets" content="([^"]+)">', home)
     if not found:
         raise SystemExit('the home page names no asset version')
     root = found.group(1)
     page = re.sub(r'((?:src|href)=")/(js|css)/', rf'\g<1>{root}/\g<2>/', page)
     if 'ozy:assets' not in page:
         page = re.sub(r'(<head[^>]*>)', rf'\g<1><meta name="ozy:assets" content="{root}">', page, count=1)
+    switches = re.search(r'<meta name="ozy:switches" content="[^"]*">', home)
+    if switches and 'ozy:switches' not in page:
+        page = re.sub(r'(<head[^>]*>)', lambda m: m.group(1) + switches.group(0), page, count=1)
     return page
 
 class H(BaseHTTPRequestHandler):

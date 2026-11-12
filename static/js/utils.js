@@ -4,7 +4,10 @@
 
    Keep this file dependency-free and minimal. It's the lowest-level
    layer in the JS stack — anything heavier should live in a feature
-   module instead. */
+   module instead. What every page needs to share lives here: what
+   site.yaml tells the scripts (ozySite), and the one entry point for
+   content added after load (ozyEnhance and `ozy:content-added`), which a
+   site's own scripts may use whatever the site's switches. */
 (function (global) {
     'use strict';
 
@@ -21,6 +24,9 @@
         return (meta && meta.getAttribute(attribute || 'content')) || '';
     }
     global.ozySite = {
+        /* The switches the site has on (Config.switchContext), for a
+           script that loads a switch's files on demand. */
+        switches:            siteValue('switches').split(' ').filter(Boolean),
         author:              siteValue('author'),
         authorSort:          siteValue('author-sort'),
         host:                siteValue('host'),
@@ -155,5 +161,159 @@
         return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS;
     };
 
+    /* ------------------------------------------------------------------
+       Content added after load
+
+       `window.ozyEnhance(container[, {force: true, source: url}])` is the
+       one idempotent entry point for content inserted into the page after
+       load (transclude.js's passages; a site script's own). It calls the
+       known reinitialisers (sidenotes, popups, collapse) and then
+       dispatches a bubbling `ozy:content-added` CustomEvent on the
+       container, with `detail = {container, source}`. Any subsystem that
+       needs to see injected content — KaTeX rendering, code-copy buttons,
+       annotations, lightbox, a site's script — should listen for that
+       event rather than growing its own ad hoc hook:
+
+           document.addEventListener('ozy:content-added', function (e) {
+               myInit(e.detail.container);
+           });
+
+       Calling ozyEnhance twice on the same container is a no-op unless
+       `force` is passed, so listeners may assume one call per insertion.
+       Code and math that arrive with the content load their highlighter
+       and typesetter, with the code and math switches on (their files
+       are published only then).
+
+       gallery.js does not listen yet: a transcluded display equation or
+       score fragment gets no expand button. No page transcludes either
+       today.
+    ------------------------------------------------------------------ */
+
+    var CONTENT_EVENT = 'ozy:content-added';
+
+    function switchOn(name) {
+        return global.ozySite.switches.indexOf(name) !== -1;
+    }
+
+    function enhance(container, opts) {
+        if (!container || container.nodeType !== 1) return;
+        opts = opts || {};
+        if (container.dataset.ozyEnhanced === '1' && !opts.force) return;
+        container.dataset.ozyEnhanced = '1';
+
+        /* sidenotes.js — pair newly injected note references with their
+           notes and reposition the margin. A page that transcludes always loads it
+           (has-sidenotes counts transclusion markers). */
+        if (typeof global.reinitSidenotes === 'function') {
+            global.reinitSidenotes(container);
+        }
+
+        /* popups.js — bind hover popups for newly injected links so
+           transcluded content has the same preview behaviour as the
+           host page. */
+        if (typeof global.reinitPopups === 'function') {
+            global.reinitPopups(container);
+        }
+
+        /* collapse.js exposes reinitCollapse for newly added headings. */
+        if (typeof global.reinitCollapse === 'function') {
+            global.reinitCollapse(container);
+        }
+
+        /* Everything else (math, code-copy, annotations, lightbox) joins
+           in by listening for this event. */
+        container.dispatchEvent(new CustomEvent(CONTENT_EVENT, {
+            bubbles: true,
+            detail: { container: container, source: opts.source || null }
+        }));
+
+        ensureMath(container);
+        highlightCode(container);
+    }
+
+    /* This page's version of the first-party assets: what this script loads on
+       demand comes from there, so an old tab stays on its old set. */
+    var ASSETS = siteValue('assets');
+
+    /* `imports`: what the stylesheet @imports (a vendor sheet, into the
+       engine's layer), preloaded beside it as head.html does for a page's
+       own, or its request would wait for the stylesheet to arrive. */
+    function ensureStyle(href, imports) {
+        var doc = global.document;
+        var present = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'))
+            .some(function (el) {
+                return new URL(el.href, doc.baseURI).pathname === href;
+            });
+        if (present) return;
+        (imports || []).forEach(function (url) {
+            var early = doc.createElement('link');
+            early.rel = 'preload';
+            early.as = 'style';
+            early.href = url;
+            doc.head.appendChild(early);
+        });
+        var css = doc.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = href;
+        doc.head.appendChild(css);
+    }
+
+    function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+            var script = global.document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = function () {
+                script.remove();
+                reject(new Error('Could not load ' + src));
+            };
+            global.document.head.appendChild(script);
+        });
+    }
+
+    /* Code may arrive in a source popup or a transclusion on a page that
+       did not need Prism at first. Share one download, then enhance each
+       fragment (including a detached popup before it is shown). Without
+       the code switch there is no Prism to load: the code stays plain. */
+    var codeLoading = null;
+    function highlightCode(container) {
+        if (!switchOn('code')) return Promise.resolve();
+        var selector = 'code[class*="language-"], code[class*="lang-"]';
+        var codes = Array.from(container.querySelectorAll(selector));
+        if (container.matches && container.matches(selector)) codes.unshift(container);
+        if (!codes.length) return Promise.resolve();
+        ensureStyle(ASSETS + '/css/modules/syntax.css');
+        if (!codeLoading) codeLoading = global.Prism
+            ? Promise.resolve() : loadScript(ASSETS + '/js/prism.min.js');
+        return codeLoading.then(function () {
+            codes.forEach(function (code) {
+                var lang = /(?:^|\s)lang(?:uage)?-([\w-]+)/i.exec(code.className);
+                if (lang && global.Prism && global.Prism.languages[lang[1]]) {
+                    global.Prism.highlightElement(code);
+                }
+            });
+        }).catch(function () {
+            codeLoading = null; // plain code remains readable; the next use retries
+        });
+    }
+
+    /* KaTeX loads only on pages whose own body has math (audit X6). A
+       transclusion can bring math to a page that has none: load it then,
+       once. katex-bootstrap.js renders the whole document when it runs,
+       skipping anything already typeset. Without the math switch there is
+       no KaTeX to load. */
+    var mathLoading = null;
+    function ensureMath(container) {
+        if (!switchOn('math')) return;
+        if (mathLoading || typeof global.renderMath === 'function') return;
+        if (!container.querySelector('.math') && !container.classList.contains('math')) return;
+        ensureStyle(ASSETS + '/css/modules/katex.css', ['/katex/katex.min.css']);
+        mathLoading = (global.katex ? Promise.resolve() : loadScript('/katex/katex.min.js'))
+            .then(function () { return loadScript(ASSETS + '/js/katex-bootstrap.js'); })
+            .catch(function () { mathLoading = null; });
+    }
+
+    global.ozyEnhance = enhance;
+    global.ozyHighlightCode = highlightCode;
     global.ozyUtils = ozyUtils;
 })(window);

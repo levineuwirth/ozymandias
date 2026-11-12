@@ -20,9 +20,9 @@
  * reachable with a finger-sized hit area (see .copy-btn::after in CSS).
  *
  * Dynamic content: attaches over an arbitrary root and listens for
- * `ozy:content-added`, the event transclude.js dispatches after injecting
- * content. Idempotent per <pre> (a data flag), so a container enhanced twice
- * gets one button.
+ * `ozy:content-added`, the event window.ozyEnhance (utils.js) dispatches
+ * for injected content. Idempotent per <pre> (a data flag), so a
+ * container enhanced twice gets one button.
  */
 
 (function () {

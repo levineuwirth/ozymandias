@@ -28,8 +28,8 @@ class SiteMetaTags(unittest.TestCase):
         utils = engine_path("static/js/utils.js").read_text(encoding="utf-8")
         head = engine_path("templates/partials/head.html").read_text(encoding="utf-8")
         read = set(re.findall(r"siteValue\('([a-z-]+)'", utils))
-        # theme.js and settings.js read assets, season and themes.
-        written = set(re.findall(r'<meta name="ozy:([a-z-]+)"', head)) - {"assets", "season", "themes"}
+        # theme.js and settings.js read season and themes.
+        written = set(re.findall(r'<meta name="ozy:([a-z-]+)"', head)) - {"season", "themes"}
         self.assertEqual(read, written)
 
 

@@ -781,10 +781,16 @@ switchOn cfg name = fromMaybe (error ("switchOn: " ++ name ++ " is not in " ++ r
 -- | @$switch-NAME$@, present when the site has switch NAME on: how a
 --   template asks, where rules and compilers ask 'switchOn'. A name the
 --   registry lacks stops the build, as it does there; in a context without
---   this one, every switch would read as off.
+--   this one, every switch would read as off. @$switches-on$@ is those on,
+--   space-separated, for head.html's ozy:switches (utils.js's
+--   ozySite.switches): what a script may load on demand.
 switchContext :: Context a
 switchContext = Context $ \key _ _ -> case stripPrefix "switch-" key of
-    Nothing   -> noResult ("not a switch: " ++ key)
+    Nothing
+        | key == "switches-on" -> do
+            cfg <- loadConfig
+            pure (StringField (unwords [name | (name, True) <- Map.toList (siteSwitches cfg)]))
+        | otherwise -> noResult ("not a switch: " ++ key)
     Just name -> do
         cfg <- loadConfig
         case Map.lookup name (siteSwitches cfg) of

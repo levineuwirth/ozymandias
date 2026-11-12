@@ -1,4 +1,6 @@
-"""Late content keeps its enhancements when the initial page needs none."""
+"""Late content keeps its enhancements when the initial page needs none,
+and loads a switch's files only with that switch on (utils.js's
+ozyEnhance, which a page has whatever its switches)."""
 import json
 import shutil
 import subprocess
@@ -6,12 +8,12 @@ import unittest
 
 from tests._helpers import engine_path
 
-TRANSCLUDE = engine_path("static/js/transclude.js")
+UTILS = engine_path("static/js/utils.js")
 
 
 @unittest.skipUnless(shutil.which("node"), "node is required")
 class DynamicAssetTests(unittest.TestCase):
-    def run_case(self, case):
+    def run_case(self, case, switches="code math"):
         harness = r"""
 const vm = require('vm'), fs = require('fs');
 const added = [], links = [];
@@ -22,7 +24,11 @@ global.dispatchEvent = () => {};
 global.document = {
   baseURI: 'https://example.org/',
   addEventListener() {},
-  querySelector: sel => sel === 'meta[name="ozy:assets"]' ? {content: '/assets/abc123'} : null,
+  querySelector: sel => {
+    const metas = {assets: '/assets/abc123', switches: """ + json.dumps(switches) + r"""};
+    const m = /^meta\[name="ozy:([a-z-]+)"\]$/.exec(sel);
+    return m && m[1] in metas ? {getAttribute: () => metas[m[1]]} : null;
+  },
   querySelectorAll: () => links,
   createElement: tag => ({tagName: tag, remove() { this.removed = true; }}),
   head: {appendChild(el) { added.push(el); if (el.tagName === 'link') links.push(el); }}
@@ -34,7 +40,7 @@ function root(code = true, math = false) {
     querySelectorAll: sel => code && sel.includes('code') ? [node] : [],
     matches: () => false, dispatchEvent() {}, node};
 }
-vm.runInThisContext(fs.readFileSync(""" + json.dumps(str(TRANSCLUDE)) + r""", 'utf8'));
+vm.runInThisContext(fs.readFileSync(""" + json.dumps(str(UTILS)) + r""", 'utf8'));
 const tick = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
 """ + case + r"""
@@ -67,6 +73,19 @@ await tick();
 console.log(JSON.stringify(added.filter(e => e.src === '/katex/katex.min.js').length));
 """)
         self.assertEqual(result, 2)
+
+    def test_a_switch_that_is_off_loads_nothing(self):
+        # Its files are not published: asking for them would only fail.
+        for switches in ("", "math", "code"):
+            with self.subTest(switches=switches):
+                result = self.run_case(r"""
+ozyEnhance(root(true, true)); await tick();
+console.log(JSON.stringify(added.map(e => e.src || e.href)));
+""", switches)
+                code = ["/assets/abc123/css/modules/syntax.css", "/assets/abc123/js/prism.min.js"]
+                math = ["/katex/katex.min.css", "/assets/abc123/css/modules/katex.css", "/katex/katex.min.js"]
+                self.assertEqual(sorted(result),
+                                 sorted((code if "code" in switches else []) + (math if "math" in switches else [])))
 
     def test_plain_content_does_not_load_feature_assets(self):
         result = self.run_case(r"""
