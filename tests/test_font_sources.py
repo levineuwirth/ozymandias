@@ -60,6 +60,43 @@ class FontSourceTests(unittest.TestCase):
                     fonts.fetch(fonts.FONTS[0][1])
             self.assertFalse(any(p.is_file() for p in Path(tmp).rglob("*")))
 
+    def test_local_font_symlinks_cannot_leave_the_site(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site, outside = Path(tmp) / "site", Path(tmp) / "site-other"
+            (site / "fonts").mkdir(parents=True)
+            outside.mkdir()
+            data = b"external font"
+            target = outside / "regular.otf"
+            target.write_bytes(data)
+            (site / "fonts/directory").symlink_to(outside, target_is_directory=True)
+            (site / "fonts/file.otf").symlink_to(target)
+            with patch.object(fonts, "SITE_ROOT", site):
+                for source in ("fonts/directory/regular.otf", "fonts/file.otf"):
+                    with self.subTest(source=source), \
+                            patch.dict(fonts.SOURCE_HASHES, {source: hashlib.sha256(data).hexdigest()}), \
+                            patch.object(Path, "read_bytes", return_value=data) as read:
+                        with self.assertRaisesRegex(ValueError, "outside.*site"):
+                            fonts.fetch(source)
+                        read.assert_not_called()
+
+    def test_internal_font_symlinks_work_from_a_symlinked_site_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site, alias = Path(tmp) / "site", Path(tmp) / "site-link"
+            (site / "fonts/originals").mkdir(parents=True)
+            alias.symlink_to(site, target_is_directory=True)
+            data = b"internal font"
+            (site / "fonts/originals/regular.otf").write_bytes(data)
+            (site / "fonts/directory").symlink_to("originals", target_is_directory=True)
+            (site / "fonts/file.otf").symlink_to("originals/regular.otf")
+            with patch.object(fonts, "SITE_ROOT", alias):
+                for source in ("fonts/directory/regular.otf", "fonts/file.otf"):
+                    with self.subTest(source=source):
+                        with patch.dict(fonts.SOURCE_HASHES, {source: hashlib.sha256(data).hexdigest()}):
+                            self.assertEqual(fonts.fetch(source), data)
+                        with patch.dict(fonts.SOURCE_HASHES, {source: "0" * 64}):
+                            with self.assertRaisesRegex(ValueError, "checksum"):
+                                fonts.fetch(source)
+
     def test_corrupt_cache_is_not_used(self):
         url = fonts.FONTS[0][1]
         with tempfile.TemporaryDirectory() as tmp, patch.object(fonts, "CACHE", Path(tmp)):

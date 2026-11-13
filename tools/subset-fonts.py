@@ -149,8 +149,14 @@ def cache_dir() -> Path:
 def fetch(url: str) -> bytes:
     expected = SOURCE_HASHES[url]
     if not is_download(url):
+        # Check the resolved target at read time: either a directory or
+        # the file itself may be a symlink. Internal symlinks are fine.
+        root = SITE_ROOT.resolve()
+        local = (root / url).resolve()
+        if not local.is_relative_to(root):
+            raise ValueError(f"font source outside the site: {url}")
         # A file in the site, pinned as a download is; never cached.
-        data = (SITE_ROOT / url).read_bytes()
+        data = local.read_bytes()
         if hashlib.sha256(data).hexdigest() != expected:
             raise ValueError(f"font source checksum mismatch: {url}")
         print(f"  {url.rsplit('/', 1)[1]}  sha256 {expected[:16]}…  ({len(data) // 1024} KB)")

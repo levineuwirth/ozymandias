@@ -182,7 +182,8 @@ linked alone, may.
   `tools/subset-fonts.py` subsets come from `fonts.yaml`'s upstreams, each an
   `https` address (a project's pinned revision, a foundry's download) or a
   directory in the site, every file pinned by its SHA-256 in
-  `tools/font-sources.json`.
+  `tools/font-sources.json`. Local paths are resolved before reading;
+  symlinks must also point to files within the site.
 - `site.css`: ornaments, brand icons, what every page of the site needs.
 - A page's own styles: `static/css/NAME.css`, named in its front matter
   (`stylesheets: [NAME]`), loaded by that page alone.
