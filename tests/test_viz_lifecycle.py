@@ -24,7 +24,21 @@ global.document = {
   querySelectorAll(selector) {
     return selector === 'script.vega-spec'
       ? [{textContent: '{}', closest: () => container}] : [container];
-  }
+  },
+  // A one-pixel canvas, as browsers have it: a fillStyle it cannot read
+  // leaves the last; a painted pixel reads back as its sRGB values. This
+  // one reads hex and the named colors below (tests/test_browser_viz_ink.py
+  // has real ones).
+  createElement: () => ({getContext: () => {
+    const NAMED = {black: '#000000', white: '#ffffff', gray: '#808080'};
+    let style = '#000000', pixel = [0, 0, 0, 0];
+    return {get fillStyle() { return style; },
+            set fillStyle(v) { v = String(v).trim().toLowerCase();
+                               if (/^#[0-9a-f]{6}$/.test(v)) style = v; else if (NAMED[v]) style = NAMED[v]; },
+            clearRect() { pixel = [0, 0, 0, 0]; },
+            fillRect() { pixel = [1, 3, 5].map(i => parseInt(style.slice(i, i + 2), 16)).concat(255); },
+            getImageData: () => ({data: pixel})};
+  }})
 };
 global.MutationObserver = class { constructor(cb) { changed = cb; } observe() {} };
 global.matchMedia = () => ({matches: dark, addEventListener(name, cb) {systemChanged = cb;}});
@@ -32,8 +46,9 @@ global.matchMedia = () => ({matches: dark, addEventListener(name, cb) {systemCha
 // with none chosen, none declared here.
 const SCHEMES = {light: 'light', dark: 'dark', 'night-ink': 'dark', both: 'light dark'};
 const FACES = {'--font-serif': ' "Site Serif", serif', '--font-sans': '"Site Sans", sans-serif'};
+let TOKENS = {};   // a theme's colors, when a test gives some
 global.getComputedStyle = el => ({getPropertyValue: name =>
-  name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : FACES[name] || ''});
+  name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : FACES[name] || TOKENS[name] || ''});
 global.vegaEmbed = (el, spec) => {
   const id = calls.length; calls.push(spec.config);
   return new Promise((resolve, reject) => pending.push({reject,
@@ -96,6 +111,35 @@ console.log(JSON.stringify([c.font, c.axis.labelFont, c.axis.titleFont, c.legend
 ''')
         serif, sans = '"Site Serif", serif', '"Site Sans", sans-serif'
         self.assertEqual(data, [serif, serif, sans, serif, sans, sans])
+
+    def test_charts_are_drawn_in_the_theme_s_ink(self):
+        data = self.probe(r'''
+TOKENS = {'--text': ' #2B2117', '--text-muted': 'gray', '--border': '#e0d6c8',
+          '--border-muted': '#c0b090', '--font-serif': ''};
+ready(); await tick();
+const c = calls[0];
+console.log(JSON.stringify({mark: c.mark.color, axis: [c.axis.domainColor, c.axis.labelColor, c.axis.titleColor,
+  c.axis.gridColor, c.axis.gridOpacity], title: [c.title.color, c.title.subtitleColor],
+  legend: [c.legend.labelColor, c.legend.titleColor], series: c.range.category}));
+''')
+        self.assertEqual(data, {
+            "mark": "#2b2117", "axis": ["#2b2117", "#2b2117", "#808080", "#e0d6c8", 0.6],
+            "title": ["#2b2117", "#808080"], "legend": ["#2b2117", "#808080"],
+            # The middle series is midway between --text-muted and --border-muted.
+            "series": ["#2b2117", "#808080", "#a09888", "#c0b090", "#e0d6c8"]})
+
+    def test_a_theme_without_the_tokens_keeps_the_engine_s_inks(self):
+        data = self.probe(r'''
+TOKENS = {'--text': 'oklch(0.3 0.02 60)'};   // a syntax this canvas cannot read
+ready(); await tick(); pending[0].resolve(); await tick();
+const light = calls[0];
+theme('dark'); await tick();
+const dark = calls[calls.length - 1];
+console.log(JSON.stringify([light.mark.color, light.range.category, light.axis.gridOpacity,
+                            dark.mark.color, dark.range.category, dark.axis.gridOpacity]));
+''')
+        self.assertEqual(data, ["#1a1a1a", ["#1a1a1a", "#555555", "#808080", "#aaaaaa", "#cccccc"], 0.6,
+                                "#d4d0c8", ["#d4d0c8", "#8c8881", "#686663", "#444444", "#333333"], 0.8])
 
     def test_the_palette_is_the_color_scheme_s_whatever_the_theme_is_called(self):
         data = self.probe(r'''

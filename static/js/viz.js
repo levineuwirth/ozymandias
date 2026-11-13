@@ -12,83 +12,55 @@
   'use strict';
 
   // -------------------------------------------------------------------------
-  // Monochrome Vega-Lite configs (matched to base.css custom properties).
-  // '{serif}' and '{sans}' are the site's faces, its --font-serif and
-  // --font-sans (tokens.css, a site's theme.css), put in when a chart is
-  // drawn (themeConfig): a chart is set in what the page is.
+  // The monochrome Vega-Lite config, in the theme's own ink: each '{…}' is
+  // put in when a chart is drawn (themeConfig) from the theme in force
+  // (tokens.css, a site's theme.css), so a chart is set in what the page
+  // is. Faces: --font-serif and --font-sans. Colors: --text for marks,
+  // axes and labels, --text-muted for titles, --border for the grid, and
+  // the series in turn --text, --text-muted, the midpoint of --text-muted
+  // and --border-muted, --border-muted and --border.
   // -------------------------------------------------------------------------
 
-  var LIGHT = {
+  var CONFIG = {
     background: null,
     font: '{serif}',
-    mark: { color: '#1a1a1a' },
+    mark: { color: '{text}' },
     axis: {
-      gridColor:   '#cccccc',
-      gridOpacity: 0.6,
-      domainColor: '#1a1a1a',
-      tickColor:   '#1a1a1a',
-      labelColor:  '#1a1a1a',
-      titleColor:  '#555555',
+      gridColor:   '{border}',
+      gridOpacity: '{grid-opacity}',
+      domainColor: '{text}',
+      tickColor:   '{text}',
+      labelColor:  '{text}',
+      titleColor:  '{muted}',
       labelFont:   '{serif}',
       titleFont:   '{sans}',
       titleFontWeight: 'normal',
     },
     legend: {
-      labelColor: '#1a1a1a',
-      titleColor: '#555555',
+      labelColor: '{text}',
+      titleColor: '{muted}',
       labelFont:  '{serif}',
       titleFont:  '{sans}',
       titleFontWeight: 'normal',
     },
     title: {
-      color:      '#1a1a1a',
-      subtitleColor: '#555555',
+      color:      '{text}',
+      subtitleColor: '{muted}',
       font:       '{sans}',
       fontWeight: 'normal',
     },
     range: {
-      category: ['#1a1a1a', '#555555', '#888888', '#aaaaaa', '#cccccc'],
+      category: ['{text}', '{muted}', '{between}', '{border-muted}', '{border}'],
       ordinal:  { scheme: 'greys' },
       ramp:     { scheme: 'greys' },
     },
     view: { stroke: null },
   };
 
-  var DARK = {
-    background: null,
-    font: '{serif}',
-    mark: { color: '#d4d0c8' },
-    axis: {
-      gridColor:   '#333333',
-      gridOpacity: 0.8,
-      domainColor: '#d4d0c8',
-      tickColor:   '#d4d0c8',
-      labelColor:  '#d4d0c8',
-      titleColor:  '#8c8881',
-      labelFont:   '{serif}',
-      titleFont:   '{sans}',
-      titleFontWeight: 'normal',
-    },
-    legend: {
-      labelColor: '#d4d0c8',
-      titleColor: '#8c8881',
-      labelFont:  '{serif}',
-      titleFont:  '{sans}',
-      titleFontWeight: 'normal',
-    },
-    title: {
-      color:      '#d4d0c8',
-      subtitleColor: '#8c8881',
-      font:       '{sans}',
-      fontWeight: 'normal',
-    },
-    range: {
-      category: ['#d4d0c8', '#8c8881', '#6a6660', '#444444', '#333333'],
-      ordinal:  { scheme: 'greys' },
-      ramp:     { scheme: 'greys' },
-    },
-    view: { stroke: null },
-  };
+  /* What a theme without the tokens gets: the engine's light and dark
+     palettes, by the scheme the theme declares. */
+  var LIGHT_INK = { text: '#1a1a1a', muted: '#555555', border: '#cccccc', borderMuted: '#aaaaaa', grid: 0.6 };
+  var DARK_INK  = { text: '#d4d0c8', muted: '#8c8881', border: '#333333', borderMuted: '#444444', grid: 0.8 };
 
   // -------------------------------------------------------------------------
   // Theme detection: the color-scheme the theme in force declares
@@ -103,14 +75,52 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
+  /* A token's color as #rrggbb (rgba() if translucent), whatever syntax
+     the theme wrote it in (oklch(), color-mix(), …): Vega's own color
+     handling reads only a few. A pixel of it is painted and read back,
+     in sRGB; a color the canvas cannot read leaves the fallback. */
+  var canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  var ink = canvas.getContext('2d', { willReadFrequently: true });
+  function hex2(v) { return (v < 16 ? '0' : '') + v.toString(16); }
+  function color(css, token, fallback) {
+    ink.clearRect(0, 0, 1, 1);
+    ink.fillStyle = fallback;
+    ink.fillStyle = css.getPropertyValue(token).trim() || fallback;
+    ink.fillRect(0, 0, 1, 1);
+    var px = ink.getImageData(0, 0, 1, 1).data;
+    return px[3] === 255 ? '#' + hex2(px[0]) + hex2(px[1]) + hex2(px[2])
+      : 'rgba(' + px[0] + ', ' + px[1] + ', ' + px[2] + ', ' + (px[3] / 255).toFixed(3) + ')';
+  }
+
+  function between(a, b) {
+    var x = /^#([0-9a-f]{6})$/i.exec(a), y = /^#([0-9a-f]{6})$/i.exec(b);
+    if (!x || !y) return a;
+    var out = '#';
+    for (var i = 0; i < 6; i += 2) {
+      var v = Math.round((parseInt(x[1].substr(i, 2), 16) + parseInt(y[1].substr(i, 2), 16)) / 2);
+      out += (v < 16 ? '0' : '') + v.toString(16);
+    }
+    return out;
+  }
+
   function themeConfig() {
     var css = getComputedStyle(document.documentElement);
-    var faces = {
-      '{serif}': css.getPropertyValue('--font-serif').trim() || 'serif',
-      '{sans}':  css.getPropertyValue('--font-sans').trim() || 'sans-serif'
+    var f = isDark() ? DARK_INK : LIGHT_INK;
+    var muted = color(css, '--text-muted', f.muted), borderMuted = color(css, '--border-muted', f.borderMuted);
+    var values = {
+      '{serif}':        css.getPropertyValue('--font-serif').trim() || 'serif',
+      '{sans}':         css.getPropertyValue('--font-sans').trim() || 'sans-serif',
+      '{text}':         color(css, '--text', f.text),
+      '{muted}':        muted,
+      '{border}':       color(css, '--border', f.border),
+      '{border-muted}': borderMuted,
+      '{between}':      between(muted, borderMuted),
+      '{grid-opacity}': f.grid
     };
-    return JSON.parse(JSON.stringify(isDark() ? DARK : LIGHT), function (key, value) {
-      return typeof value === 'string' && faces[value] ? faces[value] : value;
+    return JSON.parse(JSON.stringify(CONFIG), function (key, value) {
+      return typeof value === 'string' && Object.prototype.hasOwnProperty.call(values, value)
+        ? values[value] : value;
     });
   }
 
