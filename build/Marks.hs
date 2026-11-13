@@ -8,6 +8,8 @@
 --
 --   * @$monogramSvg$@  — the inlined monogram for the current item, or
 --                        'noResult' when no co-located @mark.svg@ exists.
+--   * @$standing$@     — the mark carrying the profile, as a seal or a
+--     dial, where the site's @epistemic-figure@ asks for one ('standingField')
 --   * @$epistemicSvg$@ — the generated epistemic figure, or 'noResult'
 --                        when the item has no @status:@ frontmatter
 --                        (MARKS.md §3.1).
@@ -20,6 +22,8 @@ module Marks
     , monogramSvgFieldFor
     , hasMonogramFieldFor
     , epistemicSvgField
+    , standingField
+    , standingFieldFor
     , hasMonogram
     , monogramPattern
     , peerStatusValues
@@ -27,9 +31,9 @@ module Marks
     ) where
 
 import           Control.Exception      (IOException, try)
-import           Data.Char              (toLower)
+import           Data.Char              (toLower, toUpper)
 import           Data.List              (elemIndex)
-import           Data.Maybe             (catMaybes, isJust)
+import           Data.Maybe             (catMaybes, fromMaybe, isJust)
 import qualified Data.Text              as T
 import qualified Data.Text.IO           as TIO
 import           Numeric                (showFFloat)
@@ -42,7 +46,7 @@ import           Text.Read              (readMaybe)
 import           Hakyll hiding (trim)
 import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import Utils (isProvedConfidence, confidencePercent, trustScore, trim)
-import           Config                 (loadConfig, switchOn)
+import           Config                 (loadConfig, siteEpistemicFigure, switchOn)
 import           Stability              (resolveStability, stabilityLabels)
 import           SvgColor               (blackToCurrentColor)
 
@@ -646,3 +650,176 @@ wrapEpistemic svg = T.concat
     , "</figure>"
     ]
 
+-- ---------------------------------------------------------------------------
+-- The standing: the page's mark carrying its epistemic profile
+-- ---------------------------------------------------------------------------
+
+-- | What a site's @epistemic-figure@ puts at the head of a page in place of
+--   the mark and the radar side by side. Both are drawn around the page's
+--   mark, so without the marks switch there is neither.
+data Standing = Seal | Dial
+
+standingKind :: Compiler (Maybe Standing)
+standingKind = do
+    cfg <- loadConfig
+    return $ if not (switchOn cfg "marks") then Nothing else
+        case siteEpistemicFigure cfg of
+            "seal" -> Just Seal
+            "dial" -> Just Dial
+            _      -> Nothing
+
+-- | @$standing$@. With @epistemic-figure: seal@ or @dial@, the one figure at
+--   the head of a page: its mark as a link to @#epistemic@, lettered or
+--   graduated with the profile, or the mark alone on a page with no
+--   @status:@ (or a site with the epistemic switch off). 'noResult' with
+--   @epistemic-figure: radar@, where the templates keep the two figures.
+standingField :: Context String
+standingField = field "standing" $ \item ->
+    resolveMonogramPath item >>= standingAt item
+
+-- | @$standing$@ for a synthesized page, whose mark is at a given path
+--   ('monogramSvgFieldFor').
+standingFieldFor :: FilePath -> Context a
+standingFieldFor path = field "standing" $ \item -> do
+    trackMonogram path
+    exists <- unsafeCompiler $ doesFileExist path
+    standingAt item (if exists then Just path else Nothing)
+
+standingAt :: Item a -> Maybe FilePath -> Compiler String
+standingAt item path = do
+    kind <- standingKind
+    case kind of
+        Nothing -> noResult "epistemic-figure is the radar, or the marks switch is off"
+        Just k  -> do
+            meta <- getMetadata (itemIdentifier item)
+            on   <- (`switchOn` "epistemic") <$> loadConfig
+            case lookupString "status" meta of
+                Just status | on -> do
+                    d    <- readEpistemicData item
+                    mark <- readMark path
+                    return . T.unpack $ renderStanding k (T.pack (trim status)) d mark
+                _ -> monogramHtml path
+
+-- | A mark's SVG, colours and root dimensions settled as 'monogramHtml'
+--   settles them; 'Nothing' where there is none or it cannot be read.
+readMark :: Maybe FilePath -> Compiler (Maybe T.Text)
+readMark Nothing     = return Nothing
+readMark (Just path) = do
+    result <- unsafeCompiler $ try (TIO.readFile path)
+                :: Compiler (Either IOException T.Text)
+    return $ either (const Nothing) (Just . processSvg) result
+
+-- | The mark as an @<svg>@ nested in a larger drawing, at a place and a
+--   size; the empty ring where the page has no mark.
+nestMark :: Double -> Double -> Double -> Maybe T.Text -> T.Text
+nestMark x y size mark =
+    case T.breakOn "<svg" (fromMaybe ring mark) of
+        (_, rest) | T.null rest -> ""
+                  | otherwise   -> "<svg" <> place <> T.drop 4 rest
+  where
+    place = T.concat [ " x=\"", ff x, "\" y=\"", ff y
+                     , "\" width=\"", ff size, "\" height=\"", ff size, "\"" ]
+    ring  = T.concat
+        [ "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 280 280\">"
+        , "<circle cx=\"140\" cy=\"140\" r=\"128\" fill=\"none\""
+        , " stroke=\"currentColor\" stroke-width=\"0.6\" opacity=\"0.35\"/></svg>" ]
+
+tshow :: Int -> T.Text
+tshow = T.pack . show
+
+capitalize :: T.Text -> T.Text
+capitalize t = case T.uncons t of
+    Just (c, rest) -> T.cons (toUpper c) rest
+    Nothing        -> t
+
+escapeText :: T.Text -> T.Text
+escapeText = T.pack . escapeHtml . T.unpack
+
+-- | What a seal is lettered with, and what both figures are named by: the
+--   status, then the numbers the page has, in the strip's order.
+legendParts :: T.Text -> EpistemicData -> [T.Text]
+legendParts status d = catMaybes
+    [ Just (capitalize status)
+    , (\t -> "Trust " <> tshow t) <$> epTrust d
+    , if epConfidenceProved d then Just "Confidence proved"
+      else (\c -> "Confidence " <> tshow c) <$> epConfidence d
+    , (\i -> "Importance " <> tshow i) <$> epImportance d
+    , (\e -> "Evidence " <> tshow e) <$> epEvidence d
+    ]
+
+renderStanding :: Standing -> T.Text -> EpistemicData -> Maybe T.Text -> T.Text
+renderStanding kind status d mark = case kind of
+    Seal -> link "seal" (renderSeal parts mark)
+    Dial -> link "dial" (renderDial d mark)
+  where
+    parts = map escapeText (legendParts status d)
+    -- The name begins with what a seal shows, in its order (WCAG 2.5.3).
+    name  = T.intercalate ", " parts
+    link cls svg = T.concat
+        [ "<a class=\"standing standing--", cls, "\" href=\"#epistemic\">"
+        , "<figure class=\"frontmatter-mark frontmatter-mark--", cls, "\">"
+        , "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\""
+        , if cls == "seal" then "0 0 360 360" else "0 0 280 280"
+        , "\" role=\"img\" aria-label=\"", name, "\">"
+        , svg
+        , "</svg></figure>"
+        , "<span class=\"visually-hidden\">, jump to the epistemic record</span></a>"
+        ]
+
+-- | The seal: the mark, and around it the legend on a circle that starts at
+--   six o'clock and runs clockwise. A whole legend (the status and four
+--   numbers) is spaced to close the ring, beginning near ten o'clock; a
+--   shorter one is an arc centred over the mark.
+renderSeal :: [T.Text] -> Maybe T.Text -> T.Text
+renderSeal parts mark = T.concat
+    [ "<defs><path id=\"seal-ring\" d=\"M180 336a156 156 0 1 1 .01 0\"/></defs>"
+    , nestMark 48 48 264 mark
+    , if whole
+        then "<text class=\"seal-legend\" transform=\"rotate(119 180 180)\">"
+             <> "<textPath href=\"#seal-ring\" textLength=\"966\" lengthAdjust=\"spacing\">"
+             <> T.intercalate " \183 " parts <> " \183</textPath></text>"
+        else "<text class=\"seal-legend\" text-anchor=\"middle\">"
+             <> "<textPath href=\"#seal-ring\" startOffset=\"50%\">"
+             <> T.intercalate " \183 " parts <> "</textPath></text>"
+    ]
+  where whole = length parts == 5
+
+-- | The dial: a ring graduated in hundredths with the trust score as an
+--   arc from twelve o'clock, the six axes of the radar as wedges about a
+--   disc, and the mark on the disc.
+renderDial :: EpistemicData -> Maybe T.Text -> T.Text
+renderDial d mark = T.concat
+    [ "<g fill=\"none\" stroke=\"currentColor\">"
+    , circle 134 "1.3" "0.6", circle 122 "0.7" "0.45"
+    , "<g stroke-width=\"0.7\" opacity=\"0.5\">"
+    , T.concat [ spoke (if i `mod` 5 == 0 then 117 else 123) 133 (fromIntegral i * 3.6)
+               | i <- [0 .. 99 :: Int] ]
+    , "</g><g stroke-width=\"0.6\" opacity=\"0.3\">"
+    , "<circle cx=\"140\" cy=\"140\" r=\"112\"/><circle cx=\"140\" cy=\"140\" r=\"90\"/>"
+    , T.concat [ spoke 68 112 a | a <- axisAngles ]
+    , "</g>"
+    , T.concat (catMaybes (zipWith wedge [0 ..] axisAngles))
+    , maybe "" arc (epTrust d)
+    , "<circle class=\"dial-disc\" cx=\"140\" cy=\"140\" r=\"66\" stroke-width=\"1.4\"/>"
+    , "</g>"
+    , maybe "" dot (epTrust d)
+    , nestMark 80 80 120 mark
+    ]
+  where
+    at r deg = let theta = (deg - 90) * pi / 180
+               in  (140 + r * cos theta, 140 + r * sin theta) :: (Double, Double)
+    pt r deg = let (x, y) = at r deg in ff x <> " " <> ff y
+    circle r w o = T.concat [ "<circle cx=\"140\" cy=\"140\" r=\"", tshow r
+                            , "\" stroke-width=\"", w, "\" opacity=\"", o, "\"/>" ]
+    spoke r1 r2 deg = T.concat [ "<path d=\"M", pt r1 deg, "L", pt r2 deg, "\"/>" ]
+    wedge i deg = (\v -> T.concat
+        [ "<path d=\"M", pt (68 + 44 * v) deg, "L", pt 68 (deg - 9), "L", pt 68 (deg + 9)
+        , "Z\" fill=\"currentColor\" fill-opacity=\"0.16\" stroke-width=\"1\"/>" ])
+        <$> axisValue d i
+    -- A full circle is no arc: the score stops just short of its start.
+    sweep t = min 359.5 (fromIntegral t * 3.6) :: Double
+    arc t = T.concat
+        [ "<path d=\"M", pt 128 0, "A128 128 0 ", if sweep t > 180 then "1" else "0"
+        , " 1 ", pt 128 (sweep t), "\" stroke-width=\"3\"/>" ]
+    dot t = let (x, y) = at 128 (sweep t) in T.concat
+        [ "<circle cx=\"", ff x, "\" cy=\"", ff y, "\" r=\"4\" fill=\"currentColor\"/>" ]

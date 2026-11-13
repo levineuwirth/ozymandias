@@ -402,6 +402,27 @@ class FixtureBuilds(unittest.TestCase):
         # The essay still has its status, confidence and the rest.
         switch_checks.epistemic_off(self.turned_off("epistemic"))
 
+    def test_a_site_s_epistemic_figure_stands_at_the_head(self):
+        # epistemic-figure: the mark as a seal or a dial at the right, one
+        # link to the record at the foot, where the radar and every value are.
+        radar = (self.sites["full"] / "_site" / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
+        for mark in ("data-standing", 'class="standing ', 'class="ep-record"'):
+            self.assertNotIn(mark, radar)
+        for figure in ("seal", "dial"):
+            with self.subTest(figure=figure):
+                site = self.rebuilt(f"figure-{figure}", lambda c: dict(c, **{"epistemic-figure": figure}))
+                essay = (site / "_site" / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
+                self.assertIn('<div class="essay-frontmatter" data-standing>', essay)
+                self.assertIn(f'<a class="standing standing--{figure}" href="#epistemic">', essay)
+                self.assertNotIn("frontmatter-mark-slot--left", essay)
+                self.assertEqual(essay.count("<figure class=\"frontmatter-mark frontmatter-mark--epistemic"), 1)
+                self.assertLess(essay.index('class="ep-record"'), essay.index('class="ep-expanded"'))
+                self.assertIn('<dt data-ep-term="peer-status">Peer status</dt>', essay)
+                self.assertEqual("seal-legend" in essay, figure == "seal")
+                self.assertEqual("dial-disc" in essay, figure == "dial")
+                self.assertNotIn('<a href="#epistemic">Epistemic</a>', essay)
+                switch_checks.epistemic_on(site)
+
     def test_a_site_that_turns_marks_off_leaves_the_slot_empty(self):
         # The essay's mark.svg is still beside it.
         switch_checks.marks_off(self.turned_off("marks"))

@@ -187,4 +187,148 @@
 [data-focus-mode] .essay-frontmatter {
     grid-template-columns: minmax(0, 1fr);
 }
+
+/* ============================================================
+   THE STANDING
+   With a site's `epistemic-figure: seal` or `dial`, a page has one
+   figure, at the right: its mark, lettered or graduated with its
+   epistemic profile, and a link to the record at the foot of the page
+   (Marks.standingField; the popup over it is popups/epistemic.js's).
+   The left column stays, empty, and the title block is set from the
+   text's left edge.
+   ============================================================ */
+
+.essay-frontmatter[data-standing] {
+    align-items: start;
+    padding-bottom: 0.75rem;
+}
+
+/* The tags and the page's links follow the title's edge, not the
+   page's axis: on the head's own columns, so the edge is the title's
+   at every width (one column: back on the axis, below). */
+.essay-frontmatter[data-standing] + .essay-tailmatter {
+    display: grid;
+    grid-template-columns:
+        clamp(170px, 17vw, 280px)
+        minmax(0, 1fr)
+        clamp(170px, 17vw, 280px);
+    column-gap: clamp(0.75rem, 2vw, 1.75rem);
+    width: 100%;
+}
+
+.essay-frontmatter[data-standing] + .essay-tailmatter > * {
+    grid-column: 2;
+    box-sizing: border-box;     /* the summary has padding and a border */
+    min-width: 0;
+    width: 100%;
+    max-width: var(--body-max-width);
+    justify-self: center;
+}
+
+.essay-frontmatter[data-standing] + .essay-tailmatter :is(.meta-tags, .meta-pagelinks) {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.essay-frontmatter[data-standing] .frontmatter-title {
+    grid-column: 2;
+    text-align: left;
+}
+
+.essay-frontmatter[data-standing] .meta-authors {
+    text-align: left;
+}
+
+.essay-frontmatter[data-standing] .frontmatter-mark-slot--right {
+    grid-column: 3;
+}
+
+/* The strip of values is for where the figure does not spell them
+   legibly: under the abstract with a dial at every width, and with a
+   seal only in the one column (below), where its lettering is small. */
+.essay-frontmatter[data-standing] .meta-epistemic-strip {
+    justify-content: flex-start;
+}
+
+.essay-frontmatter[data-standing]:has(.standing--seal) .meta-epistemic-strip {
+    display: none;
+}
+
+.standing {
+    border-radius: 50%;
+}
+
+/* Focus mode hides the figure and makes the head one column: the title
+   and the rows under it go back to it, and the strip says what the
+   hidden seal did. */
+[data-focus-mode] .essay-frontmatter[data-standing] .frontmatter-title,
+[data-focus-mode] .essay-frontmatter[data-standing] + .essay-tailmatter > * {
+    grid-column: auto;
+}
+
+[data-focus-mode] .essay-frontmatter[data-standing] + .essay-tailmatter {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+[data-focus-mode] .essay-frontmatter[data-standing]:has(.standing--seal) .meta-epistemic-strip {
+    display: flex;
+}
+
+/* The seal's legend, in the viewBox's units (360 across). */
+.seal-legend {
+    font-family: var(--font-sans);
+    font-size: 20.5px;
+    font-variant-caps: all-small-caps;
+    font-variant-numeric: lining-nums;
+    fill: var(--text-muted);
+}
+
+/* Never so small that the legend cannot be read (11px at 200). */
+.essay-frontmatter .frontmatter-mark.frontmatter-mark--seal {
+    width:  clamp(200px, 17vw, 280px);
+    height: clamp(200px, 17vw, 280px);
+}
+
+/* The dial is smaller than a mark alone: an instrument beside the
+   title. Its disc is the page's ground, over the spokes. */
+.essay-frontmatter .frontmatter-mark.frontmatter-mark--dial {
+    width:  clamp(140px, 11vw, 180px);
+    height: clamp(140px, 11vw, 180px);
+}
+
+.dial-disc {
+    fill: var(--bg);
+}
+
+@media (max-width: 900px) {
+    .essay-frontmatter[data-standing] + .essay-tailmatter {
+        display: block;
+        width: min(var(--body-max-width), 100%);
+    }
+
+    .essay-frontmatter[data-standing] + .essay-tailmatter :is(.meta-tags, .meta-pagelinks) {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .essay-frontmatter[data-standing] .frontmatter-title {
+        grid-column: auto;
+        text-align: center;
+    }
+
+    .essay-frontmatter[data-standing] .meta-authors {
+        text-align: center;
+    }
+
+    .essay-frontmatter[data-standing] .frontmatter-mark-slot--right {
+        grid-column: auto;
+        order: 0;
+    }
+
+    .essay-frontmatter[data-standing] .meta-epistemic-strip,
+    .essay-frontmatter[data-standing]:has(.standing--seal) .meta-epistemic-strip {
+        display: flex;
+        justify-content: center;
+    }
+}
 }

@@ -64,8 +64,10 @@
 }
 
 
-/* Definition list for expanded profile */
-.ep-expanded {
+/* Definition lists: the expanded profile, and with a standing figure the
+   record's values. */
+.ep-expanded,
+.ep-values {
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: 0.2rem 0.75rem;
@@ -75,7 +77,8 @@
 }
 
 
-.ep-expanded dt {
+.ep-expanded dt,
+.ep-values dt {
     color: var(--text-faint);
     font-family: var(--font-sans);
     font-variant-caps: all-small-caps;
@@ -85,7 +88,8 @@
 
 /* A value may break anywhere: at a phone's width and the largest text
    size the column beside the labels is narrower than a long value. */
-.ep-expanded dd {
+.ep-expanded dd,
+.ep-values dd {
     margin: 0;
     color: var(--text-muted);
     font-family: var(--font-sans);
@@ -141,5 +145,35 @@
    differentiate from a numeric XX% confidence chip. */
 .ep-row--proved {
     font-style: italic;
+}
+
+
+/* ============================================================
+   THE RECORD
+   With a standing figure at the head (frontmatter.css) the foot of the
+   page holds the whole profile: the radar beside every value.
+   ============================================================ */
+
+.ep-record {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.ep-record .frontmatter-mark {
+    flex: none;
+    width: 9rem;
+    height: 9rem;
+}
+
+/* At a phone's width and the largest text size the list is narrower than
+   its longest label and a value side by side: the labels may wrap. */
+.ep-record .ep-values {
+    flex: 1 1 12rem;
+    min-width: 0;
+    margin: 0;
+    grid-template-columns: fit-content(60%) minmax(0, 1fr);
 }
 }

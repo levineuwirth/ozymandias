@@ -1,12 +1,13 @@
 $if(switch-reading-progress)$<div id="reading-progress" aria-hidden="true" data-read-progress></div>$endif$
 <!-- A05: neutral element — see templates/essay.html. -->
-<div class="essay-frontmatter essay-frontmatter--reading">
-    <div class="frontmatter-mark-slot frontmatter-mark-slot--left">$monogramSvg$</div>
+<div class="essay-frontmatter essay-frontmatter--reading"$if(standing)$ data-standing$endif$>
+    $if(standing)$$else$<div class="frontmatter-mark-slot frontmatter-mark-slot--left">$monogramSvg$</div>$endif$
     <div class="frontmatter-title">
         <h1 class="page-title">$title$</h1>
         $if(subtitle)$<p class="essay-subtitle">$subtitle$</p>$endif$
         $partial("templates/partials/metadata-header.html")$
-    </div>
+    </div>$if(standing)$
+    <div class="frontmatter-mark-slot frontmatter-mark-slot--right">$standing$</div>$endif$
 </div>
 <div class="essay-tailmatter">
     $partial("templates/partials/metadata-tail.html")$

@@ -42,6 +42,10 @@ ESSAY = route("essay")
 LIST = route("list")
 
 POPUP = ".link-popup.is-visible"
+# A term where the page shows it: the strip under the abstract, or, where a
+# seal stands at the head and the strip is for narrow windows
+# (site.yaml's epistemic-figure), the record at the foot.
+SHOWN_TERM = ':is(.meta-epistemic-strip, .ep-values) [data-ep-term="{term}"]:visible'
 
 # The pages' .sig files come from signing at deploy (tools/sign-site.sh), not
 # from `make build`, so a freshly built _site has none: the signature popup
@@ -110,7 +114,7 @@ class PopupKinds(unittest.TestCase):
                 self.assertTrue(terms, path)
                 for term in terms:
                     with self.subTest(browser=browser, page=path, term=term):
-                        popup = self.show(page, page.locator(f'.meta-epistemic-strip [data-ep-term="{term}"]'))
+                        popup = self.show(page, page.locator(SHOWN_TERM.format(term=term)).first)
                         self.expect(popup.locator(".popup-ep-term .popup-title")).to_have_text(
                             term.replace("-", " ").capitalize())
                         # textContent: innerText is empty while the popup still fades in.
@@ -236,7 +240,7 @@ class PopupKinds(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open(browser, ESSAY)
-                trigger = page.locator('.meta-epistemic-strip [data-ep-term="confidence"]')
+                trigger = page.locator(SHOWN_TERM.format(term="confidence")).first
                 popup = self.show(page, trigger)
                 t, p = trigger.bounding_box(), popup.bounding_box()
                 page.mouse.move(t["x"] + t["width"] / 2, t["y"] + t["height"] / 2)

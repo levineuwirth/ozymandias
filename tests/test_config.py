@@ -349,6 +349,7 @@ class ConfigTests(unittest.TestCase):
             {"font-preloads": ['/fonts/a".woff2']}, {"font-preloads": "/fonts/a.woff2"},
             {"epistemic-about": "colophon.html"}, {"epistemic-about": "/a page.html"},
             {"epistemic-about-label": "one\ntwo"},
+            {"epistemic-figure": "compass"}, {"epistemic-figure": ["seal"]},
             {"popup-providers": ["nosuch"]}, {"popup-providers": "wikipedia"},
             {"source-preview": "Makefile"}, {"source-preview": ["/Makefile"]},
             {"source-preview": ["../outside/**"]}, {"source-preview": ["data/../site.yaml"]},

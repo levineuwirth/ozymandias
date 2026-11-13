@@ -73,7 +73,7 @@ import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
 import Backlinks    (backlinksField)
 import Dingbat      (dingbatField)
 import EngineFiles  (assetsField)
-import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, peerStatusValues)
+import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, standingField, peerStatusValues)
 import Sections     (Section (..), sectionOfRoute, tagPageUrl)
 import SimilarLinks (similarLinksField)
 import FooterData   (footerDepsField)
@@ -763,6 +763,7 @@ siteCtx =
     <> dingbatField
     <> monogramSvgField
     <> hasMonogramField
+    <> standingField
     <> defaultContext
 
 -- ---------------------------------------------------------------------------

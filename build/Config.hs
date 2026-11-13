@@ -67,6 +67,12 @@ data SiteConfig = SiteConfig
       --   anchor), which the footer's Epistemic heading links to; none, unlinked.
     , siteEpistemicAbout :: String
     , siteEpistemicAboutLabel :: String
+      -- | What stands at the head of a page with an epistemic profile:
+      --   @radar@ (the page's mark at the left, the profile's radar at the
+      --   right), or the mark itself carrying the profile, as a @seal@ (its
+      --   values lettered around it) or a @dial@ (a graduated ring, with a
+      --   sentence beneath). Marks.standingField.
+    , siteEpistemicFigure :: String
     , sitePopupProviders :: [String]
     , siteSeasons :: [Season]
       -- | What @/source/@ publishes of the site's own files, as Hakyll globs
@@ -423,7 +429,7 @@ instance FromJSON SiteConfig where
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
-                      "epistemic-about-label", "popup-providers", "seasons", "source-preview",
+                      "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "source-preview",
                       "engine-repo", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
@@ -437,6 +443,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
                         <*> o .:? "epistemic-about-label" .!= "About"
+                        <*> o .:? "epistemic-figure" .!= "radar"
                         <*> o .:? "popup-providers" .!= []
                         <*> o .:? "seasons" .!= []
                         <*> o .:? "source-preview" .!= [] <*> o .:? "engine-repo" .!= ""
@@ -450,6 +457,8 @@ instance FromJSON SiteConfig where
         unless (null about || ("/" `isPrefixOf` about
                                && all (\ch -> not (isSpace ch || isControl ch) && ch `notElem` ("\"'<>&" :: String)) about)) $
             fail ("epistemic-about must be a path on the site: " ++ about)
+        unless (siteEpistemicFigure c `elem` ["radar", "seal", "dial"]) $
+            fail ("epistemic-figure must be radar, seal or dial: " ++ siteEpistemicFigure c)
         let seasonIds = map seasonId (siteSeasons c)
         when (nub seasonIds /= seasonIds) $ fail "season ids must be unique"
         when (any isControl (siteSigningFingerprint c)) $
@@ -496,6 +505,7 @@ instance ToJSON SiteConfig where
                            "font-preloads" .= siteFontPreloads c,
                            "epistemic-about" .= siteEpistemicAbout c,
                            "epistemic-about-label" .= siteEpistemicAboutLabel c,
+                           "epistemic-figure" .= siteEpistemicFigure c,
                            "popup-providers" .= sitePopupProviders c,
                            "seasons" .= siteSeasons c,
                            "source-preview" .= siteSourcePreview c,

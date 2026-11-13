@@ -118,6 +118,14 @@ the freshness check hashes it.
   of the engine's files links instead.
 - **`popup-providers`:** which other sites link previews may ask, none by
   default (the names are under `popups` in `switches.yaml`).
+- **`epistemic-figure`:** what stands at the head of a page with an
+  epistemic profile (the epistemic and marks switches): `radar`, the
+  default, the page's mark at the left and the radar at the right; `seal`,
+  the mark alone at the right with the profile lettered around it; or
+  `dial`, the mark inside a graduated ring. A seal or a dial is the one link
+  to the record at the page's foot, where the radar and every value then
+  are; the strip of values under the abstract stays with a dial and, with a
+  seal, is for narrow windows.
 
 ## Switches
 

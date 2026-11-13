@@ -1,18 +1,18 @@
 <!-- A05: a neutral element, not <header>. As a body-level element a
      <header> maps to the banner landmark, which duplicated the site
      banner in templates/partials/nav.html on every essay. -->
-<div class="essay-frontmatter">
-    <div class="frontmatter-mark-slot frontmatter-mark-slot--left">$monogramSvg$</div>
+<div class="essay-frontmatter"$if(standing)$ data-standing$endif$>
+    $if(standing)$$else$<div class="frontmatter-mark-slot frontmatter-mark-slot--left">$monogramSvg$</div>$endif$
     <div class="frontmatter-title">
         <h1 class="page-title">$title$</h1>
         $if(subtitle)$<p class="essay-subtitle">$subtitle$</p>$endif$
         $partial("templates/partials/metadata-header.html")$
     </div>
-    $if(epistemicSvg)$
+    $if(standing)$<div class="frontmatter-mark-slot frontmatter-mark-slot--right">$standing$</div>$else$$if(epistemicSvg)$
     <div class="frontmatter-mark-slot frontmatter-mark-slot--right">
         <a href="#epistemic">$epistemicSvg$<span class="visually-hidden">, jump to the epistemic profile</span></a>
     </div>
-    $endif$
+    $endif$$endif$
 </div>
 <div class="essay-tailmatter">
     $partial("templates/partials/metadata-tail.html")$

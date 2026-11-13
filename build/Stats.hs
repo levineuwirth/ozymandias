@@ -48,7 +48,7 @@ import Archive                    (archiveBuildStats)
 import Config                     (SiteConfig, loadConfig, switchOn)
 import Sections                   (tagPageUrl)
 import Contexts                   (siteCtx, authorLinksField, canonicalUrlPath)
-import Marks                      (hasMonogram, monogramSvgFieldFor,
+import Marks                      (hasMonogram, monogramSvgFieldFor, standingFieldFor,
                                    hasMonogramFieldFor)
 import qualified Patterns         as P
 import EngineFiles                (filesIn)
@@ -1086,6 +1086,7 @@ statsPage title abstract markPath toc htmlContent = do
                      <> constField "description"  abstract
                      <> constField "build"        "true"
                      <> monogramSvgFieldFor markPath
+                     <> standingFieldFor markPath
                      <> hasMonogramFieldFor markPath
                      <> authorLinksField
                      <> siteCtx
