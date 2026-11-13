@@ -31,8 +31,9 @@ global.matchMedia = () => ({matches: dark, addEventListener(name, cb) {systemCha
 // The stylesheets' part: each theme's color-scheme (tokens.css, theme.css);
 // with none chosen, none declared here.
 const SCHEMES = {light: 'light', dark: 'dark', 'night-ink': 'dark', both: 'light dark'};
+const FACES = {'--font-serif': ' "Site Serif", serif', '--font-sans': '"Site Sans", sans-serif'};
 global.getComputedStyle = el => ({getPropertyValue: name =>
-  name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : ''});
+  name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : FACES[name] || ''});
 global.vegaEmbed = (el, spec) => {
   const id = calls.length; calls.push(spec.config);
   return new Promise((resolve, reject) => pending.push({reject,
@@ -85,6 +86,16 @@ dark = false; systemChanged(); await tick();
 console.log(JSON.stringify({calls: calls.length, released}));
 ''')
         self.assertEqual(data, {'calls': 3, 'released': [0, 1]})
+
+    def test_charts_are_set_in_the_site_s_font_tokens(self):
+        data = self.probe(r'''
+ready(); await tick();
+const c = calls[0];
+console.log(JSON.stringify([c.font, c.axis.labelFont, c.axis.titleFont, c.legend.labelFont,
+  c.legend.titleFont, c.title.font]));
+''')
+        serif, sans = '"Site Serif", serif', '"Site Sans", sans-serif'
+        self.assertEqual(data, [serif, serif, sans, serif, sans, sans])
 
     def test_the_palette_is_the_color_scheme_s_whatever_the_theme_is_called(self):
         data = self.probe(r'''

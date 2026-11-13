@@ -12,12 +12,15 @@
   'use strict';
 
   // -------------------------------------------------------------------------
-  // Monochrome Vega-Lite configs (matched to base.css custom properties)
+  // Monochrome Vega-Lite configs (matched to base.css custom properties).
+  // '{serif}' and '{sans}' are the site's faces, its --font-serif and
+  // --font-sans (tokens.css, a site's theme.css), put in when a chart is
+  // drawn (themeConfig): a chart is set in what the page is.
   // -------------------------------------------------------------------------
 
   var LIGHT = {
     background: null,
-    font: 'Spectral, Georgia, "Times New Roman", serif',
+    font: '{serif}',
     mark: { color: '#1a1a1a' },
     axis: {
       gridColor:   '#cccccc',
@@ -26,21 +29,21 @@
       tickColor:   '#1a1a1a',
       labelColor:  '#1a1a1a',
       titleColor:  '#555555',
-      labelFont:   'Spectral, Georgia, serif',
-      titleFont:   '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      labelFont:   '{serif}',
+      titleFont:   '{sans}',
       titleFontWeight: 'normal',
     },
     legend: {
       labelColor: '#1a1a1a',
       titleColor: '#555555',
-      labelFont:  'Spectral, Georgia, serif',
-      titleFont:  '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      labelFont:  '{serif}',
+      titleFont:  '{sans}',
       titleFontWeight: 'normal',
     },
     title: {
       color:      '#1a1a1a',
       subtitleColor: '#555555',
-      font:       '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      font:       '{sans}',
       fontWeight: 'normal',
     },
     range: {
@@ -53,7 +56,7 @@
 
   var DARK = {
     background: null,
-    font: 'Spectral, Georgia, "Times New Roman", serif',
+    font: '{serif}',
     mark: { color: '#d4d0c8' },
     axis: {
       gridColor:   '#333333',
@@ -62,21 +65,21 @@
       tickColor:   '#d4d0c8',
       labelColor:  '#d4d0c8',
       titleColor:  '#8c8881',
-      labelFont:   'Spectral, Georgia, serif',
-      titleFont:   '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      labelFont:   '{serif}',
+      titleFont:   '{sans}',
       titleFontWeight: 'normal',
     },
     legend: {
       labelColor: '#d4d0c8',
       titleColor: '#8c8881',
-      labelFont:  'Spectral, Georgia, serif',
-      titleFont:  '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      labelFont:  '{serif}',
+      titleFont:  '{sans}',
       titleFontWeight: 'normal',
     },
     title: {
       color:      '#d4d0c8',
       subtitleColor: '#8c8881',
-      font:       '"Fira Sans", "Helvetica Neue", Arial, sans-serif',
+      font:       '{sans}',
       fontWeight: 'normal',
     },
     range: {
@@ -101,7 +104,14 @@
   }
 
   function themeConfig() {
-    return isDark() ? DARK : LIGHT;
+    var css = getComputedStyle(document.documentElement);
+    var faces = {
+      '{serif}': css.getPropertyValue('--font-serif').trim() || 'serif',
+      '{sans}':  css.getPropertyValue('--font-sans').trim() || 'sans-serif'
+    };
+    return JSON.parse(JSON.stringify(isDark() ? DARK : LIGHT), function (key, value) {
+      return typeof value === 'string' && faces[value] ? faces[value] : value;
+    });
   }
 
   // -------------------------------------------------------------------------

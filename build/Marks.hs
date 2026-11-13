@@ -570,19 +570,21 @@ renderPeerStatusOverlay (Just "retracted")     =
         ]
 renderPeerStatusOverlay (Just _)               = ""
 
--- | Trust score (Spectral, 16 px) and the small "TRUST" label below it.
+-- | Trust score (the serif face, 16 px) and the small "TRUST" label below
+--   it (the sans): their faces are the site's font tokens, through the
+--   classes marks.css styles, so the figure is set in what the page is.
 renderTrustLabel :: Int -> T.Text
 renderTrustLabel score = T.concat
     [ "<text x=\"", ff fxCenter, "\" y=\"", ff (fyCenter + 4)
     , "\" text-anchor=\"middle\""
     , " fill=\"currentColor\" stroke=\"none\""
-    , " font-family=\"Spectral, serif\" font-weight=\"500\" font-size=\"16\">"
+    , " class=\"ep-figure-serif\" font-weight=\"500\" font-size=\"16\">"
     , T.pack (show score)
     , "</text>"
     , "<text x=\"", ff fxCenter, "\" y=\"", ff (fyCenter + 14)
     , "\" text-anchor=\"middle\""
     , " fill=\"currentColor\" stroke=\"none\""
-    , " font-family=\"&quot;Fira Sans&quot;, sans-serif\""
+    , " class=\"ep-figure-sans\""
     , " font-size=\"5\" letter-spacing=\"0.18em\""
     , " opacity=\"0.7\">TRUST</text>"
     ]
@@ -614,7 +616,7 @@ renderResultShape (Just shape) mScore =
                 , "\" y=\"", ff (fyCenter + 4)
                 , "\" text-anchor=\"", anchor, "\""
                 , " fill=\"currentColor\" stroke=\"none\""
-                , " font-family=\"Spectral, serif\" font-size=\"16\">"
+                , " class=\"ep-figure-serif\" font-size=\"16\">"
                 , T.pack glyph
                 , "</text>"
                 ]

@@ -48,6 +48,18 @@
 }
 
 
+/* The epistemic figure's words (build/Marks.hs): the trust score and its
+   result glyph in the serif face, the TRUST label in the sans, the site's
+   own (tokens.css, a site's theme.css). */
+.ep-figure-serif {
+    font-family: var(--font-serif);
+}
+
+.ep-figure-sans {
+    font-family: var(--font-sans);
+}
+
+
 /* Epistemic figure inside an anchor: the anchor inherits color
    from the slot (so currentColor in the SVG resolves to --text)
    and stays inline-block so it doesn't pick up underline / link
