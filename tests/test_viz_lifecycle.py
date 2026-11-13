@@ -19,7 +19,7 @@ const container = {}, pending = [], calls = [], released = [];
 let ready, changed, systemChanged, dark = false;
 global.window = global;
 global.document = {
-  documentElement: {dataset: {}},
+  documentElement: {dataset: {}, appendChild() {}},
   addEventListener(name, cb) { ready = cb; },
   querySelectorAll(selector) {
     return selector === 'script.vega-spec'
@@ -29,7 +29,7 @@ global.document = {
   // leaves the last; a painted pixel reads back as its sRGB values. This
   // one reads hex and the named colors below (tests/test_browser_viz_ink.py
   // has real ones).
-  createElement: () => ({getContext: () => {
+  createElement: tag => tag === 'span' ? {style: {}, remove() {}} : ({getContext: () => {
     const NAMED = {black: '#000000', white: '#ffffff', gray: '#808080'};
     let style = '#000000', pixel = [0, 0, 0, 0];
     return {get fillStyle() { return style; },
@@ -48,6 +48,7 @@ const SCHEMES = {light: 'light', dark: 'dark', 'night-ink': 'dark', both: 'light
 const FACES = {'--font-serif': ' "Site Serif", serif', '--font-sans': '"Site Sans", sans-serif'};
 let TOKENS = {};   // a theme's colors, when a test gives some
 global.getComputedStyle = el => ({getPropertyValue: name =>
+  name === 'background-color' ? el.style.backgroundColor :
   name === 'color-scheme' ? SCHEMES[el.dataset.theme] || 'normal' : FACES[name] || TOKENS[name] || ''});
 global.vegaEmbed = (el, spec) => {
   const id = calls.length; calls.push(spec.config);

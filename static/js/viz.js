@@ -75,7 +75,7 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
-  /* A token's color as #rrggbb (rgba() if translucent), whatever syntax
+  /* A token's color as sRGB channels and alpha, whatever syntax
      the theme wrote it in (oklch(), color-mix(), …): Vega's own color
      handling reads only a few. A pixel of it is painted and read back,
      in sRGB; a color the canvas cannot read leaves the fallback. */
@@ -83,41 +83,58 @@
   canvas.width = canvas.height = 1;
   var ink = canvas.getContext('2d', { willReadFrequently: true });
   function hex2(v) { return (v < 16 ? '0' : '') + v.toString(16); }
-  function color(css, token, fallback) {
+  function color(css, token, fallback, probe) {
+    // Resolve currentColor, light-dark(), and mixes in the root's actual
+    // context before asking the detached canvas to convert color spaces.
+    probe.style.backgroundColor = fallback;
+    probe.style.backgroundColor = css.getPropertyValue(token).trim() || fallback;
     ink.clearRect(0, 0, 1, 1);
     ink.fillStyle = fallback;
-    ink.fillStyle = css.getPropertyValue(token).trim() || fallback;
+    ink.fillStyle = getComputedStyle(probe).getPropertyValue('background-color');
     ink.fillRect(0, 0, 1, 1);
-    var px = ink.getImageData(0, 0, 1, 1).data;
+    return Array.from(ink.getImageData(0, 0, 1, 1).data);
+  }
+
+  function colorString(px) {
     return px[3] === 255 ? '#' + hex2(px[0]) + hex2(px[1]) + hex2(px[2])
       : 'rgba(' + px[0] + ', ' + px[1] + ', ' + px[2] + ', ' + (px[3] / 255).toFixed(3) + ')';
   }
 
   function between(a, b) {
-    var x = /^#([0-9a-f]{6})$/i.exec(a), y = /^#([0-9a-f]{6})$/i.exec(b);
-    if (!x || !y) return a;
-    var out = '#';
-    for (var i = 0; i < 6; i += 2) {
-      var v = Math.round((parseInt(x[1].substr(i, 2), 16) + parseInt(y[1].substr(i, 2), 16)) / 2);
-      out += (v < 16 ? '0' : '') + v.toString(16);
-    }
-    return out;
+    // Interpolate premultiplied sRGB and alpha, then unpremultiply. A
+    // transparent endpoint contributes no hue; opaque colors retain the
+    // original arithmetic midpoint.
+    var alpha = a[3] + b[3];
+    return [0, 1, 2].map(function (i) {
+      return alpha ? Math.round((a[i] * a[3] + b[i] * b[3]) / alpha) : 0;
+    }).concat(alpha / 2);
   }
 
   function themeConfig() {
     var css = getComputedStyle(document.documentElement);
     var f = isDark() ? DARK_INK : LIGHT_INK;
-    var muted = color(css, '--text-muted', f.muted), borderMuted = color(css, '--border-muted', f.borderMuted);
-    var values = {
-      '{serif}':        css.getPropertyValue('--font-serif').trim() || 'serif',
-      '{sans}':         css.getPropertyValue('--font-sans').trim() || 'sans-serif',
-      '{text}':         color(css, '--text', f.text),
-      '{muted}':        muted,
-      '{border}':       color(css, '--border', f.border),
-      '{border-muted}': borderMuted,
-      '{between}':      between(muted, borderMuted),
-      '{grid-opacity}': f.grid
-    };
+    var probe = document.createElement('span');
+    probe.hidden = true;
+    probe.style.color = 'inherit';
+    probe.style.colorScheme = 'inherit';
+    document.documentElement.appendChild(probe);
+    var values;
+    try {
+      var muted = color(css, '--text-muted', f.muted, probe);
+      var borderMuted = color(css, '--border-muted', f.borderMuted, probe);
+      values = {
+        '{serif}':        css.getPropertyValue('--font-serif').trim() || 'serif',
+        '{sans}':         css.getPropertyValue('--font-sans').trim() || 'sans-serif',
+        '{text}':         colorString(color(css, '--text', f.text, probe)),
+        '{muted}':        colorString(muted),
+        '{border}':       colorString(color(css, '--border', f.border, probe)),
+        '{border-muted}': colorString(borderMuted),
+        '{between}':      colorString(between(muted, borderMuted)),
+        '{grid-opacity}': f.grid
+      };
+    } finally {
+      probe.remove();
+    }
     return JSON.parse(JSON.stringify(CONFIG), function (key, value) {
       return typeof value === 'string' && Object.prototype.hasOwnProperty.call(values, value)
         ? values[value] : value;

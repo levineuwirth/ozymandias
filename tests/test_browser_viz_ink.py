@@ -40,7 +40,7 @@ class ChartInk(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def drawn(self, browser):
+    def open_page(self, browser, extra_css=""):
         context = self.browsers[browser].new_context()
         self.addCleanup(context.close)
 
@@ -49,7 +49,7 @@ class ChartInk(unittest.TestCase):
             if url.netloc != "viz.test":
                 route.abort()
             elif url.path == "/":
-                route.fulfill(content_type="text/html", body=PAGE)
+                route.fulfill(content_type="text/html", body=PAGE.replace("</style>", extra_css + "</style>"))
             else:
                 path = engine_path("static/" + url.path.lstrip("/"))
                 if path.is_file():
@@ -65,7 +65,10 @@ class ChartInk(unittest.TestCase):
         self.addCleanup(lambda: self.assertEqual(errors, []))
         page.goto(ORIGIN, wait_until="load")
         page.wait_for_function("window.drawn")
-        return page.evaluate("window.drawn")
+        return page
+
+    def drawn(self, browser, extra_css=""):
+        return self.open_page(browser, extra_css).evaluate("window.drawn")
 
     def test_the_tokens_are_the_chart_s_colors_in_any_syntax(self):
         for browser in BROWSERS:
@@ -78,6 +81,40 @@ class ChartInk(unittest.TestCase):
                                   config["axis"]["gridColor"]], [text, "#555555", "#cccccc"])
                 self.assertEqual(config["range"]["category"],
                                  [text, "#555555", "#808080", "#aaaaaa", "#cccccc"])
+
+    def test_translucent_series_have_an_alpha_weighted_midpoint(self):
+        cases = [
+            ("rgb(255 0 0 / 50%)", "rgb(0 0 255 / 25%)", "rgba(170, 0, 85, 0.376)"),
+            ("red", "rgb(0 0 255 / 50%)", "rgba(170, 0, 85, 0.751)"),
+            ("transparent", "blue", "rgba(0, 0, 255, 0.500)"),
+            ("transparent", "transparent", "rgba(0, 0, 0, 0.000)"),
+        ]
+        for browser in BROWSERS:
+            for muted, border, expected in cases:
+                with self.subTest(browser=browser, muted=muted, border=border):
+                    config = self.drawn(browser, ':root { --text-muted: ' + muted
+                                        + '; --border-muted: ' + border + '; }')
+                    self.assertEqual(config['range']['category'][2], expected)
+
+    def test_colors_use_the_page_context_and_follow_a_theme_change(self):
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open_page(browser, '''
+                  :root { color: #2468ac; --text: currentColor;
+                    --text-muted: color-mix(in srgb, currentColor 50%, black);
+                    --border: light-dark(#123456, #abcdef); }
+                  :root[data-theme="night"] { color-scheme: dark; color: #804020; }
+                ''')
+                config = page.evaluate('window.drawn')
+                self.assertEqual(config['mark']['color'], '#2468ac')
+                self.assertEqual(config['axis']['titleColor'], '#123456')
+                self.assertEqual(config['axis']['gridColor'], '#123456')
+                page.evaluate("document.documentElement.dataset.theme = 'night'")
+                page.wait_for_function("window.drawn.mark.color === '#804020'")
+                config = page.evaluate('window.drawn')
+                self.assertEqual(config['axis']['titleColor'], '#402010')
+                self.assertEqual(config['axis']['gridColor'], '#abcdef')
+                self.assertEqual(page.locator('html > span').count(), 0, 'color probes must be removed')
 
 
 if __name__ == "__main__":
