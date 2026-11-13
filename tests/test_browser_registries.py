@@ -29,6 +29,7 @@ from tests.target import requires_switch
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Registries fixture</title>
 <link rel="stylesheet" href="/css/popups.css">
+<link rel="stylesheet" href="/__fixture/registry.css">
 <script src="/js/utils.js"></script>
 <script src="/js/popups.js" defer></script>
 <script src="/js/photography-modes.js" defer></script>
@@ -37,9 +38,12 @@ PAGE = """<!doctype html>
 <p><span id="mine" class="site-preview" tabindex="0">a term of the site's own</span></p>
 <nav class="photography-mode-toggle">
   <a class="mode-btn" data-mode="grid" href="#">Grid</a>
+  <a class="mode-btn" data-mode="masonry" href="#">Masonry</a>
   <a class="mode-btn" data-mode="strip" href="#">Strip</a>
 </nav>
-<div class="photography-grid"></div>
+<div class="photography-grid"><div class="photo-card">
+  <img class="photo-card-img" alt="Fixture photograph">
+</div></div>
 <div id="later"></div>
 </main></body></html>
 """
@@ -58,6 +62,13 @@ window.ozyPhotography.registerMode('strip', {
 });
 """
 
+REPLACE_MASONRY = """
+window.ozyPhotography.registerMode('masonry', {
+    enter: function (grid) { grid.querySelector('.photo-card').style.gridRowEnd = 'span 99'; },
+    leave: function (grid) { grid.querySelector('.photo-card').style.gridRowEnd = ''; }
+});
+"""
+
 
 @requires_switch("popups")
 @requires_switch("photography")
@@ -73,6 +84,12 @@ class SiteRegistries(unittest.TestCase):
         (tmp / "fixtures").mkdir()
         (tmp / "fixtures" / "page.html").write_text(PAGE, encoding="utf-8")
         (tmp / "fixtures" / "site.js").write_text(SITE_JS, encoding="utf-8")
+        (tmp / "fixtures" / "replacement.html").write_text(
+            PAGE.replace('/__fixture/site.js', '/__fixture/replacement.js'), encoding="utf-8")
+        (tmp / "fixtures" / "replacement.js").write_text(SITE_JS + REPLACE_MASONRY, encoding="utf-8")
+        (tmp / "fixtures" / "registry.css").write_text('.photo-card { width: 25vw; }', encoding="utf-8")
+        (tmp / "fixtures" / "photo.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="40"></svg>', encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
@@ -80,15 +97,76 @@ class SiteRegistries(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def open_page(self, browser: str):
+    def open_page(self, browser: str, path: str = "page.html"):
         context = self.browsers[browser].new_context(viewport={"width": 1280, "height": 900})
         self.addCleanup(context.close)
         page = context.new_page()
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         self.addCleanup(lambda: self.assertEqual(errors, [], "page errors"))
-        page.goto(self.base + "/__fixture/page.html", wait_until="load")
+        page.goto(self.base + "/__fixture/" + path, wait_until="load")
         return page
+
+    @staticmethod
+    def settle_layout(page):
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+
+    @staticmethod
+    def load_photo(page):
+        page.evaluate("""async () => {
+            const img = document.querySelector('.photo-card-img');
+            img.src = '/__fixture/photo.svg';
+            await img.decode();
+        }""")
+
+    def test_replacing_masonry_owns_layout_on_resize_and_image_load(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open_page(browser, "replacement.html")
+                card = page.locator('.photo-card')
+                page.click('[data-mode=masonry]')
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'span 99')
+                page.set_viewport_size({"width": 640, "height": 900})
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'span 99')
+                self.load_photo(page)
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'span 99')
+                page.reload(wait_until='load')
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'span 99')
+
+    def test_builtin_masonry_updates_only_while_selected(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open_page(browser)
+                card = page.locator('.photo-card')
+                span = lambda: int(card.evaluate("el => el.style.gridRowEnd.split(' ')[1]"))
+                page.click('[data-mode=masonry]')
+                self.settle_layout(page)
+                initial = span()
+                self.load_photo(page)
+                self.settle_layout(page)
+                loaded = span()
+                self.assertGreater(loaded, initial)
+                page.set_viewport_size({"width": 640, "height": 900})
+                self.settle_layout(page)
+                self.assertLess(span(), loaded)
+                # Leave before queued resize work, then before queued entry work.
+                page.evaluate("""() => {
+                    window.dispatchEvent(new Event('resize'));
+                    document.querySelector('[data-mode=grid]').click();
+                }""")
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'auto')
+                page.evaluate("""() => {
+                    document.querySelector('[data-mode=masonry]').click();
+                    document.querySelector('[data-mode=grid]').click();
+                    document.querySelector('.photo-card-img').dispatchEvent(new Event('load'));
+                }""")
+                self.settle_layout(page)
+                self.expect(card).to_have_css('grid-row-end', 'auto')
 
     def test_a_site_s_popup_provider_shows(self) -> None:
         for browser in BROWSERS:

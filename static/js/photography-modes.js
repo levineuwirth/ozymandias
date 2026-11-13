@@ -250,52 +250,59 @@
             });
         }
 
+        /* Masonry owns its listeners and pending layout work. Replacing the
+           mode must replace all of its behaviour, not just its entry hook;
+           leaving it must also stop a queued frame from restoring spans. */
+        function masonryMode() {
+            var active = false;
+            var frame = null;
+            var images = [];
+
+            function scheduleLayout() {
+                if (frame !== null) window.cancelAnimationFrame(frame);
+                frame = window.requestAnimationFrame(function () {
+                    frame = null;
+                    if (active) applyAllRowSpans();
+                });
+            }
+
+            function imageLoaded(event) {
+                if (active) applyRowSpan(event.currentTarget.closest('.photo-card'));
+            }
+
+            return {
+                enter: function () {
+                    if (!active) {
+                        active = true;
+                        images = Array.from(grid.querySelectorAll('.photo-card-img'));
+                        images.forEach(function (img) { img.addEventListener('load', imageLoaded); });
+                        window.addEventListener('resize', scheduleLayout);
+                    }
+                    // Includes cached images, whose load event has already fired.
+                    scheduleLayout();
+                },
+                leave: function () {
+                    active = false;
+                    if (frame !== null) window.cancelAnimationFrame(frame);
+                    frame = null;
+                    window.removeEventListener('resize', scheduleLayout);
+                    images.forEach(function (img) { img.removeEventListener('load', imageLoaded); });
+                    images = [];
+                    clearAllRowSpans();
+                }
+            };
+        }
+
         /* The engine's modes, but for one a site's script has replaced.
            Masonry sets each card's row span, measured after the browser has
            applied the new column template, not before: applyRowSpan reads
            card.clientWidth, and the track width it needs is the one the
            mode it is switching *into* produces; it clears them on leaving. */
         [['grid', {}],
-         ['masonry', {
-             enter: function () { window.requestAnimationFrame(applyAllRowSpans); },
-             leave: clearAllRowSpans
-         }],
+         ['masonry', masonryMode()],
          ['chronological', {}]].forEach(function (m) {
             if (!isMode(m[0])) MODES[m[0]] = m[1];
         });
-
-        // Refine spans once each image's natural dimensions are known.
-        // No-op when the grid is absent (e.g. on the map page).
-        if (grid) {
-            grid.querySelectorAll('.photo-card-img').forEach(function (img) {
-                if (img.complete && img.naturalWidth) {
-                    // Guard the mode here too. Without it, an image that was
-                    // already cached applied an inline row span while the page
-                    // was in grid or chronological mode, where 8px auto-rows
-                    // do not exist and the span means something else entirely.
-                    if (grid.getAttribute('data-photography-mode') === 'masonry') {
-                        applyRowSpan(img.closest('.photo-card'));
-                    }
-                } else {
-                    img.addEventListener('load', function () {
-                        if (grid.getAttribute('data-photography-mode') === 'masonry') {
-                            applyRowSpan(img.closest('.photo-card'));
-                        }
-                    });
-                }
-            });
-
-            // Re-flow on resize — cell width changes affect height.
-            var resizeRaf = null;
-            window.addEventListener('resize', function () {
-                if (resizeRaf) cancelAnimationFrame(resizeRaf);
-                resizeRaf = requestAnimationFrame(function () {
-                    if (grid.getAttribute('data-photography-mode') === 'masonry') {
-                        applyAllRowSpans();
-                    }
-                });
-            });
-        }
 
         // ----------------------------------------------------------------
         // Boot — only applies a mode when we're on a page that has the

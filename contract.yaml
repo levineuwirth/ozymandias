@@ -41,16 +41,18 @@ scripts:
     use: >-
       A bubbling event on content inserted after load (a transclusion, or a
       site script's own), once per insertion, with detail {container,
-      source}, after the engine's own scripts have seen it:
+      source}. Dispatched synchronously after calling the sidenote, popup
+      and collapse reinitialisers; asynchronous work may still be pending.
+      This announces insertion, not completed highlighting or typesetting:
       document.addEventListener('ozy:content-added', e => init(e.detail.container)).
   window.ozyEnhance:
     by: static/js/utils.js
     use: >-
       ozyEnhance(container[, {source, force}]) announces content a site's
       script inserted: sidenotes, popups and collapsing sections take it
-      up, code and math in it are highlighted and typeset (with the code
-      and math switches), and ozy:content-added follows. Once per
-      container unless forced.
+      up, then ozy:content-added is dispatched synchronously. Code and math
+      are also highlighted and typeset with their switches on, but that
+      work may finish after the event. Once per container unless forced.
   window.ozyPopups:
     by: static/js/popups.js
     use: >-
@@ -77,6 +79,9 @@ scripts:
       of the engine's (grid, masonry, chronological): the toggle's
       data-mode and the grid's data-photography-mode, which a site's CSS
       keys its rules off; the reader's choice is kept as the engine's are.
+      A mode owns its listeners and queued work: enter installs them and
+      leave removes or cancels them. Repeated selection can call enter
+      again without leave, so enter must not stack listeners.
 
 contexts:
   identity:

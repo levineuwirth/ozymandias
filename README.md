@@ -147,6 +147,11 @@ the engine's (a page's `js:` front matter), registers into what
 - `window.ozyPhotography`: a layout of the photography grid;
 - `ozy:content-added` and `window.ozyEnhance`: content added after load.
 
+The content event announces insertion synchronously; highlighting and
+typesetting may finish later. A photography mode owns its listeners and
+queued layout work: install them on entry and remove or cancel them on
+leaving. Entry must tolerate repeated selection without stacking listeners.
+
 What a switch adds to `popups.js` and `selection-popup.js` is a module of
 its own (`static/js/popups/`, `static/js/selection-popup/`), served inside
 that one file with the switch on (`site script-modules`), and overridable
