@@ -277,6 +277,12 @@ rules = do
         essayAssets = "content/essays/**"
                       .&&. complement P.essayPattern
                       .&&. complement "content/essays/**/*.dims.yaml"
+                      .&&. complement colocatedBibs
+        -- A bibliography beside its essay (named by its front matter's
+        -- bibliography:), a draft's too in a dev build.
+        colocatedBibs
+            | isDev     = "content/essays/**/*.bib" .||. "content/drafts/essays/**/*.bib"
+            | otherwise = "content/essays/**/*.bib"
         musicAssets
             | musicOn   = foldr1 (.||.) [ fromGlob ("content/music/**/*." ++ ext)
                                         | ext <- ["svg", "mp3", "pdf", "webp", "json"] ]
@@ -608,11 +614,22 @@ rules = do
         route $ stripPrefixRoute "content/"
         compile copyFileCompiler
 
+    -- A bibliography beside its essay: published where it is, as the other
+    -- assets are, but compiled as text, as data/*.bib is, because the
+    -- essay's compiler loads the one its front matter names as a tracked
+    -- input (Compilers.trackBibliographyInputs). Copied as a file, that
+    -- load found a CopyFile where it asked for a String, and a clean build
+    -- of the essay failed (a draft's, in dev, first).
+    match colocatedBibs $ do
+        route $ stripPrefixRoute "content/"
+        compile getResourceString
+
     -- Static assets co-located with draft essays (dev-only).
     when isDev $ match ("content/drafts/essays/**"
                         .&&. complement "content/drafts/essays/*.md"
                         .&&. complement "content/drafts/essays/*/index.md"
-                        .&&. complement "content/drafts/essays/**/*.dims.yaml") $ do
+                        .&&. complement "content/drafts/essays/**/*.dims.yaml"
+                        .&&. complement colocatedBibs) $ do
         route $ stripPrefixRoute "content/"
         compile copyFileCompiler
 

@@ -268,6 +268,24 @@ class FixtureBuilds(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
         return site
 
+    def test_an_essay_with_its_own_bibliography_builds_and_publishes_it(self):
+        # bibliography: naming a .bib beside the essay. The essay's compiler
+        # loads it as a tracked input (as text); it was claimed by the asset
+        # rule as a copied file, and a clean build of the essay failed.
+        bib = ("@article{probe2026,\n  author = {Example, Author},\n"
+               "  title = {A Work Cited Beside Its Essay},\n  journal = {Probe},\n  year = {2026}\n}\n")
+        rel = "content/essays/capabilities"
+        page = (FIXTURE / rel / "index.md").read_text(encoding="utf-8")
+        page = page.replace("---\n", f"---\nbibliography: {rel}/references.bib\n", 1)
+        page += "\nAs one work says [@probe2026].\n"
+        site = self.rebuilt("colocated-bibliography", lambda c: c,
+                            {f"{rel}/references.bib": bib, f"{rel}/index.md": page})
+        self.assertEqual((site / "_site/essays/capabilities/references.bib").read_text(encoding="utf-8"), bib)
+        # Its entry, in the page's bibliography (the style sets the title in
+        # sentence case).
+        self.assertIn('<div id="ref-probe2026" class="csl-entry"',
+                      (site / "_site/essays/capabilities/index.html").read_text(encoding="utf-8"))
+
     def test_source_preview_wildcards_never_publish_engine_files(self):
         # Neither raw sources nor sectioned Markdown may escape via a
         # wildcard spelling of engine/. The site's own matches still ship.
