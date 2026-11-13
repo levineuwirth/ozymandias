@@ -6,9 +6,13 @@
 
 The site's tools/fonts.yaml names each family's upstream sources, the
 characters and OpenType features its subsets keep, and the license notice
-written beside them; tools/font-sources.json pins each download's SHA-256.
-Downloads are cached under ~/.cache/ozymandias-fonts/<host>, and the WOFF2
-subsets and OFL-*.txt notices go to fonts.yaml's `output`. Every name
+written beside them; tools/font-sources.json pins each source's SHA-256.
+An upstream is an https address (a font project's pinned revision, a
+foundry's download) or a directory in the site, for a font it was given as
+files; either way the bytes are checked against the pin before use.
+Downloads are cached under ~/.cache/ozymandias-fonts/<host>; a file in the
+site is read where it is. The WOFF2 subsets and OFL-*.txt notices go to
+fonts.yaml's `output`. Every name
 record is kept (`--name-IDs '*'`): pyftsubset's default keeps only 0–6,
 which dropped the license text and URL (IDs 13 and 14) from every font
 (audit C05). A family whose font reserves its name takes a primary name of
@@ -55,10 +59,23 @@ BASE = CONFIG["unicodes"]
 
 
 def source(spec: str) -> str:
-    """A download, `<upstream>:<path>` in fonts.yaml: the path under that
-    upstream's pinned revision."""
+    """A source, `<upstream>:<path>` in fonts.yaml: the path under that
+    upstream, an https address or a directory in the site (relative to its
+    root). What it returns keys font-sources.json's pins."""
     upstream, path = spec.split(":", 1)
-    return f"{CONFIG['upstreams'][upstream]}/{urllib.request.quote(path)}"
+    base = CONFIG["upstreams"][upstream]
+    if base.startswith("https://"):
+        return f"{base}/{urllib.request.quote(path)}"
+    if "://" in base:
+        sys.exit(f"fonts.yaml: upstream {upstream} must be https or a directory in the site: {base}")
+    local = f"{base.rstrip('/')}/{path}"
+    if Path(local).is_absolute() or ".." in Path(local).parts:
+        sys.exit(f"fonts.yaml: {spec} must stay inside the site")
+    return local
+
+
+def is_download(src: str) -> bool:
+    return src.startswith("https://")
 
 
 def site_or_engine(rel: str) -> Path:
@@ -131,6 +148,13 @@ def cache_dir() -> Path:
 
 def fetch(url: str) -> bytes:
     expected = SOURCE_HASHES[url]
+    if not is_download(url):
+        # A file in the site, pinned as a download is; never cached.
+        data = (SITE_ROOT / url).read_bytes()
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise ValueError(f"font source checksum mismatch: {url}")
+        print(f"  {url.rsplit('/', 1)[1]}  sha256 {expected[:16]}…  ({len(data) // 1024} KB)")
+        return data
     cached = cache_dir() / hashlib.sha256(url.encode()).hexdigest()[:16] / url.rsplit("/", 1)[1]
     if cached.is_file():
         data = cached.read_bytes()

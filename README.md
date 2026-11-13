@@ -178,7 +178,11 @@ linked alone, may.
 
 - `theme.css`: palettes, component color tokens and font stacks.
 - `fonts.css`: `@font-face` declarations, including generated fallback faces.
-  Point `tools/fonts.yaml`'s `fallbacks.css` at this file.
+  Point `tools/fonts.yaml`'s `fallbacks.css` at this file. The fonts
+  `tools/subset-fonts.py` subsets come from `fonts.yaml`'s upstreams, each an
+  `https` address (a project's pinned revision, a foundry's download) or a
+  directory in the site, every file pinned by its SHA-256 in
+  `tools/font-sources.json`.
 - `site.css`: ornaments, brand icons, what every page of the site needs.
 - A page's own styles: `static/css/NAME.css`, named in its front matter
   (`stylesheets: [NAME]`), loaded by that page alone.
