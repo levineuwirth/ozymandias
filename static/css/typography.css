@@ -240,8 +240,9 @@
    Typographic ornaments (asterism, asterisks) use character glyphs.
    Designed ornaments use SVGs from /images/dingbats/ rendered via mask-image
    so they inherit currentColor (→ --text-muted on <hr>).
-   To add a new ornament: extend build/Dingbat.hs and add both a character
-   or SVG rule below (plus the SVG file if applicable). */
+   An ornament is the site's: a rule for body[data-dingbat="NAME"] in its
+   stylesheets (site.css) makes NAME one (build/Themes.hs, `site
+   dingbats`), with its SVG under /images/dingbats/ if it draws one. */
 #markdownBody hr {
     border: none;
     text-align: center;

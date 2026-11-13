@@ -99,7 +99,9 @@ the freshness check hashes it.
   head; photography has its own image-bearing feed context. An empty feed is
   valid, its `<updated>` the build time.
 - **Sections:** the content directories (`dir`), the label their pages carry
-  on the New page (`kind`) and an ornament (`dingbat`). The engine routes
+  on the New page (`kind`) and an ornament (`dingbat`: one the site's
+  stylesheets draw, a rule for `body[data-dingbat="NAME"]`, as its
+  `site.css` declares them; `site dingbats` lists them). The engine routes
   essays, blog, poetry and fiction, and music and photography with their
   switches; labels, ornaments and order are the site's. `portals` are the
   home page's tags in order; `nav-primary` the first navigation row;

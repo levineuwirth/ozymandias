@@ -12,11 +12,11 @@ module Config
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
     , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext
     , manifestRules
-    , knownDingbats, sourcePreviewPattern
+    , sourcePreviewPattern
     ) where
 
 import Control.Monad (forM_, mfilter, unless, when)
-import EngineFiles (assetsField, bundlePlan, engineDir, readThemes)
+import EngineFiles (assetsField, bundlePlan, engineDir, readDingbats, readThemes)
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
@@ -265,8 +265,6 @@ instance FromJSON Section where
         unless (sectionDir s `elem` sectionRoutes) $
             fail ("unsupported section directory: " ++ sectionDir s)
         singleLine "section kind" (sectionKind s)
-        forM_ (sectionDingbat s) $ \d -> unless (d `elem` knownDingbats) $
-            fail ("unknown dingbat " ++ d ++ "; known: " ++ unwords knownDingbats)
         pure s
 
 instance ToJSON Section where
@@ -393,8 +391,6 @@ instance FromJSON Standalone where
                 fail ("standalone " ++ name ++ " must be a relative .html path without traversal")
         when (standaloneScores p && isNothing (standaloneDir p)) $
             fail "standalone scores need a source in its own directory"
-        forM_ (standaloneDingbat p) $ \d -> unless (d `elem` knownDingbats) $
-            fail ("unknown dingbat " ++ d ++ "; known: " ++ unwords knownDingbats)
         unless (all slug (standaloneFlags p)) $ fail "standalone flags must be lowercase slugs"
         pure p
 
@@ -421,22 +417,6 @@ engineSources = ["content/index.md", "content/library.md", "content/commonplace.
 --   bibliography sidecars, drafts, and per-page scripts.
 engineContentDirs :: [String]
 engineContentDirs = ["bibliography-meta", "drafts", "scripts", "tag-meta"]
-
--- | The ornaments the stylesheet draws (@body[data-dingbat="…"]@ in
---   typography.css), for a page's @dingbat:@ and a section's default.
---   Extend here when adding one ("Dingbat").
-knownDingbats :: [String]
-knownDingbats =
-    [ "asterism"    -- ⁂ typographic asterism (neutral fallback)
-    , "asterisks"   -- * * * spaced asterisks (classic scene break)
-    , "fleuron"     -- Aldine leaf (literary essays)
-    , "trefoil"     -- three-lobed ornament (poetry)
-    , "lozenge"     -- diamond/rhombus (blog)
-    , "clef"        -- musical ornament (music)
-    , "memento"     -- mourning ornament (memento-mori)
-    , "tech"        -- tech ornament
-    , "ai"          -- AI ornament (the cute robot)
-    ]
 
 instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
@@ -632,7 +612,22 @@ readSiteConfig = do
     site     <- BS.readFile "site.yaml"
     c        <- either fail pure (decodeConfig registry site)
     themes   <- map themeId . themeList <$> readThemes
-    either (fail . ("site.yaml: " ++)) (const (pure c)) (seasonsDress themes c)
+    dingbats <- readDingbats
+    either (fail . ("site.yaml: " ++)) (const (pure c))
+        (seasonsDress themes c >> ornamentsKnown dingbats c)
+
+-- | Each ornament site.yaml names (a section's or a standalone page's
+--   default) is one the site's stylesheets draw ('EngineFiles.readDingbats').
+--   A probe site whose stylesheets draw none has its names unchecked, as
+--   one with no themes has its seasons.
+ornamentsKnown :: [String] -> SiteConfig -> Either String ()
+ornamentsKnown [] _ = Right ()
+ornamentsKnown known c = forM_ named $ \(d, owner) -> unless (d `elem` known) $
+    Left ("unknown dingbat " ++ d ++ " (" ++ owner ++ "); the stylesheets draw "
+          ++ unwords known ++ ": a dingbat is a rule for body[data-dingbat=\"NAME\"] in them")
+  where
+    named = [ (d, sectionDir s) | s <- siteSections c, Just d <- [sectionDingbat s] ]
+         ++ [ (d, standaloneSource p) | p <- siteStandalone c, Just d <- [standaloneDingbat p] ]
 
 -- | Each season dresses one of the site's themes (its stylesheets',
 --   "Themes"), and is named apart from them, as theme.js and settings.js

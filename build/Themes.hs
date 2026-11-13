@@ -17,6 +17,7 @@ module Themes
     ( Themes (..), Theme (..), CssRule (..)
     , scanThemes, systemDark, themeLabel, cssRules, themeSelector
     , themesId, loadThemes, themeContext
+    , scanDingbats, dingbatsId, loadDingbats
     ) where
 
 import Control.Monad (forM, forM_, unless, when)
@@ -101,9 +102,15 @@ systemDark (Just dark) css = go 0 css [(ruleEnd r, copy r) | r <- cssRules css, 
 -- | A selector that begins with @[data-theme="ID"]@ (or @'ID'@, or @ID@):
 --   the id and what follows it.
 themeSelector :: String -> Maybe (String, String)
-themeSelector s = do
+themeSelector = attributeSelector "data-theme"
+
+-- | A selector that begins with @[NAME="VALUE"]@ (or @'VALUE'@, or
+--   @VALUE@, with whitespace or comments between): the value and what
+--   follows it.
+attributeSelector :: String -> String -> Maybe (String, String)
+attributeSelector name s = do
     attr <- stripPrefix' "[" (stripComments s)
-    afterName <- stripPrefix' "data-theme" (spaces attr)
+    afterName <- stripPrefix' name (spaces attr)
     afterEquals <- stripPrefix' "=" (spaces afterName)
     case spaces afterEquals of
         q : t | q == '"' || q == '\'' -> case break (== q) t of
@@ -116,6 +123,21 @@ themeSelector s = do
         ']' : more | not (null i) -> Just (i, more)
         _                        -> Nothing
     stripPrefix' p v = if p `isPrefixOf` v then Just (drop (length p) v) else Nothing
+
+-- | The ornaments a site's stylesheets declare (Dingbat.hs): each NAME
+--   that a rule's selector asks @[data-dingbat="NAME"]@ of, at the top level
+--   or in an @\@layer@, in the order they first appear. A section break's
+--   ornament is a stylesheet's to draw, so a rule is what makes one.
+scanDingbats :: [String] -> [String]
+scanDingbats sources = nub
+    [ name | source <- sources, r <- cssRules source, ruleTop r
+           , s <- ruleSelectors r, name <- values s ]
+  where
+    values s = case break (== '[') s of
+        (_, [])           -> []
+        (_, rest@(_ : more)) -> case attributeSelector "data-dingbat" rest of
+            Just (v, after) -> v : values after
+            Nothing         -> values more
 
 -- | A theme's name in the settings panel: its id, capitalized, hyphens as
 --   spaces.
@@ -253,6 +275,19 @@ loadThemes = do
     if null known
         then pure (Themes [] "" Nothing)
         else read . itemBody <$> (load themesId :: Compiler (Item String))
+
+-- | The item 'EngineFiles.staticRules' keeps the site's ornaments in.
+dingbatsId :: Identifier
+dingbatsId = fromFilePath "dingbats"
+
+-- | The site's ornaments ('scanDingbats'); none on a probe site without
+--   'EngineFiles.staticRules'.
+loadDingbats :: Compiler [String]
+loadDingbats = do
+    known <- getMatches (fromList [dingbatsId])
+    if null known
+        then pure []
+        else read . itemBody <$> (load dingbatsId :: Compiler (Item String))
 
 -- | @$for(themes)$@ with @$theme-id$@ and @$theme-label$@, in the settings
 --   panel's order; @$themes$@ the ids, space-separated; @$theme-light$@

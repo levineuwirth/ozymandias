@@ -8,7 +8,7 @@ import System.Directory      (createDirectoryIfMissing, doesFileExist)
 import System.Environment    (getArgs)
 import System.Exit           (die)
 import System.FilePath       ((</>))
-import EngineFiles           (bundlePlan, engineDir, modulePlan, readThemes)
+import EngineFiles           (bundlePlan, engineDir, modulePlan, readDingbats, readThemes)
 import Themes                (Themes (..), Theme (..), systemDark, themeLabel)
 import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
@@ -88,7 +88,8 @@ writeBuildStamp = do
 -- from ("EngineVersion"); @site css-bundles@ the stylesheet bundles it builds
 -- and their files, by the site's switches (EngineFiles.cssBundles), and @site
 -- script-modules@ the modules each script is served with (EngineFiles.scriptModules); @site
--- themes@ the site's themes, as its stylesheets declare them ("Themes"). A build refuses to run with other sources under
+-- themes@ the site's themes, as its stylesheets declare them ("Themes"), and @site
+-- dingbats@ its ornaments. A build refuses to run with other sources under
 -- engine/ than those ('checkSources'), when two items share an output
 -- path, or when site.yaml links a page of a switch it has off that nothing
 -- else builds ('withCheckedRoutes').
@@ -100,6 +101,7 @@ main = do
         ["version"] -> putStrLn ("ozymandias sources " ++ compiledSourceHash)
         ["css-bundles"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode . Map.fromList . bundlePlan . switchOn
         ["script-modules"] -> readSiteConfig >>= LBS.putStrLn . Aeson.encode . Map.fromList . modulePlan . switchOn
+        ["dingbats"] -> readDingbats >>= LBS.putStrLn . Aeson.encode
         ["themes"] -> readThemes >>= \t -> LBS.putStrLn $ Aeson.encode $ Map.fromList
             [ ("themes" :: String, Aeson.toJSON
                 [ Map.fromList [ ("id" :: String, Aeson.toJSON (themeId x)), ("label", Aeson.toJSON (themeLabel (themeId x)))

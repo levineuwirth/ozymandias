@@ -165,6 +165,40 @@ class SiteThemes(unittest.TestCase):
                                   text=True, timeout=60)
         self.assertEqual(done.stdout, '[data-theme="dark"] { --bg: #000; }')
 
+    def dingbats(self, sheets: dict[str, str]) -> list[str]:
+        with tempfile.TemporaryDirectory(prefix="site-dingbats-") as tmp:
+            root = Path(tmp)
+            (root / "static/css").mkdir(parents=True)
+            for name, text in sheets.items():
+                (root / f"static/css/{name}").write_text(text, encoding="utf-8")
+            done = subprocess.run([str(self.binary), "dingbats"], cwd=root, env=script_env(),
+                                  capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_the_ornaments_are_the_stylesheets_rules(self):
+        # Any selector naming one, in the core sheets every page loads, in
+        # the order they first appear; not in @media, not in a comment, and
+        # not a sheet a page loads alone.
+        site = """@layer site {
+/* body[data-dingbat="commented"] hr::after { content: "x"; } */
+body[data-dingbat="asterism"] #markdownBody hr::after { content: "⁂"; }
+body[data-dingbat='leaf'] hr::after, body[data-dingbat = wave ] hr::after { content: ""; }
+@media print { body[data-dingbat="printed"] hr::after { content: ""; } }
+body[data-dingbat="asterism"] hr::after { letter-spacing: 0; }
+}
+"""
+        self.assertEqual(self.dingbats({"site.css": site, "theme.css": '[data-dingbat="theme-made"] { }',
+                                        "short-page.css": 'body[data-dingbat="alone"] { }'}),
+                         ["theme-made", "asterism", "leaf", "wave"])
+        self.assertEqual(self.dingbats({}), [])
+
+    def test_the_fixture_site_draws_the_nine_it_always_had(self):
+        done = subprocess.run([str(self.binary), "dingbats"], cwd=engine_path("fixture-site"),
+                              env=script_env(), capture_output=True, text=True, timeout=60)
+        self.assertEqual(json.loads(done.stdout), ["asterism", "asterisks", "fleuron", "trefoil", "lozenge",
+                                                   "clef", "memento", "tech", "ai"])
+
     def test_the_engine_s_own_are_light_and_dark(self):
         found = self.read(engine_path("static/css/tokens.css").read_text(encoding="utf-8"), "")
         self.assertEqual([(t["id"], t["scheme"]) for t in found["themes"]],

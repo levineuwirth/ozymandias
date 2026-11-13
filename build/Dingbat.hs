@@ -10,7 +10,7 @@
 --
 -- Resolution order:
 --
---   1. @dingbat:@ frontmatter key on the page (must be in 'knownDingbats').
+--   1. @dingbat:@ frontmatter key on the page (one the stylesheets draw).
 --   2. Default for the item's route: its standalone page's, or its
 --      section's ('routeDefault').
 --   3. Fallback ('fallbackDingbat').
@@ -22,22 +22,22 @@
 -- ornament (a page's @dingbat:@ would reach @$dingbat$@ from its metadata,
 -- whatever this field answered), and the stylesheet's fallback serves them.
 --
--- Adding a new ornament:
---
---   1. Add its name to 'knownDingbats' ("Config").
---   2. Optionally make it a section's default in site.yaml.
---   3. Add a matching @body[data-dingbat="…"]@ rule in typography.css.
+-- Adding a new ornament: a rule for @body[data-dingbat="NAME"]@ in the
+-- site's stylesheets (site.css), and its SVG under @images/dingbats/@ if it
+-- draws one. The rule is what makes the name one ('Themes.scanDingbats',
+-- @site dingbats@); then a page's @dingbat:@ or site.yaml's defaults may
+-- name it.
 module Dingbat
     ( dingbatField
-    , knownDingbats
     ) where
 
 import Control.Applicative ((<|>))
 import Data.Maybe          (fromMaybe)
 import Hakyll
 import Data.List           (find)
-import Config              (SiteConfig (..), Standalone (..), knownDingbats, loadConfig)
+import Config              (SiteConfig (..), Standalone (..), loadConfig)
 import Sections            (Section (..), sectionOfRoute)
+import Themes              (loadDingbats)
 
 -- | Last-resort default when neither frontmatter nor section rule applies.
 fallbackDingbat :: String
@@ -59,11 +59,12 @@ dingbatField = field "dingbat" $ \item -> do
     cfg  <- loadConfig
     meta <- getMetadata (itemIdentifier item)
     r    <- fromMaybe "" <$> getRoute (itemIdentifier item)
+    known <- loadDingbats
     let sectionD = routeDefault cfg r
     case lookupString "dingbat" meta of
         Nothing -> return sectionD
         Just name
-            | name `elem` knownDingbats -> return name
+            | name `elem` known -> return name
             | otherwise -> do
                 let ident = toFilePath (itemIdentifier item)
                 unsafeCompiler $ putStrLn $

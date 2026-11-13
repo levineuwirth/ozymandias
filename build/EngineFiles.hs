@@ -30,6 +30,7 @@ module EngineFiles
     , existingFile
     , resolveFile
     , readThemes
+    , readDingbats
     , filesIn
     , engineTwins
     , fromEngine
@@ -61,7 +62,7 @@ import           Hakyll
 import           System.Directory  (doesFileExist, listDirectory)
 import           System.FilePath   ((</>))
 
-import           Themes            (Themes (..), scanThemes, systemDark, themesId)
+import           Themes            (Themes (..), dingbatsId, scanDingbats, scanThemes, systemDark, themesId)
 import           Utils             (stripHtmlComments, stripPrefixRoute)
 
 -- | Where the engine sits in the site.
@@ -96,6 +97,17 @@ readThemes = do
     sources <- forM themeSheets $ \rel ->
         existingFile rel >>= maybe (pure "") (fmap (T.unpack . TE.decodeUtf8) . BS.readFile)
     either (fail . ("themes: " ++)) pure (scanThemes sources)
+
+-- | The site's ornaments ("Themes".scanDingbats): those the stylesheets
+--   every page loads declare (the core bundle's, each the site's own or
+--   else the engine's).
+readDingbats :: IO [String]
+readDingbats = do
+    let sheets = concat [ concatMap (sheetFiles (const True)) s | ("core", _, s) <- cssBundles ]
+    sources <- forM sheets $ \f ->
+        existingFile ("static/css/" ++ f ++ ".css")
+            >>= maybe (pure "") (fmap (T.unpack . TE.decodeUtf8) . BS.readFile)
+    pure (scanDingbats sources)
 
 -- | The stylesheets that declare a site's themes, in cascade order.
 themeSheets :: [FilePath]
@@ -255,6 +267,7 @@ staticRules twins withheld on themes = do
         parts   = foldr ((.||.) . inBoth . (\n -> "static/js/" ++ n ++ "/**")) (fromList []) (map fst modules)
     assets  <- getMatches firstParty
     current <- preprocess (assetVersion (show (plan, modules)) assets)
+    dingbats <- preprocess readDingbats
     changed <- makePatternDependency firstParty
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
@@ -264,6 +277,7 @@ staticRules twins withheld on themes = do
         -- Read from the stylesheets as the rules are, and made again with
         -- the version: any change to the CSS is a change to it.
         create [themesId] $ compile (makeItem (show themes))
+        create [dingbatsId] $ compile (makeItem (show dingbats))
 
         -- CSS, at any depth (modules/, seasons/) — must be matched before
         -- the broad rule to avoid double-matching (compressCssCompiler vs.

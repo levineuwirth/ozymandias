@@ -38,6 +38,10 @@ class ConfigTests(unittest.TestCase):
         css = self.root / "engine/static/css"
         css.mkdir(parents=True, exist_ok=True)
         (css / "tokens.css").symlink_to(engine_path("static/css/tokens.css"))
+        # The fixture site's ornaments, which sections and pages may name.
+        own = self.root / "static/css"
+        own.mkdir(parents=True, exist_ok=True)
+        (own / "site.css").symlink_to(engine_path("fixture-site/static/css/site.css"))
 
     def write_config(self):
         (self.root / "site.yaml").write_text(json.dumps(self.config), encoding="utf-8")
@@ -428,7 +432,7 @@ class ConfigTests(unittest.TestCase):
              "stylesheet": "/css/seasons/spring.css"},
         ]
         # A site's own theme is a base too: theme.css's cappuccino.
-        (self.root / "static/css").mkdir(parents=True)
+        (self.root / "static/css").mkdir(parents=True, exist_ok=True)
         (self.root / "static/css/theme.css").write_text('[data-theme="cappuccino"] { color-scheme: dark; }')
         self.config["seasons"] = seasons
         self.write_config()
