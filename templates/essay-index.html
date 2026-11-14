@@ -6,7 +6,7 @@
             <a href="$canonical-url$">$title$</a>
             $if(date-created)$
             <span class="essay-list-date">$date-created$</span>
-            $endif$
+            $endif$$if(own-license)$<span class="essay-list-rights">$own-license$</span>$endif$
             $if(abstract)$
             <p class="essay-list-abstract">$abstract$</p>
             $endif$

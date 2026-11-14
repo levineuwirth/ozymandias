@@ -266,6 +266,7 @@ class FixtureBuilds(unittest.TestCase):
         env = script_env(SITE_ENV="production", SITE_ROOT=str(site), SITE_BINARY=binary)
         done = subprocess.run([binary, "build"], cwd=site, env=env, capture_output=True, text=True, timeout=600)
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr)
+        self.rebuilt_said = done.stdout + done.stderr
         return site
 
     def test_an_essay_with_its_own_bibliography_builds_and_publishes_it(self):
@@ -358,6 +359,73 @@ class FixtureBuilds(unittest.TestCase):
         # Any other page's dates are its own, and its citation reads its history.
         other = (site / "a-poem.html").read_text(encoding="utf-8")
         self.assertNotIn("data-cite-year", other)
+
+    def test_a_page_under_its_own_license_says_so(self):
+        # license: where it is not site.yaml's content-license. The mark at
+        # the head, the record at the foot, the card, <head> and the feed.
+        by_nc_sa = '<link rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">'
+        site = self.sites["full"] / "_site"
+        # The fixture's old poem is in the public domain: nobody's copyright.
+        poem = (site / "poetry/an-old-poem.html").read_text(encoding="utf-8")
+        self.assertIn('<link rel="license" href="https://creativecommons.org/publicdomain/mark/1.0/">', poem)
+        self.assertIn('<meta name="dcterms.rights" content="Public domain.">', poem)
+        self.assertNotIn(by_nc_sa, poem)
+        self.assertEqual(poem.count('<a href="#rights" class="meta-rights">Public domain</a>'), 1)
+        record = re.search(r'id="rights">\s*<h3>Rights</h3>\s*<p>(.*?)</p>', poem, re.S)
+        self.assertEqual(record.group(1), '<a href="https://creativecommons.org/publicdomain/mark/1.0/"'
+                                          ' rel="license">Public domain</a>.')
+        # On a card and in a plain list.
+        self.assertIn('<span class="item-card-rights">Public domain</span>',
+                      (site / "new.html").read_text(encoding="utf-8"))
+        self.assertEqual(re.findall(r'<span class="essay-list-rights">([^<]+)</span>',
+                                    (site / "poetry/index.html").read_text(encoding="utf-8")), ["Public domain"])
+        # Every other page has the site's, and no mark.
+        other = (site / "poetry/a-poem.html").read_text(encoding="utf-8")
+        self.assertIn(by_nc_sa, other)
+        for mark in ("dcterms", 'id="rights"', "meta-rights"):
+            self.assertNotIn(mark, other)
+        feed = (site / "feed.xml").read_text(encoding="utf-8")
+        self.assertEqual(feed.count("<rights>"), 1)
+        entry = next(e for e in feed.split("<entry>") if "an-old-poem" in e)
+        self.assertIn("<rights>Public domain.</rights>", entry)
+
+        # All rights reserved: the page's year and credit, no link, a note;
+        # a page that restates the site's license is no exception; a name
+        # the engine does not know is shown unlinked, and the build says so.
+        def with_license(rel: str, *lines: str) -> str:
+            text = (FIXTURE / rel).read_text(encoding="utf-8")
+            return text.replace("\n---\n", "\n" + "\n".join(lines) + "\n---\n", 1)
+        files = {
+            "content/essays/capabilities/index.md": with_license(
+                "content/essays/capabilities/index.md", 'license: "All rights reserved"',
+                'license-note: "This work, with its figures, is not under the site\'s license."'),
+            "content/essays/short.md": with_license("content/essays/short.md", "license: cc by-nc-sa 4.0"),
+            "content/essays/long/index.md": with_license("content/essays/long/index.md", "license: House Licence 1"),
+        }
+        site = self.rebuilt("own-license", lambda c: c, files) / "_site"
+        essay = (site / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
+        notice = "\u00a9 2026 Example Author. All rights reserved."
+        self.assertIn(f'<meta name="dcterms.rights" content="{notice}">', essay)
+        self.assertNotIn('rel="license"', essay)
+        self.assertIn('<a href="#rights" class="meta-rights">All rights reserved</a>', essay)
+        record = re.search(r'id="rights">\s*<h3>Rights</h3>\s*<p>(.*?)</p>', essay, re.S)
+        self.assertEqual(record.group(1), notice + " This work, with its figures, is not under the site's license.")
+        self.assertEqual(sorted(re.findall(r'<span class="item-card-rights">([^<]+)</span>',
+                                           (site / "new.html").read_text(encoding="utf-8"))),
+                         ["All rights reserved", "House Licence 1", "Public domain"])
+        self.assertEqual(sorted(re.findall(r'<span class="essay-list-rights">([^<]+)</span>',
+                                           (site / "essays/index.html").read_text(encoding="utf-8"))),
+                         ["All rights reserved", "House Licence 1"])
+        self.assertIn(f"<rights>{notice}</rights>", (site / "feed.xml").read_text(encoding="utf-8"))
+        short = (site / "essays/short.html").read_text(encoding="utf-8")
+        self.assertIn(by_nc_sa, short)
+        self.assertNotIn('id="rights"', short)
+        long = (site / "essays/long/index.html").read_text(encoding="utf-8")
+        self.assertIn('<meta name="dcterms.rights" content="\u00a9 2026 Example Author. House Licence 1.">', long)
+        self.assertIn('[license] content/essays/long/index.md: "House Licence 1"', self.rebuilt_said)
+        for known in ("capabilities", "short.md", "an-old-poem"):
+            self.assertNotIn(f"[license] content/essays/{known}", self.rebuilt_said)
+            self.assertNotIn(f"[license] content/poetry/{known}", self.rebuilt_said)
 
     def test_a_feed_credits_an_entry_s_own_authors(self):
         self.refused("full")

@@ -85,6 +85,13 @@ $partial("templates/partials/ornament.html")-$
         </div>
         $endif$
 
+        $if(own-license)$
+        <div class="meta-footer-section meta-footer-rights" id="rights">
+            <h3>Rights</h3>
+            <p>$if(rights-holder)$$rights-holder$. $endif$$if(own-license-url)$<a href="$own-license-url$" rel="license">$own-license$</a>$else$$own-license$$endif$.$if(license-note)$ $license-note$$endif$</p>
+        </div>
+        $endif$
+
     </div>
 
 </section>

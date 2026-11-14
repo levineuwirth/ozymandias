@@ -12,7 +12,11 @@ $endif$$endif$$endif$$if(home)$<title>$site-title$</title>$else$$if(title)$<titl
 $if(description)$<meta name="description" content="$description$">$endif$
 $if(noindex)$<meta name="robots" content="noindex">$endif$
 <link rel="canonical" href="$site-url$$canonical-url$">
-$for(site-feeds)$<link rel="alternate" type="application/atom+xml" title="$feed-title$" href="$feed-url$">$sep$
+$if(own-license)$$if(own-license-url)$<link rel="license" href="$own-license-url$">
+$endif$<link rel="schema.dcterms" href="http://purl.org/dc/terms/">
+<meta name="dcterms.rights" content="$rights-notice$">
+$else$$if(site-license-url)$<link rel="license" href="$site-license-url$">
+$endif$$endif$$for(site-feeds)$<link rel="alternate" type="application/atom+xml" title="$feed-title$" href="$feed-url$">$sep$
 $endfor$
 
 <!-- OpenGraph / Twitter (link-preview unfurling) -->

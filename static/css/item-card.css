@@ -324,6 +324,17 @@
 }
 
 
+/* A page under a license of its own (Contexts.rightsContext) says so
+   wherever it is listed. */
+.item-card-rights {
+    font-family: var(--font-sans);
+    font-size: var(--step--3);
+    font-variant: all-small-caps;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
 .item-card-revised:hover,
 .item-card-revised:focus-visible {
     color: var(--text-muted);

@@ -188,6 +188,24 @@
     text-underline-offset: 2px;
 }
 
+/* The page's own license, where it is not the site's: a step darker than
+   its neighbors, since it is the one a reader would not assume. */
+.meta-pagelinks a.meta-rights {
+    color: var(--text-muted);
+}
+
+/* The same in a plain list (.essay-list), after the entry's date. */
+.essay-list-rights {
+    font-size: var(--step--2);
+    color: var(--text-muted);
+}
+
+.essay-list-rights::before {
+    content: " · ";
+    color: var(--text-faint);
+    white-space: pre;
+}
+
 .meta-pagelinks a + a::before {
     content: " · ";
     color: var(--border);

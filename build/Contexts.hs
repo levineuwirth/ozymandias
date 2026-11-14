@@ -40,7 +40,7 @@ module Contexts
     ) where
 
 import Control.Exception       (IOException, catch, try)
-import Control.Monad           (forM, unless)
+import Control.Monad           (forM, unless, when)
 import Data.Aeson              (Value (..))
 import qualified Data.Aeson         as Aeson
 import qualified Data.Aeson.Key     as AK
@@ -49,7 +49,7 @@ import qualified Data.Vector        as V
 import Data.Char               (isAsciiLower, isDigit, isSpace, toLower, toUpper)
 import Data.List               (intercalate, isInfixOf, isPrefixOf, sortBy,
                                 stripPrefix)
-import Data.Maybe              (fromMaybe, isJust, mapMaybe)
+import Data.Maybe              (fromMaybe, isJust, isNothing, mapMaybe, maybeToList)
 import Data.Ord                (Down (..), comparing)
 import qualified Data.Scientific    as Sci
 import qualified Data.Set           as Set
@@ -86,7 +86,7 @@ import Themes       (themeContext)
 import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
-import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
+import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
 -- Affiliation field
@@ -755,6 +755,7 @@ siteCtx =
     <> plainField
     <> poetYearField
     <> licenseUrlField
+    <> rightsContext
     <> canonicalUrlField
     <> pageScriptsField
     <> pageFeatureFields
@@ -1153,6 +1154,7 @@ feedMetaFields =
            (fmap (formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ")
                 . itemDisplayUTC)
     <> dateField "published" "%Y-%m-%dT%H:%M:%SZ"
+    <> rightsContext
     <> field "url" (\item -> do
            mRoute <- getRoute (itemIdentifier item)
            case mRoute of
@@ -2104,21 +2106,27 @@ exifBackedField key = field key $ \item -> do
 --   to this lookup only when the author hasn't provided one.
 canonicalLicenseUrl :: String -> Maybe String
 canonicalLicenseUrl raw =
-    case unwords (words (map (\c -> if c == '_' then ' ' else toLowerC c) raw)) of
+    case licenseKey raw of
         "cc by 4.0"        -> Just "https://creativecommons.org/licenses/by/4.0/"
-        "cc by-sa 4.0"     -> Just "https://creativecommons.org/licenses/by-sa/4.0/"
-        "cc by-nc 4.0"     -> Just "https://creativecommons.org/licenses/by-nc/4.0/"
-        "cc by-nc-sa 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-sa/4.0/"
-        "cc by-nd 4.0"     -> Just "https://creativecommons.org/licenses/by-nd/4.0/"
-        "cc by-nc-nd 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+        "cc by sa 4.0"     -> Just "https://creativecommons.org/licenses/by-sa/4.0/"
+        "cc by nc 4.0"     -> Just "https://creativecommons.org/licenses/by-nc/4.0/"
+        "cc by nc sa 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+        "cc by nd 4.0"     -> Just "https://creativecommons.org/licenses/by-nd/4.0/"
+        "cc by nc nd 4.0"  -> Just "https://creativecommons.org/licenses/by-nc-nd/4.0/"
         "cc0"              -> Just "https://creativecommons.org/publicdomain/zero/1.0/"
         "cc0 1.0"          -> Just "https://creativecommons.org/publicdomain/zero/1.0/"
         "public domain"    -> Just "https://creativecommons.org/publicdomain/mark/1.0/"
         _                  -> Nothing
+
+-- | A license's name as the lookups compare it: ASCII letters lowercased,
+--   hyphens and underscores as spaces, spacing collapsed. site.yaml's
+--   @CC-BY-NC-SA-4.0@ and a page's @CC BY-NC-SA 4.0@ are one license.
+licenseKey :: String -> String
+licenseKey = unwords . words . map fold
   where
-    toLowerC c
-        | c >= 'A' && c <= 'Z' = toEnum (fromEnum c + 32)
-        | otherwise            = c
+    fold c | c == '-' || c == '_'   = ' '
+           | c >= 'A' && c <= 'Z'   = toEnum (fromEnum c + 32)
+           | otherwise              = c
 
 resolveLicenseUrl :: Maybe String -> String -> Maybe String
 resolveLicenseUrl (Just u) _ | not (null (trim u)) = Just (trim u)
@@ -2140,6 +2148,72 @@ licenseUrlField = field "license-url-resolved" $ \item -> do
             (fromMaybe "" (lookupString "license" meta)) of
         Just u -> return u
         Nothing -> noResult "no license URL"
+
+-- | A page under a license of its own: its @license:@ where that is not the
+--   site's (site.yaml's @content-license@). A reader takes the site's for
+--   granted, so only the exception is marked, and marked wherever the page
+--   is met: at its head, in the record at its foot, on its card, in
+--   @\<head\>@ and in the feeds.
+data OwnLicense = OwnLicense
+    { ownName   :: String
+    , ownUrl    :: Maybe String
+      -- | Whose it is, as @© 2026 Author@: nobody's, for a dedication to
+      --   the public.
+    , ownHolder :: Maybe String
+    }
+
+-- | Licenses that are understood by name and have no page to link.
+unlinkedLicenses :: [String]
+unlinkedLicenses = ["all rights reserved"]
+
+-- | Dedications to the public: no copyright to assert.
+publicLicenses :: [String]
+publicLicenses = ["cc0", "cc0 1.0", "public domain"]
+
+ownLicense :: Item a -> Compiler (Maybe OwnLicense)
+ownLicense item = do
+    cfg  <- loadConfig
+    meta <- getMetadata (itemIdentifier item)
+    case trim <$> lookupString "license" meta of
+        Just name | not (null name), licenseKey name /= licenseKey (siteContentLicense cfg) -> do
+            let key    = licenseKey name
+                url    = resolveLicenseUrl (lookupString "license-url" meta) name
+                year   = formatTime defaultTimeLocale "%Y"
+                             <$> (lookupString "date" meta >>= parseIsoDate :: Maybe UTCTime)
+                credit = intercalate ", " (itemCredit (siteAuthor cfg) meta)
+                holder | key `elem` publicLicenses = Nothing
+                       | otherwise = Just (unwords ("\169" : maybeToList year ++ [credit]))
+            return (Just (OwnLicense name url holder))
+        _ -> return Nothing
+
+-- | @$own-license$@, the license's name, on a page under one of its own
+--   (templates ask @$if(own-license)$@), with @$own-license-url$@ where it
+--   has a page, @$rights-holder$@ (@© 2026 Author@; none for a dedication
+--   to the public) and @$rights-notice$@, the whole statement as text, for
+--   @\<head\>@ and a feed entry's @\<rights\>@. A license the engine does
+--   not know, given no @license-url:@, is shown unlinked and said so in
+--   the build's output: a misspelled name looks the same.
+--   @$site-license-url$@ is the site's own license's page, on every page,
+--   where the engine knows it.
+rightsContext :: Context a
+rightsContext =
+       field "own-license" (\item -> own item >>= \o -> do
+           when (isNothing (ownUrl o) && licenseKey (ownName o) `notElem` unlinkedLicenses) $
+               unsafeCompiler $ hPutStrLn stderr $
+                   "[license] " ++ toFilePath (itemIdentifier item) ++ ": \"" ++ ownName o
+                   ++ "\" is not a license the engine knows and has no license-url; shown unlinked"
+           return (escapeHtml (ownName o)))
+    <> field "own-license-url" (\item -> own item >>=
+           maybe (noResult "the license has no page") (return . escapeHtml) . ownUrl)
+    <> field "rights-holder" (\item -> own item >>=
+           maybe (noResult "a dedication to the public") (return . escapeHtml) . ownHolder)
+    <> field "rights-notice" (\item -> own item >>= \o ->
+           return (escapeHtml (maybe "" (++ ". ") (ownHolder o) ++ ownName o ++ ".")))
+    <> field "site-license-url" (\_ -> loadConfig >>=
+           maybe (noResult "the site's license has no known page") (return . escapeHtml)
+               . canonicalLicenseUrl . siteContentLicense)
+  where
+    own item = ownLicense item >>= maybe (noResult "the site's license") return
 
 -- | Context for photography pages and photo cards.
 --

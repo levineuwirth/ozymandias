@@ -94,6 +94,17 @@ the freshness check hashes it.
   `source-branch` and `forge-host`, `content-license`, `code-license`,
   `signing-fingerprint`, and `manifest` for `/site.webmanifest`. Template
   identity is HTML-escaped; manifest values are JSON-encoded.
+  `content-license` is what a reader may take for granted: every page's
+  `<head>` links it (`rel="license"`) where the engine knows its page. A
+  page whose front matter names another `license:` is the exception, and
+  says so wherever it is met: a mark among the links at its head, a Rights
+  entry in the record at its foot (with `license-url:` its link, with
+  `license-note:` a sentence more), a mark on its card, `dcterms.rights`
+  and its own `rel="license"` in `<head>`, and `<rights>` on its feed
+  entry. The copyright line is the page's year and credit; a dedication to
+  the public (`Public domain`, `CC0`) has none. A page that restates the
+  site's license is not an exception. A name the engine does not know,
+  with no `license-url:`, is shown unlinked and reported by the build.
 - **Feeds:** each a `path`, `title`, `description`, `sections`, `advertise`
   and `limit` (`null` for all entries). Only advertised feeds appear in the
   head; photography has its own image-bearing feed context. An empty feed is

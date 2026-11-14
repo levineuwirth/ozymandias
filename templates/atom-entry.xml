@@ -38,6 +38,7 @@
     <id>$root$$url$</id>
     <published>$published$</published>
     <updated>$updated$</updated>$for(entry-authors)$
-    <author><name>$entry-author$</name></author>$endfor$
+    <author><name>$entry-author$</name></author>$endfor$$if(rights-notice)$
+    <rights>$rights-notice$</rights>$endif$
     <summary type="html"><![CDATA[$description$]]></summary>
 </entry>
