@@ -22,7 +22,9 @@
    still picture, and frame runs only when the page moves.
 
    What actors read:
-     stage.geo      vw, vh; top, the header's foot; bodyL and bodyR, the
+     stage.geo      vw, vh; top, the foot of a header that spans the
+                    window (0 under one a site stands beside the page,
+                    which is in the margin like anything else); bodyL and bodyR, the
                     text column; margins, whether there is room beside it;
                     progress, how far down the page (0 to 1), and scrollable;
                     dpr, the device pixel ratio to draw at (at most 2)
@@ -83,8 +85,12 @@
         var layer = running && running.layer;
         geo.vw = layer && layer.clientWidth || root.clientWidth || window.innerWidth;
         geo.vh = layer && layer.clientHeight || window.innerHeight;
+        /* A header across the window is a ceiling. One a site stands
+           beside the page (a masthead in the margin) is not: it is in the
+           margin with the notes and figures, and the grid below finds it. */
         var header = document.querySelector('body > header');
-        geo.top = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+        var hr = header && header.getBoundingClientRect();
+        geo.top = hr && hr.width > geo.vw * 0.85 ? Math.max(0, hr.bottom) : 0;
         var body = document.getElementById('markdownBody');
         var r = body && body.getBoundingClientRect();
         if (r && r.width) { geo.bodyL = r.left; geo.bodyR = r.right; }

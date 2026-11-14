@@ -241,6 +241,25 @@ class Seasons(unittest.TestCase):
                     self.assertGreaterEqual(box["x"], 0)
                     self.assertLessEqual(box["x"] + box["width"], width)
 
+    def test_the_ceiling_is_a_header_that_spans_the_window(self) -> None:
+        """stage.geo.top is the foot of a header across the window, which
+        actors hang from and keep under. A header a site stands beside the
+        page (a masthead in the margin) is no ceiling: actors once hung in
+        mid-air at its foot, the whole window wide."""
+        if not self.season["script"]:
+            self.skipTest("the season has no script: no stage")
+        measure = """() => { const h = document.querySelector('body > header').getBoundingClientRect();
+            return {top: window.stage.geo.top, bottom: Math.max(0, h.bottom), width: h.width, vw: window.stage.geo.vw}; }"""
+        for browser in BROWSERS:
+            for width in (1440, 1100, 390):
+                with self.subTest(browser=browser, width=width):
+                    page = self.open_page(browser, self.inside, width=width)
+                    self.expect_stage(page)
+                    page.wait_for_function("window.stage && window.stage.geo.vw > 0")
+                    m = page.evaluate(measure)
+                    spans = m["width"] > m["vw"] * 0.85
+                    self.assertAlmostEqual(m["top"], m["bottom"] if spans else 0, delta=1, msg=str(m))
+
     def test_sprites_drawn_at_their_own_size(self) -> None:
         """Each sprite (stage.sprite) is shown at the size it is drawn, its
         corner on a whole device pixel, so nothing is resampled; at a
@@ -342,7 +361,9 @@ class Seasons(unittest.TestCase):
                 page.wait_for_function(
                     f"[...document.querySelectorAll('{SPRITE}')].every(c => c.style.transform)", timeout=10_000)
                 spots = page.evaluate(f"[...document.querySelectorAll('{SPRITE}')].map(c => c.style.transform)")
-                foot = page.evaluate("document.querySelector('body > header').getBoundingClientRect().bottom")
+                # Along the stage's ceiling, where the bats roost: the foot
+                # of a header across the window, or the window's top.
+                foot = page.evaluate("window.stage.geo.top")
                 page.mouse.move(2, foot + 12)
                 page.mouse.move(1438, foot + 12, steps=60)
                 page.wait_for_timeout(800)
