@@ -715,8 +715,11 @@ nestMark :: Double -> Double -> Double -> Maybe T.Text -> T.Text
 nestMark x y size mark =
     case T.breakOn "<svg" (fromMaybe ring mark) of
         (_, rest) | T.null rest -> ""
-                  | otherwise   -> "<svg" <> place <> T.drop 4 rest
+                  | otherwise   -> "<svg" <> authored <> place <> T.drop 4 rest
   where
+    -- What a link preview takes for the page's mark (popups.js): the
+    -- authored one, never the ring that stands in for it.
+    authored = if isJust mark then " data-mark=\"authored\"" else ""
     place = T.concat [ " x=\"", ff x, "\" y=\"", ff y
                      , "\" width=\"", ff size, "\" height=\"", ff size, "\"" ]
     ring  = T.concat

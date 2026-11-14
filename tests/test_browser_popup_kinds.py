@@ -135,6 +135,29 @@ class PopupKinds(unittest.TestCase):
                 self.expect(popup.locator(".popup-epistemic .meta-epistemic-strip")).to_have_count(1)
                 self.expect(popup.locator(".popup-epistemic .ep-expanded")).to_have_count(1)
 
+    @requires_switch("epistemic")
+    def test_the_record_has_a_link_at_the_head_in_focus_mode(self) -> None:
+        """Focus mode hides every mark, the figure that links to the record
+        among them: the head keeps a link to it in words. With a seal or a
+        dial those words show only then."""
+        head = ':is(.essay-frontmatter, .essay-tailmatter) a[href="#epistemic"]:visible'
+        words = ".meta-pagelinks a.meta-pagelink--standing"
+        for browser in BROWSERS:
+            page = self.open(browser, ESSAY)
+            standing = page.locator(words).count()
+            for focus in (False, True):
+                with self.subTest(browser=browser, focus_mode=focus):
+                    if focus:
+                        page.evaluate("localStorage.setItem('focus-mode', '1')")
+                        page.reload(wait_until="load")
+                        self.expect(page.locator(".frontmatter-mark-slot:visible")).to_have_count(0)
+                    self.assertGreaterEqual(page.locator(head).count(), 1)
+                    if standing:
+                        self.expect(page.locator(words)).to_be_visible(visible=focus)
+                        # No separator left before the first link shown.
+                        first = page.locator(".meta-pagelinks a:visible").first
+                        self.assertEqual(first.evaluate("a => getComputedStyle(a, '::before').content"), "none")
+
     @requires_switch("signature-link")
     def test_the_signature(self) -> None:
         for browser in BROWSERS:

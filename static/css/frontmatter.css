@@ -267,6 +267,17 @@
     border-radius: 50%;
 }
 
+/* The figure is the link to the record. Where it is not shown (focus
+   mode hides every mark), the page's links keep one in words; elsewhere
+   that one is out, and takes its separator with it when it comes first. */
+:root:not([data-focus-mode]) .meta-pagelinks .meta-pagelink--standing {
+    display: none;
+}
+
+:root:not([data-focus-mode]) .meta-pagelinks .meta-pagelink--standing:first-child + a::before {
+    content: none;
+}
+
 /* Focus mode hides the figure and makes the head one column: the title
    and the rows under it go back to it, and the strip says what the
    hidden seal did. */

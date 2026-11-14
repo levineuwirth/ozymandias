@@ -406,7 +406,7 @@ class FixtureBuilds(unittest.TestCase):
         # epistemic-figure: the mark as a seal or a dial at the right, one
         # link to the record at the foot, where the radar and every value are.
         radar = (self.sites["full"] / "_site" / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
-        for mark in ("data-standing", 'class="standing ', 'class="ep-record"'):
+        for mark in ("data-standing", 'class="standing ', 'class="ep-record"', "meta-pagelink--standing", "data-mark"):
             self.assertNotIn(mark, radar)
         for figure in ("seal", "dial"):
             with self.subTest(figure=figure):
@@ -420,7 +420,12 @@ class FixtureBuilds(unittest.TestCase):
                 self.assertIn('<dt data-ep-term="peer-status">Peer status</dt>', essay)
                 self.assertEqual("seal-legend" in essay, figure == "seal")
                 self.assertEqual("dial-disc" in essay, figure == "dial")
+                # The page's links keep the record's in words, for where
+                # the figure is not shown (focus mode); the authored mark
+                # is marked for a link preview to take.
                 self.assertNotIn('<a href="#epistemic">Epistemic</a>', essay)
+                self.assertEqual(essay.count('<a href="#epistemic" class="meta-pagelink--standing">Epistemic</a>'), 1)
+                self.assertEqual(essay.count('<svg data-mark="authored" x="'), 1)
                 switch_checks.epistemic_on(site)
 
     def test_a_site_s_reader_settings_reach_the_page(self):

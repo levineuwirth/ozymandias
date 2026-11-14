@@ -291,6 +291,9 @@ class LinkPopups(unittest.TestCase):
         essay = built(route("essay")).read_text(encoding="utf-8")
         title = re.search(r'<h1 class="page-title"[^>]*>(.*?)</h1>', essay, re.S)
         cls.essay_title = " ".join(html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).split())
+        # Whether the essay has a mark of its own: alone at its head, or
+        # nested in a seal or a dial (site.yaml's epistemic-figure).
+        cls.essay_marked = 'frontmatter-mark--monogram">' in essay or 'data-mark="authored"' in essay
         playwright = cls.enterClassContext(sync_playwright())
         cls.browsers = {}
         for name in BROWSERS:
@@ -396,6 +399,15 @@ class LinkPopups(unittest.TestCase):
                 popup = self.shown(page, "internal")
                 self.assertEqual(self.text(popup.locator(".popup-internal .popup-title")),
                                  self.essay_title)
+                # The essay's own mark, if it has one, whatever figure
+                # carries it at the essay's head; drawn, and without the
+                # place it had inside a seal or a dial.
+                mark = popup.locator(".popup-internal .popup-monogram > svg")
+                self.expect(mark).to_have_count(int(self.essay_marked))
+                if self.essay_marked:
+                    for name in ("data-mark", "x", "y"):
+                        self.assertIsNone(mark.get_attribute(name), name)
+                    self.assertGreater(mark.bounding_box()["width"], 20)
             with self.subTest(browser=browser, link="pdf"):
                 thumb = self.shown(page, "pdf").locator(".popup-pdf img.popup-pdf-thumb")
                 self.expect(thumb).to_have_attribute("src", "/cv.thumb.png")

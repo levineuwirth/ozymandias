@@ -523,8 +523,18 @@
                    Serialised as an outerHTML string and trusted as
                    already-sanitised SVG produced by our own build. */
                 var monoEl = doc.querySelector(
-                    'figure.frontmatter-mark--monogram:not(.frontmatter-mark--placeholder) svg'
+                    'figure.frontmatter-mark--monogram:not(.frontmatter-mark--placeholder) svg, '
+                    + '.standing svg[data-mark="authored"]'
                 );
+                /* In a seal or a dial (Marks.standingField) the authored
+                   mark is nested, placed and sized for the figure: the
+                   preview takes it without that. */
+                if (monoEl && monoEl.hasAttribute('data-mark')) {
+                    monoEl = monoEl.cloneNode(true);
+                    ['data-mark', 'x', 'y', 'width', 'height'].forEach(function (name) {
+                        monoEl.removeAttribute(name);
+                    });
+                }
                 var mono   = monoEl ? monoEl.outerHTML : '';
 
                 /* Abstract */
