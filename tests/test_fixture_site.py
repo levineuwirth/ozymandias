@@ -423,6 +423,27 @@ class FixtureBuilds(unittest.TestCase):
                 self.assertNotIn('<a href="#epistemic">Epistemic</a>', essay)
                 switch_checks.epistemic_on(site)
 
+    def test_a_site_s_reader_settings_reach_the_page(self):
+        # reader-settings: a meta for theme.js and settings.js, and a row of
+        # the settings panel with a button for each option, named as a
+        # theme is; none declared, neither.
+        page = (self.sites["full"] / "_site" / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
+        for mark in ("ozy:setting", 'data-action="reader"'):
+            self.assertNotIn(mark, page)
+        settings = [{"id": "ground", "label": "Ground & grain", "options": ["grain", "plain", "soft-lamp"]},
+                    {"id": "margin", "label": "Margin", "options": ["none", "thread"]}]
+        site = self.rebuilt("reader-settings", lambda c: dict(c, **{"reader-settings": settings}))
+        page = (site / "_site" / switch_checks.CAPABILITIES).read_text(encoding="utf-8")
+        self.assertIn('<meta name="ozy:setting" content="ground" data-options="grain plain soft-lamp">', page)
+        self.assertIn('<meta name="ozy:setting" content="margin" data-options="none thread">', page)
+        self.assertLess(page.index('name="ozy:setting"'), page.index("/js/theme.js"))
+        self.assertIn('<div class="settings-label">Ground &amp; grain</div>', page)
+        self.assertEqual(re.findall(r'data-action="reader" data-setting="(\S+)" data-option="(\S+)">([^<]+)<', page),
+                         [("ground", "grain", "Grain"), ("ground", "plain", "Plain"), ("ground", "soft-lamp", "Soft lamp"),
+                          ("margin", "none", "None"), ("margin", "thread", "Thread")])
+        self.assertLess(page.index('data-action="text-larger"'), page.index('data-action="reader"'))
+        self.assertLess(page.index('data-action="reader"'), page.index('data-action="focus-mode"'))
+
     def test_a_site_that_turns_marks_off_leaves_the_slot_empty(self):
         # The essay's mark.svg is still beside it.
         switch_checks.marks_off(self.turned_off("marks"))

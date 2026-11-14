@@ -7,10 +7,10 @@
 module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
     , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
-    , Standalone (..), PageKind (..), Season (..), standaloneDir, engineSources, engineContentDirs
+    , Standalone (..), PageKind (..), Season (..), ReaderSetting (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, bundleContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
-    , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext
+    , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext, readerSettingContext
     , manifestRules
     , sourcePreviewPattern
     ) where
@@ -20,7 +20,7 @@ import EngineFiles (assetsField, bundlePlan, engineDir, readDingbats, readThemes
 import Data.Aeson (FromJSON (..), ToJSON (..), Object,
                    withObject, withText, object, (.:), (.:?), (.!=), (.=), encode)
 import Data.Aeson.Types (Parser)
-import Themes (Themes (..), Theme (..))
+import Themes (Themes (..), Theme (..), themeLabel)
 import Data.Bifunctor (first)
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
@@ -75,6 +75,7 @@ data SiteConfig = SiteConfig
     , siteEpistemicFigure :: String
     , sitePopupProviders :: [String]
     , siteSeasons :: [Season]
+    , siteReaderSettings :: [ReaderSetting]
       -- | What @/source/@ publishes of the site's own files, as Hakyll globs
       --   over its paths (with the source-refs switch); inline code naming
       --   one, or a link to source-repo, previews it ("Filters.SourceRefs").
@@ -136,6 +137,38 @@ instance ToJSON Season where
         [ "id" .= seasonId s, "label" .= seasonLabel s, "base" .= seasonBase s
         , "from" .= seasonFrom s, "to" .= seasonTo s
         , "stylesheet" .= seasonStylesheet s, "script" .= seasonScript s ]
+
+-- | A choice the site gives its readers in Settings (site.yaml's
+--   @reader-settings@): a row labeled @label@ with a button for each of
+--   @options@, named from its id as a theme is. The first option is the
+--   default and is worn as nothing; another is worn as
+--   @data-reader-ID="OPTION"@ on the root element and kept in the reader's
+--   browser, so what each looks like is the site's stylesheets' to say.
+--   theme.js and settings.js read them from head.html's @ozy:setting@ metas.
+data ReaderSetting = ReaderSetting
+    { readerId :: String
+    , readerLabel :: String
+    , readerOptions :: [String]
+    } deriving (Eq, Show)
+
+instance FromJSON ReaderSetting where
+    parseJSON = withObject "reader setting" $ \o -> do
+        onlyKeys ["id", "label", "options"] o
+        r <- ReaderSetting <$> o .: "id" <*> o .: "label" <*> o .: "options"
+        unless (slug (readerId r)) $
+            fail ("reader setting id must be lowercase letters, digits and hyphens: " ++ readerId r)
+        singleLine "reader setting label" (readerLabel r)
+        forM_ (readerOptions r) $ \option -> unless (slug option) $
+            fail ("reader setting option must be lowercase letters, digits and hyphens: " ++ option)
+        when (length (readerOptions r) < 2) $
+            fail ("reader setting needs two options or more: " ++ readerId r)
+        when (nub (readerOptions r) /= readerOptions r) $
+            fail ("reader setting options must be unique: " ++ readerId r)
+        pure r
+
+instance ToJSON ReaderSetting where
+    toJSON r = object
+        [ "id" .= readerId r, "label" .= readerLabel r, "options" .= readerOptions r ]
 
 -- | MM-DD naming a day some year has (02-29 included).
 monthDay :: String -> Bool
@@ -429,7 +462,8 @@ instance FromJSON SiteConfig where
         onlyKeys (map Key.fromString identityKeys
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
-                      "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "source-preview",
+                      "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "reader-settings",
+                      "source-preview",
                       "engine-repo", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
@@ -446,6 +480,7 @@ instance FromJSON SiteConfig where
                         <*> o .:? "epistemic-figure" .!= "radar"
                         <*> o .:? "popup-providers" .!= []
                         <*> o .:? "seasons" .!= []
+                        <*> o .:? "reader-settings" .!= []
                         <*> o .:? "source-preview" .!= [] <*> o .:? "engine-repo" .!= ""
                         <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
@@ -461,6 +496,8 @@ instance FromJSON SiteConfig where
             fail ("epistemic-figure must be radar, seal or dial: " ++ siteEpistemicFigure c)
         let seasonIds = map seasonId (siteSeasons c)
         when (nub seasonIds /= seasonIds) $ fail "season ids must be unique"
+        let readerIds = map readerId (siteReaderSettings c)
+        when (nub readerIds /= readerIds) $ fail "reader setting ids must be unique"
         when (any isControl (siteSigningFingerprint c)) $
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
@@ -508,6 +545,7 @@ instance ToJSON SiteConfig where
                            "epistemic-figure" .= siteEpistemicFigure c,
                            "popup-providers" .= sitePopupProviders c,
                            "seasons" .= siteSeasons c,
+                           "reader-settings" .= siteReaderSettings c,
                            "source-preview" .= siteSourcePreview c,
                            "engine-repo" .= siteEngineRepo c,
                            "switches" .= siteSwitches c])
@@ -894,6 +932,23 @@ seasonContext = listField "seasons" fields (loadConfig >>= mapM makeItem . siteS
                          , ("season-to", seasonTo), ("season-stylesheet", seasonStylesheet) ] ]
         <> field "season-script"
                (maybe (noResult "season has no script") (pure . escapeHtml) . seasonScript . itemBody)
+
+-- | site.yaml's reader-settings, for head.html's metas and the Settings
+--   rows: @$for(reader-settings)$@ with @$setting-id$@, @$setting-label$@,
+--   @$setting-options$@ (the ids, spaced) and @$for(setting-choices)$@,
+--   each @$choice-setting$@, @$choice-id$@ and @$choice-label$@.
+readerSettingContext :: Context String
+readerSettingContext = listField "reader-settings" fields (loadConfig >>= mapM makeItem . siteReaderSettings)
+  where
+    fields = field "setting-id" (pure . readerId . itemBody)
+          <> field "setting-label" (pure . escapeHtml . readerLabel . itemBody)
+          <> field "setting-options" (pure . unwords . readerOptions . itemBody)
+          <> listFieldWith "setting-choices" choice
+                 (\item -> mapM makeItem [ (readerId (itemBody item), option)
+                                         | option <- readerOptions (itemBody item) ])
+    choice = field "choice-setting" (pure . fst . itemBody)
+          <> field "choice-id" (pure . snd . itemBody)
+          <> field "choice-label" (pure . escapeHtml . themeLabel . snd . itemBody)
 
 manifestRules :: Rules ()
 manifestRules = create ["site.webmanifest"] $ do

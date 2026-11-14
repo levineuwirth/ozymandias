@@ -113,6 +113,12 @@ the freshness check hashes it.
 - **`seasons`:** dressings over a theme, each with a window (`from`, `to`,
   `MM-DD`), a `stylesheet` and optionally a `script`, which registers what it
   draws with `static/js/stage.js`.
+- **`reader-settings`:** choices the site gives its readers in Settings,
+  each an `id`, a `label` for its row and two or more `options`, buttons
+  named from their ids as themes are. The first option is the default and
+  is worn as nothing; another is worn as `data-reader-ID="OPTION"` on the
+  root element, kept in the reader's browser and restored before the first
+  paint. What an option looks like is the site's stylesheets' to say.
 - **`source-preview`:** what `/source/` publishes of the site's own files,
   for the source-refs switch's popups; `engine-repo`, where prose naming one
   of the engine's files links instead.

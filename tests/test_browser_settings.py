@@ -152,7 +152,9 @@ class SettingsPanel(unittest.TestCase):
                 seen = set()
                 for _ in range(count + 2):
                     page.keyboard.press("Tab")
-                    seen.add(page.evaluate("document.activeElement.dataset.action || ''"))
+                    # A reader setting's buttons share an action.
+                    seen.add(page.evaluate("(d => [d.action, d.setting, d.option].join(' '))"
+                                           "(document.activeElement.dataset)"))
                     self.assertTrue(page.evaluate(f"document.querySelector('{PANEL}')"
                                                   ".contains(document.activeElement)"))
                 self.assertEqual(len(seen), count)
@@ -334,6 +336,48 @@ class SettingsPanel(unittest.TestCase):
                 self.expect(page.locator(TOGGLE)).to_be_focused()
 
     # -- what is stored, or cannot be ------------------------------------------
+
+    def test_a_site_s_reader_settings(self) -> None:
+        """site.yaml's reader-settings: each a row of buttons, the first
+        the default (worn as no attribute, stored as nothing), another
+        worn as data-reader-ID and kept across a load; a stored option the
+        site no longer offers is the default."""
+        for browser in BROWSERS:
+            page = self.open_page(browser)
+            declared = page.evaluate("""[...document.querySelectorAll('meta[name="ozy:setting"]')].map(
+                m => [m.content, m.dataset.options.split(' ')])""")
+            # A site with none has no such row.
+            self.assertEqual(page.locator('[data-action="reader"]').count(),
+                             sum(len(options) for _, options in declared))
+            for setting, options in declared:
+                attr, key = f"data-reader-{setting}", f"reader-{setting}"
+                choice = lambda option: page.locator(
+                    f'{PANEL} [data-action="reader"][data-setting="{setting}"][data-option="{option}"]')
+                pressed = lambda: [o for o in options if choice(o).get_attribute("aria-pressed") == "true"]
+                with self.subTest(browser=browser, setting=setting):
+                    self.assertGreaterEqual(len(options), 2)
+                    self.assertIsNone(self.html(page, attr))
+                    self.open_panel(page)
+                    self.assertEqual(pressed(), options[:1])
+                    for option in options[1:]:
+                        choice(option).click()
+                        self.assertEqual(self.html(page, attr), option)
+                        self.assertEqual(self.stored(page, key), option)
+                        self.assertEqual(pressed(), [option])
+                    page.reload(wait_until="load")
+                    self.assertEqual(self.html(page, attr), options[-1])
+                    self.open_panel(page)
+                    self.assertEqual(pressed(), options[-1:])
+                    choice(options[0]).click()
+                    self.assertIsNone(self.html(page, attr))
+                    self.assertIsNone(self.stored(page, key))
+                    self.assertEqual(pressed(), options[:1])
+                    page.evaluate(f"localStorage.setItem('{key}', 'no-such-option')")
+                    page.reload(wait_until="load")
+                    self.assertIsNone(self.html(page, attr))
+                    self.open_panel(page)
+                    self.assertEqual(pressed(), options[:1])
+                    page.keyboard.press("Escape")
 
     def test_malformed_stored_values(self) -> None:
         for browser in BROWSERS:

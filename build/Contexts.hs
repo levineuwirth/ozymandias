@@ -83,7 +83,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Themes       (themeContext)
-import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext,
+import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
@@ -744,6 +744,7 @@ siteCtx =
     <> assetsField
     <> navigationContext
     <> seasonContext
+    <> readerSettingContext
     <> themeContext
     <> switchContext
     <> bundleContext

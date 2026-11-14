@@ -341,6 +341,7 @@ class ConfigTests(unittest.TestCase):
                 "context": "essay", "scores": True, "dingbat": None, "flags": []}
         season = {"id": "autumn", "label": "Autumn", "base": "dark", "from": "10-01", "to": "10-31",
                   "stylesheet": "/css/seasons/autumn.css", "script": "/js/seasons/autumn.js"}
+        ground = {"id": "ground", "label": "Ground", "options": ["grain", "plain"]}
         bad = [
             {"titel": "misspelled"}, {"author": ""}, {"title": "one\ntwo"},
             {"url": "example.org"}, {"url": "https://example.org/"},
@@ -369,6 +370,13 @@ class ConfigTests(unittest.TestCase):
                 {"script": "/autumn.js"}, {"script": "/images/autumn.js"},
                 {"script": "/js/autumn.css"}, {"script": "js/autumn.js"}, {"script": "/js/a b.js"},
                 {"order": 1},
+            )],
+            {"reader-settings": ground}, {"reader-settings": [ground, ground]},
+            *[{"reader-settings": [dict(ground, **change)]} for change in (
+                {"id": "Ground"}, {"id": "-ground"}, {"id": ""}, {"label": ""}, {"label": "one\ntwo"},
+                {"options": ["grain"]}, {"options": []}, {"options": "grain plain"},
+                {"options": ["grain", "grain"]}, {"options": ["grain", "Plain"]},
+                {"options": ["grain", "two words"]}, {"options": ["grain", ""]}, {"default": "grain"},
             )],
             {"manifest": self.config["manifest"] | {"unknown": "value"}},
             {"manifest": self.config["manifest"] | {"name": ""}},
@@ -441,6 +449,20 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout)["seasons"],
                          [seasons[0], seasons[1] | {"script": None}])
+
+    def test_reader_settings_are_read_and_emitted(self):
+        # None: an empty list. Each is a row of Settings, its first option
+        # the default.
+        self.assertEqual(json.loads(self.run_site("config").stdout)["reader-settings"], [])
+        settings = [
+            {"id": "ground", "label": "Ground", "options": ["grain", "plain", "lamp"]},
+            {"id": "margin-2", "label": "In the margin", "options": ["none", "thread"]},
+        ]
+        self.config["reader-settings"] = settings
+        self.write_config()
+        done = self.run_site("config")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout)["reader-settings"], settings)
 
     def test_taxonomy_rejects_declarations_the_routes_cannot_honor(self):
         original = self.config["sections"]

@@ -73,6 +73,7 @@ $endif$$if(search)$<link rel="preload" href="/pagefind/pagefind-ui.css" as="styl
 <link rel="stylesheet" href="$assets$/css/modules/pagefind.css">
 $endif$<meta name="ozy:themes" content="$theme-ids$" data-light="$theme-light$"$if(theme-dark)$ data-dark="$theme-dark$"$endif$>
 $for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>
+$endfor$$for(reader-settings)$<meta name="ozy:setting" content="$setting-id$" data-options="$setting-options$">
 $endfor$<script src="$assets$/js/utils.js"></script>
 <script src="$assets$/js/theme.js"></script>
 $if(switch-viz)$$if(viz)$

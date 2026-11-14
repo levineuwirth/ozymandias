@@ -1,4 +1,4 @@
-/* theme.js — Restores theme, season and text size from localStorage before first paint.
+/* theme.js — Restores theme, season, text size and the site's reader settings from localStorage before first paint.
    Loaded synchronously (no defer/async) to prevent flash of wrong appearance.
    DOM interaction (button wiring) is handled by settings.js (deferred).
 
@@ -37,6 +37,19 @@
     if (safeGet('reduce-motion')) {
         document.documentElement.setAttribute('data-reduce-motion', '');
     }
+
+    /* The site's own choices for its readers (site.yaml's reader-settings,
+       as head.html's ozy:setting metas). The first option is the default
+       and is worn as nothing; another, if stored and still offered, is
+       worn as data-reader-ID for the site's stylesheets. */
+    Array.prototype.forEach.call(document.querySelectorAll('meta[name="ozy:setting"]'), function (meta) {
+        var id = meta.getAttribute('content');
+        var options = (meta.getAttribute('data-options') || '').split(' ');
+        var stored = id ? safeGet('reader-' + id) : null;
+        if (stored && options.indexOf(stored) > 0) {
+            document.documentElement.setAttribute('data-reader-' + id, stored);
+        }
+    });
 
     /* The Portals row, if the reader left it open (nav.js keeps this in
        step). Restored by nav.js alone, it opened after the first paint:

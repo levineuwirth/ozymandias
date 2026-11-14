@@ -1,4 +1,5 @@
-/* settings.js — Settings panel: theme, season, text size, print.
+/* settings.js — Settings panel: theme, season, text size, the site's own
+   reader settings, print.
    Text sizes are ozyUtils.TEXT_SIZE (utils.js), which theme.js reads too;
    the default among them is the stylesheet's (tokens.css).
 
@@ -30,6 +31,7 @@
         syncTextSizeButtons();
         syncToggleButton('focus-mode',    'data-focus-mode');
         syncToggleButton('reduce-motion', 'data-reduce-motion');
+        syncReaderButtons();
 
         toggle.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -60,7 +62,7 @@
 
         panel.querySelectorAll('[data-action]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                handle(btn.getAttribute('data-action'));
+                handle(btn.getAttribute('data-action'), btn);
             });
         });
     }
@@ -91,8 +93,9 @@
        Actions
     ------------------------------------------------------------------ */
 
-    function handle(action) {
-        if      (action.indexOf('theme-') === 0)  setTheme(action.slice(6));
+    function handle(action, btn) {
+        if      (action === 'reader') setReader(btn.getAttribute('data-setting'), btn.getAttribute('data-option'));
+        else if (action.indexOf('theme-') === 0)  setTheme(action.slice(6));
         else if (action.indexOf('season-') === 0) setSeason(action.slice(7));
         else if (action.indexOf('text-') === 0) {
             if (!SIZES) return;
@@ -170,6 +173,43 @@
         document.querySelectorAll('[data-action^="theme-"], [data-action^="season-"]').forEach(function (btn) {
             var action = btn.getAttribute('data-action');
             var on = action === 'theme-' + active || action === 'season-' + active;
+            btn.classList.toggle('is-active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    /* The site's reader settings -------------------------------------- */
+
+    /* site.yaml's reader-settings (head.html's ozy:setting metas; theme.js
+       restores them). The first option is the default: it is worn as no
+       attribute and stored as nothing, so a site that changes its default
+       changes it for every reader who never chose. */
+    function readerOptions(id) {
+        var found = [];
+        document.querySelectorAll('meta[name="ozy:setting"]').forEach(function (meta) {
+            if (meta.getAttribute('content') === id) found = (meta.getAttribute('data-options') || '').split(' ');
+        });
+        return found;
+    }
+
+    function setReader(id, option) {
+        var options = readerOptions(id);
+        if (options.indexOf(option) < 0) return;
+        if (option === options[0]) {
+            document.documentElement.removeAttribute('data-reader-' + id);
+            store.remove('reader-' + id);
+        } else {
+            document.documentElement.setAttribute('data-reader-' + id, option);
+            store.set('reader-' + id, option);
+        }
+        syncReaderButtons();
+    }
+
+    function syncReaderButtons() {
+        document.querySelectorAll('[data-action="reader"]').forEach(function (btn) {
+            var id = btn.getAttribute('data-setting');
+            var worn = document.documentElement.getAttribute('data-reader-' + id) || readerOptions(id)[0];
+            var on = btn.getAttribute('data-option') === worn;
             btn.classList.toggle('is-active', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         });

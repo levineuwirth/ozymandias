@@ -33,7 +33,13 @@
                                 <button type="button" class="settings-btn" data-action="text-larger"  aria-label="Increase text size">A+</button>
                                 <span class="visually-hidden" role="status" data-text-size-status></span>
                             </div>
-                        </div>
+                        </div>$for(reader-settings)$
+                        <div class="settings-section">
+                            <div class="settings-label">$setting-label$</div>
+                            <div class="settings-row">$for(setting-choices)$
+                                <button type="button" class="settings-btn" data-action="reader" data-setting="$choice-setting$" data-option="$choice-id$">$choice-label$</button>$endfor$
+                            </div>
+                        </div>$endfor$
                         <div class="settings-section">
                             <div class="settings-label">Display</div>
                             <div class="settings-col">
