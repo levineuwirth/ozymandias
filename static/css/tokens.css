@@ -17,6 +17,14 @@
     --body-max-width:  800px;
     --page-padding:    1.5rem;
     --nav-height:      3rem;
+    /* What the header takes of the page's flow: its height where it stands
+       above the page (nav.js publishes both), nothing where a site lifts
+       it out. */
+    --nav-flow-height: var(--nav-height);
+
+    /* The header's height wherever it stands, for a site that sets it
+       beside the page (nav.js publishes this too). */
+    --nav-box-height: var(--nav-height);
 
     /* The type scale: step n is 1rem (the text size) times --type-ratio
        n times over, so a site sets the whole scale with one number, on

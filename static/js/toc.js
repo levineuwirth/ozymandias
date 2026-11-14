@@ -102,13 +102,18 @@
                 if (top) { activate(top.id); }
             } else {
                 // Nothing in the trigger band: activate the last heading
-                // whose top edge is above the sticky nav bar, as nav.js
-                // measures it (--nav-height, in px once it has).
-                const navHeight = parseFloat(getComputedStyle(document.documentElement)
-                    .getPropertyValue('--nav-height')) || 0;
+                // at or above where an anchor lands, which is under the
+                // sticky nav bar as nav.js measures it (--nav-height, in
+                // px once it has; 0 where the header does not stay) and
+                // reset.css's 1.25rem of air. With a tall header that is
+                // inside the band; with none it is above it, and a deep
+                // link's heading was passed over for the one before.
+                const style = getComputedStyle(document.documentElement);
+                const navHeight = parseFloat(style.getPropertyValue('--nav-height')) || 0;
+                const landing = navHeight + 1.25 * (parseFloat(style.fontSize) || 16) + 2;
                 let candidate = null;
                 for (const h of headings) {
-                    if (h.getBoundingClientRect().top < navHeight + 16) candidate = h;
+                    if (h.getBoundingClientRect().top < landing) candidate = h;
                     else break;
                 }
                 if (candidate) { activate(candidate.id); }

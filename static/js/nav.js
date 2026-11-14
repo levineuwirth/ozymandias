@@ -69,11 +69,25 @@
 
         var reaim = landing();
         var last = null;
+        /* A site's stylesheet may take the header off the top of the
+           window: unstuck, so that it scrolls away, or out of the flow
+           altogether (a masthead in the margin). What stays on screen is
+           what an anchor must clear and the TOC must sit under
+           (--nav-height); what stands in the flow is what the page shell
+           gives up of the window's height (--nav-flow-height). Its
+           height wherever it stands (--nav-box-height) is for the site
+           that put it beside the page and must keep clear of it. */
         function sync() {
             var h = Math.round(header.getBoundingClientRect().height);
-            if (h === last) return;          /* no needless style invalidation */
-            last = h;
-            document.documentElement.style.setProperty('--nav-height', h + 'px');
+            var position = getComputedStyle(header).position;
+            var stuck = position === 'sticky' || position === 'fixed';
+            var flows = position !== 'absolute' && position !== 'fixed';
+            var now = h + ' ' + stuck + ' ' + flows;
+            if (now === last) return;        /* no needless style invalidation */
+            last = now;
+            document.documentElement.style.setProperty('--nav-height', (stuck ? h : 0) + 'px');
+            document.documentElement.style.setProperty('--nav-flow-height', (flows ? h : 0) + 'px');
+            document.documentElement.style.setProperty('--nav-box-height', h + 'px');
             if (reaim) reaim();
         }
 
@@ -81,9 +95,10 @@
 
         if (window.ResizeObserver) {
             new ResizeObserver(sync).observe(header);
-        } else {
-            window.addEventListener('resize', sync, { passive: true });
         }
+        /* The header's position can change with the window's width and
+           leave its height as it was. */
+        window.addEventListener('resize', sync, { passive: true });
 
         /* A font swapping in after first paint changes the nav's height
            without resizing anything the observer above is watching in

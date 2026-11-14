@@ -1,5 +1,7 @@
 /* reading.js — How far the reader is through the page, from 0 at the top
-   to 1 at the end: --read-progress, kept on scroll and resize on each
+   to 1 at the end: --read-progress, kept on scroll, on resize and as the
+   page's length changes (notes moving in from the margin a frame after a
+   resize, a section unfolding, a header changing its place) on each
    element marked data-read-progress, which draws it (the contents' line,
    toc.css; the phone bar's, nav.css; the reading bar, reading.css). One
    measure for all of them, set on them alone: on <html> it restyled the
@@ -26,5 +28,8 @@
         update();
         window.addEventListener('scroll', update, { passive: true });
         window.addEventListener('resize', update, { passive: true });
+        /* The page settles after the resize event, and grows or shrinks
+           with no event at all: measured again when its length changes. */
+        if (window.ResizeObserver) new ResizeObserver(update).observe(document.body);
     });
 }());

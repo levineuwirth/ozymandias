@@ -6,10 +6,17 @@ and almost nothing in Focus Mode. static/js/nav.js measures it into
 --nav-height, from which base.css sets scroll-padding-top: where every
 in-page anchor lands. A wrong value lands a heading under the header.
 
-Checked: --nav-height is the header's height at 1440 and 375px, at the
-default and the largest text size, with Portals open and closed, and in
-Focus Mode; a deep link and an in-page link put their heading just below
-the header in each of those; the Portals toggle (state, arrow, the choice
+A site's stylesheet may unstick the header, or lift it out of the flow (a
+masthead in the margin). Then nothing stays on screen for an anchor to
+clear and --nav-height is 0; --nav-flow-height, which the page shell gives
+up of the window's height, is the header's height only where it stands in
+the flow.
+
+Checked: --nav-height and --nav-flow-height say that of the header at 1440
+and 375px, at the default and the largest text size, with Portals open and
+closed, and in Focus Mode; a deep link and an in-page link put their
+heading just below the header, or the window's top where it does not
+stay, in each of those; the Portals toggle (state, arrow, the choice
 kept, storage that throws); and Return to top, at once under Reduce
 Motion and smoothly otherwise.
 
@@ -30,10 +37,15 @@ ESSAY = route("essay")
 HEADER = "body > header:not(.essay-frontmatter)"
 
 MEASURE = f"""() => {{
-    const h = document.querySelector('{HEADER}').getBoundingClientRect();
-    return {{header: Math.round(h.height), bottom: h.bottom,
-             nav: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-height')),
-             rem: parseFloat(getComputedStyle(document.documentElement).fontSize)}};
+    const header = document.querySelector('{HEADER}'), h = header.getBoundingClientRect();
+    const position = getComputedStyle(header).position, root = getComputedStyle(document.documentElement);
+    const stuck = position === 'sticky' || position === 'fixed';
+    return {{header: Math.round(h.height), bottom: stuck ? h.bottom : 0, stuck,
+             flows: position !== 'absolute' && position !== 'fixed',
+             nav: parseFloat(root.getPropertyValue('--nav-height')),
+             flow: parseFloat(root.getPropertyValue('--nav-flow-height')),
+             box: parseFloat(root.getPropertyValue('--nav-box-height')),
+             rem: parseFloat(root.fontSize)}};
 }}"""
 
 # Two frames: ResizeObserver's callback, then the style it set.
@@ -92,6 +104,13 @@ class SiteHeader(unittest.TestCase):
         page.evaluate(FRAMES)
         return page.evaluate(MEASURE)
 
+    def assert_published(self, m: dict) -> None:
+        """nav.js said of the header what is so: what stays on screen, what
+        stands in the flow, and its height wherever it stands."""
+        self.assertEqual(m["nav"], m["header"] if m["stuck"] else 0, m)
+        self.assertEqual(m["flow"], m["header"] if m["flows"] else 0, m)
+        self.assertEqual(m["box"], m["header"], m)
+
     # Every layout the header takes: (label, open() arguments).
     LAYOUTS = [
         ("desktop", {"width": 1440}),
@@ -113,8 +132,10 @@ class SiteHeader(unittest.TestCase):
                 with self.subTest(browser=browser, layout=label):
                     page = self.open(browser, **args)
                     m = self.measure(page)
-                    self.assertGreater(m["header"], 0)
-                    self.assertEqual(m["nav"], m["header"], m)
+                    # Focus Mode leaves a bar its rule; a masthead, nothing.
+                    if not args.get("focus"):
+                        self.assertGreater(m["header"], 0)
+                    self.assert_published(m)
             if not portals:
                 continue
             with self.subTest(browser=browser, layout="Portals opened and closed on the page"):
@@ -123,9 +144,11 @@ class SiteHeader(unittest.TestCase):
                 page.click(".nav-portal-toggle")
                 opened = self.measure(page)
                 self.assertGreater(opened["header"], closed["header"])
-                self.assertEqual(opened["nav"], opened["header"])
+                self.assert_published(opened)
                 page.click(".nav-portal-toggle")
-                self.assertEqual(self.measure(page)["nav"], closed["header"])
+                again = self.measure(page)
+                self.assertEqual(again["header"], closed["header"])
+                self.assert_published(again)
 
     def heading(self, page) -> str:
         """The id of a heading well down the essay."""
@@ -140,7 +163,8 @@ class SiteHeader(unittest.TestCase):
         return top, m["bottom"], m["rem"]
 
     def assert_below_the_header(self, top: float, bottom: float, rem: float) -> None:
-        # base.css: scroll-padding-top is the header plus 1.25rem of air.
+        # base.css: scroll-padding-top is the header plus 1.25rem of air
+        # (`bottom` is 0 where the header does not stay on screen).
         self.assertGreaterEqual(top, bottom - 1, "under the header")
         self.assertLessEqual(top, bottom + 1.25 * rem + 4, "well below the header")
 

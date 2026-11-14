@@ -262,6 +262,19 @@ the browser draws scrollbars, form fields and an embedded frame's backdrop
 to match, and charts (`viz.js`) take their light or dark palette from it.
 A site whose print rules recolor its themes sets it back to `light` there.
 
+The header is a sticky top bar unless a site says otherwise, and a site may
+give `body > header` another `position`: `static`, to scroll away with the
+page, or `absolute`, to stand beside it as a masthead. `nav.js` measures the
+header and publishes three lengths on `:root`. `--nav-height` is what stays
+over the page while it scrolls, the header's height when it is `sticky` or
+`fixed` and 0 otherwise; the contents column, a jump's landing place and the
+scroll-spy keep clear of it. `--nav-flow-height` is the room the header
+takes in the page's flow, 0 when it is `absolute` or `fixed`; the page shell
+fills the window less that. `--nav-box-height` is the header's height
+wherever it stands, for the site that sets it beside the page and must keep
+what shares its column (the contents) below it. The navigation is a size container, so in a
+narrow masthead it takes its phone layout unasked.
+
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture
 site demonstrates a complete skin. A mechanical restyling records before
