@@ -203,15 +203,23 @@
     padding-bottom: 0.75rem;
 }
 
+/* The left column is the text's margin (less the gap), so the title
+   block starts at the text's left edge at every width; the figure
+   takes its column from the right, and where the window is too narrow
+   for both, the title block gives way on that side only. */
+.essay-frontmatter[data-standing],
+.essay-frontmatter[data-standing] + .essay-tailmatter {
+    grid-template-columns:
+        max(0px, (100% - var(--body-max-width)) / 2 - clamp(0.75rem, 2vw, 1.75rem))
+        minmax(0, 1fr)
+        clamp(170px, 17vw, 280px);
+}
+
 /* The tags and the page's links follow the title's edge, not the
    page's axis: on the head's own columns, so the edge is the title's
    at every width (one column: back on the axis, below). */
 .essay-frontmatter[data-standing] + .essay-tailmatter {
     display: grid;
-    grid-template-columns:
-        clamp(170px, 17vw, 280px)
-        minmax(0, 1fr)
-        clamp(170px, 17vw, 280px);
     column-gap: clamp(0.75rem, 2vw, 1.75rem);
     width: 100%;
 }
@@ -222,7 +230,7 @@
     min-width: 0;
     width: 100%;
     max-width: var(--body-max-width);
-    justify-self: center;
+    justify-self: start;
 }
 
 .essay-frontmatter[data-standing] + .essay-tailmatter :is(.meta-tags, .meta-pagelinks) {
@@ -232,6 +240,7 @@
 
 .essay-frontmatter[data-standing] .frontmatter-title {
     grid-column: 2;
+    justify-self: start;
     text-align: left;
 }
 
@@ -264,8 +273,10 @@
 [data-focus-mode] .essay-frontmatter[data-standing] .frontmatter-title,
 [data-focus-mode] .essay-frontmatter[data-standing] + .essay-tailmatter > * {
     grid-column: auto;
+    justify-self: center;
 }
 
+[data-focus-mode] .essay-frontmatter[data-standing],
 [data-focus-mode] .essay-frontmatter[data-standing] + .essay-tailmatter {
     grid-template-columns: minmax(0, 1fr);
 }
@@ -301,6 +312,10 @@
 }
 
 @media (max-width: 900px) {
+    .essay-frontmatter[data-standing] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .essay-frontmatter[data-standing] + .essay-tailmatter {
         display: block;
         width: min(var(--body-max-width), 100%);
@@ -313,6 +328,7 @@
 
     .essay-frontmatter[data-standing] .frontmatter-title {
         grid-column: auto;
+        justify-self: center;
         text-align: center;
     }
 
