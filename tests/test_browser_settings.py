@@ -12,7 +12,11 @@ middle), stepped to either end and reset, shown and announced, the
 button at an end keeping focus (a disabled button dropped it), and a
 size stored by the old three-size scale read as that size; Focus Mode and
 Reduce Motion, on, off and restored, Reduce Motion stopping smooth
-scrolling; Print, and Clear Annotations, confirmed or not; malformed
+scrolling; Top of page, from down the page, smoothly or at once; the
+gear's wrap marked while the reader reads on down and while a pointer is
+near it, for the site that pins the gear and fades it, and not marked by
+a page that opens part-way down; Print, and Clear Annotations, confirmed
+or not; malformed
 stored values ignored; storage that throws, as in some private windows,
 breaking nothing; and, on the score reader, Escape closing the panel
 without leaving the reader.
@@ -110,7 +114,7 @@ class SettingsPanel(unittest.TestCase):
                 self.expect(panel).to_be_visible()
                 self.expect(toggle).to_have_attribute("aria-expanded", "true")
                 self.expect(panel).to_have_attribute("aria-hidden", "false")
-                self.expect(self.button(page, "theme-light")).to_be_focused()
+                self.expect(self.button(page, "top")).to_be_focused()
                 toggle.click()
                 self.expect(panel).to_be_hidden()
                 self.expect(toggle).to_be_focused()
@@ -299,6 +303,86 @@ class SettingsPanel(unittest.TestCase):
                     self.assertIsNone(self.html(page, attr))
                     self.assertIsNone(self.stored(page, action))
                     self.expect(btn).to_have_attribute("aria-pressed", "false")
+
+    # scrollTo at once (the page scrolls smoothly), resolved by the
+    # scroll's own event, after settings.js has had it: a frame or two
+    # later is not always late enough.
+    SCROLL = """y => new Promise(done => {
+        const end = document.documentElement.scrollHeight - window.innerHeight;
+        if (Math.abs(Math.min(y, end) - window.scrollY) < 1) return done(window.scrollY);
+        window.addEventListener('scroll', () => done(window.scrollY), {once: true});
+        window.scrollTo({top: y, behavior: 'instant'});
+    })"""
+    # settings.js heeds scrolling from 300 ms after load.
+    ARMED = 450
+
+    def test_top_of_page(self) -> None:
+        reduce = "try { localStorage.setItem('reduce-motion', '1'); } catch (e) {}"
+        for browser in BROWSERS:
+            for init in ("", reduce):
+                with self.subTest(browser=browser, reduce_motion=bool(init)):
+                    page = self.open_page(browser, init=init)
+                    self.assertGreater(page.evaluate(self.SCROLL, 2000), 1000)
+                    self.open_panel(page)
+                    self.button(page, "top").click()
+                    self.expect(page.locator(PANEL)).to_be_hidden()
+                    if init:
+                        self.assertEqual(page.evaluate("window.scrollY"), 0)
+                    else:
+                        # wait_for_function's string form is an eval the CSP refuses.
+                        for _ in range(100):
+                            if page.evaluate("window.scrollY") == 0:
+                                break
+                            page.wait_for_timeout(50)
+                        self.assertEqual(page.evaluate("window.scrollY"), 0)
+
+    def test_the_gear_s_wrap_says_where_the_reader_is(self) -> None:
+        wrap = ".settings-wrap"
+
+        def away(page) -> bool:
+            return page.evaluate(f"document.querySelector('{wrap}').hasAttribute('data-away')")
+
+        for browser in BROWSERS:
+            with self.subTest(browser=browser, what="scrolling"):
+                page = self.open_page(browser)
+                page.wait_for_timeout(self.ARMED)
+                self.assertFalse(away(page))
+                page.evaluate(self.SCROLL, 3000)
+                self.assertTrue(away(page))
+                # Back up a little is the page settling under a thumb; 40px is a reader.
+                page.evaluate(self.SCROLL, 2980)
+                self.assertTrue(away(page))
+                page.evaluate(self.SCROLL, 2950)
+                self.assertFalse(away(page))
+                page.evaluate(self.SCROLL, 3200)
+                self.assertTrue(away(page))
+                page.evaluate(self.SCROLL, 100)
+                self.assertFalse(away(page))
+                # Nothing of it on the root, whose every change restyles the page.
+                self.assertEqual(page.evaluate(
+                    "[...document.documentElement.attributes].map(a => a.name)"
+                    ".filter(n => /away|near/.test(n))"), [])
+            with self.subTest(browser=browser, what="a pointer"):
+                page = self.open_page(browser)
+                box = page.locator(wrap).bounding_box()
+                x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+                page.mouse.move(x, y)
+                self.expect(page.locator(f"{wrap}[data-near]")).to_have_count(1)
+                # The far corner of the window from wherever the site put it.
+                page.mouse.move(10 if x > 640 else 1270, 10 if y > 450 else 890)
+                self.expect(page.locator(f"{wrap}[data-near]")).to_have_count(0)
+            with self.subTest(browser=browser, what="a page opened part-way down"):
+                page = self.open_page(browser)
+                # A heading with page below it to scroll into.
+                middle = page.evaluate("(h => h[h.length >> 1].id)"
+                                       "([...document.querySelectorAll('#markdownBody :is(h2, h3)[id]')])")
+                page = self.open_page(browser, f"{PAGE}#{middle}")
+                page.wait_for_timeout(self.ARMED)
+                y = page.evaluate("window.scrollY")
+                self.assertGreater(y, 900)
+                self.assertFalse(away(page))
+                page.evaluate(self.SCROLL, y + 200)
+                self.assertTrue(away(page))
 
     def test_print(self) -> None:
         for browser in BROWSERS:

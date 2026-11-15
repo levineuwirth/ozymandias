@@ -65,6 +65,71 @@
                 handle(btn.getAttribute('data-action'), btn);
             });
         });
+
+        trackReading(toggle.parentNode);
+    }
+
+    /* ------------------------------------------------------------------
+       Where the reader is, for a gear that is pinned to the window
+       The gear's wrap carries `data-away` once the reader has scrolled
+       down into the page, until they scroll back up or reach the top;
+       and `data-near` while a mouse or pen is within reach of it. The
+       engine draws nothing from either: a site that pins the gear may
+       fade it by them. Both are written on the wrap, never on the root,
+       and only when they change.
+    ------------------------------------------------------------------ */
+
+    function trackReading(wrap) {
+        var REACH = 140;            /* px around the gear that count as near */
+        var RETURN = 40;            /* px scrolled back up that bring it back */
+        var lastY = window.scrollY, up = 0, away = false, near = false;
+        var armed = false, queued = false, px = 0, py = 0;
+
+        function setAway(v) {
+            if (v === away) return;
+            away = v;
+            wrap.toggleAttribute('data-away', v);
+        }
+
+        /* A page that opens part-way down (a link to a section, a
+           restored position) has scrolled without the reader: the gear
+           is shown until they scroll themselves. */
+        window.addEventListener('load', function () {
+            setTimeout(function () { lastY = window.scrollY; armed = true; }, 300);
+        });
+
+        window.addEventListener('scroll', function () {
+            var y = window.scrollY, dy = y - lastY;
+            lastY = y;
+            if (!armed) return;
+            if (y < window.innerHeight * 0.4) { up = 0; setAway(false); }
+            else if (dy > 0) { up = 0; setAway(true); }
+            else if (dy < 0) { up -= dy; if (up > RETURN) setAway(false); }
+        }, { passive: true });
+
+        document.addEventListener('pointermove', function (e) {
+            if (e.pointerType === 'touch') return;
+            px = e.clientX; py = e.clientY;
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(function () {
+                queued = false;
+                var r  = wrap.getBoundingClientRect();
+                var dx = Math.max(r.left - px, 0, px - r.right);
+                var dy = Math.max(r.top - py, 0, py - r.bottom);
+                var n  = dx * dx + dy * dy < REACH * REACH;
+                if (n === near) return;
+                near = n;
+                wrap.toggleAttribute('data-near', n);
+            });
+        }, { passive: true });
+    }
+
+    /* The site's Reduce Motion setting or the system's (nav.js has the
+       same test for the footer's button). */
+    function reducedMotion() {
+        return document.documentElement.hasAttribute('data-reduce-motion') ||
+            !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
     /* ------------------------------------------------------------------
@@ -105,6 +170,10 @@
         }
         else if (action === 'focus-mode')    toggleDataAttr('focus-mode',    'data-focus-mode');
         else if (action === 'reduce-motion') toggleDataAttr('reduce-motion', 'data-reduce-motion');
+        else if (action === 'top') {
+            setOpen(false);
+            window.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
+        }
         else if (action === 'print')             { setOpen(false); window.print(); }
         else if (action === 'clear-annotations') { clearAnnotations(); }
     }

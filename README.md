@@ -292,6 +292,16 @@ wherever it stands, for the site that sets it beside the page and must keep
 what shares its column (the contents) below it. The navigation is a size container, so in a
 narrow masthead it takes its phone layout unasked.
 
+The gear and its panel are the header's, and a site may pin them to the
+window instead (`.settings-wrap`, `position: fixed`). For that site
+`settings.js` marks the wrap, and the engine styles nothing by the marks:
+`data-away` from when the reader scrolls down into the page until they
+scroll back up 40px or come within two fifths of a window of the top, and
+`data-near` while a mouse or pen is within 140px of the gear. A page that
+opens part-way down is not away until the reader scrolls. The panel's
+first button, Top of page, is the way back for a page whose header has
+scrolled off.
+
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture
 site demonstrates a complete skin. A mechanical restyling records before
