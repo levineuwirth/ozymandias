@@ -24,10 +24,10 @@ def features(page, name):
     out = {}
     ev = page.evaluate
     # generic signals
-    out['katex'] = ev("document.querySelectorAll('.katex').length")
-    out['katex_err'] = ev("document.querySelectorAll('.katex-error').length")
-    out['math_raw'] = ev("document.querySelectorAll('span.math, .math.inline, .math.display').length")
-    out['katex_css'] = ev("[...document.styleSheets].some(s => (s.href||'').includes('katex'))")
+    # Math is MathML written at build time (Filters.Math): each wrapper holds
+    # a <math>, or the TeX texmath could not read.
+    out['math_raw'] = ev("document.querySelectorAll('span.math.inline, span.math.display').length")
+    out['math_drawn'] = ev("document.querySelectorAll('span.math.inline > math, span.math.display > math').length")
     out['imgs_broken'] = ev("""[...document.images].filter(i => i.complete && i.naturalWidth === 0 && i.getAttribute('src') && i.loading !== 'lazy').map(i => i.currentSrc || i.src).slice(0, 10)""")
     out['transclude_unfilled'] = ev("document.querySelectorAll('div.transclude:empty').length")
     out['transclude_total'] = ev("document.querySelectorAll('div.transclude').length")

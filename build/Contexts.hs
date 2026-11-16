@@ -624,7 +624,8 @@ htmlToText = decodeEntities . stripTags
 
 -- | What a page needs loaded, read from its rendered body, so each script
 --   and stylesheet goes only where it does something (audit X6). Every
---   essay and post used to load KaTeX, a render-blocking stylesheet among
+--   essay and post used to load KaTeX (since replaced by MathML written at
+--   build time), a render-blocking stylesheet among
 --   it, and every page Prism, the gallery and the sidenote layout, which
 --   12, 6, 9 and 14 pages of 548 use. A context earlier in the chain that
 --   sets one of these (the bibliography's @math@, an archive page's
@@ -632,7 +633,7 @@ htmlToText = decodeEntities . stripTags
 --   inner template's output, footer included, so math that arrives only in
 --   a backlink excerpt counts.
 --
---   * @math@: KaTeX (Pandoc's KaTeX writer marks math with these classes)
+--   * @math@: math.js ('Filters.Math' marks math with these classes)
 --   * @has-code@: Prism and syntax.css
 --   * @has-sidenotes@: sidenotes.js and .css, also where a transclusion may
 --     bring sidenotes in

@@ -1,6 +1,6 @@
 /* gallery.js — Two orthogonal systems:
    1. Named exhibits (.exhibit[data-exhibit-name]) — TOC integration only.
-   2. Math focusables — every .katex-display gets a hover expand button
+   2. Math focusables — every display formula (.math.display) gets a hover expand button
       that opens a full-size overlay. Navigation is global (all focusables
       in document order). Group name in overlay comes from nearest exhibit
       or heading. */
@@ -53,15 +53,15 @@
 
     /* ============================================================
        MATH FOCUSABLES
-       Auto-discover every .katex-display in #markdownBody.
-       KaTeX must be called with output:'htmlAndMathml' so the
-       original LaTeX survives in <annotation encoding="application/x-tex">.
+       Auto-discover every display formula in #markdownBody: MathML
+       written at build time (Filters.Math), its LaTeX kept in
+       <annotation encoding="application/x-tex">.
        ============================================================ */
 
-    var focusables = []; /* { katexEl, wrapperEl, source, groupName } */
+    var focusables = []; /* { formulaEl, wrapperEl, source, groupName } */
 
-    function getSource(katexEl) {
-        var ann = katexEl.querySelector('annotation[encoding="application/x-tex"]');
+    function getSource(formulaEl) {
+        var ann = formulaEl.querySelector('annotation[encoding="application/x-tex"]');
         return ann ? ann.textContent.trim() : '';
     }
 
@@ -92,8 +92,8 @@
         return h ? h.textContent.trim() : '';
     }
 
-    function getCaption(katexEl) {
-        var exhibit = katexEl.closest('.exhibit[data-exhibit-caption]');
+    function getCaption(formulaEl) {
+        var exhibit = formulaEl.closest('.exhibit[data-exhibit-caption]');
         if (!exhibit) return '';
         /* A proof's caption belongs to the proof as a whole, not to each
            individual equation line within it. Only propagate for equation
@@ -134,22 +134,22 @@
     function discoverFocusableMath(markdownBody) {
         var nearestHeading = headingBefore(markdownBody);
         var perGroup = {};   /* equations counted per section, for their names */
-        markdownBody.querySelectorAll('.katex-display').forEach(function (katexEl) {
-            var source    = getSource(katexEl);
-            var groupName = getGroupName(katexEl, nearestHeading);
-            var caption   = getCaption(katexEl);
+        markdownBody.querySelectorAll('.math.display').forEach(function (formulaEl) {
+            var source    = getSource(formulaEl);
+            var groupName = getGroupName(formulaEl, nearestHeading);
+            var caption   = getCaption(formulaEl);
             var n = perGroup[groupName] = (perGroup[groupName] || 0) + 1;
 
             /* Wrap in .math-focusable — the entire wrapper is the click target */
             var wrapper = document.createElement('div');
             wrapper.className = 'math-focusable';
             if (caption) wrapper.dataset.caption = caption; /* drives CSS ::after tooltip */
-            katexEl.parentNode.insertBefore(wrapper, katexEl);
-            wrapper.appendChild(katexEl);
+            formulaEl.parentNode.insertBefore(wrapper, formulaEl);
+            wrapper.appendChild(formulaEl);
 
             var entry = {
                 type:      'math',
-                katexEl:   katexEl,
+                formulaEl:   formulaEl,
                 wrapperEl: wrapper,
                 source:    source,
                 groupName: groupName,
@@ -353,31 +353,20 @@
             overlayBody.className    = '';
             overlayBody.style.overflow = 'hidden';
 
-            /* Re-render from source, or clone rendered HTML */
-            if (entry.source && typeof katex !== 'undefined') {
-                try {
-                    overlayBody.innerHTML = katex.renderToString(entry.source, {
-                        displayMode:  true,
-                        throwOnError: false
-                    });
-                } catch (e) {
-                    overlayBody.innerHTML = entry.katexEl.outerHTML;
-                }
-            } else {
-                overlayBody.innerHTML = entry.katexEl.outerHTML;
-            }
+            /* The formula as drawn: MathML scales with its font size. */
+            overlayBody.innerHTML = entry.formulaEl.outerHTML;
 
-            /* Fit font size — set directly on .katex-display to avoid cascade.
-               The overlay must already be visible (not display:none) for
-               scrollWidth/clientWidth to return real values. */
-            var katexEl = overlayBody.querySelector('.katex-display');
-            if (katexEl) {
+            /* Fit font size — set directly on the <math> element to avoid
+               cascade. The overlay must already be visible (not
+               display:none) for scrollWidth/clientWidth to return real values. */
+            var formulaEl = overlayBody.querySelector('.math.display > math');
+            if (formulaEl) {
                 var maxSize = 1.4;
                 var minSize = 0.4;
                 var step    = 0.05;
                 var fitted  = false;
                 for (var fs = maxSize; fs >= minSize; fs -= step) {
-                    katexEl.style.fontSize = fs + 'em';
+                    formulaEl.style.fontSize = fs + 'em';
                     if (overlayBody.scrollWidth <= overlayBody.clientWidth &&
                         overlayBody.scrollHeight <= overlayBody.clientHeight) {
                         fitted = true;

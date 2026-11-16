@@ -1143,7 +1143,7 @@ rules = do
                     body <- renderBibliographyHtml current bibFilePaths bibExtrasAll keys
                     return (renderLetterHeader letter <> body)
                 return (renderBibliographyAlphabet present <> T.concat parts)
-            let mathFld = katexFallbackField html
+            let mathFld = mathFallbackField html
             let ctx = constField "title"          "Bibliography"
                    <> constField "bibliography-index" "true"
                    <> constField "description"
@@ -1181,7 +1181,7 @@ rules = do
                 current <- loadConfig
                 refsHtml <- unsafeCompiler $
                     renderBibliographyHtml current bibFilePaths bibExtrasAll refKeys
-                let mathFld = katexFallbackField refsHtml
+                let mathFld = mathFallbackField refsHtml
                 let referencesCtx
                         | null refKeys = mempty
                         | otherwise =
@@ -1700,15 +1700,13 @@ renderLetterHeader c =
     <> "\" class=\"bibliography-letter\">"
     <> T.singleton c <> "</h2>\n"
 
--- | @$math$@ for rendered bibliography HTML that still holds LaTeX.
---   C07: entry math is rendered to MathML at build time by
---   'Citations.renderEntries', so a bibliography needs no runtime
---   typesetter. This is the safety net: if the MathML writer ever declines
---   a construct it falls back to a raw @class="math …"@ span holding LaTeX
---   source, and a page with one of those does need KaTeX after all.
---   Nothing currently in the corpus trips it.
-katexFallbackField :: T.Text -> Context String
-katexFallbackField html
+-- | @$math$@ for rendered bibliography HTML with a @class="math …"@ span.
+--   C07: entry math is MathML written at build time by
+--   'Citations.renderEntries', which renames Pandoc's wrapper, so this
+--   matches nothing in the corpus; it sets the flag that loads
+--   @math.js@ should a wrapper ever reach a bibliography.
+mathFallbackField :: T.Text -> Context String
+mathFallbackField html
     | any (`T.isInfixOf` html) ["class=\"math inline\"", "class=\"math display\""]
                 = constField "math" "true"
     | otherwise = mempty

@@ -839,18 +839,38 @@ pre code {
 
 
 /* ============================================================
-   MATHEMATICS (KaTeX)
-   Display math is scaled slightly below body size so long equations
-   fit within the 680px column. KaTeX uses em units throughout its
-   output, so font-size here cascades and scales all rendered glyphs.
-   Inline math (.katex without .katex-display) is unaffected.
-   overflow-x: auto is a safety net for anything still too wide.
+   MATHEMATICS
+   MathML, drawn by the browser in the site's math face. What the
+   generator writes (Filters.Math, in a .math wrapper: a page's body,
+   notes, captions, quoted backlinks) stands at --math-size of the text;
+   the bare <math> of an abstract, a title or a bibliography entry, set
+   in lines too short for a larger formula, at the text's own. Display
+   math is scaled slightly below it so long equations fit the column; its
+   wrapper, not the <math> box, scrolls anything still too wide.
    ============================================================ */
 
-.katex-display {
-    font-size: 0.85em;
+/* The face is fetched by the first formula drawn in it, so it is given
+   where the page has written math, which needs it, and everywhere on that
+   page; a list whose abstracts hold a few letters of math keeps the
+   browser's own math face, as it had, and does not fetch the site's. */
+.math > math,
+:root:has(.math > math) math {
+    font-family: var(--font-math);
+}
+
+.math > math {
+    font-size: var(--math-size);
+}
+
+.math.display {
+    display: block;
+    margin: 1em 0;
     overflow-x: auto;
     overflow-y: hidden;
+}
+
+.math.display > math {
+    font-size: calc(0.85 * var(--math-size));
 }
 
 

@@ -59,6 +59,7 @@ import           Text.Pandoc.Definition
 import           Text.Pandoc.Walk       (walkM)
 import           EngineFiles            (resolveFile)
 import           PandocOptions          (writerOpts)
+import qualified Filters.Math           as Math
 import           Text.Pandoc.Options    (ReaderOptions)
 import qualified Utils                  as U
 
@@ -358,10 +359,8 @@ captionHtml rOpts caption
 --   ("PandocOptions"; the reader's as the page's compiler passes them, with
 --   math as the site has it). Pandoc's 'def' would not do: its reader enables far
 --   less than the site's, so a caption kept its straight quotes and its
---   @$…$@ stayed literal while body prose one line above got both; and
---   its math method wraps TeX in @\\(…\\)@ delimiters, while
---   @static\/js\/katex-bootstrap.js@ feeds each @\<span class="math"\>@'s
---   @textContent@ straight to @katex.render@, which wants bare TeX.
+--   @$…$@ stayed literal while body prose one line above got both. Its
+--   math is written as the body's is ('Filters.Math').
 --
 --   A caption is inline content, so the reader's block wrapper is unwrapped
 --   to keep a @\<p\>@ out of the @\<figcaption\>@. On the (essentially
@@ -374,7 +373,7 @@ renderCaption rOpts caption =
   where
     convert = do
         Pandoc meta blocks <- Pandoc.readMarkdown rOpts caption
-        Pandoc.writeHtml5String writerOpts (Pandoc meta (map unBlock blocks))
+        Pandoc.writeHtml5String writerOpts (Math.apply (Pandoc meta (map unBlock blocks)))
 
     unBlock (Para ils) = Plain ils
     unBlock b          = b

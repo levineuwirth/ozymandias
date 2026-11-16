@@ -8,10 +8,10 @@
     if (!S) return;
 
     S.context('math', function (el, range) {
-        if (el.closest('.math, .katex, .katex-html, .katex-display')) return true;
+        if (el.closest('.math, math')) return true;
 
         /* Fallback: commonAncestorContainer can land at <p> when selection
-           starts/ends just outside a KaTeX span — check via intersectsNode. */
+           starts/ends just outside a formula — check via intersectsNode. */
         var mathEls = document.querySelectorAll('.math');
         for (var i = 0; i < mathEls.length; i++) {
             if (range.intersectsNode(mathEls[i])) return true;

@@ -479,9 +479,9 @@ archiveEntryCtx ae = mconcat
     -- they need no archive-specific wiring; each is a $if(...)$-guarded
     -- section in archive.html.
     , referencedByField
-    -- A citing sentence can carry math. The KaTeX stylesheet and bootstrap
-    -- are behind $if(math)$, which this page gets from nowhere else, so
-    -- the field sets it only when some referenced-by context needs it.
+    -- A citing sentence can carry math. math.js (a wide display formula's
+    -- tab stop) is behind $if(math)$, which this page gets from nowhere
+    -- else, so the field sets it only when some referenced-by context has math.
     , backlinkMathField
     , similarLinksField
     , footerDepsField

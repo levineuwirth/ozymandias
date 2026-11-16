@@ -35,12 +35,12 @@ withMath True  opts = opts
 withMath False opts = opts { readerExtensions = foldr disableExtension (readerExtensions opts)
                                                     [Ext_tex_math_dollars, Ext_raw_tex, Ext_latex_macros] }
 
--- | KaTeX math, which @static/js/katex-bootstrap.js@ typesets from each
---   @\<span class="math"\>@'s bare TeX: any other method wraps it in
---   delimiters, or degrades it to italics, and the client never sees it.
+-- | Math is written by 'Filters.Math' before a writer sees it; MathML here
+--   is for any that reaches a writer some other way, so it is still drawn
+--   by the browser and not left as TeX for a script that no longer loads.
 writerOpts :: WriterOptions
 writerOpts = defaultHakyllWriterOptions
-    { writerHTMLMathMethod  = KaTeX ""
+    { writerHTMLMathMethod  = MathML
     , writerHighlightStyle  = Nothing
     , writerNumberSections  = False
     , writerTableOfContents = False

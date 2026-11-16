@@ -501,23 +501,12 @@ stripRefPrefix t = fromMaybe t (T.stripPrefix "ref-" t)
 --   Math in an entry title (@$k$@-dominating set, @$d$@-regular graph)
 --   is rendered here, at build time, as MathML (audit C07).
 --
---   The default writer method emits @\<span class="math inline"\>@ holding
---   the LaTeX source, which is a promise that a client-side renderer will
---   arrive. On an essay it does: @essayCtx@ sets @math: true@ and KaTeX
---   loads. @\/bibliography\/@ is generated from @siteCtx@ and sets no such
---   flag, so its entries carried unrendered notation with nothing coming
---   to render it. MathML needs no runtime at all, which is the right
---   answer for a reference list: correct without JavaScript, and it does
---   not pull a 300 KB typesetter onto a page whose only mathematics is one
---   italic letter.
+--   MathML needs no runtime at all, which is the right answer for a
+--   reference list (and, since, for the whole site: 'Filters.Math').
 --
---   'unclaimMathSpans' is a guard rather than a fix: Pandoc's MathML
---   writer emits a bare @\<math\>@ element with no wrapper, so on the
---   current corpus it matches nothing. It exists because
---   @katex-bootstrap.js@ renders every @.math@ element's /text content/,
---   and on an essay page (which does load KaTeX) a wrapper left behind by
---   some future writer change would be typeset a second time, from the
---   MathML's own text.
+--   'unclaimMathSpans' renames a wrapper Pandoc's writer leaves only where
+--   it falls back to TeX, so the page's @math@ flag (which loads
+--   @math.js@, for display formulas) is not set by a bibliography entry.
 renderEntries :: Text -> [Block] -> Text
 renderEntries cls entries =
     case runPure (writeHtml5String wOpts (Pandoc nullMeta entries)) of
@@ -529,8 +518,7 @@ renderEntries cls entries =
                 , writerHTMLMathMethod = MathML
                 }
 
--- | Rename Pandoc's @math@ wrapper class on already-rendered MathML so the
---   client-side KaTeX bootstrap does not treat it as unrendered source.
+-- | Rename Pandoc's @math@ wrapper class on a bibliography entry's math.
 --   The @inline@ / @display@ half is kept for anyone styling it.
 unclaimMathSpans :: Text -> Text
 unclaimMathSpans =

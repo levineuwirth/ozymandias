@@ -66,11 +66,11 @@ console.log(JSON.stringify({scripts: added.filter(e => e.src).length,
     def test_a_failed_math_download_can_be_retried(self):
         result = self.run_case(r"""
 ozyEnhance(root(false, true));
-added.find(e => e.src === '/katex/katex.min.js').onerror();
+added.find(e => e.src === '/assets/abc123/js/math.js').onerror();
 await tick();
 ozyEnhance(root(false, true));
 await tick();
-console.log(JSON.stringify(added.filter(e => e.src === '/katex/katex.min.js').length));
+console.log(JSON.stringify(added.filter(e => e.src === '/assets/abc123/js/math.js').length));
 """)
         self.assertEqual(result, 2)
 
@@ -83,7 +83,7 @@ ozyEnhance(root(true, true)); await tick();
 console.log(JSON.stringify(added.map(e => e.src || e.href)));
 """, switches)
                 code = ["/assets/abc123/css/modules/syntax.css", "/assets/abc123/js/prism.min.js"]
-                math = ["/katex/katex.min.css", "/assets/abc123/css/modules/katex.css", "/katex/katex.min.js"]
+                math = ["/assets/abc123/js/math.js"]
                 self.assertEqual(sorted(result),
                                  sorted((code if "code" in switches else []) + (math if "math" in switches else [])))
 

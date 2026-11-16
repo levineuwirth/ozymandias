@@ -318,15 +318,15 @@ class BuiltPageTests(unittest.TestCase):
         self.assertNotRegex(joined, r"`[^`]+`", "backticks in a caption — Markdown not parsed")
         self.assertNotRegex(joined, r"(?<!\\)\$[^$]+\$", "raw $math$ in a caption")
 
-    def test_caption_math_is_bare_tex_for_katex(self) -> None:
-        # static/js/katex-bootstrap.js hands each .math element's textContent
-        # straight to katex.render, which wants bare TeX. Pandoc's default
-        # math method would wrap it in \(...\) delimiters instead.
+    def test_caption_math_is_mathml(self) -> None:
+        # A caption's math is written as the body's is (Filters.Math): MathML
+        # in its wrapper, not TeX left for a script, nor in \(...\) delimiters.
         for path, html in self.pages:
             for caption in self._captions(html):
                 for span in re.findall(r'<span class="math inline">(.*?)</span>', caption):
-                    with self.subTest(page=path.name, math=span):
-                        self.assertNotIn("\\(", span, "delimiters KaTeX would try to typeset")
+                    with self.subTest(page=path.name, math=span[:60]):
+                        self.assertTrue(span.startswith("<math"), "a caption's math left as TeX")
+                        self.assertNotIn("\\(", span)
 
     @staticmethod
     def _figures(html: str) -> list[str]:

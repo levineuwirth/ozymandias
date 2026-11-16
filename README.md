@@ -225,7 +225,7 @@ engine declaration even when the engine uses an ID selector. CSS reverses
 the layer order for `!important`: the engine's (`[hidden]`, print
 visibility, about 70 in all) win over a site's `!important` too, so a site
 overriding one of those cannot, and should not try. Vendor styles enter the
-engine layer through the KaTeX, Leaflet and Pagefind wrappers in
+engine layer through the Leaflet and Pagefind wrappers in
 `modules/`, which `@import` them unchanged (their relative font and image
 URLs stay theirs, and Pagefind writes its sheet after the build); the head
 preloads each imported file, so it is fetched beside its wrapper, not after
@@ -366,7 +366,7 @@ lacks, for a site that doesn't push the engine itself.
   (sidenotes, wikilinks, transclusion, scores, figures…), `Patterns.hs` the
   content patterns the rules share. `ozymandias.cabal` beside it;
   `cabal.project.freeze`, the dependency set every site builds with.
-- `templates/`, `static/`: the default templates, the CSS and JS, KaTeX,
+- `templates/`, `static/`: the default templates, the CSS and JS,
   link icons and neutral defaults for a site's identity assets; the PDF.js,
   Leaflet, model, transformers.js and Vega downloads land in `static/` too.
 - `tools/`: the build's Python and shell tools, and `tools/browser/`, the

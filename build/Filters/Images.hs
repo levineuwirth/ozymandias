@@ -47,6 +47,7 @@ import qualified Data.Yaml            as Y
 import           Text.Pandoc.Definition
 import qualified Text.Pandoc          as Pandoc
 import           Text.Pandoc.Options  (HTMLMathMethod (..), WriterOptions (..))
+import qualified Filters.Math         as Math
 import           Text.Pandoc.Walk     (walk, walkM)
 import           System.Directory     (doesFileExist)
 import           System.FilePath      (replaceExtension, takeExtension, (</>))
@@ -349,16 +350,13 @@ renderInlinesToHtml ils =
         Right t -> T.strip t
         Left  _ -> esc (U.inlinesText ils)
   where
-    doc = Pandoc mempty [Plain ils]
+    -- This filter runs before the body's 'Filters.Math', so a caption's
+    -- math is written here, as the body's is there.
+    doc = Math.apply (Pandoc mempty [Plain ils])
 
-    -- Matches @Compilers.writerOpts@ (mirrored, not shared: @Compilers@
-    -- imports this module). The default 'HTMLMathMethod' emits @\\(…\\)@
-    -- delimiters around the TeX, but @static\/js\/katex-bootstrap.js@ passes
-    -- each @\<span class="math"\>@'s @textContent@ straight to
-    -- @katex.render@, which wants bare TeX and would try to typeset the
-    -- delimiters. Body math already renders this way; without this a caption
-    -- containing @$…$@ would not.
-    captionWriterOpts = def { writerHTMLMathMethod = KaTeX "" }
+    -- MathML for anything 'Filters.Math' left, as @PandocOptions.writerOpts@
+    -- has it (mirrored, not shared: @Compilers@ imports this module).
+    captionWriterOpts = def { writerHTMLMathMethod = MathML }
 
 attrId :: Text -> Text
 attrId t = if T.null t then "" else " id=\"" <> esc t <> "\""

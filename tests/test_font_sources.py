@@ -65,6 +65,10 @@ class FontSourceTests(unittest.TestCase):
             "neither reserves": ("Copyright 2020 The Authors (https://example.org)", "Copyright 2020 The Face Project Authors",
                                  "Copyright 2020 The Face Project Authors"),
             "they agree": ("Copyright 2020 The Authors", "Copyright 2020 The Authors", "Copyright 2020 The Authors"),
+            # A license with a preamble of its own (the GUST Font License):
+            # the font's notice goes above it, and nothing of it is lost.
+            "not a copyright line": ("% This is a font license.", "Copyright 2014 The Authors",
+                                     "Copyright 2014 The Authors\n\n% This is a font license."),
         }
         family = next(iter(fonts.LICENCES))
         for case, (upstream, own, head) in cases.items():

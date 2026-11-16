@@ -37,9 +37,6 @@ $if(photography-map)$<script src="/leaflet/leaflet.js" defer></script>$endif$
 $if(photography-map)$<script src="/leaflet/leaflet.markercluster.js" defer></script>$endif$
 $if(photography-map)$<script src="$assets$/js/photography-map.js" defer></script>$endif$
 $for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
-$if(math)$
-<script defer src="/katex/katex.min.js"></script>
-<script defer src="$assets$/js/katex-bootstrap.js"></script>
-$endif$
+$if(math)$<script defer src="$assets$/js/math.js"></script>$endif$
 </body>
 </html>

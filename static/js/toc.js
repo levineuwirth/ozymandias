@@ -50,7 +50,7 @@
             mark(id);
             const activeLink = linkMap.get(id);
             /* data-label is the heading as plain text: a link's own text
-               would carry KaTeX's markup for any math in it. */
+               would carry the MathML of any math in it. */
             const text = activeLink ? (activeLink.dataset.label || activeLink.textContent) : pageTitle;
             if (label) label.textContent = text;
             if (mobileLabel) mobileLabel.textContent = text;

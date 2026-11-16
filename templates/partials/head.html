@@ -71,9 +71,7 @@ $if(photography-map)$<link rel="preload" href="/leaflet/leaflet.css" as="style">
 $endif$$for(page-stylesheets)$<link rel="stylesheet" href="$assets$/css/$name$.css">
 $endfor$$for(seasons)$<link rel="stylesheet" href="$assets$$season-stylesheet$" media="screen">
 $endfor$<link rel="stylesheet" href="$assets$/css/print.css" media="print">
-$if(math)$<link rel="preload" href="/katex/katex.min.css" as="style">
-<link rel="stylesheet" href="$assets$/css/modules/katex.css">
-$endif$$if(search)$<link rel="preload" href="/pagefind/pagefind-ui.css" as="style">
+$if(math)$$endif$$if(search)$<link rel="preload" href="/pagefind/pagefind-ui.css" as="style">
 <link rel="stylesheet" href="$assets$/css/modules/pagefind.css">
 $endif$<meta name="ozy:themes" content="$theme-ids$" data-light="$theme-light$"$if(theme-dark)$ data-dark="$theme-dark$"$endif$>
 $for(seasons)$<meta name="ozy:season" content="$season-id$" data-base="$season-base$" data-from="$season-from$" data-to="$season-to$"$if(season-script)$ data-script="$assets$$season-script$"$endif$>

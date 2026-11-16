@@ -1,13 +1,13 @@
 """Vendor stylesheets in the engine's layer, in Chromium and Firefox.
 
-A wrapper in static/css/modules/ (katex.css, leaflet.css, pagefind.css)
+A wrapper in static/css/modules/ (leaflet.css, pagefind.css)
 @imports its vendor's sheets into `@layer engine`, the only way to put a
 stylesheet in a layer unchanged; alone, that request would start only once
 the wrapper arrived. head.html preloads each imported sheet beside the
 wrapper. For each wrapper, on the first built page that links it: held
 unanswered, the wrapper must not hold its vendor sheets back; answered,
-each is imported and was asked for once. (transclude.js's later load of
-katex.css: tests/test_browser_transclude.py.)
+each is imported and was asked for once. (KaTeX had one too, until maths
+became MathML written at build time.)
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_vendor_css -v
 """
@@ -22,7 +22,7 @@ from pathlib import Path
 from tests._browser import (BROWSERS, SITE, check_site, enforcing_csp, imported_beside, require_playwright,
                             requires_browser, site_server)
 
-WRAPPERS = ("katex", "leaflet", "pagefind")
+WRAPPERS = ("leaflet", "pagefind")
 IMPORT = re.compile(r'@import url\("?([^")]+)"?\)\s*layer\(engine\)')
 
 

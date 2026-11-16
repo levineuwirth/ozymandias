@@ -139,6 +139,19 @@ escapeHtmlText = T.concatMap escChar
     escChar '\'' = "&#39;"
     escChar c    = T.singleton c
 
+-- | Raw HTML as text; a formula 'Filters.Math' wrote (one raw inline each)
+--   as its TeX, which the MathML keeps as its annotation, so math reads as
+--   it did before it was written at build time, not as its token text and
+--   TeX run together ("K4K_4").
+mathSource :: T.Text -> T.Text
+mathSource t = case T.breakOn open t of
+    (_, rest) | not (T.null rest) ->
+        unescape (fst (T.breakOn "</annotation>" (T.drop (T.length open) rest)))
+    _ -> T.pack (stripTags (T.unpack t))
+  where
+    open = "<annotation encoding=\"application/x-tex\">"
+    unescape = T.replace "&amp;" "&" . T.replace "&quot;" "\"" . T.replace "&gt;" ">" . T.replace "&lt;" "<"
+
 -- | Inlines as plain text, as a reader sees them: a heading's label in the
 --   TOC, an image's alt text. Quotation marks stay (“consumed” is not
 --   consumed), math keeps its source, and raw HTML keeps its text but not
@@ -163,7 +176,7 @@ inlinesText = T.concat . map go
     go (Cite _ ils)                = inlinesText ils
     go (Code _ t)                  = t
     go (Math _ t)                  = t
-    go (RawInline (Format "html") t) = T.pack (stripTags (T.unpack t))
+    go (RawInline (Format "html") t) = mathSource t
     go (RawInline _ _)             = ""
     go (Link _ ils _)              = inlinesText ils
     go (Image _ ils _)             = inlinesText ils

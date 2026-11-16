@@ -170,7 +170,7 @@
        known reinitialisers (sidenotes, popups, collapse) and then
        dispatches a bubbling `ozy:content-added` CustomEvent on the
        container, with `detail = {container, source}`. Any subsystem that
-       needs to see injected content — KaTeX rendering, code-copy buttons,
+       needs to see injected content — wide formulas, code-copy buttons,
        annotations, lightbox, a site's script — should listen for that
        event rather than growing its own ad hoc hook:
 
@@ -297,19 +297,17 @@
         });
     }
 
-    /* KaTeX loads only on pages whose own body has math (audit X6). A
-       transclusion can bring math to a page that has none: load it then,
-       once. katex-bootstrap.js renders the whole document when it runs,
-       skipping anything already typeset. Without the math switch there is
-       no KaTeX to load. */
+    /* Math arrives drawn (MathML, written at build time), so a
+       transclusion that brings some needs nothing to typeset it. math.js,
+       which only pages with math load, gives an overflowing display
+       formula a tab stop: load it then, once, where the page had none.
+       Without the math switch there is no math. */
     var mathLoading = null;
     function ensureMath(container) {
         if (!switchOn('math')) return;
-        if (mathLoading || typeof global.renderMath === 'function') return;
+        if (mathLoading || global.ozyMath) return;
         if (!container.querySelector('.math') && !container.classList.contains('math')) return;
-        ensureStyle(ASSETS + '/css/modules/katex.css', ['/katex/katex.min.css']);
-        mathLoading = (global.katex ? Promise.resolve() : loadScript('/katex/katex.min.js'))
-            .then(function () { return loadScript(ASSETS + '/js/katex-bootstrap.js'); })
+        mathLoading = loadScript(ASSETS + '/js/math.js')
             .catch(function () { mathLoading = null; });
     }
 

@@ -217,7 +217,7 @@ def hand_copies(css: str) -> list[str]:
 # Engine files that may name themes: the default palette, the fixture
 # site's own stylesheets, the tests, and what is vendored.
 OWN = {"static/css/tokens.css"}
-SKIPPED = ("fixture-site/", "tests/", "static/pdfjs/", "static/leaflet/", "static/katex/",
+SKIPPED = ("fixture-site/", "tests/", "static/pdfjs/", "static/leaflet/",
            "static/js/vendor/", "data/", "dist-newstyle/")
 
 

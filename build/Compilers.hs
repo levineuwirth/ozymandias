@@ -54,7 +54,7 @@ import           EngineFiles                (staticImageDimensions)
 -- ---------------------------------------------------------------------------
 
 -- | A heading's inlines as the body renders them, for its TOC entry: the
---   site's writer, so quotation marks, math (typeset by KaTeX like the
+--   site's writer, so quotation marks, math (MathML like the
 --   body's) and abbreviations come out as they do in the heading itself.
 --   Notes go; a link becomes its text, an anchor cannot hold another; and
 --   a span loses its id, which the heading already has.

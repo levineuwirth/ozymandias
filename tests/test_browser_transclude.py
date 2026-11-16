@@ -15,10 +15,9 @@ the end of its page, renamed with it, so its references still open them
 (the script paired them by a hardcoded id prefix the renaming defeated); and
 what arrives is announced to the page's other scripts, under the name they
 listen for: a code block in a passage gets copy.js's button, which nothing
-else gives it; and math arriving on a page that has none loads KaTeX's
-stylesheet with the KaTeX sheet it imports preloaded beside it, so that
-request does not wait for the first (both were asked for one after the
-other).
+else gives it; and math arriving on a page that has none arrives drawn
+(MathML, written at build time) and asks for math.js, which a wide display
+formula's tab stop needs, and for no stylesheet.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_transclude -v
 """
@@ -29,7 +28,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, imported_beside, page_styles,
+from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, page_styles,
                             require_playwright, requires_browser, site_server)
 from tests._browser import fake_answer as answer
 from tests.target import requires_switch
@@ -93,10 +92,11 @@ CODE_HOST = """<!doctype html>
 </main></body></html>
 """
 
-# A passage with math, and a host page with none: nothing of KaTeX's is
-# loaded until the passage arrives.
+# A passage with math, as the build writes it, and a host page with none.
 MATH_SOURCE = """<!doctype html><html lang="en"><head><title>Math</title></head><body>
-<main id="markdownBody"><p class="from-math">Euler: <span class="math inline">e^{i\\pi} + 1 = 0</span></p>
+<main id="markdownBody"><p class="from-math">Euler: <span class="math inline"><math display="inline" \
+xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msup><mi>e</mi><mrow><mi>i</mi><mi>π</mi></mrow></msup>\
+<mo>+</mo><mn>1</mn><mo>=</mo><mn>0</mn></mrow></math></span></p>
 </main></body></html>
 """
 MATH_HOST = """<!doctype html>
@@ -213,20 +213,28 @@ class Transclusion(unittest.TestCase):
                 self.assertEqual(errors, [])
 
     @requires_switch("math")
-    def test_math_on_a_cold_page_does_not_wait_for_katex_s_stylesheet(self) -> None:
-        # modules/katex.css @imports katex.min.css into the engine's layer.
-        # Held, it must not hold that sheet back: transclude.js preloads it
-        # beside the stylesheet; answered, the sheet is imported, asked for
-        # once, and the passage's math is typeset.
+    def test_math_on_a_cold_page_arrives_drawn(self) -> None:
+        # Nothing typesets it: the passage's MathML is drawn as it lands,
+        # math.js is asked for (once) for wide display formulas, and no
+        # stylesheet is, since the math rules are in every page's.
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 context = self.browsers[browser].new_context()
                 self.addCleanup(context.close)
-                page = imported_beside(self, context, self.base + "/__fixture/math-host.html",
-                                       "/css/modules/katex.css", ["/katex/katex.min.css"])
-                errors = []
+                page = context.new_page()
+                asked, errors = [], []
+                page.on("request", lambda r: asked.append(r.url))
                 page.on("pageerror", lambda e: errors.append(str(e)))
-                self.expect(page.locator("#t-math .from-math .katex")).to_have_count(1)
+                page.goto(self.base + "/__fixture/math-host.html", wait_until="load")
+                formula = page.locator("#t-math .from-math math")
+                self.expect(formula).to_be_visible()
+                self.assertGreater(formula.bounding_box()["width"], 20)
+                for _ in range(50):
+                    if any(u.endswith("/js/math.js") for u in asked):
+                        break
+                    page.wait_for_timeout(100)
+                self.assertEqual(sum(u.endswith("/js/math.js") for u in asked), 1)
+                self.assertFalse([u for u in asked if u.endswith(".css")])
                 self.assertEqual(errors, [])
 
     def test_a_transcluded_section_brings_its_notes(self) -> None:

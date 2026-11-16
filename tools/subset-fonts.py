@@ -87,7 +87,7 @@ def site_or_engine(rel: str) -> Path:
 
 FAMILIES = CONFIG["families"]
 # (family, source URL, output, features, extra unicodes, wght instance)
-FONTS = [(family, source(src), out, spec["features"], spec.get("unicodes", ""), spec.get("weight"))
+FONTS = [(family, source(src), out, spec.get("features", ""), spec.get("unicodes", ""), spec.get("weight"))
          for family, spec in FAMILIES.items() for src, out in spec["faces"]]
 # family -> (notice written beside the subsets, upstream licence text)
 LICENCES = {family: (spec["license"][0], source(spec["license"][1]))
@@ -194,7 +194,7 @@ def build(family, url, out, features, extra, wght) -> str:
     if wght is not None:
         font = instancer.instantiateVariableFont(font, {"wght": wght})
     options = subset.Options()
-    options.layout_features = features.split(",")
+    options.layout_features = features.split(",")   # "*": every feature (a math font's ssty)
     options.name_IDs = ["*"]
     options.hinting = False
     options.desubroutinize = True
@@ -204,6 +204,11 @@ def build(family, url, out, features, extra, wght) -> str:
     sub.subset(font)
     if family in RENAME:
         rename(font, *RENAME[family])
+    return package(family, font, out, notice)
+
+
+def package(family, font, out, notice) -> str:
+    """Write a font as WOFF2 and check what it must cover; return its notice."""
     dest = OUT / out
     before = dest.stat().st_size if dest.is_file() else 0
     font.flavor = "woff2"          # Options.flavor is the CLI's; the API saves the font's own
@@ -225,13 +230,22 @@ def write_licence(family: str, notice: str) -> None:
     Font Name that 4.301's name table still declares, and the font is what
     is shipped. Where only the upstream text declares one (IBM Plex: the
     font's own record is a bare copyright line), the upstream text stands:
-    whichever notice reserves a name is the one a reader must be shown."""
+    whichever notice reserves a name is the one a reader must be shown. A
+    text that does not open with a copyright line keeps it, under the
+    font's notice."""
     name, url = LICENCES[family]
     text = fetch(url).decode("utf-8").replace("\r\n", "\n")
     head, sep, body = text.partition("\n\n")
     if head.strip() != notice:
         if RESERVES in head and RESERVES not in notice:
             print(f"  {name}: upstream notice kept: it reserves a name, the font's own does not")
+        elif not any(w in head.lstrip().split("\n", 1)[0].lower() for w in ("copyright", "©")):
+            # Not an OFL text headed by a copyright line ("Copyright …",
+            # bBox's "Digitized data copyright …"; the GUST Font License
+            # opens with its own preamble): the font's notice goes above it,
+            # and the license text stays whole.
+            print(f"  {name}: the font's notice above the upstream text")
+            text = notice + "\n\n" + text
         else:
             print(f"  {name}: notice taken from the font, not the upstream text")
             text = notice + sep + body

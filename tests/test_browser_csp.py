@@ -182,11 +182,10 @@ class CspSweep(unittest.TestCase):
                 continue  # features_err, reported by test_every_route_loads
             with self.subTest(browser=browser, route=route):
                 self.assertEqual(f["imgs_broken"], [])
-                self.assertEqual(f["katex_err"], 0)
                 if math:
-                    self.assertGreaterEqual(f["katex"], f["math_raw"], "math left unrendered")
+                    self.assertEqual(f["math_drawn"], f["math_raw"], "math left as TeX")
                 else:
-                    self.assertEqual((f["katex"], f["math_raw"], f["katex_css"]), (0, 0, False),
+                    self.assertEqual((f["math_drawn"], f["math_raw"]), (0, 0),
                                      "math on a site without the switch")
                 if transclusion:
                     self.assertEqual(f["transclude_unfilled"], 0)
@@ -272,7 +271,7 @@ class CspSweep(unittest.TestCase):
                     self.assertTrue(loaded and all("transclude--loaded" in c for c in loaded), loaded)
             for route in probe("math"):
                 with check("math", route):
-                    self.assertGreater(got[route]["katex"], 0)
+                    self.assertGreater(got[route]["math_drawn"], 0)
 
 
 if __name__ == "__main__":

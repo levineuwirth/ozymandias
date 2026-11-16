@@ -54,11 +54,13 @@ music:
 math:
   kind: capability
   default: false
-  assets: [css/modules/katex.css, katex/**, js/katex-bootstrap.js, licenses/KaTeX-MIT.txt]
+  assets: [js/math.js]
   about: >-
     TeX math: Markdown's $ and $$ read as math (PandocOptions.withMath, in
-    every reader of a page, an abstract or a caption) and typeset by the
-    self-hosted KaTeX the pages that have math load. Without it a $ is text.
+    every reader of a page, an abstract or a caption) and written as MathML
+    at build time (Filters.Math), which the browser draws in the site's
+    --font-math; math.js, on pages with math, gives a display formula too
+    wide for the column a tab stop. Without it a $ is text.
 
 code:
   kind: capability

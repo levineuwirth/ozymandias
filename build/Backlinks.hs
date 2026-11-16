@@ -48,13 +48,14 @@ import           Text.Pandoc.Class          (runPure)
 import           Text.Pandoc.Writers        (writeHtml5String)
 import           Text.Pandoc.Definition     (Block (..), Inline (..), Pandoc (..),
                                              nullMeta)
-import           Text.Pandoc.Options        (WriterOptions (..), HTMLMathMethod (..))
+import           Text.Pandoc.Options        (WriterOptions (..))
 import           Text.Pandoc.Walk           (query, walk)
 import           Hakyll
 import           Config                     (SiteConfig, loadConfig, switchOn)
 import           PandocOptions              (withMath)
 import           Compilers                  (readerOpts, writerOpts)
 import           Filters                    (preprocessSource)
+import qualified Filters.Math               as Math
 import qualified Patterns                   as P
 import           ArchiveIndex               (archiveSlugFor)
 import           Utils                      (canonicalUrlPath)
@@ -122,29 +123,14 @@ instance Aeson.FromJSON BacklinkSource where
 -- ---------------------------------------------------------------------------
 
 -- | Minimal writer options for rendering paragraph context: no template
--- (fragment only) and the site's own math method, so a quoted sentence
--- typesets exactly like the same sentence on its source page.
---
--- This used to be 'PlainMath', on the reasoning that an excerpt is a
--- preview and KaTeX might not be loaded on the target page. Both halves
--- were wrong. 'PlainMath' converts what it can to Unicode and re-emits
--- everything else as its literal TeX *with the @$@ delimiters kept*,
--- still wearing @class="math"@ — and @static\/js\/katex-bootstrap.js@
--- renders every @.math@ element from its @textContent@. So a preview
--- quoting @$c(H)\\le C\\sqrt N$@ handed KaTeX a string beginning with a
--- dollar sign, which it rejected and (@throwOnError: false@) painted red
--- in the footer of an otherwise finished page. The KaTeX method emits
--- bare LaTeX with no delimiters, which is exactly what that bootstrap
--- expects, so the quote and the @¶@ full-paragraph popup both typeset.
---
--- Loading: every template that renders @$backlinks$@ sets @math@ through
--- 'Contexts.essayCtx' (essay, reading, composition; the commonplace page
--- has no backlinks field at all). The one surface outside that set is the
--- archive page's @$referenced-by$@, which 'backlinkMathField' covers.
+-- (fragment only), and its math is written by 'Filters.Math' before the
+-- writer sees it, so a quoted sentence's MathML is the same as on its
+-- source page, and needs nothing loaded on the page that quotes it.
+-- (It was once 'PlainMath', which kept the @$@ delimiters in a
+-- @class="math"@ span, and then KaTeX's bare TeX for a script to typeset.)
 contextWriterOpts :: WriterOptions
 contextWriterOpts = writerOpts
-    { writerTemplate       = Nothing
-    , writerHTMLMathMethod = KaTeX ""
+    { writerTemplate = Nothing
     }
 
 -- ---------------------------------------------------------------------------
@@ -192,7 +178,7 @@ renderInlines inlines =
         Left  _   -> ""
         Right txt -> T.unpack txt
   where
-    doc = Pandoc nullMeta [Plain (walk quoteable inlines)]
+    doc = Math.apply (Pandoc nullMeta [Plain (walk quoteable inlines)])
     quoteable :: [Inline] -> [Inline]
     quoteable = concatMap one
     one (Cite _ _) = [Str "[\8230]"]
@@ -440,16 +426,13 @@ referencedByField = backlinksFieldWith renderReferencedBy "referenced-by"
 
 -- | @$math$@ for a page whose only math arrives through a backlink context.
 --
--- 'contextWriterOpts' emits quoted math the way the rest of the site does:
--- bare LaTeX in a @class="math"@ span, typeset at runtime by
--- @static\/js\/katex-bootstrap.js@. That script and the KaTeX stylesheet are
--- both behind @$if(math)$@, and every template carrying @$backlinks$@ gets
--- @math@ from 'Contexts.essayCtx'. The archive page does not: it renders
--- @$referenced-by$@ off a bare 'siteCtx', so a citing sentence containing
--- math would otherwise show its LaTeX source. This field sets the flag for
--- exactly those pages, mirroring the @needsKatex@ guards the bibliography
--- routes already use in 'Site.rules', and returns 'noResult' otherwise so a
--- math-free archive page keeps loading no typesetter.
+-- 'contextWriterOpts' writes quoted math as the rest of the site does,
+-- MathML in a @class="math"@ span ('Filters.Math'). The page needs
+-- @static\/js\/math.js@ only for an overflowing display formula's tab
+-- stop, behind @$if(math)$@, which every template carrying @$backlinks$@
+-- gets from 'Contexts.essayCtx'. The archive page renders
+-- @$referenced-by$@ off a bare 'siteCtx': this field sets the flag there
+-- when a citing sentence has math, and returns 'noResult' otherwise.
 backlinkMathField :: Context String
 backlinkMathField = field "math" $ \item -> do
     sources <- footerEntries "backlinks" item
@@ -544,9 +527,8 @@ fragmentLabel frag =
 -- The disclosure is plain @<details>/<summary>@, the same construct the
 -- version-history "More" list uses: it needs no JavaScript, it is
 -- keyboard-operable and announced by screen readers for free, and its
--- contents stay in the DOM while closed — which is what lets
--- @katex-bootstrap.js@ typeset the math in a hidden mention on load, and
--- lets in-page search find it.
+-- contents stay in the DOM while closed — which lets in-page search find
+-- it.
 --
 -- 'blSentence' / 'blParagraph' are already HTML fragments from the Pandoc
 -- writer, so they are emitted unescaped.

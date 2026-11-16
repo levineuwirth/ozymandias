@@ -123,7 +123,7 @@
             } else {
                 reveal();
                 // Animate: transition 0 → scrollHeight, then release to 'none'
-                // in transitionend so late-rendering content (e.g. KaTeX) is
+                // in transitionend so late-rendering content (e.g. images) is
                 // never clipped. No animation: go straight to 'none'.
                 wrapper.style.maxHeight = animate
                     ? wrapper.scrollHeight + 'px'
@@ -168,7 +168,7 @@
         });
 
         // After open animation: release the height cap so late-rendering
-        // content (KaTeX, images) is never clipped.
+        // content (images, fonts) is never clipped.
         // After close animation: cap is already 0, nothing to do.
         // Also retrigger sidenote layout after each transition.
         wrapper.addEventListener('transitionend', function (e) {

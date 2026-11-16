@@ -3,7 +3,7 @@
 gallery.js wraps each display equation of an essay and gives it an
 expand control; the overlay shows one equation at a time, large, steps
 through them all, and returns focus where it came from. Run on a built
-essay with many display equations (rendered by KaTeX in the page), the
+essay with many display equations (MathML, written at build time), the
 site's `essay-gallery`; a site without the math switch has none.
 
 Checked: one named button per equation and the equation itself left as
@@ -63,7 +63,7 @@ class Gallery(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open(browser)
-                n = page.locator(".katex-display").count()
+                n = page.locator(".math.display").count()
                 self.assertGreater(n, 5)
                 buttons = page.locator(".math-focusable > button.exhibit-expand-btn")
                 self.expect(buttons).to_have_count(n)
@@ -73,20 +73,20 @@ class Gallery(unittest.TestCase):
                 self.assertEqual(len(set(labels)), n)
                 # The equation itself is not a control.
                 self.expect(page.locator(".math-focusable[role], .math-focusable[tabindex], "
-                                         ".katex-display[role=button]")).to_have_count(0)
+                                         ".math.display[role=button]")).to_have_count(0)
 
     def test_overlay_by_keyboard(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open(browser)
-                n = page.locator(".katex-display").count()
+                n = page.locator(".math.display").count()
                 first = page.locator(".math-focusable > button.exhibit-expand-btn").first
                 first.focus()
                 page.keyboard.press("Enter")
                 overlay = page.locator(OVERLAY)
                 self.expect(overlay).to_be_visible()
                 self.expect(overlay).to_have_attribute("aria-modal", "true")
-                self.expect(page.locator(f"{OVERLAY} .katex").first).to_be_visible()
+                self.expect(page.locator(f"{OVERLAY} math").first).to_be_visible()
                 counter = page.locator("#gallery-overlay-counter")
                 self.expect(counter).to_have_text(f"1 / {n}")
                 page.keyboard.press("ArrowRight")
@@ -108,7 +108,7 @@ class Gallery(unittest.TestCase):
                 page = self.open(browser)
                 second = page.locator(".math-focusable").nth(1)
                 second.scroll_into_view_if_needed()
-                second.locator(".katex-display").click()
+                second.locator(".math.display").click()
                 self.expect(page.locator(OVERLAY)).to_be_visible()
                 self.expect(page.locator("#gallery-overlay-counter")).to_have_text(re.compile(r"^2 / \d+$"))
                 page.click(f"{OVERLAY} [aria-label=Close]")

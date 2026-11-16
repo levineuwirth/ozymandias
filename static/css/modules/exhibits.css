@@ -16,7 +16,7 @@
 
 /* ============================================================
    MATH FOCUSABLE
-   Wrapper injected around every .katex-display by gallery.js.
+   Wrapper injected around every display formula (.math.display) by gallery.js.
    Clicking anywhere on the wrapper opens the overlay.
    ============================================================ */
 
@@ -157,7 +157,7 @@
 }
 
 
-#gallery-overlay-body .katex-display {
+#gallery-overlay-body .math.display > math {
     /* font-size is set entirely by JS after measuring — no CSS value here */
     overflow-x: hidden;
     margin: 0;

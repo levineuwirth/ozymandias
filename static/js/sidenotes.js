@@ -211,7 +211,7 @@
     /* The positions follow the laid-out text, which keeps moving after
        DOMContentLoaded: web fonts swap in (on a cold load notes ended up to
        725 px from their marks, some overlapping; audit J03), images and
-       KaTeX arrive, sections collapse, transclusions land. Whatever asks,
+       the math face arrive, sections collapse, transclusions land. Whatever asks,
        one pass per frame. */
     let frame = 0;
     function schedulePosition() {

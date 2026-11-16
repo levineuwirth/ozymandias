@@ -104,7 +104,7 @@ def music_off(site: Path) -> None:
 
 def math_on(site: Path) -> None:
     essay = text(site, CAPABILITIES)
-    for mark in ('class="math inline"', 'class="math display"', "/css/modules/katex.css", "/katex/katex.min.js"):
+    for mark in ('class="math inline"', 'class="math display"', "/js/math.js", "<math"):
         assert mark in essay, f"the essay's math has no {mark}"
     assert "<math" in essay, "the essay's abstract has no MathML"
     captions = "".join(captions_of(essay))
@@ -115,7 +115,7 @@ def math_on(site: Path) -> None:
 
 def math_off(site: Path) -> None:
     marked = {mark: [p.name for p in pages(site) if mark in p.read_text(encoding="utf-8")]
-              for mark in ('class="math', "/katex/", "/css/modules/katex.css", "<math")}
+              for mark in ('class="math', "/js/math.js", "<math")}
     assert not any(marked.values()), f"math on pages: {marked}"
     if (site / "_site" / CAPABILITIES).is_file():
         essay = text(site, CAPABILITIES)
