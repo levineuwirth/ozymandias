@@ -216,17 +216,25 @@ def build(family, url, out, features, extra, wght) -> str:
     return notice
 
 
+RESERVES = "Reserved Font Name"
+
+
 def write_licence(family: str, notice: str) -> None:
     """The upstream OFL.txt, headed by the copyright notice the font itself
     carries. They differ for Fira Sans: bBox's OFL.txt drops the Reserved
     Font Name that 4.301's name table still declares, and the font is what
-    is shipped."""
+    is shipped. Where only the upstream text declares one (IBM Plex: the
+    font's own record is a bare copyright line), the upstream text stands:
+    whichever notice reserves a name is the one a reader must be shown."""
     name, url = LICENCES[family]
     text = fetch(url).decode("utf-8").replace("\r\n", "\n")
     head, sep, body = text.partition("\n\n")
     if head.strip() != notice:
-        print(f"  {name}: notice taken from the font, not the upstream text")
-        text = notice + sep + body
+        if RESERVES in head and RESERVES not in notice:
+            print(f"  {name}: upstream notice kept: it reserves a name, the font's own does not")
+        else:
+            print(f"  {name}: notice taken from the font, not the upstream text")
+            text = notice + sep + body
     (OUT / name).write_text(text, encoding="utf-8")
 
 

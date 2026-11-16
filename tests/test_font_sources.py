@@ -53,6 +53,27 @@ class FontSourceTests(unittest.TestCase):
                     fonts.fetch("fonts/source/a.otf")
             self.assertFalse(any(Path(cache).rglob("*")), "a file in the site is not cached")
 
+    def test_the_notice_that_reserves_a_name_heads_the_license(self):
+        body = "This Font Software is licensed under the SIL Open Font License, Version 1.1.\n"
+        cases = {
+            # bBox's text drops the name the font's own record reserves: the font's stands.
+            "the font reserves": ("Copyright 2012, A Foundry", 'Copyright 2012, A Foundry, with Reserved Font Name "Face"',
+                                  'Copyright 2012, A Foundry, with Reserved Font Name "Face"'),
+            # IBM's text reserves a name the font's bare copyright line omits: the text stands.
+            "the text reserves": ('Copyright 2017 A Corp. with Reserved Font Name "Face"\r\n', "Copyright 2017 A Corp. All rights reserved.",
+                                  'Copyright 2017 A Corp. with Reserved Font Name "Face"'),
+            "neither reserves": ("Copyright 2020 The Authors (https://example.org)", "Copyright 2020 The Face Project Authors",
+                                 "Copyright 2020 The Face Project Authors"),
+            "they agree": ("Copyright 2020 The Authors", "Copyright 2020 The Authors", "Copyright 2020 The Authors"),
+        }
+        family = next(iter(fonts.LICENCES))
+        for case, (upstream, own, head) in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp, patch.object(fonts, "OUT", Path(tmp)), \
+                    patch.object(fonts, "fetch", return_value=(upstream.rstrip() + "\n\n" + body).encode()), \
+                    patch.dict(fonts.LICENCES, {family: ("OFL-Face.txt", "https://fonts.example/OFL.txt")}):
+                fonts.write_licence(family, own)
+                self.assertEqual((Path(tmp) / "OFL-Face.txt").read_text(encoding="utf-8"), head + "\n\n" + body)
+
     def test_corrupt_download_is_not_cached(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(fonts, "CACHE", Path(tmp)):
             with patch.object(fonts.urllib.request, "urlopen", return_value=io.BytesIO(b"truncated")):
