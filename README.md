@@ -77,8 +77,8 @@ than interleave writes, and `LOCK_TIMEOUT=<seconds>` makes it wait.
 
 **Requirements:** GHC and `cabal`; `pagefind` on `PATH`; `python3` with
 PyYAML, `git`, `curl`, `unzip` and `sha256sum` (the build vendors PDF.js,
-Leaflet and the search model through `tools/download-*.sh`, against pinned
-SHA-256 sums); `flock`. Optional: `uv` (for `make venv`), `cwebp` (WebP
+Leaflet, the search model, transformers.js and Vega through
+`tools/download-*.sh`, against pinned SHA-256 sums); `flock`. Optional: `uv` (for `make venv`), `cwebp` (WebP
 companions), `pdftoppm` (PDF thumbnails). Signing needs `gpg`.
 
 ## `site.yaml`
@@ -352,7 +352,9 @@ lacks, for a site that doesn't push the engine itself.
   (`pyproject.toml`, `uv.lock`); the environment is the site's `.venv`.
   After editing `engine/pyproject.toml`, re-lock with `uv lock --project engine`.
 - **Semantic search:** `make download-model` fetches the quantized model
-  `static/js/semantic-search.js` uses.
+  `static/js/semantic-search.js` uses, and `make download-libraries` the
+  transformers.js library and ONNX runtime it runs the model in (and Vega,
+  for `viz`), so neither search nor a figure asks another host for code.
 - **Images:** `tools/convert-images.sh` writes a `.webp` beside every JPEG
   and PNG, with `cwebp`; without it the build warns and images fall back.
 - **PDF thumbnails:** `make pdf-thumbs`, with `pdftoppm`.
@@ -366,7 +368,7 @@ lacks, for a site that doesn't push the engine itself.
   `cabal.project.freeze`, the dependency set every site builds with.
 - `templates/`, `static/`: the default templates, the CSS and JS, KaTeX,
   link icons and neutral defaults for a site's identity assets; the PDF.js,
-  Leaflet and model downloads land in `static/` too.
+  Leaflet, model, transformers.js and Vega downloads land in `static/` too.
 - `tools/`: the build's Python and shell tools, and `tools/browser/`, the
   browser test harness.
 - `tests/`: the engine's tests, golden pages and fixtures; `fixture-site/`,

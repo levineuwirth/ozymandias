@@ -143,9 +143,9 @@ def code_off(site: Path) -> None:
 
 
 # What viz puts on a page: its two kinds of figure, and on a page that sets
-# `viz: true` Vega (from its CDN) and viz.js; its stylesheet, by tag or in a
+# `viz: true` Vega (vendored under /vega/) and viz.js; its stylesheet, by tag or in a
 # bundle, apart.
-VIZ_MARKS = ('class="viz-figure"', 'class="viz-interactive"', "/js/viz.js", "cdn.jsdelivr.net/npm/vega")
+VIZ_MARKS = ('class="viz-figure"', 'class="viz-interactive"', "/js/viz.js", "/vega/vega.min.js")
 VIZ_CSS = "css/modules/viz.css"
 
 

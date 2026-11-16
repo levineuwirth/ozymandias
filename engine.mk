@@ -7,7 +7,7 @@
 #
 # and adds its own targets, its deploy among them.
 
-.PHONY: build build-locked engine-committed engine-published sign stamp-build-time download-model download-pdfjs download-leaflet compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
+.PHONY: build build-locked engine-committed engine-published sign stamp-build-time download-model download-pdfjs download-leaflet download-libraries compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
 .DEFAULT_GOAL := build
 
 # Prerequisite orders (deploy: build -> sign; deploy-clean: clean ->
@@ -205,6 +205,10 @@ build-locked: engine-committed
 	@$(MAKE) -s pdf-thumbs
 	@$(call with_switch,pdf-viewer,$(call tool,download-pdfjs.sh))
 	@$(call with_switch,photography,$(call tool,download-leaflet.sh))
+	# The browser libraries once loaded from jsDelivr, served from this
+	# origin like the two above (engine/static/transformers/, vega/).
+	@$(call with_switch,semantic-search,$(call tool,download-libraries.sh) transformers >/dev/null)
+	@$(call with_switch,viz,$(call tool,download-libraries.sh) vega >/dev/null)
 	# The semantic-search model (engine/static/models/, gitignored), like the two
 	# above: without it the deploy's rsync --delete would remove the
 	# published model (audit D07). Skips present files after re-checking
@@ -372,6 +376,14 @@ download-pdfjs:
 # against engine/tools/leaflet-checksums.sha256.
 download-leaflet:
 	@$(call with_switch,photography,$(call tool,download-leaflet.sh))
+
+# Vendor transformers.js with its ONNX runtime (semantic search) and Vega
+# (interactive figures) into engine/static/transformers/ and vega/. Runs as
+# part of `build`. Files are gitignored; sha256-verified against
+# engine/tools/library-checksums.sha256.
+download-libraries:
+	@$(call with_switch,semantic-search,$(call tool,download-libraries.sh) transformers)
+	@$(call with_switch,viz,$(call tool,download-libraries.sh) vega)
 
 # Generate .gz and .br sidecars for compressible text assets in _site/.
 # Runs automatically as part of `build`. Pairs with `gzip_static` /

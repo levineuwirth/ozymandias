@@ -1,7 +1,7 @@
 """Semantic search on /search.html, in Chromium and Firefox, with its model
 and index faked.
 
-static/js/semantic-search.js imports transformers.js from jsDelivr, embeds
+static/js/semantic-search.js imports transformers.js from /transformers/, embeds
 the query with a ~23 MB model, and ranks the paragraphs of
 /data/semantic-index.bin by cosine similarity. Here the import is answered
 with a small module whose pipeline() maps a query such as "e0" or "e0+e1"
@@ -40,7 +40,8 @@ from tests._browser import fake_answer as answer
 from tests.target import requires_switch
 
 DIM = 384
-CDN = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
+# The library, served from this origin (tools/download-libraries.sh).
+LIBRARY = "/transformers/transformers.min.js"
 
 # pipeline() as transformers.js 2.x shapes it, configured by window.__fakeModel:
 #   progress: progress events to report before loading, progressMs apart
@@ -48,10 +49,11 @@ CDN = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
 FAKE_TRANSFORMERS = """
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const cfg = () => window.__fakeModel || {};
-export const env = {};
+export const env = {backends: {onnx: {wasm: {}}}};
 export async function pipeline(task, model, opts) {
   window.__fakeLoads = (window.__fakeLoads || []).concat([{task, model, quantized: opts.quantized,
-      localModelPath: env.localModelPath, allowRemoteModels: env.allowRemoteModels}]);
+      localModelPath: env.localModelPath, allowRemoteModels: env.allowRemoteModels,
+      wasmPaths: env.backends.onnx.wasm.wasmPaths, numThreads: env.backends.onnx.wasm.numThreads}]);
   for (const p of (cfg().progress || [])) { await sleep(cfg().progressMs || 150); opts.progress_callback(p); }
   if (cfg().failLoad) throw new Error('fake: the model would not load');
   window.__fakeEmbeds = [];
@@ -102,8 +104,8 @@ EPISTEMIC = {key(k): {"status": "Draft" if k < 3 else "Durable", "importance": s
 ARCHIVE = {key(10): {"status": "live"}, key(11): {"status": "rotted"}}
 
 ROUTES = {
-    # A retry after a failed import asks for CDN?retry=n (see loadModel).
-    "cdn":       "^" + re.escape(CDN) + r"(?:\?retry=\d+)?$",
+    # A retry after a failed import asks for LIBRARY?retry=n (see loadModel).
+    "cdn":       re.escape(LIBRARY) + r"(?:\?retry=\d+)?$",
     "index":     r"/data/semantic-index\.bin$",
     "meta":      r"/data/semantic-meta\.json$",
     "epistemic": r"/data/epistemic-meta\.json$",
@@ -162,7 +164,8 @@ class SemanticSearch(unittest.TestCase):
         context.add_init_script(script)
         net = FakeNetwork(context, self.base, ROUTES, ANSWERS,
                           local=r"data/(?:semantic-index\.bin|semantic-meta\.json"
-                                r"|epistemic-meta\.json|archive-meta\.json)$")
+                                r"|epistemic-meta\.json|archive-meta\.json)$"
+                                r"|transformers/transformers\.min\.js(?:\?retry=\d+)?$")
         net.answers.update(answers)
         page = context.new_page()
         errors = []
@@ -208,10 +211,12 @@ class SemanticSearch(unittest.TestCase):
                 # One aggregate percentage over every file: 5/20, then 5/40, then 25/40.
                 self.assertEqual([m for m in said if m == FIRST_USE or "%" in m],
                                  [FIRST_USE, pct.format(25), pct.format(12), pct.format(50)])
-                # The model is the self-hosted one, never fetched from a hub.
+                # The model is the self-hosted one, never fetched from a hub,
+                # and so is the runtime: one thread, from this origin.
                 self.assertEqual(page.evaluate("window.__fakeLoads"), [{
                     "task": "feature-extraction", "model": "all-MiniLM-L6-v2", "quantized": True,
-                    "localModelPath": "/models/", "allowRemoteModels": False}])
+                    "localModelPath": "/models/", "allowRemoteModels": False,
+                    "wasmPaths": "/transformers/", "numThreads": 1}])
                 # A heading unlike the title is shown after it; results link to their pages.
                 first = page.locator(".semantic-result").first
                 self.expect(first.locator(".semantic-result-heading")).to_have_text("§ Section 0")
@@ -324,7 +329,7 @@ class SemanticSearch(unittest.TestCase):
                         # Chromium remembers a failed module fetch for the
                         # page's life: the retry has to ask for another URL.
                         self.assertEqual([r.url for r in net.requests["cdn"]],
-                                         [CDN, CDN + "?retry=1"])
+                                         [self.base + LIBRARY, self.base + LIBRARY + "?retry=1"])
 
     def test_keyword_instead(self) -> None:
         for browser in BROWSERS:

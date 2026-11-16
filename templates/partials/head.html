@@ -81,30 +81,13 @@ $endfor$$for(reader-settings)$<meta name="ozy:setting" content="$setting-id$" da
 $endfor$<script src="$assets$/js/utils.js"></script>
 <script src="$assets$/js/theme.js"></script>
 $if(switch-viz)$$if(viz)$
-<!-- Pinned to exact versions with Subresource Integrity (audit S08). The old
-     @5 / @5 / @6 major-range URLs let jsDelivr ship new code into every visitor
-     without a commit, a rebuild, or any way to notice afterwards. These three
-     pins are the same bytes those ranges resolved to when they were taken, so
-     the pin changed nothing visible; from here a CDN swap fails the integrity
-     check and the figure simply does not render, rather than running.
-
-     Kept on the 5/5/6 line deliberately: vega 6 / vega-lite 6 / vega-embed 7
-     exist, but that is a spec migration for every authored figure, not a pin.
-
-     To update: bump the version in each URL below, then recompute that file's
-     hash and paste it after "sha384-" in the same tag. One line per file --
-     no shell variables, because Hakyll interpolates a dollar sign anywhere in
-     this template, comments included:
-
-       curl -sSL <url> | openssl dgst -sha384 -binary | openssl base64 -A
-
-     Then reload a page carrying a figure and confirm it still draws: a wrong
-     hash is silent except in the browser console. crossorigin="anonymous" is
-     required for SRI to be checked at all (jsDelivr answers
-     Access-Control-Allow-Origin: *). -->
-<script src="https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js" integrity="sha384-NMXhl2TbCXxcN7o4ROC56Funm78m4AylL8gMg/7Kn4YU+wrm23K9l7cY8lDRXQ9d" crossorigin="anonymous" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js" integrity="sha384-D9LYH0esGjcxQJsBuxOuXtCDJGXRWW1+KhluzWPqi0rLJmiR/ygPChefaD+rFFDQ" crossorigin="anonymous" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js" integrity="sha384-M+Ax7e/WFJpxSOF09HzI+Sj4wg9ottVd/uxmV2ItGGh02fLH28t2FAOJx3TJBap5" crossorigin="anonymous" defer></script>
+<!-- Vega, Vega-Lite and Vega-Embed from this origin: tools/download-libraries.sh
+     vendors the pinned versions into static/vega/, checked against their SHA-256
+     (they were loaded from jsDelivr, pinned with Subresource Integrity, until
+     the self-hosting pass). -->
+<script src="/vega/vega.min.js" defer></script>
+<script src="/vega/vega-lite.min.js" defer></script>
+<script src="/vega/vega-embed.min.js" defer></script>
 <script src="$assets$/js/viz.js" defer></script>
 $endif$$endif$
 $if(list-page)$<script src="$assets$/js/list-pagination.js" defer></script>$endif$

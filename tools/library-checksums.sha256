@@ -1,0 +1,10 @@
+# Pinned SHA-256 hashes for the browser libraries vendored by
+# tools/download-libraries.sh. Bumping a version: change it there, re-run
+# with ALLOW_UNPINNED=1, then update this file.
+# Format: <sha256>  <pin-key>
+bcf7cf304e51f470ed59409622b9d6ffbad80dfcf5baf6a40c919e4b9c4ff812  transformers-2.17.2-transformers.min.js
+9bd07bababc65f53d061f457233eeae501be7ceb8a2adb9eef52d87fe776d865  transformers-2.17.2-ort-wasm-simd.wasm
+bbdcb6b3c7d294577d806077630460be4e13ca35a345acb5e81188e9649fa74a  transformers-2.17.2-ort-wasm.wasm
+463f3db6a40b20e9747b4ed38f37ed0add508838f9141b1cf8366784b07b30c8  vega-5.33.1-vega.min.js
+58c27358e26f2d319cf62f45bc17a4c8362f08645001df2ec8d341eee4097c7f  vega-lite-5.23.0-vega-lite.min.js
+12d02acfbe3ec59ef9a37dd4822a2e04e2961b5bbb671bbe661d2221715b99da  vega-embed-6.29.0-vega-embed.min.js

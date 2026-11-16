@@ -202,8 +202,8 @@ class KeywordSearch(unittest.TestCase):
                 context = self.browsers[browser].new_context()
                 self.addCleanup(context.close)
                 net = FakeNetwork(context, self.base, {"pagefind-ui": r"/pagefind/pagefind-ui\.js$",
-                                                       "cdn": r"^https://cdn\.jsdelivr\.net/"},
-                                  missing, local=r"pagefind/pagefind-ui\.js$")
+                                                       "cdn": r"/transformers/"},
+                                  missing, local=r"pagefind/pagefind-ui\.js$|transformers/")
                 page = context.new_page()
                 errors = []
                 page.on("pageerror", lambda e: errors.append(str(e)))

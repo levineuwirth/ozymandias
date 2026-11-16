@@ -98,8 +98,7 @@ EXPECTED_VIOLATIONS = {
     # it; WebAssembly ('wasm-unsafe-eval') is all semantic search needs
     # (nginx/security-headers.conf).
     "search": lambda v: (v.get("effective") == "script-src" and v.get("blocked") == "eval"
-                         and (v.get("source") or "").startswith(
-                             "https://cdn.jsdelivr.net/npm/@xenova/transformers@")),
+                         and "/transformers/transformers.min.js" in (v.get("source") or "")),
 }
 
 

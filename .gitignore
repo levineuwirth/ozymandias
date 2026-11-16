@@ -18,6 +18,8 @@ dist-newstyle/
 # axe-version.
 /static/pdfjs/
 /static/leaflet/
+/static/transformers/
+/static/vega/
 /static/models/
 /tools/browser/axe.min.js
 

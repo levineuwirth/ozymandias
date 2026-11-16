@@ -72,11 +72,11 @@ code:
 viz:
   kind: capability
   default: false
-  assets: [js/viz.js, css/modules/viz.css]
+  assets: [js/viz.js, css/modules/viz.css, vega/**]
   about: >-
     Figures drawn by Python scripts (Filters.Viz): a .figure's SVG and a
     .visualization's Vega-Lite spec, which a page with `viz: true` loads
-    Vega and viz.js to render; viz.css, which every page loads; the figure
+    Vega (static/vega/, which the build downloads) and viz.js to render; viz.css, which every page loads; the figure
     theme (tools/viz_theme.py) as a build dependency; and make's
     viz-provenance, viz-provenance-check (in validate) and audit-viz.
 
@@ -318,12 +318,13 @@ semantic-search:
   kind: interface
   default: false
   needs: [similar-links]
-  assets: [js/semantic-search.js, models/**]
+  assets: [js/semantic-search.js, models/**, transformers/**]
   about: >-
     Search by meaning on the search page: semantic-search.js, which also
     runs the page's tabs (their markup is the site's, in content/search.md),
     the index embed.py writes in the similar-links pass (data/semantic-index.bin,
-    semantic-meta.json), and the model make download-model fetches.
+    semantic-meta.json), the model make download-model fetches, and
+    transformers.js with its runtime (static/transformers/, also downloaded).
 
 reading-progress:
   kind: interface

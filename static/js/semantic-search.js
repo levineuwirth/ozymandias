@@ -12,22 +12,15 @@
  * Model files served from /models/all-MiniLM-L6-v2/ (same-origin; run tools/download-model.sh)
  * Index format: raw little-endian Float32, shape [N, 384], unit-normalized
  *
- * CSP: requires cdn.jsdelivr.net in script-src (transformers.js library).
- *      connect-src stays 'self' — model weights are served same-origin.
- *
- * Dependency pin
- * --------------
- * CDN below is pinned to an exact patch release rather than a floating
- * major (`@2`), so the library cannot change under the site without a
- * source commit. To update:
- *   1. `curl -s https://registry.npmjs.org/@xenova/transformers | jq -r '."dist-tags"'`
- *      (or `npm view @xenova/transformers versions`) and pick the new 2.x patch.
- *   2. Edit CDN here; nothing else references the version.
- *   3. Re-test one first-load search in a private window (cold cache):
- *      the library fetches its own WASM/ONNX runtime from the same pinned
- *      tree, so a bad pin fails at model load, not at import.
- * Staying on 2.x is deliberate — 3.x moved to @huggingface/transformers
- * with a different model-path contract.
+ * The library, transformers.js, and the ONNX runtime it runs the model in
+ * are served same-origin too (/transformers/, tools/download-libraries.sh,
+ * which pins the version and each file's SHA-256), so the search makes no
+ * request to another host and the CSP needs only 'self' and
+ * 'wasm-unsafe-eval'. To update the library, change its version in that
+ * script and re-pin; re-test one first-load search in a private window
+ * (cold cache), since a runtime that does not match the library fails at
+ * model load, not at import. Staying on 2.x is deliberate — 3.x moved to
+ * @huggingface/transformers with a different model-path contract.
  *
  * Public API — window.ozySemanticSearch, consumed by search-filters.js
  * ------------------------------------------------------------------
@@ -51,7 +44,7 @@
     var MODEL_PATH = '/models/';                   /* served same-origin */
     var DIM        = 384;
     var TOP_K      = 8;
-    var CDN        = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+    var LIBRARY    = '/transformers/';             /* transformers.js and its runtime */
 
     /* Approximate first-load weight, quoted to the visitor so the wait is
        explained rather than mysterious. Keep in step with the files under
@@ -126,12 +119,12 @@
     }
 
     /* ------------------------------------------------------------------
-       Model loading — dynamic import from CDN, lazy
+       Model loading — dynamic import, lazy
     ------------------------------------------------------------------ */
 
     /* In-flight promise so concurrent searches share a single model
        load. Without this guard, two rapid keystrokes would each call
-       `import(CDN)` and `pipeline(...)`, wasting CPU and memory before
+       `import()` and `pipeline(...)`, wasting CPU and memory before
        the second resolves. */
     var loadModelPromise = null;
 
@@ -157,15 +150,15 @@
     /* Failed imports so far. Chromium keeps a failed module fetch in the
        page's module map, and import() of that URL then fails again without
        asking the network: after one dropped connection "Try again" could
-       never recover. A retry imports a URL of its own; jsDelivr serves the
-       same file whatever the query, and CSP source matching ignores it. */
+       never recover. A retry imports a URL of its own; the server answers
+       the same file whatever the query. */
     var importFailures = 0;
 
     function loadModel() {
         if (extractor) return Promise.resolve(extractor);
         if (loadModelPromise) return loadModelPromise;
         announceModelLoading(null);
-        var url = importFailures ? CDN + '?retry=' + importFailures : CDN;
+        var url = LIBRARY + 'transformers.min.js' + (importFailures ? '?retry=' + importFailures : '');
         loadModelPromise = import(url).catch(function (err) {
             importFailures++;
             throw err;
@@ -173,6 +166,12 @@
             /* Point transformers.js at our self-hosted model files. */
             mod.env.localModelPath   = MODEL_PATH;
             mod.env.allowRemoteModels = false;
+            /* ...and at our runtime: left alone, it fetches the WebAssembly
+               from jsDelivr. One thread, so it asks only for the
+               single-threaded builds that are vendored (the threaded ones
+               need cross-origin isolation, which the site does not have). */
+            mod.env.backends.onnx.wasm.wasmPaths  = LIBRARY;
+            mod.env.backends.onnx.wasm.numThreads = 1;
             return mod.pipeline('feature-extraction', MODEL, {
                 quantized: true,
                 progress_callback: onModelProgress
@@ -369,7 +368,7 @@
         } else if (kind === 'model') {
             msg = 'The semantic search model could not be loaded. It is a large one-time '
                 + 'download and needs a working connection.';
-            console.warn('semantic-search: model load failed (CDN import or'
+            console.warn('semantic-search: model load failed (library import or'
                 + ' /models/ files).', err);
         } else {
             msg = 'Semantic search ran into a problem.';
