@@ -34,6 +34,9 @@
     top: -0.4em;
     font-family: var(--font-sans);
     font-feature-settings: normal;
+    /* Sized and raised here: not the face's superscript letters too (see
+       .cite-marker, aftermatter.css). */
+    font-variant-position: normal;
 }
 
 

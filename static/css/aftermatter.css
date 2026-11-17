@@ -514,6 +514,12 @@
     line-height: 1;
     vertical-align: super;
     margin: 0 0.08em;
+    /* Already small and raised: not the face's superscript figures as well
+       (sup asks for them, typography.css), which shrank the numbers a second
+       time beside full-size brackets once the face had them. Lining
+       figures, as a reference number is. */
+    font-variant-position: normal;
+    font-variant-numeric: lining-nums;
 }
 
 
