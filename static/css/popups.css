@@ -293,6 +293,12 @@
 
 .popup-citation-entry {
     display: block;
+    /* A reference's URL or DOI is one long word, and Chromium does not
+       break it at its slashes as Firefox does: eight of one essay's
+       citations widened the popup past its 420px and scrolled sideways.
+       The entry is the reference as the bibliography writes it, with no
+       .csl-entry wrapper, so the link rule below never reached it. */
+    overflow-wrap: anywhere;
 }
 
 
