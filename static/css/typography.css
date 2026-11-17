@@ -862,6 +862,17 @@ pre code {
     font-size: var(--math-size);
 }
 
+/* A formula is not prose, and does not take the prose's typesetting.
+   Safari, the one browser with hanging-punctuation, treated each bracket
+   in a formula as the start of a line and hung it outward, over the name
+   before it: the ( of min(a, b) was drawn across the n. Old-style figures
+   and the prose's other features are the text's, not the formula's. */
+math {
+    hanging-punctuation: none;
+    font-feature-settings: normal;
+    font-variant-numeric: normal;
+}
+
 .math.display {
     display: block;
     margin: 1em 0;
