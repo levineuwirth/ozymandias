@@ -1003,6 +1003,12 @@ a.link-icon-end:focus-visible::after {
 
 
 
+a[data-link-icon="kaggle"]::after {
+    mask-image: url('/images/link-icons/kaggle.svg');
+    -webkit-mask-image: url('/images/link-icons/kaggle.svg');
+}
+
+
 a[data-link-icon="external"]::after {
     mask-image: url('/images/link-icons/external.svg');
     -webkit-mask-image: url('/images/link-icons/external.svg');

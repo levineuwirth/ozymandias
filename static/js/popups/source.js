@@ -252,7 +252,7 @@
 
     /* Map a path's extension (or basename, for Makefile) onto the set
        of Prism languages bundled in /js/prism.min.js: bash, haskell,
-       javascript, css, markup, yaml, python, makefile. Returns null
+       javascript, css, markup, yaml, python, rust, makefile. Returns null
        when no mapping applies; the caller falls back to plain text. */
     function languageFromPath(path) {
         var basename = path.split('/').pop();
@@ -268,6 +268,7 @@
             case 'html':
             case 'svg':     return 'markup';
             case 'py':      return 'python';
+            case 'rs':      return 'rust';
             case 'sh':
             case 'bash':
             case 'conf':    return 'bash';

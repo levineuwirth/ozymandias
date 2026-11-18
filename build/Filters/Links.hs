@@ -205,6 +205,7 @@ iconForHost cfg host
     | m "github.com"           = "github"
     | m (T.pack (siteForgeHost cfg)) = "forgejo"
     | m "tensorflow.org"       = "tensorflow"
+    | m "kaggle.com"           = "kaggle"
     -- AI companies (consumer products share a brand icon with the lab)
     | m "anthropic.com"        = "anthropic"
     | m "claude.ai"            = "anthropic"
