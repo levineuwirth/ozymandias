@@ -21,8 +21,8 @@ Refused:
   and one capend, or an uncaptioned one has any; a figure has more than one
   caption (not supported); a figure's marks span pages;
 - a figure's marks are on a page the build does not have (page 0 would
-  otherwise select the last page), or its region is empty, inverted or
-  reaches outside its page;
+  otherwise select the last page), or its region is empty or inverted
+  before padding, or reaches outside its page after padding;
 - two regions on a page overlap;
 - a word straddles a region's edge;
 - the converter fails, except for the one reproduced cairo teardown abort,
@@ -197,7 +197,7 @@ def main(paper, out):
             # Padding protects edge strokes only after the body has positive area.
             if not (width_pt > 0 and hi > lo):
                 refusals.append(f"figure {n}: its region on page {page} is empty or inverted "
-                                f"before padding (width {width_pt:g} pt, height {hi - lo} sp)")
+                                f"before padding (width {width_pt:g} pt, height {(hi - lo) / 65536:g} pt)")
                 continue
             x0, x1 = x / SP_PER_BP, (x + width_pt * 65536) / SP_PER_BP
             box = [x0 - PAD, lo / SP_PER_BP, x1 + PAD, hi / SP_PER_BP + PAD]
