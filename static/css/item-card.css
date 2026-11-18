@@ -335,6 +335,59 @@
     white-space: nowrap;
 }
 
+
+/* Wide cards (phones have their own stacked header below). The dateline
+   neither shrinks nor wraps, so a long one squeezed the title instead:
+   "17 November 2026 · All rights reserved" left the title a word a line
+   ("The / Natural / Order / …") and still ran past the card's edge, and
+   between 541 and about 700px a revised card's dateline pushed /new
+   sideways (WCAG 1.4.10). Two rules:
+
+   - The header wraps once the title would get less than 8rem, and the
+     dateline then sits on its own line under the title, at the right.
+     The title grows only as far as its text, so its link stays the size
+     of its words.
+   - A license is longer than a date, so the gutter stacks: the date,
+     then the marks under it, one a line, as wide as the longest. The
+     separators have nothing to separate there. */
+@media (min-width: 541px) {
+    .item-card-header {
+        flex-wrap: wrap;
+        row-gap: 0.15rem;
+    }
+
+
+    .item-card-title {
+        flex: 1 1 8rem;
+        max-width: max-content;
+    }
+
+
+    .item-card-dateline {
+        margin-left: auto;
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+
+    .item-card-rights {
+        white-space: normal;
+        text-align: right;
+    }
+
+
+    .item-card-dateline:has(.item-card-rights) {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0;
+    }
+
+
+    .item-card-dateline:has(.item-card-rights) .item-card-dateline-sep {
+        display: none;
+    }
+}
+
 .item-card-revised:hover,
 .item-card-revised:focus-visible {
     color: var(--text-muted);
