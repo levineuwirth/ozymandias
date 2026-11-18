@@ -50,8 +50,19 @@ sources:
   the working tree was clean, a digest of the copied source, the page count,
   and the figures declared and marked.
 
-`fixtures/` is never committed. `FIXTURES` points the tests elsewhere, and
-`EXTRACT` runs the same tests against another extractor.
+The recipe deletes nothing it cannot identify as its own:
+- Before touching anything, it checks every output directory against every
+  source tree, with symlinks resolved. Neither may contain the other.
+- It replaces an existing output only if that output holds the recipe's
+  marker file (`.ozyport-fixture`). Anything else there is refused and left
+  alone.
+- A fixture is written only when both builds exited 0 (each build's status
+  is checked by its own PID) and the marks name exactly the figures the
+  source declares.
+
+`fixtures/` is never committed. `FIXTURES` points the tests elsewhere.
+`EXTRACT` and `RECIPE` run the same tests against another extractor or
+recipe.
 
 The tests name proof-broker's two figures by label (`fig:pipeline`,
 `fig:grid`) and expect six figures in SIMD. They also rely on figure 1's
@@ -88,6 +99,8 @@ run through the extractor, but it is not a fixture.
 - rsync 3.5.2, for the fixture recipe
 
 ## Known limits
+
+- Marks are matched to the source by document order, not by label.
 
 - A caption above its figure has a region rule but no real paper tested it.
 - Subfigures are untested. More than one `\caption` in a figure refuses.

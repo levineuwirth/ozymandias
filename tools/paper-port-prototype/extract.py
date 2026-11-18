@@ -20,6 +20,9 @@ Refused:
   one begin and one end mark; a captioned figure lacks exactly one capbegin
   and one capend, or an uncaptioned one has any; a figure has more than one
   caption (not supported); a figure's marks span pages;
+- a figure's marks are on a page the build does not have (page 0 would
+  otherwise select the last page), or its region is empty, inverted or
+  reaches outside its page;
 - two regions on a page overlap;
 - a word straddles a region's edge;
 - the converter fails, except for the one reproduced cairo teardown abort,
@@ -111,9 +114,9 @@ def read_marks(path):
     return marks
 
 
-def match(inventory, marks):
+def match(inventory, marks, page_count):
     """Refusals for any disagreement between the source's figures and the
-    build's marks."""
+    build's marks, or marks on a page the build does not have."""
     refusals = []
     declared = {f["n"]: f for f in inventory["figures"]}
     if not declared:
@@ -137,6 +140,9 @@ def match(inventory, marks):
         pages = sorted({v[0] for vs in m.values() for v in vs})
         if len(pages) != 1:
             refusals.append(f"{name}: its marks span pages {pages}")
+        elif not 1 <= pages[0] <= page_count:
+            # pypdf would take page 0 as pages[-1], the last page.
+            refusals.append(f"{name}: its marks are on page {pages[0]}, outside the build's pages 1 to {page_count}")
     return refusals
 
 
@@ -174,7 +180,7 @@ def main(paper, out):
         marks = read_marks(paper / "B" / "main.ozyfig")
     except (OSError, ValueError) as e:
         return refuse(refusals + [f"cannot read the inventory or the marks: {e}"], work)
-    bad = match(inventory, marks)
+    bad = match(inventory, marks, min(pages, len(marked.pages)))
     refusals += bad
     regions = {}
     if not bad:
@@ -189,7 +195,15 @@ def main(paper, out):
             else:
                 hi, lo = top, m["capbegin"][2] if "capbegin" in m else m["end"][2]
             x0, x1 = x / SP_PER_BP, (x + width_pt * 65536) / SP_PER_BP
-            regions[n] = (page, [x0 - PAD, lo / SP_PER_BP, x1 + PAD, hi / SP_PER_BP + PAD])
+            box = [x0 - PAD, lo / SP_PER_BP, x1 + PAD, hi / SP_PER_BP + PAD]
+            mb = marked.pages[page - 1].mediabox
+            if not (box[0] < box[2] and box[1] < box[3]):
+                refusals.append(f"figure {n}: its region on page {page} is empty or inverted: {[round(v, 1) for v in box]}")
+            elif box[0] < mb.left or box[1] < mb.bottom or box[2] > mb.right or box[3] > mb.top:
+                refusals.append(f"figure {n}: its region {[round(v, 1) for v in box]} leaves page {page} "
+                                f"({[round(float(v), 1) for v in (mb.left, mb.bottom, mb.right, mb.top)]})")
+            else:
+                regions[n] = (page, box)
 
     # 3. Two figures on one page must not share any of the page.
     for i in regions:

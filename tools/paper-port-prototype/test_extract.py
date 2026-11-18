@@ -6,8 +6,9 @@ one excused abort is accepted only with fresh, complete output.
     uv run --no-project --with pypdf --with pillow python -I test_extract.py
 
 Fixtures (FIXTURES, default fixtures/ here): proof-broker's builds for the
-probes, SIMD's for the genuine converter abort. EXTRACT runs another
-extractor against the same tests."""
+probes, SIMD's for the genuine converter abort; the recipe's tests use
+stand-in sources and a stand-in latexmk. EXTRACT and RECIPE run the same
+tests against another extractor or recipe."""
 import importlib.util
 import json
 import os
@@ -22,6 +23,7 @@ from pypdf import PdfReader, PdfWriter
 
 HERE = Path(__file__).resolve().parent
 EXTRACT = Path(os.environ.get("EXTRACT", HERE / "extract.py"))
+RECIPE = Path(os.environ.get("RECIPE", HERE / "make-fixtures.sh"))
 FIXTURES = Path(os.environ.get("FIXTURES", HERE / "fixtures"))
 KNOWN_ABORT = "pdftocairo: ../cairo/src/cairo-hash.c:217: _cairo_hash_table_destroy: Assertion `hash_table->live_entries == 0' failed."
 
@@ -248,6 +250,155 @@ class Extract(unittest.TestCase):
         f = self.paper / "B" / "main.ozyfig"
         f.write_text(f.read_text() + "1 begin 3\n")
         self.refused(self.extract(), "is not a mark")
+
+    # Pages and regions the build does not have.
+
+    def test_page_zero_is_refused(self):
+        # The third review's probe: page 0 was read as the last page and published.
+        self.edit_marks(lambda f: f[:2] + ["0"] + f[3:] if f[0] == "1" else f)
+        self.refused(self.extract(), "figure 1 (fig:pipeline): its marks are on page 0, outside the build's pages 1 to")
+
+    def test_page_past_the_end_is_refused(self):
+        self.edit_marks(lambda f: f[:2] + [str(self.pages + 1)] + f[3:] if f[0] == "2" else f)
+        self.refused(self.extract(), f"its marks are on page {self.pages + 1}, outside the build's pages 1 to {self.pages}")
+
+    def test_negative_page_is_refused(self):
+        self.edit_marks(lambda f: f[:2] + ["-1"] + f[3:] if f[0] == "1" else f)
+        self.refused(self.extract(), "its marks are on page -1, outside")
+
+    def test_region_leaving_its_page_is_refused(self):
+        # Figure 1 moved 200 bp right: its right edge leaves the page.
+        self.edit_marks(lambda f: f[:3] + [str(int(f[3]) + 200 * 65781)] + f[4:] if f[0] == "1" else f)
+        r = self.extract()
+        self.refused(r, "figure 1: its region")
+        self.assertIn("leaves page 3", r.stdout)
+
+    def test_inverted_region_is_refused(self):
+        # A caption-first figure whose end lies above its caption's end.
+        y = {}
+        def edit(f):
+            if f[0] == "1":
+                y[f[1]] = int(f[4])
+            return f
+        self.edit_marks(edit)
+        self.edit_marks(lambda f: f[:4] + [str(y["begin"] + 65536)] + f[5:] if f[:2] == ["1", "capbegin"]
+                        else f[:4] + [str(y["capend"] + 10 * 65536)] + f[5:] if f[:2] == ["1", "end"] else f)
+        self.refused(self.extract(), "figure 1: its region on page 3 is empty or inverted")
+
+
+# A stand-in for latexmk: copies STUB_PDF to main.pdf and, for the marked
+# build, STUB_MARKS to main.ozyfig; exits STUB_EXIT_PLAIN or STUB_EXIT_MARKED.
+LATEXMK_STUB = """#!/usr/bin/python3
+import os, shutil, sys
+marked = any(a.startswith("-usepretex") for a in sys.argv[1:])
+shutil.copy(os.environ["STUB_PDF"], "main.pdf")
+if marked:
+    shutil.copy(os.environ["STUB_MARKS"], "main.ozyfig")
+sys.exit(int(os.environ.get("STUB_EXIT_MARKED" if marked else "STUB_EXIT_PLAIN", "0")))
+"""
+TWO_FIGURES = ("\\begin{document}\\begin{figure}\\caption{a}\\end{figure}"
+               "\\begin{figure}\\caption{b}\\end{figure}\\end{document}\n")
+
+
+class Recipe(unittest.TestCase):
+    """make-fixtures.sh, with stand-in sources and a stand-in latexmk."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="test-", dir=HERE))
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.research = self.tmp / "research"
+        self.src = {}
+        for name in ("proof-broker", "simd"):
+            p = self.research / name / "paper"
+            p.mkdir(parents=True)
+            (p / "main.tex").write_text(TWO_FIGURES)
+            self.src[name] = p
+        bin_ = self.tmp / "bin"
+        bin_.mkdir()
+        (bin_ / "latexmk").write_text(LATEXMK_STUB)
+        (bin_ / "latexmk").chmod(0o755)
+        self.env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}",
+                        PROOF_BROKER=str(self.src["proof-broker"]), SIMD=str(self.src["simd"]),
+                        STUB_PDF=str(FIXTURES / "proof-broker" / "A" / "main.pdf"),
+                        STUB_MARKS=str(FIXTURES / "proof-broker" / "B" / "main.ozyfig"))
+
+    def recipe(self, dest, **env):
+        return subprocess.run(["bash", str(RECIPE), str(dest)],
+                              capture_output=True, text=True, env=dict(self.env, **env))
+
+    def sources_intact(self):
+        for p in self.src.values():
+            self.assertEqual((p / "main.tex").read_text(), TWO_FIGURES)
+
+    def test_builds_and_replaces_its_own_fixtures(self):
+        dest = self.tmp / "fixtures"
+        for _ in range(2):
+            r = self.recipe(dest)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            for name in self.src:
+                self.assertIn("figures marked: 2", (dest / name / "SOURCE").read_text())
+        self.sources_intact()
+
+    def test_a_destination_whose_output_holds_a_source_is_refused(self):
+        # The third review's probe: dest ~/Repos/research made out = the source's parent.
+        r = self.recipe(self.research)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("contains the source", r.stderr)
+        self.sources_intact()
+
+    def test_a_destination_inside_a_source_is_refused(self):
+        r = self.recipe(self.src["simd"] / "fixtures")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("lies inside the source", r.stderr)
+        self.assertFalse((self.src["simd"] / "fixtures").exists())
+        self.sources_intact()
+
+    def test_a_symlinked_destination_into_a_source_is_refused(self):
+        (self.tmp / "link").symlink_to(self.research)
+        r = self.recipe(self.tmp / "link")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("contains the source", r.stderr)
+        self.sources_intact()
+
+    def test_an_output_it_did_not_make_is_refused_and_left_alone(self):
+        dest = self.tmp / "fixtures"
+        (dest / "simd").mkdir(parents=True)
+        (dest / "simd" / "notes.txt").write_text("mine")
+        r = self.recipe(dest)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("is not a fixture this recipe made", r.stderr)
+        self.assertEqual((dest / "simd" / "notes.txt").read_text(), "mine")
+        self.assertFalse((dest / "proof-broker").exists(), "a refusal must come before any work")
+
+    def test_a_symlinked_output_is_refused(self):
+        dest = self.tmp / "fixtures"
+        dest.mkdir()
+        (dest / "simd").symlink_to(self.tmp / "elsewhere")
+        r = self.recipe(dest)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("is not a fixture this recipe made", r.stderr)
+
+    def test_a_failed_plain_build_is_not_a_fixture(self):
+        # The third review's probe: a PDF and marks left, but exit 12.
+        r = self.recipe(self.tmp / "fixtures", STUB_EXIT_PLAIN="12")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("the plain build exited 12", r.stderr)
+        self.assertFalse((self.tmp / "fixtures" / "proof-broker" / "SOURCE").exists())
+        self.assertFalse((self.tmp / "fixtures" / "proof-broker" / "inventory.json").exists())
+
+    def test_a_failed_marked_build_is_not_a_fixture(self):
+        r = self.recipe(self.tmp / "fixtures", STUB_EXIT_MARKED="12")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("the marked build exited 12", r.stderr)
+        self.assertFalse((self.tmp / "fixtures" / "proof-broker" / "SOURCE").exists())
+
+    def test_marks_disagreeing_with_the_source_are_not_a_fixture(self):
+        (self.src["proof-broker"] / "main.tex").write_text(
+            "\\begin{document}\\begin{figure}\\caption{a}\\end{figure}\\end{document}\n")
+        r = self.recipe(self.tmp / "fixtures")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("declares 1 figures, the build marked 2", r.stderr)
+        self.assertFalse((self.tmp / "fixtures" / "proof-broker" / "SOURCE").exists())
 
 
 class Inventory(unittest.TestCase):
