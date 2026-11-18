@@ -1,0 +1,5 @@
+# Built by make-fixtures.sh from the papers; never committed.
+/fixtures/
+# Left by an interrupted test run.
+/test-*/
+/inv-*/

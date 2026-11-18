@@ -1,0 +1,39 @@
+% Position marks for the port tool's figure regions: an experiment.
+% Loaded before the document (latexmk -usepretex), not by the paper.
+% Each figure records, at shipout, where its float's content begins, where
+% its caption begins and ends, and where it ends: page, x and y (sp from
+% the page's lower left), and \hsize there. The marks are whatsits
+% inside the float's own box, never in the main text.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ozyport}[2026/11/18 figure position marks]
+\RequirePackage{etoolbox}
+\newwrite\ozy@out
+\immediate\openout\ozy@out=\jobname.ozyfig
+\newcounter{ozy@fig}
+% The figure's number, the mark and the text width are known now; the page
+% and position only at shipout, so those stay unexpanded.
+\newcommand\ozy@mark[1]{%
+  \pdfsavepos
+  \edef\ozy@w{\noexpand\write\ozy@out{\arabic{ozy@fig}\space #1\space
+    \noexpand\the\noexpand\ReadonlyShipoutCounter\space\noexpand\the\noexpand\pdflastxpos\space
+    \noexpand\the\noexpand\pdflastypos\space\the\hsize\space\@captype}}%
+  \ozy@w
+}
+% The float's box starts in \@floatboxreset (also for float's [H]); the
+% environment's end hook runs inside that box, before it closes; the
+% caption's command hooks bracket the caption, wherever it sits.
+\AtBeginDocument{%
+  \g@addto@macro\@floatboxreset{\ifx\@captype\ozy@figure\stepcounter{ozy@fig}\ozy@mark{begin}\fi}%
+}
+% Only figures: a table is converted, not cut from the page. A mark is only
+% ever placed between lines: in the middle of one (the end of a centered
+% tabular) a mark shifted a table's columns, so there it rides on \vadjust,
+% below the line, and changes nothing in it.
+\newcommand\ozy@safe[1]{\ifx\@captype\ozy@figure
+  \ifhmode\vadjust{\ozy@mark{#1}}\else\ozy@mark{#1}\fi\fi}
+\def\ozy@figure{figure}
+\AddToHook{env/figure/end}{\ozy@safe{end}}
+\AddToHook{env/figure*/end}{\ozy@safe{end}}
+\AddToHook{cmd/@makecaption/before}{\ozy@safe{capbegin}}
+\AddToHook{cmd/@makecaption/after}{\ozy@safe{capend}}
+\endinput
