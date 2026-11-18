@@ -273,6 +273,22 @@ class Extract(unittest.TestCase):
         self.refused(r, "figure 1: its region")
         self.assertIn("leaves page 3", r.stdout)
 
+    def test_empty_uncaptioned_figure_is_refused(self):
+        # An empty float puts its begin and end marks at the same height.
+        self.edit_inventory(lambda d: d["figures"][0].update(captions=0))
+        def empty_body(f):
+            if f[0] == "1":
+                if f[1] in ("capbegin", "capend"):
+                    return None
+                f[4] = str(64 * 65536)
+            return f
+        self.edit_marks(empty_body)
+        self.refused(self.extract(), "figure 1: its region on page 3 is empty or inverted")
+
+    def test_zero_width_region_is_refused(self):
+        self.edit_marks(lambda f: f[:5] + ["0pt", f[6]] if f[0] == "1" else f)
+        self.refused(self.extract(), "figure 1: its region on page 3 is empty or inverted")
+
     def test_inverted_region_is_refused(self):
         # A caption-first figure whose end lies above its caption's end.
         y = {}

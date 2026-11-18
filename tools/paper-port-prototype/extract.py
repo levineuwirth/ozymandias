@@ -194,12 +194,15 @@ def main(paper, out):
                 hi, lo = m["capend"][2], m["end"][2]
             else:
                 hi, lo = top, m["capbegin"][2] if "capbegin" in m else m["end"][2]
+            # Padding protects edge strokes only after the body has positive area.
+            if not (width_pt > 0 and hi > lo):
+                refusals.append(f"figure {n}: its region on page {page} is empty or inverted "
+                                f"before padding (width {width_pt:g} pt, height {hi - lo} sp)")
+                continue
             x0, x1 = x / SP_PER_BP, (x + width_pt * 65536) / SP_PER_BP
             box = [x0 - PAD, lo / SP_PER_BP, x1 + PAD, hi / SP_PER_BP + PAD]
             mb = marked.pages[page - 1].mediabox
-            if not (box[0] < box[2] and box[1] < box[3]):
-                refusals.append(f"figure {n}: its region on page {page} is empty or inverted: {[round(v, 1) for v in box]}")
-            elif box[0] < mb.left or box[1] < mb.bottom or box[2] > mb.right or box[3] > mb.top:
+            if box[0] < mb.left or box[1] < mb.bottom or box[2] > mb.right or box[3] > mb.top:
                 refusals.append(f"figure {n}: its region {[round(v, 1) for v in box]} leaves page {page} "
                                 f"({[round(float(v), 1) for v in (mb.left, mb.bottom, mb.right, mb.top)]})")
             else:
