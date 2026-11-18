@@ -12,6 +12,63 @@ from tests import fixture_variants
 from tests._helpers import ENGINE, SITE_ROOT, requires_cabal, script_env
 
 
+# The site command, standing in: it logs each step it is asked for; a watch
+# runs until stopped, and a build fails while fail-build exists.
+STAND_IN = r"""
+import pathlib, sys, time
+step = sys.argv[2]
+with open(sys.argv[1], "a") as log:
+    log.write(step + "\n")
+if step == "watch":
+    time.sleep(600)
+sys.exit(1 if step == "build" and pathlib.Path("fail-build").exists() else 0)
+"""
+
+
+class WatchOrder(unittest.TestCase):
+    """The watch starts only after a build has brought the output up to date
+    (Hakyll serves the last session's pages while its first build runs),
+    at the start and after each restart; a failed build still starts it."""
+
+    def test_each_watch_follows_a_build(self):
+        with tempfile.TemporaryDirectory(prefix="watch-order-") as tmp:
+            root = Path(tmp)
+            (root / "engine").mkdir()
+            (root / "stand-in.py").write_text(STAND_IN)
+            log = root / "steps.log"
+            proc = subprocess.Popen([sys.executable, str(ENGINE / "tools/watch-engine.py"), "--",
+                                     sys.executable, "stand-in.py", str(log), "watch", "--no-server"],
+                                    cwd=root, env=script_env(WATCH_ENGINE_INTERVAL="0.1"),
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    start_new_session=True)
+
+            def steps(n):
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    found = log.read_text().split() if log.exists() else []
+                    if len(found) >= n:
+                        return found
+                    time.sleep(.05)
+                self.fail(f"steps so far: {log.read_text() if log.exists() else ''}")
+
+            try:
+                self.assertEqual(steps(2), ["build", "watch"])
+                (root / "engine/edit.hs").write_text("one")
+                self.assertEqual(steps(5)[2:], ["clean", "build", "watch"])
+                (root / "fail-build").write_text("")
+                (root / "engine/edit.hs").write_text("two")
+                self.assertEqual(steps(8)[5:], ["clean", "build", "watch"])
+                time.sleep(.5)
+                self.assertIsNone(proc.poll(), "the watch stopped after a failed build")
+            finally:
+                os.killpg(proc.pid, signal.SIGINT)
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                    proc.wait()
+
+
 @requires_cabal
 class WatchEngine(unittest.TestCase):
     def test_compiler_edits_and_file_changes_restart_under_the_lock(self):
