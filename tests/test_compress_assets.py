@@ -124,6 +124,25 @@ class CompressAssets(unittest.TestCase):
         for k in self.kinds:
             self.assertFalse(Path(f"{self.page}{k}").exists(), k)
 
+    def test_published_compressed_files_are_kept(self):
+        # exponential-magic publishes turn-44.json.gz with no turn-44.json
+        # beside it; the old name rule swept it as an orphan.
+        body = b'{"zombies": [' + b"1, " * 2000 + b"1]}"
+        stamped = self.site / "board.json.gz"  # gzip module: mtime in the header
+        stamped.write_bytes(gzip.compress(body))
+        bare = self.site / "other.json.gz"  # this script's own flags, content never cached
+        bare.write_bytes(subprocess.run(["gzip", "-9", "-n", "-c"], input=body + b" ",
+                                        capture_output=True, check=True).stdout)
+        unreadable = self.site / "notes.txt.gz"
+        unreadable.write_bytes(b"not gzip at all")
+        before = {p: p.read_bytes() for p in (stamped, bare, unreadable)}
+        for _ in range(2):
+            done = self.run_script()
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertNotIn("drop", done.stderr)
+        for p, data in before.items():
+            self.assertEqual(p.read_bytes(), data, p.name)
+
 
 if __name__ == "__main__":
     unittest.main()

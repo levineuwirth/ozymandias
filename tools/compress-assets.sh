@@ -28,9 +28,10 @@
 #      (nothing is compressed), so it keeps decoding to the previous, larger
 #      content. Deleted here.
 #   2. The source was deleted. Its sidecars are orphans that nginx will
-#      still happily serve. Swept here, but only when the stripped name has
-#      one of the compressible extensions below, so an intentionally
-#      published foo.tar.gz is never touched.
+#      still happily serve. Swept here, but only a file this script wrote:
+#      one byte-identical to the cache entry for the bytes it decodes to.
+#      An intentionally published foo.tar.gz or foo.json.gz was made
+#      elsewhere and is never touched.
 #   3. The compressor was interrupted or produced garbage. Every sidecar
 #      this run writes is decompressed and `cmp`-ed against its source
 #      before it is moved into place.
@@ -153,22 +154,38 @@ done
 # --- Sweep 1: orphaned and interrupted sidecars ----------------------------
 #
 # A source deleted since the last run leaves foo.html.gz behind, and nginx
-# will still serve it to any client advertising gzip. Delete a sidecar only
-# when its stripped name has a compressible extension, so a deliberately
-# published archive (foo.tar.gz) survives.
+# will still serve it to any client advertising gzip. A name cannot tell an
+# orphan from a published file: until 2026-11-18 the rule was "the stripped
+# name has a compressible extension", which deleted exponential-magic's
+# published boards (turn-44.json.gz). So a sidecar is deleted only when this
+# script provably wrote it: its bytes equal the cache entry for the content
+# it decodes to. The entry outlives its source by at least one build (the
+# prune below runs last and keeps 30 days), so a real orphan is found.
+# A .br with no brotli to decode it falls back to the name rule.
+ours() {
+    local sidecar=$1 kind=${1##*.} h ext known
+    if [ "$kind" = br ] && [ "$have_brotli" != 1 ]; then
+        ext="${sidecar%.*}"
+        ext="${ext##*.}"
+        for known in "${COMPRESSIBLE_EXTS[@]}"; do
+            [ "$ext" = "$known" ] && return 0
+        done
+        return 1
+    fi
+    local decode=(gzip -dc)
+    [ "$kind" = br ] && decode=(brotli -dc)
+    h=$("${decode[@]}" "$sidecar" 2>/dev/null | sha256sum | cut -c1-64) || return 1
+    cmp -s "$COMPRESS_CACHE/${h:0:2}/$h.$kind" "$sidecar"
+}
+
 orphans=0
 while IFS= read -r -d '' sidecar; do
-    src="${sidecar%.*}"
-    [ -e "$src" ] && continue
-    ext="${src##*.}"
-    for known in "${COMPRESSIBLE_EXTS[@]}"; do
-        if [ "$ext" = "$known" ]; then
-            echo "  drop  $sidecar (source no longer exists)" >&2
-            rm -f "$sidecar"
-            orphans=$((orphans + 1))
-            break
-        fi
-    done
+    [ -e "${sidecar%.*}" ] && continue
+    if ours "$sidecar"; then
+        echo "  drop  $sidecar (source no longer exists)" >&2
+        rm -f "$sidecar"
+        orphans=$((orphans + 1))
+    fi
 done < <(find "$SITE_DIR" -type f \( -name '*.gz' -o -name '*.br' \) -print0)
 
 # Debris from an interrupted earlier run. These are never served (nginx
