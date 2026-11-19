@@ -273,9 +273,12 @@ def render(root: Path, template: str, fields: dict, binary: str) -> subprocess.C
                                str(scratch / "work")], cwd=scratch / "root", capture_output=True, text=True)
 
 
-def template_problems(root: Path, template: str, terms: dict, binary: str) -> list[str]:
+def template_problems(root: Path, template: str, terms: dict, binary: str,
+                      partials: tuple[str, ...] = ()) -> list[str]:
     """Why `template`, as `root` has it, breaks the contract: a field the
-    contract does not give, a failed render, a hook missing from it."""
+    contract does not give, a failed render, a hook missing from it, or
+    one of the required hooks of the `partials` it includes, anywhere in
+    it (a partial's root hook is its own top level, not the page's)."""
     fields = context(terms, template)
     problems = []
     for path, used in site_fields(root, template, frozenset(terms["templates"])).items():
@@ -288,6 +291,9 @@ def template_problems(root: Path, template: str, terms: dict, binary: str) -> li
     missing = [h["selector"] + (" at its top level" if h.get("root") else "")
                for h in terms["templates"][template].get("hooks") or []
                if not matches(done.stdout, h["selector"], root=bool(h.get("root")))]
+    missing += [f"{h['selector']} ({partial}'s)" for partial in partials
+                for h in terms["templates"][partial].get("hooks") or []
+                if not matches(done.stdout, h["selector"])]
     if missing:
         problems.append(f"{template}: lacks {', '.join(missing)}")
     return problems
@@ -300,7 +306,8 @@ def hook_problems(root: Path, binary: str) -> list[str]:
     that page's context, as the build renders it: a partial's own context
     is every flag the pages that include it might give it, so a branch it
     takes on one page alone (the controls' on the landing, without the
-    map's or a series' flags) is rendered there."""
+    map's or a series' flags) is rendered there, and its required hooks
+    looked for there too."""
     terms = contract()
     problems = []
     overridden = set()
@@ -317,7 +324,7 @@ def hook_problems(root: Path, binary: str) -> list[str]:
         if page in overridden or not (theirs := sorted(includes(root, page) & overridden)):
             continue
         problems += [f"{page}, the engine's, with the site's {', '.join(theirs)}: {p.removeprefix(page + ': ')}"
-                     for p in template_problems(root, page, terms, binary)]
+                     for p in template_problems(root, page, terms, binary, tuple(theirs))]
     return problems
 
 

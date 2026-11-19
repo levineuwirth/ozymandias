@@ -228,6 +228,10 @@ class Routes:
             return False
         if kind.context:
             return kind.context in self.standalone_paths
+        if kind.routed_by_source:
+            # What its sources publish: a frame with no index.md beside it
+            # is a photograph, and makes no series.
+            return bool(self.source_paths.get(name))
         return not kind.content or any(
             published(self.site, rel) and not any(PurePosixPath(rel).match(glob) for glob in kind.exclude)
             and (not kind.declares or any(front_matter(self.site / rel).get(key) for key in kind.declares))

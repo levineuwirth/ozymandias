@@ -99,6 +99,7 @@ class RouteCheckTests(unittest.TestCase):
                   (["content/photography/s/index.md!", "content/photography/s/a.md"], "photo-single", False),
                   (["content/photography/s/index.md", "content/photography/s/a.md"], "photo-series", True),
                   (["content/photography/s/index.md"], "photo-series", False),
+                  (["content/photography/s/a.md"], "photo-series", False),
                   (["content/music/w/index.md"], "composition", True), (["content/music/w/index.md!"], "composition", False),
                   (["content/music/w/index.md"], "score-reader", False)]
         music = {"dir": "music", "kind": "Composition", "dingbat": None}

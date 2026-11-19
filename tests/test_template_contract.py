@@ -156,13 +156,38 @@ class TemplateContractTests(unittest.TestCase):
             " templates/partials/photography-controls.html: does not render"), problems)
         self.assertIn("series-frame-count", problems[0])
 
+    def test_an_overridden_partial_keeps_its_hooks_in_each_page_that_includes_it(self):
+        # Views on a series and the map, and on the landing only the
+        # slideshow's button: rendered alone, with every flag, it has them.
+        self.override("templates/partials/photography-controls.html",
+                      '<nav>$if(is-series)$<a class="mode-btn" data-mode="grid" href="/photography/">Grid</a>'
+                      '$else$$if(photography-view-map)$<a class="mode-btn" data-mode="grid" href="/photography/">'
+                      'Grid</a>$else$<button class="mode-btn" type="button" data-mode="slideshow">Slideshow'
+                      '</button>$endif$$endif$</nav>\n')
+        self.assertEqual(review.hook_problems(self.root, self.binary), [
+            "templates/photography-index.html, the engine's, with the site's"
+            " templates/partials/photography-controls.html: lacks"
+            " .mode-btn[data-mode]:not([data-mode=slideshow]) (templates/partials/photography-controls.html's)"])
+
+    def test_the_engine_s_own_partials_keep_their_hooks_in_each_page(self):
+        # Each override-point partial, the engine's own copy as the site's:
+        # every page that includes it keeps its hooks.
+        engine = Path(review.ENGINE)
+        for path in self.terms["templates"]:
+            if path.startswith("templates/partials/"):
+                self.override(path, (engine / path).read_text(encoding="utf-8"))
+        self.assertEqual(review.hook_problems(self.root, self.binary), [])
+
     def test_the_slideshow_s_button_is_not_a_view(self):
         self.override("templates/partials/photography-controls.html",
                       '<div>$if(is-series)$<button class="mode-btn" type="button"'
                       ' data-mode="slideshow">Slideshow</button>$endif$</div>\n')
-        self.assertEqual(review.hook_problems(self.root, self.binary), [
-            "templates/partials/photography-controls.html: lacks"
-            " .mode-btn[data-mode]:not([data-mode=slideshow])"])
+        view = ".mode-btn[data-mode]:not([data-mode=slideshow])"
+        controls = "templates/partials/photography-controls.html"
+        self.assertEqual(review.hook_problems(self.root, self.binary),
+                         [f"{controls}: lacks {view}"] +
+                         [f"templates/{page}.html, the engine's, with the site's {controls}: lacks {view} ({controls}'s)"
+                          for page in ("photography-series", "photography-index", "photography-map")])
 
     def test_a_photograph_s_page_stays_in_keyword_search(self):
         engine = Path(review.ENGINE) / "templates/photography.html"
