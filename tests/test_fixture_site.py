@@ -291,6 +291,35 @@ class FixtureBuilds(unittest.TestCase):
         self.assertIn('<div id="ref-probe2026" class="csl-entry"',
                       (site / "_site/essays/capabilities/index.html").read_text(encoding="utf-8"))
 
+    def test_bibliography_heading_order_uses_the_same_sort_as_entries(self):
+        bib = "data/bibliography.bib"
+        essay = "content/essays/capabilities/index.md"
+        entries = """
+@book{bravo2026,
+  editor = {Bravo, Beda},
+  title = {An Edited Volume},
+  year = {2026}
+}
+@book{van2026,
+  author = {van Vliet, Vera},
+  title = {A Book by an Author With a Lowercase Particle},
+  year = {2026}
+}
+@book{zulu2026,
+  author = {Zulu, Zara},
+  title = {A Book by an Author With an Uppercase Initial},
+  year = {2026}
+}
+"""
+        site = self.rebuilt("bibliography-letter-order", lambda c: c, {
+            bib: (FIXTURE / bib).read_text(encoding="utf-8") + entries,
+            essay: (FIXTURE / essay).read_text(encoding="utf-8")
+            + "\nThree more works [@bravo2026; @van2026; @zulu2026].\n",
+        })
+        index = (site / "_site/bibliography/index.html").read_text(encoding="utf-8")
+        headings = re.findall(r'<h2 id="([^"]+)" class="bibliography-letter">', index)
+        self.assertEqual(headings, ["A", "B", "D", "G", "V", "Z"])
+
     def test_a_photograph_is_given_every_field_the_contract_names(self):
         # The fixture's photo card, its override, names in a template element
         # each of the contract's photo fields it was given, and the series'

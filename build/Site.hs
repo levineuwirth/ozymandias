@@ -1632,7 +1632,7 @@ bibliographyIndexOrder :: Map String BibExtra -> [String]
 bibliographyIndexOrder extras =
     map fst $ sortBy (comparing sortKey) (Map.toList extras)
   where
-    sortKey (_, e) = (firstAuthorSurname e, Down (bibYear e))
+    sortKey (key, e) = (bibliographySortName key e, Down (bibYear e))
 
 -- | Sort citekeys for a /bibliography/<kw>/ References section: year
 --   descending, then alphabetical by first-author surname within the
@@ -1651,13 +1651,14 @@ bibliographyMetaIdentifier :: String -> Identifier
 bibliographyMetaIdentifier kw =
     fromFilePath ("content/bibliography-meta/" ++ kw ++ ".md")
 
--- | Group an alphabetically-sorted list of citekeys into letter buckets
---   keyed by the uppercase first letter of each entry's first-author
---   surname (falling back to the citekey's first letter when no author
---   was parsed — edge case, shouldn't occur in current content).
---
---   Because @sortedKeys@ is already alphabetical, 'Data.List.groupBy'
---   produces contiguous same-letter runs in one pass.
+-- | The index sorts and groups by the same case-insensitive name.
+--   Use the citekey when the entry has no author, as for an edited volume.
+bibliographySortName :: String -> BibExtra -> String
+bibliographySortName key extra = map toUpper $ case firstAuthorSurname extra of
+    ""      -> key
+    surname -> surname
+
+-- | Group the sorted citekeys by the first letter of their sort name.
 groupByLetter :: Map String BibExtra -> [String] -> [(Char, [String])]
 groupByLetter extras sortedKeys =
     let withLetters = [ (k, letterOf k) | k <- sortedKeys ]
@@ -1665,13 +1666,8 @@ groupByLetter extras sortedKeys =
     in  [ (letter, map fst grp) | grp <- grouped
                                 , (_, letter) : _ <- [grp] ]
   where
-    letterOf k =
-        let e = fromMaybe emptyBibExtra (Map.lookup k extras)
-        in case firstAuthorSurname e of
-            (c:_) -> toUpper c
-            _     -> case k of
-                (c:_) -> toUpper c
-                _     -> '?'
+    letterOf key = fromMaybe '?' $ listToMaybe $
+        bibliographySortName key (Map.findWithDefault emptyBibExtra key extras)
 
 -- | The A–Z jump strip above the entry list. Present letters render as
 --   anchor links to their section heading; absent letters render as
