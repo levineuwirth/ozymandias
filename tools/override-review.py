@@ -23,11 +23,13 @@ import difflib
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from html.parser import HTMLParser
 from pathlib import Path
+from uuid import uuid4
 
 import yaml
 
@@ -258,73 +260,101 @@ def includes(root: Path, template: str) -> set[str]:
     return found
 
 
-def render(root: Path, template: str, fields: dict, binary: str) -> subprocess.CompletedProcess:
+def render(root: Path, template: str, fields: dict, binary: str,
+           boundaries: dict[str, tuple[str, str]] | None = None) -> subprocess.CompletedProcess:
     """`site render-template` for `template` as `root` resolves it, its own
     templates over the engine's (this one, wherever `root` is)."""
     with tempfile.TemporaryDirectory(prefix="render-template-") as tmp:
         scratch = Path(tmp)
-        (scratch / "root").mkdir()
+        site = scratch / "root"
+        site.mkdir()
         (scratch / "work").mkdir()
-        if (root / "templates").is_dir():
-            (scratch / "root" / "templates").symlink_to((root / "templates").resolve())
-        (scratch / "root" / "engine").symlink_to(ENGINE)
+        if boundaries:
+            if (root / "templates").is_dir():
+                shutil.copytree(root / "templates", site / "templates", copy_function=shutil.copyfile)
+            for path, (opening, closing) in boundaries.items():
+                target = site / path
+                source = target if target.is_file() else ENGINE / path
+                body = source.read_bytes()
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(opening.encode() + body + closing.encode())
+        elif (root / "templates").is_dir():
+            (site / "templates").symlink_to((root / "templates").resolve())
+        (site / "engine").symlink_to(ENGINE)
         (scratch / "context.json").write_text(json.dumps(fields), encoding="utf-8")
         return subprocess.run([binary, "render-template", template, str(scratch / "context.json"),
-                               str(scratch / "work")], cwd=scratch / "root", capture_output=True, text=True)
+                               str(scratch / "work")], cwd=site, capture_output=True, text=True)
+
+
+def rendered_fragments(output: str, marker: str, partials: tuple[str, ...]) -> tuple[str, list[tuple[str, str]]]:
+    """Remove the render's markers and recover the HTML of each partial call,
+    including nested calls and separate iterations of the same loop."""
+    pattern = re.compile(marker + r"(\d*):")
+    starts, spans = [], []
+    removed = 0
+    for match in pattern.finditer(output):
+        offset = match.start() - removed
+        if match[1]:
+            starts.append((partials[int(match[1])], offset))
+        else:
+            path, start = starts.pop()
+            spans.append((path, start, offset))
+        removed += match.end() - match.start()
+    html = pattern.sub("", output)
+    return html, [(path, html[start:end]) for path, start, end in spans]
 
 
 def template_problems(root: Path, template: str, terms: dict, binary: str,
                       partials: tuple[str, ...] = ()) -> list[str]:
     """Why `template`, as `root` has it, breaks the contract: a field the
     contract does not give, a failed render, a hook missing from it, or
-    one of the required hooks of the `partials` it includes, anywhere in
-    it (a partial's root hook is its own top level, not the page's)."""
+    a hook missing from an individual call to an overridden partial."""
     fields = context(terms, template)
     problems = []
     for path, used in site_fields(root, template, frozenset(terms["templates"])).items():
         if undeclared := sorted(used - field_names(fields)):
             where = "" if path == template else f" (in {path})"
             problems.append(f"{template}: uses {', '.join(undeclared)}{where}, which the contract does not give it")
-    done = render(root, template, fields, binary)
+    # Mark scratch copies so Hakyll itself decides which calls run and
+    # with which fields. HTML comments would be stripped at compile time.
+    marker = f"ozy{uuid4().hex}:"
+    boundaries = {path: (f"{marker}{i}:", f"{marker}:") for i, path in enumerate(partials)}
+    done = render(root, template, fields, binary, boundaries)
     if done.returncode != 0:
         return problems + [f"{template}: does not render with its fixture context: {done.stderr.strip()}"]
-    missing = [h["selector"] + (" at its top level" if h.get("root") else "")
-               for h in terms["templates"][template].get("hooks") or []
-               if not matches(done.stdout, h["selector"], root=bool(h.get("root")))]
-    missing += [f"{h['selector']} ({partial}'s)" for partial in partials
-                for h in terms["templates"][partial].get("hooks") or []
-                if not matches(done.stdout, h["selector"])]
+    html, fragments = rendered_fragments(done.stdout, marker, partials)
+    missing = []
+    for path, fragment in [(template, html), *fragments]:
+        for hook in terms["templates"][path].get("hooks") or []:
+            selector, at_root = hook["selector"], bool(hook.get("root"))
+            if not matches(fragment, selector, root=at_root):
+                level = " at its top level" if at_root else ""
+                owner = f" ({path}'s)" if path != template else ""
+                missing.append(f"{selector}{level}{owner}")
     if missing:
-        problems.append(f"{template}: lacks {', '.join(missing)}")
+        problems.append(f"{template}: lacks {', '.join(dict.fromkeys(missing))}")
     return problems
 
 
 def hook_problems(root: Path, binary: str) -> list[str]:
     """Each of the site's template overrides against the contract: it must
     be an override point, render with its fixture context and keep its
-    hooks. Then each page of the engine's that includes one of them, with
-    that page's context, as the build renders it: a partial's own context
-    is every flag the pages that include it might give it, so a branch it
-    takes on one page alone (the controls' on the landing, without the
-    map's or a series' flags) is rendered there, and its required hooks
-    looked for there too."""
+    hooks. Render callers, whether supplied by the engine or the site, and
+    check each partial invocation in the context the caller gives it."""
     terms = contract()
     problems = []
-    overridden = set()
-    for entry in manifest(root):
-        path = entry["site"]
-        if not path.startswith("templates/"):
+    paths = [entry["site"] for entry in manifest(root) if entry["site"].startswith("templates/")]
+    overridden = set(paths) & terms["templates"].keys()
+    for page in dict.fromkeys([*paths, *terms["templates"]]):
+        if page not in terms["templates"]:
+            problems.append(f"{page}: not an override point (engine/contract.yaml)")
             continue
-        if path not in terms["templates"]:
-            problems.append(f"{path}: not an override point (engine/contract.yaml)")
-            continue
-        overridden.add(path)
-        problems += template_problems(root, path, terms, binary)
-    for page in terms["templates"]:
-        if page in overridden or not (theirs := sorted(includes(root, page) & overridden)):
-            continue
-        problems += [f"{page}, the engine's, with the site's {', '.join(theirs)}: {p.removeprefix(page + ': ')}"
-                     for p in template_problems(root, page, terms, binary, tuple(theirs))]
+        partials = tuple(sorted(includes(root, page) & overridden))
+        if page in overridden:
+            problems += template_problems(root, page, terms, binary, partials)
+        elif partials:
+            problems += [f"{page}, the engine's, with the site's {', '.join(partials)}: {p.removeprefix(page + ': ')}"
+                         for p in template_problems(root, page, terms, binary, partials)]
     return problems
 
 

@@ -169,6 +169,36 @@ class TemplateContractTests(unittest.TestCase):
             " templates/partials/photography-controls.html: lacks"
             " .mode-btn[data-mode]:not([data-mode=slideshow]) (templates/partials/photography-controls.html's)"])
 
+    def test_a_site_landing_cannot_supply_the_controls_missing_view(self):
+        landing = "templates/photography-index.html"
+        controls = "templates/partials/photography-controls.html"
+        self.override(landing, engine_path("fixture-site/" + landing).read_text() +
+                      '<button class="mode-btn" data-mode="grid">Elsewhere</button>')
+        grid = '<button class="mode-btn" data-mode="grid">Grid</button>'
+        self.override(controls, f'$if(is-series)${grid}$else$$if(photography-view-map)${grid}$else$'
+                      '<button class="mode-btn" data-mode="slideshow">Slideshow</button>$endif$$endif$')
+        self.assertEqual(review.hook_problems(self.root, self.binary), [
+            f"{landing}: lacks .mode-btn[data-mode]:not([data-mode=slideshow]) ({controls}'s)"])
+
+    def test_a_conditional_partial_only_needs_its_hooks_where_it_renders(self):
+        controls = "templates/partials/photography-controls.html"
+        ornament = "templates/partials/ornament.html"
+        self.override(controls, '<button class="mode-btn" data-mode="grid">Grid</button>'
+                      f'$if(is-series)$$partial("{ornament}")$$endif$')
+        self.override(ornament, '<hr class="footer-ornament">')
+        self.assertEqual(review.hook_problems(self.root, self.binary), [])
+
+    def test_each_card_in_a_loop_keeps_its_own_root_hook(self):
+        landing = "templates/photography-index.html"
+        card = "templates/partials/photo-card.html"
+        self.override(card, '$if(camera)$$else$<div>$endif$<li class="photo-card">'
+                      '<a class="photo-card-link"><img class="photo-card-img"></a></li>'
+                      '$if(camera)$$else$</div>$endif$')
+        photos = self.terms["contexts"]["photo-list"]["photos"]
+        photos[1] = {key: value for key, value in photos[1].items() if key != "camera"}
+        self.assertEqual(review.template_problems(self.root, landing, self.terms, self.binary, (card,)), [
+            f"{landing}: lacks li.photo-card at its top level ({card}'s)"])
+
     def test_the_engine_s_own_partials_keep_their_hooks_in_each_page(self):
         # Each override-point partial, the engine's own copy as the site's:
         # every page that includes it keeps its hooks.
