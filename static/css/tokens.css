@@ -96,6 +96,9 @@
 
      media      max-width   540px  phones: the header's second row (below),
                                    tables, cards, the score reader's clock
+     media      min-width   541px  wider than a phone: a card's header
+                                   wraps under a long dateline, and its
+                                   license stacks under the date
      media      max-width   640px  the score reader's narrow gutter
      media      max-width   680px  one column: the body takes the width,
                                    the footer stacks, the PDF frame shortens
