@@ -1,3 +1,5 @@
 <!-- The fixture's own banner, where the engine has none (overrides.yaml):
-     between the menu and the page shell on every page. -->
-<div class="fixture-banner" data-pagefind-ignore>$site-title$</div>
+     between the menu and the page shell on every page. The hard case on
+     purpose: a header of its own, with a heading, which the engine must
+     neither take for the menu's header nor for a page's title. -->
+<header class="fixture-banner" data-pagefind-ignore="all"><h1>Example Site</h1></header>

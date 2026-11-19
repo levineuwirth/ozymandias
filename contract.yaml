@@ -382,22 +382,31 @@ templates:
         by: [static/css/aftermatter.css, static/css/print.css]
         why: its width and ink, and hidden in print
 
-  # A site's banner: default.html puts it on every page between the menu
-  # (body > header) and the page shell. The engine's is an empty file and it
-  # styles nothing of a site's, in print either: the lights, a name, a strip
-  # of sky are the site's to draw, lay out and hide. No hook is required,
-  # since the engine binds to nothing in it.
+  # A site's banner: default.html puts it on every page it renders, between
+  # the menu's header (the first header in body) and the page shell. The
+  # score reader, a page of its own shell with no menu, has none: a site's
+  # scripts load there too (site.yaml's scripts) and must not count on one.
+  # The engine's is an empty file and it styles nothing of a site's, in
+  # print either: the lights, a name, a strip of sky are the site's to draw,
+  # lay out and hide. A banner may be a header of its own, since the
+  # engine's rules for the menu's are for the first header in body alone
+  # (it is then a second banner landmark, which the site answers for).
+  # nav.js measures what a banner takes of the page's flow and gives it to
+  # the page shell as --banner-height, so that a short page's footer still
+  # ends at the window's foot. No hook is required, since the engine binds
+  # to nothing in it.
   templates/partials/banner.html:
     context: [identity, page]
     hooks: []
     optional:
-      - selector: "[data-pagefind-ignore]"
+      - selector: "[data-pagefind-ignore=all]"
         by: [tools/embed.py]
         why: >-
-          the semantic embeddings leave out an element that carries it, as
-          they do the menu and the footer; without it a banner's words are
-          embedded as every page's own (Pagefind reads only
-          [data-pagefind-body], so it needs nothing)
+          keeps a heading in it from standing as a page's title in search
+          results: Pagefind takes neither words nor a title from an element
+          that carries it with this value (without the value it still takes
+          the title), and the semantic index drops the element before it
+          reads the page's title
 
   # Photography (the photography switch). A hook here is what the engine's
   # scripts bind to; the classes the engine's stylesheets style are not

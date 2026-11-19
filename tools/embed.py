@@ -300,8 +300,11 @@ def _extract(url: str, raw: str) -> tuple[dict | None, list[dict]]:
     if body is None:
         return None, []
 
-    title = _title(soup, url)
+    # The title after the cleaning: a heading in the menu, a site's banner
+    # or anything else search is told to leave out ([data-pagefind-ignore])
+    # is not the page's.
     _clean_soup(soup)
+    title = _title(soup, url)
 
     text = re.sub(r"\s+", " ", body.get_text(" ", strip=True)).strip()
     if len(text) < 100:

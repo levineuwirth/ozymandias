@@ -12,7 +12,9 @@
     /* ----------------------------------------------------------------
        Hide chrome.
 
-       Site nav is `body > header` (templates/partials/nav.html); the
+       Site nav is the first `body > header` (templates/partials/nav.html):
+       a site's banner after it, a header of its own or not, is the site's
+       to print or to hide. The
        essay frontmatter is `.page-shell > .essay-frontmatter`
        (essay/blog-post/reading templates — a <div> since A05) and MUST
        stay visible: its <h1> is the page title.
@@ -21,7 +23,7 @@
        divider are decorative; suppressing them lets the title block
        collapse to a clean masthead.
     ---------------------------------------------------------------- */
-    body > header,
+    body > header:first-of-type,
     .page-shell > footer,
     #toc,
     #toc-mobile-bar,

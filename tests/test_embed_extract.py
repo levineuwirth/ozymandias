@@ -61,6 +61,20 @@ class ExtractTests(unittest.TestCase):
         doc, _ = embed.extract_document(self.write("b.html", page(f"<p>{PROSE}</p>")))
         self.assertEqual(doc["title"], "Essay")
 
+    def test_a_heading_search_leaves_out_is_not_the_page_s_title(self):
+        # A site's banner (templates/partials/banner.html) may hold a
+        # heading, before the page's own: the title is read after what
+        # search is told to leave out has gone.
+        html = page(f"<h1>Domination</h1><p>{PROSE}</p>").replace(
+            "<main", '<header data-pagefind-ignore="all"><h1>The Site</h1></header><main')
+        doc, paras = embed.extract_document(self.write("essays/c.html", html))
+        self.assertEqual(doc["title"], "Domination")
+        self.assertEqual({x["title"] for x in paras}, {"Domination"})
+        # And with nothing else to go by, the <title>, not the banner.
+        bare = page(f"<p>{PROSE}</p>").replace(
+            "<main", '<header data-pagefind-ignore><h1>The Site</h1></header><main')
+        self.assertEqual(embed.extract_document(self.write("d.html", bare))[0]["title"], "Essay")
+
     def test_chrome_and_duplicated_text_are_stripped(self):
         body = (f"<p>{PROSE}</p><nav id=\"toc\">Contents list</nav>"
                 "<div class=\"page-meta-footer\">Related: other pages</div>")

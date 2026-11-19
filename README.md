@@ -346,7 +346,7 @@ to match, and charts (`viz.js`) take their light or dark palette from it.
 A site whose print rules recolor its themes sets it back to `light` there.
 
 The header is a sticky top bar unless a site says otherwise, and a site may
-give `body > header` another `position`: `static`, to scroll away with the
+give it (`body > header:first-of-type`, the menu's) another `position`: `static`, to scroll away with the
 page, or `absolute`, to stand beside it as a masthead. `nav.js` measures the
 header and publishes three lengths on `:root`. `--nav-height` is what stays
 over the page while it scrolls, the header's height when it is `sticky` or
@@ -371,13 +371,21 @@ scrolled off.
 Between the menu and the page a site may put a banner of its own:
 `templates/partials/banner.html`, an override point (`contract.yaml`) that
 `default.html` renders on every page with the site's identity and the page's
-title and address. The engine's is an empty file, so a site without one has
-nothing there, and the engine styles nothing of a site's, in print either: a
-band of sky, a name, a strip the site's script draws into are the site's to
-lay out, and to hide where it wants them hidden. A site that draws there by
-script gives the element its room in CSS, so that nothing moves when the
-script runs. Its words stay out of the semantic search's embeddings when
-its element carries `data-pagefind-ignore`.
+title and address. The score reader, which has its own shell and no menu,
+has none; a site's scripts load there all the same, and should not count on
+a banner. The engine's is an empty file, so a site without one has nothing
+there, and the engine styles nothing of a site's, in print either: a band
+of sky, a name, a strip the site's script draws into are the site's to lay
+out, and to hide where it wants them hidden. It may be a `header` of its
+own (a second banner landmark, which the site answers for): the engine's
+rules for the menu's header are for the first `header` in `body` alone.
+`nav.js` measures what the banner takes of the page's flow and publishes it
+as `--banner-height`, which the page shell gives up of the window's height
+beside `--nav-flow-height`, so a short page's footer still ends at the
+window's foot; a site that draws there by script gives the element its room
+in CSS, so that nothing moves when the script runs. A heading in it would
+stand as each page's title in search results: `data-pagefind-ignore="all"`
+on its element keeps both indexes from taking it.
 
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture

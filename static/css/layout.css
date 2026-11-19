@@ -15,7 +15,7 @@
 .page-shell {
     display: flex;
     flex-direction: column;
-    min-height: calc(100dvh - var(--nav-flow-height, 4rem));
+    min-height: calc(100dvh - var(--nav-flow-height, 4rem) - var(--banner-height, 0px));
 }
 
 
@@ -25,15 +25,16 @@
    (Nav styles live in nav.css)
    ============================================================ */
 
-/* Site-nav header only.
-   The essay/reading/series frontmatter is now a <div class="essay-frontmatter">
-   (A05: as a body-level <header> it mapped to a second banner landmark
-   alongside the site header). The :not() guard is kept as a belt for any
-   template that still emits it as a <header> — without it that element
-   would inherit the sticky / nav-bg / border-bottom chrome meant only for
-   the top navigation, painting the wrong colour band over the page and
-   pinning the frontmatter to the viewport top. */
-body > header:not(.essay-frontmatter) {
+/* Site-nav header only: the first header in body, which is the menu's
+   (templates/partials/nav.html, straight after the skip link).
+   A site's banner (templates/partials/banner.html) comes after it and may
+   be a <header> of its own; and should a template ever emit the essay's
+   frontmatter as a body-level <header> again (it is a
+   <div class="essay-frontmatter"> since A05), that comes after it too.
+   Neither may take the sticky / nav-bg / border-bottom chrome meant for
+   the top navigation, which would paint the wrong colour band over the
+   page and pin the element to the viewport top. */
+body > header:first-of-type {
     width: 100%;
     border-bottom: 1px solid var(--border);
     background-color: var(--bg-nav);

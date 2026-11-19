@@ -15,6 +15,7 @@ checkout lacks, so `make test-clean` and the GitHub workflow never run it:
 only a machine that has them checks that the fixture passes the gate.
 """
 
+import gzip
 import json
 import os
 import re
@@ -916,22 +917,55 @@ class FixtureBuilds(unittest.TestCase):
         essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
         self.assertIn("fixture-ornament", essay)
 
-    def test_its_banner_stands_between_the_menu_and_the_page_on_every_page(self):
+    def test_its_banner_stands_between_the_menu_and_the_page_on_every_page_but_a_score_reader(self):
         # templates/partials/banner.html, empty in the engine: the fixture's
         # is on each page default.html renders, once, after the menu's
         # header and before the page shell, with the fields its entry gives.
-        banner = '<div class="fixture-banner" data-pagefind-ignore>Example Site</div>'
+        # A score reader has its own shell and no menu, and so no banner,
+        # though the site's scripts load there (the test above).
+        banner = '<header class="fixture-banner" data-pagefind-ignore="all"><h1>Example Site</h1></header>'
         for name in ("full", "minimal"):
             with self.subTest(build=name):
                 self.refused(name)
                 site = self.sites[name] / "_site"
-                pages = [p for p in site.rglob("*.html") if '<div class="page-shell">' in p.read_text(encoding="utf-8")]
-                self.assertTrue(pages)
+                pages = [p for p in site.rglob("*.html") if 'name="ozy:assets"' in p.read_text(encoding="utf-8")]
+                readers = [p for p in pages if p.relative_to(site).parts[0] == "music" and p.parent.name == "score"]
+                self.assertEqual(bool(readers), name == "full")       # the minimal profile has no music
+                self.assertGreater(len(pages), len(readers))
                 for page in pages:
                     html = page.read_text(encoding="utf-8")
+                    if page in readers:
+                        self.assertNotIn("fixture-banner", html, page)
+                        continue
                     self.assertEqual(html.count('class="fixture-banner"'), 1, page)
                     self.assertIn(banner + '<div class="page-shell">', html.replace("\n", ""), page)
+                    # The first header to close is the menu's.
                     self.assertLess(html.index("</header>"), html.index(banner), page)
+
+    def test_a_banner_s_heading_is_not_a_page_s_title_in_either_search_index(self):
+        # The fixture's banner holds an <h1>, before the essay's own in the
+        # page. Pagefind's result for the essay (its fragment's meta.title)
+        # and the semantic index's (tools/embed.py's extraction) both give
+        # the essay's title: the banner carries data-pagefind-ignore="all".
+        self.refused("full")
+        site = self.sites["full"] / "_site"
+        essay = (site / "essays/long/index.html").read_text(encoding="utf-8")
+        self.assertLess(essay.index("<h1>Example Site</h1>"), essay.index("A Long Essay</h1>"))
+        titles = {}
+        for fragment in (site / "pagefind/fragment").glob("*.pf_fragment"):
+            data = gzip.decompress(fragment.read_bytes())
+            entry = json.loads(data[data.index(b"{"):])
+            titles[entry["url"]] = entry["meta"].get("title")
+        self.assertEqual(titles.get("/essays/long/"), "A Long Essay")
+        self.assertNotIn("Example Site", titles.values())
+        try:
+            embed = load_tool("embed.py", "embed_for_the_fixture")
+        except ImportError as exc:                  # faiss, numpy or bs4 missing: no .venv
+            self.skipTest(f"embed.py's dependencies are not installed: {exc}")
+        with unittest.mock.patch.object(embed, "SITE_DIR", site):
+            page, passages = embed.extract_document(site / "essays/long/index.html")
+        self.assertEqual(page["title"], "A Long Essay")
+        self.assertNotIn("Example Site", {p["title"] for p in passages} | {p["heading"] for p in passages})
 
 
 if __name__ == "__main__":
