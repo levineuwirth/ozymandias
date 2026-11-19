@@ -287,6 +287,23 @@ class FixtureBuilds(unittest.TestCase):
         self.assertIn('<div id="ref-probe2026" class="csl-entry"',
                       (site / "_site/essays/capabilities/index.html").read_text(encoding="utf-8"))
 
+    def test_a_photograph_is_given_every_field_the_contract_names(self):
+        # The fixture's photo card, its override, names in a template element
+        # each of the contract's photo fields it was given, and the series'
+        # first frame has them all; backlinks come from make build's first
+        # pass, which these builds do not run. A field the contract named and
+        # the engine never gave would let an override's $if$ on it pass the
+        # contract and read false on every site.
+        fields = set(review.contract()["contexts"]["photo"])
+        card = (FIXTURE / "templates/partials/photo-card.html").read_text(encoding="utf-8")
+        probe = re.search(r'<template class="fixture-contract-probe">(.*?)</template>', card).group(1)
+        self.assertEqual(set(re.findall(r"\$if\(([\w-]+)\)\$ \1\$endif\$", probe)), fields)
+        self.refused("full")
+        page = (self.sites["full"] / "_site/photography/fixture-series/index.html").read_text(encoding="utf-8")
+        given = [set(p.split()) for p in re.findall(r'<template class="fixture-contract-probe">([^<]*)</template>', page)]
+        self.assertEqual(len(given), 3)
+        self.assertEqual(fields - max(given, key=len), {"backlinks"})
+
     def test_source_preview_wildcards_never_publish_engine_files(self):
         # Neither raw sources nor sectioned Markdown may escape via a
         # wildcard spelling of engine/. The site's own matches still ship.

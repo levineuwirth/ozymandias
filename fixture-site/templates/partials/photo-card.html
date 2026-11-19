@@ -1,0 +1,14 @@
+<!-- The fixture's own photo card (contract.yaml): other markup than the
+     engine's, a figure with its caption under the photograph, keeping the
+     card's hooks, so that the engine's photography tests run against an
+     override. The template element names, for test_fixture_site, the
+     contract's photo fields this photograph was given; it renders nothing. -->
+<li class="photo-card"$if(orientation)$ data-orientation="$orientation$"$endif$>
+    <figure class="fixture-card">
+        <a class="photo-card-link" href="$canonical-url$">
+            $if(photo-url)$<img class="photo-card-img" src="$photo-url$"$if(photo-srcset)$ srcset="$photo-srcset$" sizes="auto, 48rem"$endif$ alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="lazy" decoding="async"$if(width)$ width="$width$"$endif$$if(height)$ height="$height$"$endif$>$else$$if(photo)$<img class="photo-card-img" src="$photo$" alt="$if(alt)$$plain(alt)$$else$$plain(title)$$endif$" loading="lazy" decoding="async">$endif$$endif$
+        </a>
+        <figcaption class="photo-card-meta"><span class="photo-card-title">$title$</span>$if(captured-iso)$ <time class="photo-card-date" datetime="$captured-iso$">$captured-display$</time>$endif$</figcaption>
+    </figure>
+    <template class="fixture-contract-probe">$if(abstract)$ abstract$endif$$if(alt)$ alt$endif$$if(aperture)$ aperture$endif$$if(author-links)$ author-links$endif$$if(backlinks)$ backlinks$endif$$if(camera)$ camera$endif$$if(canonical-url)$ canonical-url$endif$$if(captured)$ captured$endif$$if(captured-display)$ captured-display$endif$$if(captured-iso)$ captured-iso$endif$$if(date)$ date$endif$$if(date-iso)$ date-iso$endif$$if(exposure)$ exposure$endif$$if(film)$ film$endif$$if(focal-length)$ focal-length$endif$$if(footer-deps)$ footer-deps$endif$$if(height)$ height$endif$$if(iso)$ iso$endif$$if(lens)$ lens$endif$$if(location)$ location$endif$$if(orientation)$ orientation$endif$$if(palette-swatches)$ palette-swatches$endif$$if(photo)$ photo$endif$$if(photo-links)$ photo-links$endif$$if(photo-srcset)$ photo-srcset$endif$$if(photo-url)$ photo-url$endif$$if(photo-webp-srcset)$ photo-webp-srcset$endif$$if(photo-webp-url)$ photo-webp-url$endif$$if(photography)$ photography$endif$$if(photography-tags)$ photography-tags$endif$$if(process)$ process$endif$$if(series)$ series$endif$$if(shutter)$ shutter$endif$$if(slug)$ slug$endif$$if(title)$ title$endif$$if(width)$ width$endif$</template>
+</li>

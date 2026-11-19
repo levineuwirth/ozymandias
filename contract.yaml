@@ -112,6 +112,87 @@ contexts:
     switch-build-page: true
     switch-footer-build-time: true
     switch-signature-link: true
+    switch-new: true
+
+  # A photograph's fields (Contexts.photographyCtx): its own page's, and
+  # each item's of a list of photographs (photos, series-photos), which is
+  # what photo-card.html is rendered with. The engine computes the URLs,
+  # srcsets, dimensions, capture date and lists; the rest is front matter
+  # as written, and camera to height fall back to the photograph's
+  # sidecars (`data:` below). Any field may be absent but title: guard it
+  # with $if$. A series child carries series:, its directory's name.
+  photo: &photo
+    photography: true
+    slug: example-frame
+    title: Example Frame
+    alt: A pier in fog
+    abstract: The first frame of the roll.
+    photo: example-frame.jpg
+    photo-url: /photography/example-series/example-frame.jpg
+    photo-webp-url: /photography/example-series/example-frame.webp
+    photo-srcset: /photography/example-series/example-frame.w480.jpg 480w, /photography/example-series/example-frame.jpg 1600w
+    photo-webp-srcset: /photography/example-series/example-frame.w480.webp 480w
+    width: "1600"
+    height: "1067"
+    orientation: landscape
+    camera: Example Camera
+    lens: 50mm f/2
+    film: Example 400
+    process: C-41
+    exposure: 1/125 s at f/8
+    shutter: 1/125
+    aperture: f/8
+    iso: "400"
+    focal-length: 50mm
+    captured: "2026-04-21"
+    captured-display: 21 April 2026
+    captured-iso: "2026-04-21"
+    location: Example Town, Example Country
+    series: example-series
+    canonical-url: /photography/example-series/example-frame/
+    date: 1 May 2026
+    date-iso: "2026-05-01"
+    palette-swatches:
+      - {swatch: "#2f3a40"}
+    photo-links:
+      - {link-name: Elsewhere, link-url: https://photos.example.org/frame}
+    photography-tags:
+      - {tag-name: fog, tag-url: /photography/tags/fog/}
+    author-links:
+      - {author-name: Example Author, author-url: /authors/example-author/}
+    # The pages that link to it, from the build's first pass (make build).
+    backlinks: <ul><li><a href="/essays/example/">An Example</a></li></ul>
+    footer-deps: true
+  # A series landing's (Photography.seriesCtx), over its own photo fields:
+  # its photographs, newest first, and what the build counts of them, each
+  # absent when the series cannot say.
+  series:
+    is-series: true
+    series-photos: [*photo, *photo]
+    series-frame-count: "2"
+    series-bytes: 3.1 MB
+    series-captured-span: April 2026
+    series-cameras: Example Camera
+    series-lenses: 50mm f/2
+    series-focal-span: 50mm
+    series-iso-span: "400"
+    series-locations: Example Town
+  # A page listing photographs: the section's landing (its prose in
+  # body), a year's page and the contact sheet. Newest first, but the
+  # contact sheet's, oldest first.
+  photo-list:
+    photos: [*photo, *photo]
+    list-page: true
+  # A page's own prose, rendered: a photograph's notes, a series' or the
+  # section's introduction. (A photograph in a list has none to give.)
+  prose:
+    body: <p>Notes on the frame.</p>
+  # A year's page, and the index of years.
+  photo-year:
+    year: "2026"
+  photo-years:
+    years:
+      - {year: "2026", year-url: /photography/by-year/2026/, year-count: "2"}
 
 templates:
   templates/404.html:
@@ -148,3 +229,114 @@ templates:
       - selector: .footer-ornament
         by: [static/css/aftermatter.css, static/css/print.css]
         why: its width and ink, and hidden in print
+
+  # Photography (the photography switch). A hook here is what the engine's
+  # scripts bind to; the classes the engine's stylesheets style are not
+  # hooks, since a site that overrides a template styles its own markup.
+  # What a site's presentation needs beyond these is in the photographs'
+  # data (`data:`) and window.ozyPhotography (`scripts:`).
+  templates/photography.html:
+    context: [identity, page, switches, photo, prose]
+    hooks:
+      - selector: img[data-lightbox]
+        by: [static/js/lightbox.js]
+        why: the photograph opens in the darkroom
+    optional:
+      - selector: img[data-photo-captured]
+        by: [static/js/lightbox.js]
+        why: >-
+          the darkroom's information panel shows the trigger's
+          data-photo-captured, -location, -camera, -lens, -film and
+          -exposure, each that it has
+
+  templates/photography-series.html:
+    context: [identity, page, switches, photo, series, prose]
+    hooks:
+      - selector: .photography-grid[data-photography-mode]
+        by: [static/js/photography-modes.js, static/js/photography-slideshow.js, static/js/popups/photography.js]
+        why: >-
+          the grid the view modes lay out (data-photography-mode names the
+          one shown), the slideshow plays and popups leave alone
+    optional:
+      - selector: img[data-lightbox]
+        by: [static/js/lightbox.js]
+        why: the lead photograph opens in the darkroom
+
+  templates/photography-index.html:
+    context: [identity, page, switches, photo-list, prose]
+    hooks:
+      - selector: .photography-grid[data-photography-mode]
+        by: [static/js/photography-modes.js, static/js/popups/photography.js]
+        why: the grid the view modes lay out, and popups leave alone
+
+  templates/photography-by-year.html:
+    context: [identity, page, switches, photo-list, photo-year]
+    hooks: []
+    optional:
+      - selector: .photography-grid[data-photography-mode]
+        by: [static/js/photography-modes.js, static/js/popups/photography.js]
+        why: a grid of cards is sized as the landing's is, and popups leave it alone
+
+  templates/photography-by-year-index.html:
+    context: [identity, page, switches, photo-years]
+    hooks: []
+
+  templates/photography-contact-sheet.html:
+    context: [identity, page, switches, photo-list]
+    hooks: []
+    optional:
+      - selector: .photography-contact-sheet
+        by: [static/js/photography-modes.js]
+        why: its frames' image sizes follow their rendered width
+
+  templates/photography-map.html:
+    context: [identity, page, switches]
+    hooks:
+      - selector: "#photography-map"
+        by: [static/js/photography-map.js]
+        why: the element the map is drawn in, its state classes added to it
+
+  templates/partials/photo-card.html:
+    context: [identity, page, switches, photo]
+    hooks:
+      - selector: li.photo-card
+        root: true
+        by: [static/js/photography-modes.js, static/js/photography-slideshow.js]
+        why: >-
+          one photograph of a grid (a ul): the modes size it, the slideshow
+          takes a frame from each
+      - selector: a.photo-card-link
+        by: [static/js/photography-slideshow.js]
+        why: the frame's page, the slideshow's link to it
+      - selector: img.photo-card-img
+        by: [static/js/photography-modes.js]
+        why: its sizes follow the card's rendered width
+    optional:
+      - selector: li[data-orientation]
+        by: [static/js/photography-modes.js]
+        why: masonry's placeholder shape before the image loads
+      - selector: .photo-card-meta
+        by: [static/js/photography-modes.js]
+        why: masonry leaves room for it under the photograph
+      - selector: .photo-card-title
+        by: [static/js/photography-slideshow.js]
+        why: the slideshow's caption
+      - selector: time.photo-card-date
+        by: [static/js/photography-slideshow.js]
+        why: the slideshow's date
+
+  templates/partials/photography-controls.html:
+    context: [series]
+    hooks:
+      - selector: .mode-btn[data-mode]
+        by: [static/js/photography-modes.js]
+        why: >-
+          a view: its data-mode is a registered mode, which choosing
+          applies in place, or a page (map) it links to
+    optional:
+      - selector: .photography-mode-toggle
+        by: [static/js/photography-modes.js]
+        why: the group whose entries carry aria-current
+      - selector: button[data-mode=slideshow]
+        by: [static/js/photography-slideshow.js]
+        why: starts the slideshow, on a series

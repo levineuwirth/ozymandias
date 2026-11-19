@@ -15,3 +15,7 @@
   engine: static/css/site.css
   reviewed: 9d83a3bc68df71f6aa51c8e549338728535be73f
   note: the site's site stylesheet, in the site layer
+- site: templates/partials/photo-card.html
+  engine: templates/partials/photo-card.html
+  reviewed: 0d0dd0b8952378f58d217d8b4b191a7a30171b79
+  note: a figure with its caption, keeping the card's hooks, and a probe of the contract's photo fields

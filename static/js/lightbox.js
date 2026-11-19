@@ -67,24 +67,26 @@
         // Mapping from data-photo-* attribute to the human-readable
         // label shown in the panel. Order is the rendering order; only
         // attributes present on the trigger image produce panel rows.
+        // Spelled as attributes: they are hooks of the photography
+        // templates (contract.yaml), which a site's override keeps.
         var PANEL_FIELDS = [
-            ['photoCaptured', 'Captured'],
-            ['photoLocation', 'Location'],
-            ['photoCamera',   'Camera'],
-            ['photoLens',     'Lens'],
-            ['photoFilm',     'Film'],
-            ['photoExposure', 'Exposure']
+            ['data-photo-captured', 'Captured'],
+            ['data-photo-location', 'Location'],
+            ['data-photo-camera',   'Camera'],
+            ['data-photo-lens',     'Lens'],
+            ['data-photo-film',     'Film'],
+            ['data-photo-exposure', 'Exposure']
         ];
 
         function populateInfoPanel(triggerImg) {
             infoPanel.innerHTML = '';
-            if (!triggerImg || !triggerImg.dataset) return false;
+            if (!triggerImg || !triggerImg.getAttribute) return false;
             var dl = document.createElement('dl');
             var any = false;
             PANEL_FIELDS.forEach(function (entry) {
                 var key = entry[0];
                 var label = entry[1];
-                var value = triggerImg.dataset[key];
+                var value = triggerImg.getAttribute(key);
                 if (!value) return;
                 any = true;
                 var dt = document.createElement('dt');
