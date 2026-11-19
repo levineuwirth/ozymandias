@@ -36,7 +36,7 @@ $if(photography)$<script src="$assets$/js/photography-slideshow.js" defer></scri
 $if(photography-map)$<script src="/leaflet/leaflet.js" defer></script>$endif$
 $if(photography-map)$<script src="/leaflet/leaflet.markercluster.js" defer></script>$endif$
 $if(photography-map)$<script src="$assets$/js/photography-map.js" defer></script>$endif$
-$for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
+$for(site-scripts)$<script src="$assets$$script-src$" defer></script>$endfor$$for(page-scripts)$<script src="/$script-src$" defer></script>$endfor$
 $if(math)$<script defer src="$assets$/js/math.js"></script>$endif$
 </body>
 </html>

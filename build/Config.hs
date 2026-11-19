@@ -76,6 +76,12 @@ data SiteConfig = SiteConfig
     , sitePopupProviders :: [String]
     , siteSeasons :: [Season]
     , siteReaderSettings :: [ReaderSetting]
+      -- | The site's own scripts for every page (site.yaml's @scripts@):
+      --   paths under @/js/@, published under the asset version as the
+      --   engine's are, and loaded after them, deferred, before a page's
+      --   own @js:@. A site's script extends the engine's registries
+      --   (contract.yaml's scripts) from here rather than from each page.
+    , siteScripts :: [String]
       -- | What @/source/@ publishes of the site's own files, as Hakyll globs
       --   over its paths (with the source-refs switch); inline code naming
       --   one, or a link to source-repo, previews it ("Filters.SourceRefs").
@@ -463,7 +469,7 @@ instance FromJSON SiteConfig where
                   ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
                       "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "reader-settings",
-                      "source-preview",
+                      "scripts", "source-preview",
                       "engine-repo", "switches"]) o
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
@@ -481,6 +487,7 @@ instance FromJSON SiteConfig where
                         <*> o .:? "popup-providers" .!= []
                         <*> o .:? "seasons" .!= []
                         <*> o .:? "reader-settings" .!= []
+                        <*> o .:? "scripts" .!= []
                         <*> o .:? "source-preview" .!= [] <*> o .:? "engine-repo" .!= ""
                         <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
         mapM_ (uncurry singleLine) (identityValues c)
@@ -496,6 +503,9 @@ instance FromJSON SiteConfig where
             fail ("epistemic-figure must be radar, seal or dial: " ++ siteEpistemicFigure c)
         let seasonIds = map seasonId (siteSeasons c)
         when (nub seasonIds /= seasonIds) $ fail "season ids must be unique"
+        forM_ (siteScripts c) $ \path -> unless (siteAsset ".js" path && "/js/" `isPrefixOf` path) $
+            fail ("scripts must be the site's .js paths under /js/: " ++ path)
+        when (nub (siteScripts c) /= siteScripts c) $ fail "scripts must be unique"
         let readerIds = map readerId (siteReaderSettings c)
         when (nub readerIds /= readerIds) $ fail "reader setting ids must be unique"
         when (any isControl (siteSigningFingerprint c)) $
@@ -546,6 +556,7 @@ instance ToJSON SiteConfig where
                            "popup-providers" .= sitePopupProviders c,
                            "seasons" .= siteSeasons c,
                            "reader-settings" .= siteReaderSettings c,
+                           "scripts" .= siteScripts c,
                            "source-preview" .= siteSourcePreview c,
                            "engine-repo" .= siteEngineRepo c,
                            "switches" .= siteSwitches c])
@@ -893,10 +904,13 @@ identityFields =
 -- | What head.html's meta tags tell the scripts, beyond identity: the other
 --   sites popups.js may ask for a preview, each name checked against the
 --   registry by the loader, and what a term's popup calls the page that
---   explains the terms.
+--   explains the terms. And the site's own scripts, which default.html
+--   loads: @$for(site-scripts)$@ with @$script-src$@, versioned.
 scriptContext :: Context String
 scriptContext =
-       field "popup-providers" (\_ -> do
+       listField "site-scripts" (assetsField <> field "script-src" (pure . escapeHtml . itemBody))
+           (loadConfig >>= mapM makeItem . siteScripts)
+    <> field "popup-providers" (\_ -> do
            providers <- sitePopupProviders <$> loadConfig
            if null providers then noResult "no popup-providers" else return (unwords providers))
     <> configField "epistemic-about-label" (escapeHtml . siteEpistemicAboutLabel)

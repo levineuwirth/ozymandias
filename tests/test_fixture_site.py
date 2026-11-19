@@ -330,6 +330,32 @@ class FixtureBuilds(unittest.TestCase):
         self.assertTrue(pins)
         self.assertEqual({k for pin in pins for k in pin} - set(data["photography/map.json"]["keys"]), set())
 
+    def test_the_site_s_own_scripts_load_on_every_page_after_the_engine_s(self):
+        # site.yaml's scripts: under the asset version, published, and after
+        # every script of the engine's, deferred, on each page.
+        for name in ("full", "minimal"):
+            with self.subTest(build=name):
+                self.refused(name)
+                site = self.sites[name] / "_site"
+                version = (site / "index.html").read_text(encoding="utf-8")
+                version = re.search(r'<meta name="ozy:assets" content="(/assets/[^"]+)"', version).group(1)
+                src = f"{version}/js/fixture-site.js"
+                self.assertTrue((site / src.lstrip("/")).is_file())
+                # The pages default.html renders (not vendored ones, PDF.js's viewer).
+                pages = [p for p in site.rglob("*.html") if 'name="ozy:assets"' in p.read_text(encoding="utf-8")]
+                self.assertTrue(pages)
+                for page in pages:
+                    html = page.read_text(encoding="utf-8")
+                    # The build writes them relative to the page: as from the root.
+                    scripts = ["/" + re.sub(r"^(?:\.\.?/)+|^/", "", s)
+                               for s in re.findall(r'<script[^>]*\bsrc="([^"]+)"', html)]
+                    self.assertEqual(scripts.count(src), 1, page)
+                    # math.js, which typesets the page, alone comes last of all.
+                    engine = [i for i, s in enumerate(scripts)
+                              if s.startswith(version) and s not in (src, f"{version}/js/math.js")]
+                    self.assertGreater(scripts.index(src), max(engine, default=-1), page)
+                    self.assertRegex(html, r'<script src="[./]*' + re.escape(src.lstrip("/")) + '" defer></script>')
+
     def test_source_preview_wildcards_never_publish_engine_files(self):
         # Neither raw sources nor sectioned Markdown may escape via a
         # wildcard spelling of engine/. The site's own matches still ship.

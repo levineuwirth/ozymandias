@@ -124,6 +124,10 @@ the freshness check hashes it.
 - **`seasons`:** dressings over a theme, each with a window (`from`, `to`,
   `MM-DD`), a `stylesheet` and optionally a `script`, which registers what it
   draws with `static/js/stage.js`.
+- **`scripts`:** the site's own scripts for every page, paths under `/js/`
+  (its `static/js/`), published under the asset version and loaded after
+  the engine's, deferred, before a page's own `js:`. See "Overriding
+  engine files" for what they may extend.
 - **`reader-settings`:** choices the site gives its readers in Settings,
   each an `id`, a `label` for its row and two or more `options`, buttons
   named from their ids as themes are. The first option is the default and
@@ -167,12 +171,20 @@ templates a site may override, the fields the engine renders each with, and
 the hooks its scripts and styles need in the result.
 
 A script is better extended than copied. A site's own script, loaded after
-the engine's (a page's `js:` front matter), registers into what
-`contract.yaml`'s `scripts` lists:
+the engine's (`site.yaml`'s `scripts` on every page, or a page's `js:` front
+matter), registers into what `contract.yaml`'s `scripts` lists:
 - `window.ozyPopups`: a preview for its own elements;
 - `window.ozySelection`: a selection toolbar context or action;
-- `window.ozyPhotography`: a layout of the photography grid;
+- `window.ozyPhotography`: a layout of the photography grid, the map's
+  markers, tooltips and targets, and the photographs' data (`photos()`);
 - `ozy:content-added` and `window.ozyEnhance`: content added after load.
+
+Photography is redesigned through that and its templates: every
+photography template and partial is an override point, with the fields
+and hooks `contract.yaml` names, and `contract.yaml`'s `data` describes
+`/photography/photos.json` (every photograph's fields, as the templates
+are given them), `map.json` and the photographs' sidecars, so a site's
+own presentation can be built from data rather than the engine's markup.
 
 The content event announces insertion synchronously; highlighting and
 typesetting may finish later. A photography mode owns its listeners and

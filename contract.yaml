@@ -32,8 +32,9 @@
 #   file (JS is extended, not copied): each a global or an event, the engine
 #   file that provides it (by), which tools/override-review.py holds to
 #   defining it, and how to use it. A site's script comes after the
-#   engine's, deferred (a page's `js:` front matter, or a template
-#   override), and registers before the page has loaded;
+#   engine's, deferred (site.yaml's scripts, on every page; a page's `js:`
+#   front matter; or a template override), and registers before the page
+#   has loaded;
 #   tests/test_browser_registries.py is one.
 scripts:
   ozy:content-added:

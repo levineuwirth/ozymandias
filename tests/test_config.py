@@ -371,6 +371,10 @@ class ConfigTests(unittest.TestCase):
                 {"script": "/js/autumn.css"}, {"script": "js/autumn.js"}, {"script": "/js/a b.js"},
                 {"order": 1},
             )],
+            *[{"scripts": change} for change in (
+                "/js/site.js", ["/js/site.js", "/js/site.js"], ["js/site.js"], ["/site.js"],
+                ["/js/site.css"], ["/js/../site.js"], ['/js/s"ite.js'], ["/js/a b.js"], [None],
+            )],
             {"reader-settings": ground}, {"reader-settings": [ground, ground]},
             *[{"reader-settings": [dict(ground, **change)]} for change in (
                 {"id": "Ground"}, {"id": "-ground"}, {"id": ""}, {"label": ""}, {"label": "one\ntwo"},
@@ -463,6 +467,16 @@ class ConfigTests(unittest.TestCase):
         done = self.run_site("config")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout)["reader-settings"], settings)
+
+    def test_scripts_are_read_and_emitted(self):
+        # None: an empty list. Each the site's .js under /js/, loaded on
+        # every page.
+        self.assertEqual(json.loads(self.run_site("config").stdout)["scripts"], [])
+        self.config["scripts"] = ["/js/portfolio.js", "/js/more/map.js"]
+        self.write_config()
+        done = self.run_site("config")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout)["scripts"], ["/js/portfolio.js", "/js/more/map.js"])
 
     def test_taxonomy_rejects_declarations_the_routes_cannot_honor(self):
         original = self.config["sections"]

@@ -55,3 +55,7 @@ library:
   shelf-max: 5
   description: Every shelf of the fixture site.
   see-also: []
+
+# The site's own script, on every page (a site extends the engine's
+# registries from one; contract.yaml's scripts).
+scripts: [/js/fixture-site.js]
