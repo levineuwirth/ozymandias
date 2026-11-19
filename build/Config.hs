@@ -10,7 +10,7 @@ module Config
     , Standalone (..), PageKind (..), Season (..), ReaderSetting (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, bundleContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
-    , siteOwnHosts, identityContext, identityFields, navigationContext, scriptContext, seasonContext, readerSettingContext
+    , siteOwnHosts, identityContext, identityOver, identityFields, navigationContext, scriptContext, seasonContext, readerSettingContext
     , manifestRules
     , sourcePreviewPattern
     ) where
@@ -567,10 +567,12 @@ identityKeys :: [String]
 identityKeys = ["title", "author", "author-sort", "email", "contact-email", "url", "host",
                 "source-repo", "source-branch", "forge-host", "content-license", "code-license"]
 
--- | What a site may leave out, or give empty: where its source is and under
---   what license, for one whose source is not public. Nothing then links a
---   repository ('statedField'), marks a forge's links ("Filters.Links") or
---   publishes a LICENSE ("Site"), and the source-refs switch is refused.
+-- | What a site may leave out, or give empty, each with an effect of its
+--   own (README, "site.yaml"): without source-repo nothing links a
+--   repository ('statedField') and the source-refs switch is refused;
+--   without forge-host no link is marked a forge's ("Filters.Links");
+--   without code-license none is named and no LICENSE goes to /licenses/
+--   ("Site"). A site whose source is not public leaves out all three.
 unstatedKeys :: [String]
 unstatedKeys = ["source-repo", "forge-host", "code-license"]
 
@@ -885,11 +887,16 @@ loadFeed path = do
 configField :: String -> (SiteConfig -> String) -> Context a
 configField name get = field name $ \_ -> get <$> loadConfig
 
+-- | The identity fields site.yaml may leave unstated ('statedField').
+unstatedFields :: [String]
+unstatedFields = ["site-source-repo", "site-code-license"]
+
 -- | An identity value site.yaml may leave out (its source repository, its
 --   code's license: a site whose source is not public states neither),
 --   escaped; absent then, so that a template asks @$if(…)$@ before it
 --   links one, and one that uses it unasked stops the build rather than
---   write an empty link.
+--   write an empty link. Absent from the whole of a page's context
+--   ('identityOver'), not from this field alone.
 statedField :: String -> (SiteConfig -> String) -> Context a
 statedField name get = field name $ \_ -> loadConfig >>= \c -> case get c of
     ""    -> noResult ("site.yaml states no " ++ drop (length ("site-" :: String)) name)
@@ -900,19 +907,32 @@ statedField name get = field name $ \_ -> loadConfig >>= \c -> case get c of
 identityContext :: Context String
 identityContext = mconcat [context | (_, _, context) <- identityFields]
 
+-- | 'identityContext' before the rest of a page's context, which ends in
+--   the page's own front matter. A field with no result falls through to
+--   the contexts after it, so one site.yaml leaves unstated would be taken
+--   from a page that names it (@site-code-license:@ in front matter, and
+--   the engine's footer names and links a license the site never stated).
+--   The identity is site.yaml's alone: those names stop here.
+identityOver :: Context String -> Context String
+identityOver rest = identityContext <> Context (\key args item ->
+    if key `elem` unstatedFields
+        then noResult ("site.yaml states no " ++ drop (length ("site-" :: String)) key
+                       ++ ", and a page's front matter cannot")
+        else unContext rest key args item)
+
 -- | 'identityContext''s fields, by name, with a list's items' field names:
 -- @site identity-fields@ prints the names, which the override contract's
 -- identity group (engine/contract.yaml) must match.
 identityFields :: [(String, [String], Context String)]
 identityFields =
-    [ (name, [], if optional then statedField name get else configField name (escapeHtml . get))
-    | (name, get, optional) <-
-        [("site-title", siteTitle, False), ("site-author", siteAuthor, False),
-         ("site-author-sort", siteAuthorSort, False), ("site-url", siteUrl, False),
-         ("site-host", siteHost, False), ("site-email", siteEmail, False),
-         ("site-contact-email", siteContactEmail, False), ("site-source-repo", siteSourceRepo, True),
-         ("site-code-license", siteCodeLicense, True),
-         ("site-signing-fingerprint", siteSigningFingerprint, False)] ]
+    [ (name, [], if name `elem` unstatedFields then statedField name get
+                                               else configField name (escapeHtml . get))
+    | (name, get) <- [("site-title", siteTitle), ("site-author", siteAuthor),
+                     ("site-author-sort", siteAuthorSort), ("site-url", siteUrl),
+                     ("site-host", siteHost), ("site-email", siteEmail),
+                     ("site-contact-email", siteContactEmail), ("site-source-repo", siteSourceRepo),
+                     ("site-code-license", siteCodeLicense),
+                     ("site-signing-fingerprint", siteSigningFingerprint)] ]
     ++ [ list "site-feeds"
               [ ("feed-title", pure . escapeHtml . feedAdvertiseTitle . itemBody)
               , ("feed-url", pure . escapeHtml . ("/" ++) . feedPath . itemBody) ]

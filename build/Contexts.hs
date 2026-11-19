@@ -83,7 +83,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Themes       (themeContext)
-import Config       (SiteConfig (..), loadConfig, identityContext, navigationContext, seasonContext, readerSettingContext,
+import Config       (SiteConfig (..), loadConfig, identityOver, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
@@ -740,9 +740,8 @@ metadataReaderOpts = do
     return (withMath (switchOn cfg "math") defaultHakyllReaderOptions)
 
 siteCtx :: Context String
-siteCtx =
-    identityContext
-    <> assetsField
+siteCtx = identityOver $
+       assetsField
     <> navigationContext
     <> seasonContext
     <> readerSettingContext

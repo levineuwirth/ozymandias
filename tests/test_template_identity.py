@@ -252,6 +252,38 @@ main = hakyll $ do
                 self.assertNotIn("<a href=\"\"", footers[name], name)
                 self.assertNotIn("git.example.org", footers[name], name)
 
+    def test_a_page_s_front_matter_cannot_state_the_site_s_source(self):
+        # The whole build, on a content page whose front matter names a
+        # repository and a license of its own: a field with no result falls
+        # through to the page's metadata, and the footer would publish them.
+        with tempfile.TemporaryDirectory(prefix="engine-footer-page-") as tmp:
+            root = Path(tmp)
+            (root / "engine").symlink_to(engine_path(""))
+            (root / "content").mkdir()
+            (root / "content/index.md").write_text("---\ntitle: Home\nhome: true\n---\n\nHome.\n")
+            (root / "content/about.md").write_text(
+                "---\ntitle: About\nsite-code-license: Page-License\n"
+                "site-source-repo: https://example.org/page-repository\n---\n\nAbout.\n")
+            about = {"source": "content/about.md", "route": "about.html", "template": "page.html",
+                     "context": "page", "scores": False, "dingbat": None, "flags": []}
+            stated = write_site_config(root, standalone=[about])
+            unstated = ("source-repo", "forge-host", "code-license")
+            footers = {}
+            for name, config in (("stated", stated),
+                                 ("unstated", {k: v for k, v in stated.items() if k not in unstated})):
+                (root / "site.yaml").write_text(json.dumps(config))
+                done = subprocess.run([str(site_binary()), "rebuild"], cwd=root, env=script_env(),
+                                      capture_output=True, text=True, timeout=180)
+                self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+                page = (root / "_site/about.html").read_text()
+                footers[name] = page[page.index("<footer"):page.index("</footer>")]
+                self.assertNotIn("Page-License", page, name)
+                self.assertNotIn("page-repository", page, name)
+            self.assertIn('<span class="footer-license"><a href="https://git.example.org/author/site">MIT</a></span>',
+                          footers["stated"])
+            self.assertNotIn("footer-license", footers["unstated"])
+            self.assertNotIn("<a href=\"http", footers["unstated"])
+
     def test_the_engine_defaults_carry_the_site_s_identity_and_no_other(self):
         # The engine's own footer, not-found page and ornament, which this
         # site overrides (overrides.yaml), so its build never renders them.
