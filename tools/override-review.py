@@ -40,7 +40,8 @@ CONTRACT = ENGINE / "contract.yaml"
 SELECTOR = re.compile(r"([a-z][a-z0-9-]*)?((?:\.[\w-]+|#[\w-]+|\[[\w-]+(?:=[\w-]+)?\])*)")
 SIMPLE = re.compile(r"\.([\w-]+)|#([\w-]+)|\[([\w-]+)(?:=([\w-]+))?\]")
 # What a template's $...$ uses a field by: name, if(name), for(name).
-FIELD = re.compile(r"(?:if|for)\(([\w-]+)\)|([a-z][\w-]*)")
+# $plain(f)$ uses f, as $if(f)$ does (Contexts.plainField).
+FIELD = re.compile(r"(?:if|for|plain)\(([\w-]+)\)|([a-z][\w-]*)")
 KEYWORDS = {"else", "endif", "endfor", "sep"}
 PARTIAL = re.compile(r'partial\("([^"]+)"\)')
 # Elements HTML never closes, so nothing after one is inside it.

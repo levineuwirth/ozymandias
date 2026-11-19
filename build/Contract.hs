@@ -8,7 +8,8 @@
 --   context the contract declares, and looks for the hooks it requires.
 --
 --   A string is a field; true a flag, for @$if$@; a list of objects a list,
---   for @$for$@; false, or no entry, no field at all. A field the template
+--   for @$for$@; false, or no entry, no field at all. @$plain(field)$@ is
+--   the engine's own ('Contexts.plainField'), as every page has it. A field the template
 --   uses outside @$if$@ that the context lacks fails the render, as it
 --   fails the build. WORKDIR, empty and outside the site, holds Hakyll's
 --   store and output and links to the two template directories, which are
@@ -31,6 +32,7 @@ import           System.Exit          (ExitCode (..), exitFailure)
 import           System.FilePath      ((</>))
 import           System.IO            (hPutStrLn, stderr)
 
+import           Contexts             (plainField)
 import           EngineFiles          (engineDir, engineTwins, templateRules)
 
 renderTemplate :: FilePath -> FilePath -> FilePath -> IO ()
@@ -53,7 +55,7 @@ renderTemplate template contextFile work = do
         create ["rendered.html"] $ do
             route idRoute
             compile $ makeItem (context :: Aeson.Object)
-                >>= loadAndApplyTemplate (fromFilePath template) objectContext
+                >>= loadAndApplyTemplate (fromFilePath template) fixtureContext
     case code of
         ExitSuccess -> readFile (work </> "out" </> "rendered.html") >>= putStr
         _ -> do
@@ -62,10 +64,14 @@ renderTemplate template contextFile work = do
   where
     die what msg = hPutStrLn stderr ("render-template: " ++ what ++ ": " ++ msg) >> exitFailure
 
--- | The fields of the item's object, as 'renderTemplate' describes them.
+-- | The fields of the item's object, as 'renderTemplate' describes them,
+--   with @plain@, at every depth.
+fixtureContext :: Context Aeson.Object
+fixtureContext = plainField <> objectContext
+
 objectContext :: Context Aeson.Object
 objectContext = Context $ \key _ item -> case KeyMap.lookup (Key.fromString key) (itemBody item) of
     Just (Aeson.String s)  -> pure (StringField (T.unpack s))
     Just (Aeson.Bool True) -> pure EmptyField
-    Just (Aeson.Array xs)  -> ListField objectContext <$> mapM makeItem [o | Aeson.Object o <- V.toList xs]
+    Just (Aeson.Array xs)  -> ListField fixtureContext <$> mapM makeItem [o | Aeson.Object o <- V.toList xs]
     _                      -> noResult ("no " ++ key ++ " in the fixture context")

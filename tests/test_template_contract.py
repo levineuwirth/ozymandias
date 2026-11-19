@@ -145,6 +145,17 @@ class TemplateContractTests(unittest.TestCase):
         self.assertEqual(failed.returncode, 1)
         self.assertIn("Missing field 'a'", failed.stderr)
 
+    def test_plain_is_the_engine_s_in_a_loop_too(self):
+        # Every photography template writes $plain(title)$ into attributes.
+        (self.root / "templates").mkdir()
+        (self.root / "templates/t.html").write_text(
+            '<i title="$plain(t)$"></i>$for(items)$<b title="$plain(t)$"></b>$endfor$')
+        context = {"t": "<em>A</em> \"q\"", "items": [{"t": "B &amp; c"}]}
+        done = review.render(self.root, "templates/t.html", context, self.binary)
+        self.assertEqual((done.returncode, done.stdout),
+                         (0, '<i title="A &quot;q&quot;"></i><b title="B &amp;amp; c"></b>'), done.stderr)
+        self.assertEqual(review.template_fields('$plain(alt)$$if(x)$$endif$'), {"alt", "x"})
+
 
 if __name__ == "__main__":
     unittest.main()
