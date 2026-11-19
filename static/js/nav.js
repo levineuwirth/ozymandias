@@ -69,8 +69,7 @@
 
         var reaim = landing();
         var last = null;
-        var shell = document.querySelector('body > .page-shell');
-        var banner = null;
+        var banner = document.querySelector('body > .banner-slot');
         /* A site's stylesheet may take the header off the top of the
            window: unstuck, so that it scrolls away, or out of the flow
            altogether (a masthead in the margin). What stays on screen is
@@ -84,22 +83,15 @@
             var position = getComputedStyle(header).position;
             var stuck = position === 'sticky' || position === 'fixed';
             var flows = position !== 'absolute' && position !== 'fixed';
-            /* What a site's banner (templates/partials/banner.html) takes of
-               the flow between the header and the page shell, which gives
-               that up of the window's height as well (--banner-height), so
-               that a short page's footer still ends at the window's foot.
-               From the header's own height, unrounded, and rounded up: a
-               site without a banner gets none, and a fraction of a pixel
-               too little would leave a short page a scrollbar. Unset until
-               there is one. */
-            var above = shell ? shell.getBoundingClientRect().top + window.scrollY : 0;
-            var room = shell ? Math.max(0, Math.ceil(above - (flows ? header.getBoundingClientRect().height : 0) - 0.01)) : 0;
+            // The slot encloses the banner's flow, including its margins.
+            var room = banner ? Math.ceil(banner.getBoundingClientRect().height) : 0;
             var now = h + ' ' + stuck + ' ' + flows + ' ' + room;
             if (now === last) return;        /* no needless style invalidation */
             last = now;
-            if (room || banner !== null) {
-                banner = room;
+            if (room) {
                 document.documentElement.style.setProperty('--banner-height', room + 'px');
+            } else if (banner) {
+                document.documentElement.style.removeProperty('--banner-height');
             }
             document.documentElement.style.setProperty('--nav-height', (stuck ? h : 0) + 'px');
             document.documentElement.style.setProperty('--nav-flow-height', (flows ? h : 0) + 'px');
@@ -112,10 +104,7 @@
         if (window.ResizeObserver) {
             var watch = new ResizeObserver(sync);
             watch.observe(header);
-            /* And a banner's elements, which a site's script may size. */
-            for (var el = header.nextElementSibling; el && el !== shell; el = el.nextElementSibling) {
-                if (el.tagName !== 'SCRIPT') watch.observe(el);
-            }
+            if (banner) watch.observe(banner, { box: 'border-box' });
         }
         /* The header's position can change with the window's width and
            leave its height as it was. */

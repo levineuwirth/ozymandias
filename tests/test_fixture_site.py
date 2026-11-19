@@ -59,6 +59,13 @@ class FixtureFiles(unittest.TestCase):
         self.assertEqual(review.unreviewed(FIXTURE), [])
 
     @requires_cabal
+    def test_its_banner_heading_uses_the_site_identity(self):
+        done = review.render(FIXTURE, "templates/partials/banner.html", {"site-title": "Another Site"},
+                             str(site_binary()))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("<h1>Another Site</h1>", done.stdout)
+
+    @requires_cabal
     def test_its_override_keeps_the_contract(self):
         self.assertEqual(review.hook_problems(FIXTURE, str(site_binary())), [])
 
@@ -923,7 +930,7 @@ class FixtureBuilds(unittest.TestCase):
         # header and before the page shell, with the fields its entry gives.
         # A score reader has its own shell and no menu, and so no banner,
         # though the site's scripts load there (the test above).
-        banner = '<header class="fixture-banner" data-pagefind-ignore="all"><h1>Example Site</h1></header>'
+        banner = '<header class="fixture-banner" role="presentation" data-pagefind-ignore="all"><h1>Example Site</h1></header>'
         for name in ("full", "minimal"):
             with self.subTest(build=name):
                 self.refused(name)
@@ -938,7 +945,8 @@ class FixtureBuilds(unittest.TestCase):
                         self.assertNotIn("fixture-banner", html, page)
                         continue
                     self.assertEqual(html.count('class="fixture-banner"'), 1, page)
-                    self.assertIn(banner + '<div class="page-shell">', html.replace("\n", ""), page)
+                    self.assertIn('<div class="banner-slot">' + banner + '</div><div class="page-shell">',
+                                  html.replace("\n", ""), page)
                     # The first header to close is the menu's.
                     self.assertLess(html.index("</header>"), html.index(banner), page)
 

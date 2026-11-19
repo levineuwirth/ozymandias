@@ -55,7 +55,7 @@ import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
 import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, tagPageUrl)
 import Stats      (statsRules)
-import Utils      (cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
+import Utils      (applySiteFrame, cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
                    isDevBuild, metadataKeywords, outputDirFor, stripPrefixRoute,
                    trustScore)
 
@@ -1427,7 +1427,7 @@ rules = do
             -- URLs are the only form that works from every depth.
             makeItem ""
                 >>= loadAndApplyTemplate "templates/404.html"     ctx
-                >>= loadAndApplyTemplate "templates/default.html" ctx
+                >>= applySiteFrame ctx
 
     -- ---------------------------------------------------------------------------
     -- sitemap.xml — every dated content page (essays, blog, poetry, fiction,

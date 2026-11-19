@@ -25,14 +25,14 @@ from tests._browser import (BROWSERS, asset_root, check_site, enforcing_csp, req
 # The engine's sheets alone, so that the rules under test are the engine's
 # and not a site's own for its header.
 SHEETS = ("tokens", "reset", "layout", "nav", "print")
-BANNER = '<header class="site-banner" data-pagefind-ignore="all"><h1>The Site</h1></header>\n'
+BANNER = '<header class="site-banner" role="presentation" data-pagefind-ignore="all"><h1>The Site</h1></header>\n'
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Banner fixture</title>
 {sheets}
 <link rel="stylesheet" href="/__fixture/banner.css">
 <script src="{assets}/js/utils.js"></script>
 <script src="{assets}/js/nav.js" defer></script>
-</head><body>
+</head><body class="{body_class}">
 <a class="skip-link" href="#markdownBody">Skip to content</a>
 <header data-pagefind-ignore="all">
     <nav class="site-nav" aria-label="Site"><div class="nav-row-primary">
@@ -45,7 +45,14 @@ PAGE = """<!doctype html>
 </div>
 </body></html>
 """
-CSS = ".site-banner { height: 240px; margin: 0; } .site-banner h1 { margin: 0; }\n"
+CSS = """
+.padded { padding-top: 36px; }
+.site-banner { height: 240px; margin: 0; }
+.site-banner h1 { margin: 0; }
+.site-banner.spaced { margin-block: 16px 32px; }
+.site-banner.overlay { position: absolute; }
+.site-banner.tall { height: 320px; }
+"""
 
 MEASURE = """() => {
     const menu = document.querySelector('body > header:first-of-type'), banner = document.querySelector('.site-banner');
@@ -58,9 +65,10 @@ MEASURE = """() => {
 }"""
 
 
-def page(assets: str, banner: str = BANNER) -> str:
+def page(assets: str, banner: str = BANNER, body_class: str = "") -> str:
     sheets = "\n".join(f'<link rel="stylesheet" href="{assets}/css/{name}.css">' for name in SHEETS)
-    return PAGE.format(sheets=sheets, assets=assets, banner=banner)
+    slot = f'<div class="banner-slot">{banner}</div>' if banner else ""
+    return PAGE.format(sheets=sheets, assets=assets, banner=slot, body_class=body_class)
 
 
 @requires_browser
@@ -72,8 +80,10 @@ class SiteBanner(unittest.TestCase):
         from playwright.sync_api import sync_playwright
         tmp = Path(cls.enterClassContext(tempfile.TemporaryDirectory(prefix="browser-banner-")))
         (tmp / "fixtures").mkdir()
-        (tmp / "fixtures" / "banner.html").write_text(page(asset_root()), encoding="utf-8")
-        (tmp / "fixtures" / "bare.html").write_text(page(asset_root(), banner=""), encoding="utf-8")
+        for path, banner in (("banner", BANNER), ("bare", "")):
+            for body_class in ("", "padded"):
+                name = f"{body_class}-{path}" if body_class else path
+                (tmp / "fixtures" / f"{name}.html").write_text(page(asset_root(), banner, body_class), encoding="utf-8")
         (tmp / "fixtures" / "banner.css").write_text(CSS, encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
         playwright = cls.enterClassContext(sync_playwright())
@@ -91,7 +101,7 @@ class SiteBanner(unittest.TestCase):
         page.goto(f"{self.base}/__fixture/{path}", wait_until="load")
         # nav.js measures at DOMContentLoaded and again as fonts settle.
         page.wait_for_function("document.fonts.status === 'loaded'")
-        page.wait_for_timeout(100)
+        page.wait_for_function("document.documentElement.style.getPropertyValue('--nav-flow-height') !== ''")
         self.assertEqual(errors, [])
         return page
 
@@ -100,6 +110,8 @@ class SiteBanner(unittest.TestCase):
             with self.subTest(browser=browser):
                 page = self.open_page(browser, "banner.html")
                 seen = page.evaluate(MEASURE)
+                self.assertEqual(page.get_by_role("banner").count(), 1)
+                self.assertEqual(page.get_by_role("heading", name="The Site").count(), 1)
                 self.assertEqual(seen["menu"]["position"], "sticky")
                 self.assertEqual((seen["banner"]["position"], seen["banner"]["zIndex"]), ("static", "auto"))
                 page.emulate_media(media="print")
@@ -123,6 +135,40 @@ class SiteBanner(unittest.TestCase):
                 self.assertEqual(seen["room"], "")
                 self.assertLessEqual(seen["footer"], seen["window"] + 0.5)
                 self.assertEqual(seen["page"], seen["window"])
+
+    def test_body_padding_is_outside_the_banner(self):
+        for browser in BROWSERS:
+            for path, room in (("padded-bare.html", ""), ("padded-banner.html", "240px")):
+                with self.subTest(browser=browser, path=path):
+                    seen = self.open_page(browser, path).evaluate(MEASURE)
+                    self.assertEqual(seen["room"], room)
+                    self.assertAlmostEqual(seen["footer"], seen["window"] + 36, delta=1)
+
+    def test_banner_tracks_margin_position_and_replacement(self):
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open_page(browser, "banner.html")
+                banner = page.locator(".site-banner")
+
+                def check_room(expected):
+                    page.wait_for_function(
+                        "room => document.documentElement.style.getPropertyValue('--banner-height') === room",
+                        arg=expected, timeout=3000)
+                    seen = page.evaluate(MEASURE)
+                    self.assertAlmostEqual(seen["footer"], seen["window"], delta=1)
+                    self.assertEqual(seen["page"], seen["window"])
+
+                banner.evaluate("el => el.classList.add('spaced')")
+                check_room("288px")
+                banner.evaluate("el => el.classList.add('overlay')")
+                check_room("")
+                banner.evaluate("el => el.replaceWith(el.cloneNode(true))")
+                banner.evaluate("el => el.classList.remove('overlay', 'spaced')")
+                check_room("240px")
+                banner.evaluate("el => el.classList.add('tall')")
+                check_room("320px")
+                banner.evaluate("el => el.remove()")
+                check_room("")
 
 
 if __name__ == "__main__":

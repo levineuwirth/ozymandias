@@ -41,6 +41,7 @@ module Utils
     , pdfViewerUrl
     , encodeQueryValue
     , isPdfUrl
+    , applySiteFrame
     , inDefault
     , boolSpellings
     , parseBool
@@ -60,8 +61,8 @@ import           Data.Time.Format (FormatTime, ParseTime, defaultTimeLocale, for
 import           Data.Aeson (FromJSON)
 import qualified Data.Text.Encoding as TE
 import qualified Data.Yaml as Y
-import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes,
-                         customRoute, fromFilePath, itemBody, load, loadAndApplyTemplate,
+import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes, bodyField,
+                         customRoute, fromFilePath, itemBody, listFieldWith, load, loadAndApplyTemplate,
                          lookupString, lookupStringList, relativizeUrls,
                          stripTags, toFilePath)
 import           System.Environment (lookupEnv)
@@ -428,11 +429,22 @@ encodeQueryValue = concatMap enc
 isPdfUrl :: String -> Bool
 isPdfUrl u = ".pdf" `isSuffixOf` map toLower (takeWhile (/= '#') u)
 
+-- | Render a banner with this page's context. The frame loops over zero or
+-- one rendered items so it can omit even the measurement box on pages
+-- where a conditional site partial produces only whitespace.
+applySiteFrame :: Context a -> Item a -> Compiler (Item String)
+applySiteFrame ctx = loadAndApplyTemplate "templates/default.html"
+    (listFieldWith "site-banner" (bodyField "body") banner <> ctx)
+  where
+    banner page = do
+        rendered <- loadAndApplyTemplate "templates/partials/banner.html" ctx page
+        pure [rendered | any (not . isSpace) (itemBody rendered)]
+
 -- | The tail every page shares: its own template, then the site frame
 -- (@templates/default.html@), with the same context, and URLs made
 -- relative.
 inDefault :: Identifier -> Context String -> Item String -> Compiler (Item String)
 inDefault tpl ctx item =
     loadAndApplyTemplate tpl ctx item
-        >>= loadAndApplyTemplate "templates/default.html" ctx
+        >>= applySiteFrame ctx
         >>= relativizeUrls

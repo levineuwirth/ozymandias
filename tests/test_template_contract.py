@@ -39,6 +39,26 @@ class TemplateContractTests(unittest.TestCase):
             with self.subTest(template=template):
                 self.assertEqual(review.template_problems(self.root, template, self.terms, self.binary), [])
 
+    def test_frame_wraps_only_a_banner_that_renders_content(self):
+        # Use the real frame, with short head/nav/footer stubs so its slot
+        # can be compared byte for byte for three different partials.
+        for name in ("head", "nav", "footer"):
+            self.override(f"templates/partials/{name}.html", f"<{name}></{name}>")
+        fields = {"assets": "/assets", "body": "Page", "site-scripts": [], "page-scripts": []}
+
+        def render(**extra):
+            done = review.render(self.root, "templates/default.html", fields | extra, self.binary)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            return done.stdout
+
+        empty = render()
+        self.assertNotIn("banner-slot", empty)
+        self.override("templates/partials/banner.html", "$if(title)$<i>$title$</i>Text$endif$\n")
+        self.assertEqual(render(), empty)
+        shell = '<div class="page-shell">'
+        slot = '<div class="banner-slot"><i>Piece</i>Text\n</div>'
+        self.assertEqual(render(title="Piece"), empty.replace(shell, slot + shell))
+
     def test_an_override_that_drops_a_hook_is_reported(self):
         self.override("templates/partials/footer.html", "<footer><p>$site-host$</p></footer>\n")
         self.override("templates/partials/ornament.html", '<hr class="footer-ornament">\n')

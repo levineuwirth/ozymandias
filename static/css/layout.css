@@ -12,6 +12,9 @@
    math (full-viewport min-height + flex column to push footer down)
    moves to .page-shell, which wraps everything below the nav. */
 
+/* Include the banner content's margins and floats in its measured height. */
+.banner-slot { display: flow-root; }
+
 .page-shell {
     display: flex;
     flex-direction: column;

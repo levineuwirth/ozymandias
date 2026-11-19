@@ -37,6 +37,7 @@ import           System.IO            (hPutStrLn, stderr)
 
 import           Contexts             (plainField)
 import           EngineFiles          (engineDir, engineTwins, templateRules)
+import           Utils                (applySiteFrame)
 
 renderTemplate :: FilePath -> FilePath -> FilePath -> IO ()
 renderTemplate template contextFile work = do
@@ -52,13 +53,15 @@ renderTemplate template contextFile work = do
             , storeDirectory       = work </> "store"
             , tmpDirectory         = work </> "store" </> "tmp"
             }
+    let apply = case template of
+            "templates/default.html" -> applySiteFrame
+            _                        -> loadAndApplyTemplate (fromFilePath template)
     (logger, logged) <- Logger.newInMem
     code <- build RunModeNormal conf logger $ do
         engineTwins >>= templateRules
         create ["rendered.html"] $ do
             route idRoute
-            compile $ makeItem (context :: Aeson.Object)
-                >>= loadAndApplyTemplate (fromFilePath template) fixtureContext
+            compile $ makeItem (context :: Aeson.Object) >>= apply fixtureContext
     case code of
         ExitSuccess -> readFile (work </> "out" </> "rendered.html") >>= putStr
         _ -> do

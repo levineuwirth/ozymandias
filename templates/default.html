@@ -12,7 +12,7 @@ $if(search)$
 $if(switch-semantic-search)$<script src="$assets$/js/semantic-search.js" defer></script>$endif$
 $if(switch-search-filters)$<script src="$assets$/js/search-filters.js" defer></script>$endif$
 $endif$
-$partial("templates/partials/banner.html")-$
+$for(site-banner)$<div class="banner-slot">$body$</div>$endfor-$
 <div class="page-shell">
 $body$
 $partial("templates/partials/footer.html")$
