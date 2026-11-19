@@ -37,9 +37,37 @@
        or replaces one of these by its name. */
     var MODES = Object.create(null);
 
+    /* The map's hooks (photography-map.js reads them as it draws, after
+       every deferred script has run): marker, tooltip and target, each
+       given a place, and ready, given the map once it is drawn. */
+    var MAP_HOOKS = Object.create(null);
+
+    /* /photography/photos.json, fetched once a script asks for it: every
+       photograph's fields, as its templates are given them. A failed
+       fetch is forgotten, so a later call tries again. */
+    var photosPromise = null;
+
     window.ozyPhotography = {
         registerMode: function (name, hooks) {
             MODES[name] = hooks || {};
+        },
+        registerMap: function (hooks) {
+            Object.keys(hooks || {}).forEach(function (name) {
+                MAP_HOOKS[name] = hooks[name];
+            });
+        },
+        mapHooks: MAP_HOOKS,
+        photos: function () {
+            if (!photosPromise) {
+                photosPromise = fetch('/photography/photos.json')
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(function (data) { return data.photos; });
+                photosPromise.catch(function () { photosPromise = null; });
+            }
+            return photosPromise;
         }
     };
 

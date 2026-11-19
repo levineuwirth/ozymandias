@@ -72,6 +72,28 @@ window.fetch = function (url, init) {
 };"""
 
 
+# A site's own map (window.ozyPhotography.registerMap), registered as a site
+# script would be, before the page has loaded: here, as photography-modes.js
+# defines the registry. Its markers count in bold, only places with more
+# than one photograph have a tooltip, and only a lone frame's click goes
+# anywhere, somewhere of the site's choosing.
+SITE_MAP = """(() => {
+    let held;
+    Object.defineProperty(window, 'ozyPhotography', {configurable: true, get: () => held, set: v => {
+        held = v;
+        v.registerMap({
+            marker: place => ({className: 'site-pin', html: '<b>' + place.pins.length + '</b>'}),
+            tooltip: place => place.pins.length > 1 ? '<p class="site-tip">' + place.label + '</p>' : null,
+            target: place => place.pins.length === 1 ? '/elsewhere/' : null,
+            ready: (map, layer, places) => {
+                window.__ready = [typeof map.getZoom, layer.getLayers().length,
+                                  places.map(p => p.label).sort()];
+            }
+        });
+    }});
+})();"""
+
+
 @requires_browser
 class Photography(unittest.TestCase):
     @classmethod
@@ -229,6 +251,53 @@ class Photography(unittest.TestCase):
                 self.assertEqual(urlpath(page.url), "/photography/map/")
                 page.click(".leaflet-marker-icon[title='Copenhagen — 2 photographs']")
                 page.wait_for_url(re.compile(r"/photography/alpha/$"))
+
+    @requires_switch("photography")
+    def test_a_site_draws_the_map_its_own_way(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.open(browser, "/photography/map/", fakes=self.map_answers(PINS),
+                                    init=RECORD_FETCH + SITE_MAP)
+                self.expect(page.locator(".site-pin")).to_have_count(3)
+                self.expect(page.locator(".photography-map-pin")).to_have_count(0)
+                self.expect(page.locator(".site-pin b", has_text="2")).to_have_count(2)
+                # What it left out is the engine's: the markers' titles.
+                titles = sorted(m.get_attribute("title") for m in page.locator(".leaflet-marker-icon").all())
+                self.assertEqual(titles, ["Copenhagen — 2 photographs", "New York — 2 photographs", "Sydney"])
+                page.wait_for_function("window.__ready")
+                self.assertEqual(page.evaluate("window.__ready"),
+                                 ["function", 3, ["Copenhagen", "New York", "Sydney"]])
+                page.hover(".leaflet-marker-icon[title='Copenhagen — 2 photographs']")
+                self.expect(page.locator(".site-tip")).to_have_text("Copenhagen")
+                page.hover(".leaflet-marker-icon[title=Sydney]")
+                page.wait_for_timeout(300)
+                self.expect(page.locator(".leaflet-tooltip")).to_have_count(0)
+                # A mixed place still goes nowhere; the lone frame, where the site says.
+                page.click(".leaflet-marker-icon[title='Copenhagen — 2 photographs']")
+                page.wait_for_timeout(300)
+                self.assertEqual(urlpath(page.url), "/photography/map/")
+                page.click(".leaflet-marker-icon[title=Sydney]")
+                page.wait_for_url(re.compile(r"/elsewhere/$"))
+
+    @requires_switch("photography")
+    def test_photos_are_the_data_file_fetched_once(self) -> None:
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, _ = self.open(browser, route("photo-series"), init=RECORD_FETCH)
+                got = page.evaluate("""async () => {
+                    const first = window.ozyPhotography.photos();
+                    const again = window.ozyPhotography.photos();
+                    const photos = await first;
+                    const file = await (await fetch('/photography/photos.json')).json();
+                    return [first === again, JSON.stringify(photos) === JSON.stringify(file.photos),
+                            photos.length, photos.every(p => p['canonical-url'] && p.title),
+                            window.__fetches.filter(f => f[0].endsWith('/photography/photos.json')).length];
+                }""")
+                self.assertEqual(got[:2], [True, True])
+                self.assertGreater(got[2], 0)
+                self.assertTrue(got[3])
+                # Its own fetch and the test's.
+                self.assertEqual(got[4], 2)
 
     @requires_switch("photography")
     def test_wheel_zoom_on_every_focus(self) -> None:

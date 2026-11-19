@@ -27,4 +27,5 @@ iso: 400
 focal-length: 50mm
 palette: ["#2f3a40", "#c0b8a8"]
 links: ["Elsewhere | https://photos.example.org/one"]
+license: CC BY 4.0
 ---

@@ -177,6 +177,12 @@
 
         configureMarkerIconPaths();
 
+        /* A site's own drawing of the map (window.ozyPhotography.registerMap;
+           contract.yaml's scripts), registered by now: each hook is given a
+           place, {lat, lon, pins, label}, and what it leaves out is the
+           engine's. */
+        var hooks = (window.ozyPhotography && window.ozyPhotography.mapHooks) || {};
+
         /* Under the normal cache rules: `force-cache` used any stored copy
            however old, so a returning visitor need not see a photograph
            geotagged since (audit J11). */
@@ -222,6 +228,9 @@
                     }
                     groups[key].pins.push(pin);
                 });
+                Object.keys(groups).forEach(function (key) {
+                    groups[key].label = placeLabel(groups[key]);
+                });
 
                 var hasCluster = typeof L.markerClusterGroup === 'function';
                 var layer = hasCluster ? L.markerClusterGroup() : L.featureGroup();
@@ -234,27 +243,40 @@
                     // A div icon, not the default PNG: it scales with the
                     // count, carries the number, and removes the map's only
                     // dependency on a bitmap that has to resolve.
-                    var size = count > 1 ? 34 : 22;
+                    var pin = {
+                        className: 'photography-map-pin',
+                        html:      count > 1 ? '<span>' + count + '</span>' : '<span></span>',
+                        size:      count > 1 ? 34 : 22,
+                        title:     g.label + (count > 1 ? ' — ' + count + ' photographs' : '')
+                    };
+                    // marker(place): {className, html, size, title}, any of them.
+                    var own = hooks.marker ? hooks.marker(g) : null;
+                    if (own) Object.keys(own).forEach(function (k) { pin[k] = own[k]; });
                     var marker = L.marker([g.lat, g.lon], {
                         icon: L.divIcon({
-                            className:  'photography-map-pin',
-                            html:       count > 1 ? '<span>' + count + '</span>' : '<span></span>',
-                            iconSize:   [size, size],
-                            iconAnchor: [size / 2, size / 2]
+                            className:  pin.className,
+                            html:       pin.html,
+                            iconSize:   [pin.size, pin.size],
+                            iconAnchor: [pin.size / 2, pin.size / 2]
                         }),
-                        title: placeLabel(g) + (count > 1 ? ' — ' + count + ' photographs' : '')
+                        title: pin.title
                     });
 
-                    marker.bindTooltip(groupTooltipHtml(g), {
-                        direction: 'top',
-                        offset:    [0, -18],
-                        className: 'photography-map-tooltip-wrap',
-                        opacity:   1
-                    });
+                    // tooltip(place): its HTML, or null for none.
+                    var tip = hooks.tooltip ? hooks.tooltip(g) : groupTooltipHtml(g);
+                    if (tip) {
+                        marker.bindTooltip(tip, {
+                            direction: 'top',
+                            offset:    [0, -18],
+                            className: 'photography-map-tooltip-wrap',
+                            opacity:   1
+                        });
+                    }
 
                     // Send a click somewhere that shows the whole place: the
                     // series when they share one, otherwise the single frame.
-                    var target = groupTarget(g);
+                    // target(place): a URL, or null for none.
+                    var target = hooks.target ? hooks.target(g) : groupTarget(g);
                     if (target) {
                         marker.on('click', function () { window.location.href = target; });
                     }
@@ -285,6 +307,12 @@
                 // one blur, wheel zoom never came back (audit J11).
                 map.on('focus', function () { map.scrollWheelZoom.enable(); });
                 map.on('blur',  function () { map.scrollWheelZoom.disable(); });
+
+                // ready(map, layer, places): the drawn map, for a site's own
+                // layers or controls.
+                if (hooks.ready) {
+                    hooks.ready(map, layer, Object.keys(groups).map(function (k) { return groups[k]; }));
+                }
             })
             .catch(function (err) {
                 renderErrorState(container, 'Could not load map data: ' + err.message);

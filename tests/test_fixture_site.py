@@ -304,6 +304,32 @@ class FixtureBuilds(unittest.TestCase):
         self.assertEqual(len(given), 3)
         self.assertEqual(fields - max(given, key=len), {"backlinks"})
 
+    def test_the_photograph_data_has_the_keys_the_contract_names(self):
+        # contract.yaml's data: photos.json gives each entry the keys it
+        # names, the fully described frame every photo key, and map.json
+        # its pins' keys; none gives one the contract does not name.
+        self.refused("full")
+        data = review.contract()["data"]
+        site = self.sites["full"] / "_site/photography"
+        photos = json.loads((site / "photos.json").read_text(encoding="utf-8"))["photos"]
+        declared = data["photography/photos.json"]["keys"]
+        series_only = {"frames"} | {k for k in declared if k.startswith("series-")}
+        for entry in photos:
+            with self.subTest(entry=entry["canonical-url"]):
+                self.assertEqual(set(entry) - set(declared), set())
+                for name, items in declared.items():
+                    if isinstance(items, list) and name in entry:
+                        self.assertEqual({k for item in entry[name] for k in item} - set(items), set())
+        frame = next(e for e in photos if e["canonical-url"] == "/photography/fixture-series/one/")
+        self.assertEqual(set(declared) - series_only - set(frame), set())
+        series = next(e for e in photos if e["kind"] == "series")
+        self.assertEqual(series["frames"], [e["canonical-url"] for e in photos
+                                            if e.get("series") == "fixture-series"])
+        self.assertTrue(all("geo" not in e and "lat" not in e for e in photos))
+        pins = json.loads((site / "map.json").read_text(encoding="utf-8"))
+        self.assertTrue(pins)
+        self.assertEqual({k for pin in pins for k in pin} - set(data["photography/map.json"]["keys"]), set())
+
     def test_source_preview_wildcards_never_publish_engine_files(self):
         # Neither raw sources nor sectioned Markdown may escape via a
         # wildcard spelling of engine/. The site's own matches still ship.

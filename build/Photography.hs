@@ -34,6 +34,7 @@ import           Text.Printf            (printf)
 import           Text.Read              (readMaybe)
 import qualified Data.Aeson             as Aeson
 import           Data.Aeson             (Value (..), (.=))
+import qualified Data.Aeson.Key         as Key
 import qualified Data.Aeson.KeyMap      as KM
 import qualified Data.Text.Lazy             as TL
 import qualified Data.Text.Lazy.Encoding    as TLE
@@ -98,6 +99,7 @@ photographyRules cfg = do
     photographySeriesPhotoRules
     photographyLandingRules
     photographyMapDataRule
+    photographyDataRule
     photographyMapPageRule
     forM_ (filter photoFeed (siteFeeds cfg)) photographyFeedRule
     photographyByYearRules
@@ -579,6 +581,99 @@ photographyMapDataRule =
             -- Text gives Hakyll a String of Unicode code points it can
             -- re-encode cleanly.
             makeItem $ TL.unpack $ TLE.decodeUtf8 $ Aeson.encode pins
+
+-- ---------------------------------------------------------------------------
+-- Photograph data
+-- ---------------------------------------------------------------------------
+
+-- | @/photography/photos.json@: every published photographic entry (a
+--   single, a series' landing, a series' frame), newest first, with the
+--   fields its card and page are rendered with, read from
+--   'photographyCtx' itself, so the file says what the templates are told
+--   (contract.yaml's @data:@). A site's own presentation of its
+--   photographs (window.ozyPhotography.photos()) builds from it rather
+--   than from the engine's markup. A series' landing also has its frames'
+--   URLs, in its grid's order, and its statistics. No coordinates: those
+--   reach only map.json, rounded.
+photographyDataRule :: Rules ()
+photographyDataRule =
+    create ["photography/photos.json"] $ do
+        route idRoute
+        compile $ do
+            entries <- recentFirstByDisplay
+                   =<< loadAll (P.allPhotoEntries .&&. hasNoVersion)
+            objects <- mapM photoData entries
+            -- Through Text, as map.json is: Hakyll writes the String as UTF-8.
+            makeItem $ TL.unpack $ TLE.decodeUtf8 $ Aeson.encode $
+                Aeson.object ["photos" .= objects]
+
+-- | One entry's object: @kind@ (photo or series), each of
+--   'photoDataFields' it has, as a string, each of 'photoDataLists' as an
+--   array of objects keyed as the templates' loops are, and for a series
+--   its 'seriesDataFields' and @frames@.
+photoData :: Item String -> Compiler Value
+photoData item = do
+    frames <- if takeFileName (toFilePath (itemIdentifier item)) == "index.md"
+                  then recentFirstByDisplay =<< loadSeriesChildrenFor item
+                  else return []
+    let series = not (null frames)
+        ctx    = if series then seriesStatsCtx <> photographyCtx else photographyCtx
+        names  = photoDataFields ++ (if series then seriesDataFields else [])
+    strings <- forM names $ \name -> fmap (pair name) <$> contextString ctx name item
+    lists   <- forM photoDataLists $ \(name, keys) ->
+        fmap (pair name) <$> contextObjects ctx name keys item
+    urls    <- catMaybes <$> mapM (contextString photographyCtx "canonical-url") frames
+    return $ Aeson.object $
+        [ "kind" .= (if series then "series" else "photo" :: String) ]
+        ++ catMaybes strings ++ catMaybes lists
+        ++ [ "frames" .= urls | series ]
+  where
+    pair :: Aeson.ToJSON v => String -> v -> (Key.Key, Value)
+    pair name v = Key.fromString name .= v
+
+-- | The fields photos.json gives an entry: the contract's photo group but
+--   what concerns its own page alone (backlinks, footer-deps) and the
+--   section's flag. test_fixture_site holds the two to each other.
+photoDataFields :: [String]
+photoDataFields =
+    [ "slug", "title", "alt", "abstract", "photo", "photo-url", "photo-webp-url"
+    , "photo-srcset", "photo-webp-srcset", "width", "height", "orientation"
+    , "camera", "lens", "film", "process", "exposure", "shutter", "aperture", "iso"
+    , "focal-length", "captured", "captured-display", "captured-iso", "location"
+    , "series", "canonical-url", "date", "date-iso", "license", "license-url-resolved" ]
+
+photoDataLists :: [(String, [String])]
+photoDataLists =
+    [ ("palette-swatches", ["swatch"])
+    , ("photo-links",      ["link-name", "link-url"])
+    , ("photography-tags", ["tag-name", "tag-url"])
+    , ("author-links",     ["author-name", "author-url"]) ]
+
+-- | A series landing's statistics ('seriesStatsCtx').
+seriesDataFields :: [String]
+seriesDataFields =
+    [ "series-frame-count", "series-bytes", "series-captured-span", "series-cameras"
+    , "series-lenses", "series-focal-span", "series-iso-span", "series-locations" ]
+
+-- | A context's string field for an item, as a template would get it;
+--   'Nothing' where it has none (or a flag, or a list).
+contextString :: Context a -> String -> Item a -> Compiler (Maybe String)
+contextString ctx name item =
+    (asString <$> unContext ctx name [] item) <|> return Nothing
+  where
+    asString (StringField v) = Just v
+    asString _               = Nothing
+
+-- | A context's list field for an item, each element's @keys@ that it has.
+contextObjects :: Context a -> String -> [String] -> Item a -> Compiler (Maybe [Value])
+contextObjects ctx name keys item =
+    (unContext ctx name [] item >>= \found -> case found of
+        ListField c xs -> Just <$> mapM (element c) xs
+        _              -> return Nothing) <|> return Nothing
+  where
+    element :: Context b -> Item b -> Compiler Value
+    element c x = Aeson.object . catMaybes <$>
+        mapM (\k -> fmap (\v -> Key.fromString k .= v) <$> contextString c k x) keys
 
 -- ---------------------------------------------------------------------------
 -- Map page (Phase 4)

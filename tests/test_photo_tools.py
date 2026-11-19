@@ -138,3 +138,22 @@ class PaletteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class SidecarContract(unittest.TestCase):
+    """contract.yaml's data: names each sidecar's keys as its extractor writes them."""
+
+    def test_each_sidecar_s_keys_are_its_extractor_s(self):
+        import yaml
+        from tests._helpers import engine_path
+        data = yaml.safe_load(engine_path("contract.yaml").read_text(encoding="utf-8"))["data"]
+        self.assertEqual(list(data["{photo}.exif.yaml"]["keys"]), load_tool("extract-exif.py").SIDECAR_KEYS)
+        # The other two write a literal: the keys in order, or the one key.
+        for sidecar, tool, written in (("{photo}.dims.yaml", "extract-dimensions.py", 'keys=("width", "height")'),
+                                       ("{photo}.palette.yaml", "extract-palette.py", '{"palette": ')):
+            with self.subTest(sidecar=sidecar):
+                self.assertIn(written, engine_path(f"tools/{tool}").read_text(encoding="utf-8"))
+                self.assertEqual(written.count('"') // 2, len(data[sidecar]["keys"]))
+                for key in data[sidecar]["keys"]:
+                    self.assertIn(f'"{key}"', written)

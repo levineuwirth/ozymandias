@@ -82,6 +82,121 @@ scripts:
       A mode owns its listeners and queued work: enter installs them and
       leave removes or cancels them. Repeated selection can call enter
       again without leave, so enter must not stack listeners.
+      photos() is a Promise of photos.json's entries (data:), fetched once:
+      a presentation of a site's own builds from them, not from the
+      engine's markup. registerMap({marker, tooltip, target, ready}) draws
+      the map's places a site's way, each hook given a place {lat, lon,
+      pins (map.json's), label}: marker returns any of {className, html,
+      size, title} over the engine's; tooltip its HTML, or null for none;
+      target the URL a click goes to, or null; ready(map, layer, places)
+      is called with the drawn Leaflet map. Register before the page has
+      loaded; what a site leaves out is the engine's.
+
+# data: what the engine publishes and reads about photographs (the
+#   photography switch), for a site's own presentation to build from: each
+#   file's engine source (by), how to use it, and its keys (a list's, its
+#   items' keys). test_fixture_site holds the published files to these,
+#   and test_photo_tools the sidecars to their extractors.
+data:
+  photography/photos.json:
+    by: build/Photography.hs
+    use: >-
+      {"photos": [...]}, every published entry, newest first: a single or a
+      series' frame (kind photo) or a series' landing (kind series), with
+      each key it has, as its templates are given it (the photo group;
+      title and abstract may hold HTML). window.ozyPhotography.photos()
+      fetches it once. No coordinates.
+    keys:
+      kind: photo or series
+      frames: a series' frames' URLs, in its grid's order (series only)
+      slug: its directory's name, or a flat single's own
+      title: the title
+      alt: the authored alt text
+      abstract: the caption
+      photo: the photo front matter key as written
+      photo-url: the photograph's URL, beside its entry
+      photo-webp-url: its WebP's URL
+      photo-srcset: its responsive variants and itself, a srcset
+      photo-webp-srcset: the same in WebP
+      width: pixel width
+      height: pixel height
+      orientation: landscape, portrait or square
+      camera: the camera
+      lens: the lens
+      film: the film stock
+      process: the development process
+      exposure: the exposure, as written
+      shutter: the shutter speed
+      aperture: the aperture
+      iso: the ISO
+      focal-length: the focal length
+      captured: the capture date as written
+      captured-display: the capture date, for reading
+      captured-iso: the capture date, ISO 8601
+      location: the place, as written
+      series: a frame's series' slug
+      canonical-url: the entry's page
+      date: the publication date, for reading
+      date-iso: the publication date, ISO 8601
+      license: its own license, as written
+      license-url-resolved: that license's URL
+      palette-swatches: [swatch]
+      photo-links: [link-name, link-url]
+      photography-tags: [tag-name, tag-url]
+      author-links: [author-name, author-url]
+      series-frame-count: a series' number of frames
+      series-bytes: its delivery files' total size
+      series-captured-span: when its frames were made
+      series-cameras: its cameras
+      series-lenses: its lenses
+      series-focal-span: its focal lengths
+      series-iso-span: its ISOs
+      series-locations: its places
+  photography/map.json:
+    by: build/Photography.hs
+    use: >-
+      An array of pins, one per published photograph with geo: and a
+      geo-precision other than hidden (default city), its coordinates
+      rounded to that precision before they leave the build.
+    keys:
+      slug: as in photos.json
+      title: the title
+      url: the entry's page
+      lat: latitude, rounded
+      lon: longitude, rounded
+      thumb: its 480px variant's URL, else the photograph's
+      captured: the capture date as written
+      location: the place, as written
+      series: a frame's series' slug
+  "{photo}.exif.yaml":
+    by: tools/extract-exif.py
+    use: >-
+      Beside each photograph, from its EXIF (make build writes it). Front
+      matter wins over each key: a film scan has no EXIF, so its camera is
+      written in front matter.
+    keys:
+      camera: the camera
+      lens: the lens
+      exposure: the exposure
+      shutter: the shutter speed
+      aperture: the aperture
+      iso: the ISO
+      focal-length: the focal length
+      captured: the capture date
+      geo: the coordinates, unrounded (read by no published page)
+      width: pixel width
+      height: pixel height
+  "{photo}.palette.yaml":
+    by: tools/extract-palette.py
+    use: Beside each photograph, its dominant colors; a palette in front matter wins.
+    keys:
+      palette: hex colors
+  "{photo}.dims.yaml":
+    by: tools/extract-dimensions.py
+    use: Beside each image, its pixel size, when no EXIF sidecar gives one.
+    keys:
+      width: pixel width
+      height: pixel height
 
 contexts:
   identity:

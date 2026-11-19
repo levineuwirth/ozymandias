@@ -56,6 +56,15 @@ class ContractTests(unittest.TestCase):
             "scripts: ozy:no-such-event: static/js/utils.js does not define it",
         ])
 
+    def test_a_data_entry_names_its_engine_source_and_its_keys(self):
+        terms = review.contract()
+        terms["data"]["photography/no-such.json"] = {"by": "build/NoSuch.hs", "use": "nothing", "keys": {"a": "b"}}
+        terms["data"]["photography/map.json"]["keys"] = {}
+        self.assertEqual(review.contract_problems(terms), [
+            "data: photography/map.json: an entry has by, use and keys",
+            "data: photography/no-such.json: no engine file build/NoSuch.hs",
+        ])
+
     def test_entries_must_name_engine_templates_groups_and_hooks(self):
         terms = review.contract()
         terms["templates"]["templates/no-such.html"] = {"hooks": []}

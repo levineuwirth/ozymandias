@@ -288,8 +288,13 @@ def contract_problems(terms: dict) -> list[str]:
     """What is wrong with the contract itself: its shape, a template the
     engine lacks, a hook no file it names binds to."""
     problems = []
-    if set(terms) != {"contexts", "templates", "scripts"}:
-        return [f"contract: has {sorted(terms)}, not contexts, templates and scripts"]
+    if set(terms) != {"contexts", "templates", "scripts", "data"}:
+        return [f"contract: has {sorted(terms)}, not contexts, templates, scripts and data"]
+    for name, entry in (terms["data"] or {}).items():
+        if not isinstance(entry, dict) or set(entry) != {"by", "use", "keys"} or not entry["keys"]:
+            problems.append(f"data: {name}: an entry has by, use and keys")
+        elif not (ENGINE / entry["by"]).is_file():
+            problems.append(f"data: {name}: no engine file {entry['by']}")
     for name, entry in (terms["scripts"] or {}).items():
         if not isinstance(entry, dict) or set(entry) != {"by", "use"}:
             problems.append(f"scripts: {name}: an entry has by and use")
