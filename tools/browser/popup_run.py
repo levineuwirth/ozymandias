@@ -8,10 +8,11 @@ from lib import *
 browser_name, port, outname = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 BASE = f'http://127.0.0.1:{port}'
 PAGES = [SITE_ROUTES.path(e) for e in SITE_ROUTES.names('popup-sweep')]
+FORGE = sitelib.site_config().get('forge-host')    # none for a site that states no forge
 PROV = [
     ('wikipedia', r'wikipedia\.org/wiki/'), ('doi', r'doi\.org/'), ('arxiv', r'arxiv\.org/(abs|pdf)/'),
     ('github-code', r'github\.com/[^/]+/[^/]+/(blob|tree|commit)/'), ('github-repo', r'^https://github\.com/[^/]+/[^/]+/?$'),
-    ('forge', re.escape(sitelib.site_config()['forge-host']) + '/'), ('openlibrary', r'openlibrary\.org'), ('youtube', r'youtube\.com|youtu\.be'),
+    *([('forge', re.escape(FORGE) + '/')] if FORGE else []), ('openlibrary', r'openlibrary\.org'), ('youtube', r'youtube\.com|youtu\.be'),
     ('biorxiv', r'biorxiv|medrxiv'), ('ia', r'archive\.org/details'), ('pubmed', r'pubmed'),
     ('citation', r'^#ref-'), ('pdf', r'pdfjs/web/viewer'), ('internal', r'^(\.\.?/|/)(?!pdfjs)'),
 ]

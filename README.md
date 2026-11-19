@@ -92,7 +92,13 @@ the freshness check hashes it.
   `contact-email`, `url` and `host` (`url`'s hostname, with or without
   `www.`; links to either are the site's own), `source-repo`,
   `source-branch` and `forge-host`, `content-license`, `code-license`,
-  `signing-fingerprint`, and `manifest` for `/site.webmanifest`. Template
+  `signing-fingerprint`, and `manifest` for `/site.webmanifest`. A site
+  whose source is not public leaves out `source-repo`, `forge-host` and
+  `code-license`, any or all: the engine's footer then links no
+  repository and names no license, no link is marked as the forge's, a
+  `LICENSE` file is not published, and the source-refs switch is refused.
+  `$site-source-repo$` and `$site-code-license$` are absent from templates
+  where they are not stated, so a site's own footer asks `$if(…)$` first. Template
   identity is HTML-escaped; manifest values are JSON-encoded.
   `content-license` is what a reader may take for granted: every page's
   `<head>` links it (`rel="license"`) where the engine knows its page. A

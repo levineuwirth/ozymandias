@@ -203,7 +203,8 @@ iconForHost cfg host
     | m "archive.org"          = "internet-archive"
     -- Code / software
     | m "github.com"           = "github"
-    | m (T.pack (siteForgeHost cfg)) = "forgejo"
+    | not (null (siteForgeHost cfg))
+    , m (T.pack (siteForgeHost cfg)) = "forgejo"
     | m "tensorflow.org"       = "tensorflow"
     | m "kaggle.com"           = "kaggle"
     -- AI companies (consumer products share a brand icon with the lab)

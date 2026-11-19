@@ -273,6 +273,65 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(done.returncode, 0)
                     self.assertIn(refusal, done.stderr)
 
+    def test_a_site_may_state_no_source(self):
+        # Where its source is, on which forge and under what license: a
+        # site whose repository is not public leaves all three out, or
+        # gives them empty, and the configuration says so with "".
+        stated = self.config.copy()
+        unstated = ("source-repo", "forge-host", "code-license")
+        for how, config in (("left out", {k: v for k, v in stated.items() if k not in unstated}),
+                            ("empty", stated | dict.fromkeys(unstated, ""))):
+            with self.subTest(how=how):
+                self.config = config
+                self.write_config()
+                done = self.run_site("config")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(json.loads(done.stdout), dict(self.resolved(), **dict.fromkeys(unstated, "")))
+                made = self.run_site("config", "--make")
+                self.assertEqual(made.returncode, 0, made.stderr)
+                self.assertIn("define SITE_SOURCE_REPO :=\n$(subst ,,)\nendef\n", made.stdout)
+        # The rest of the identity is still asked for, and a source that is
+        # stated is still held to its form.
+        for key in ("title", "email", "contact-email", "content-license"):
+            with self.subTest(required=key):
+                self.config = {k: v for k, v in stated.items() if k != key}
+                self.write_config()
+                self.assertNotEqual(self.run_site("config").returncode, 0)
+        self.config = stated | {"source-repo": "git.example.org/author/site"}
+        self.write_config()
+        done = self.run_site("config")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("source-repo must be an absolute HTTP(S) URL", done.stderr)
+
+    def test_source_refs_need_a_source_repo(self):
+        for repo, refusal in (("", "the source-refs switch needs a source-repo"),
+                              ("https://git.example.org/author/site", None)):
+            with self.subTest(repo=repo):
+                self.config = dict(self.config, switches={"code": True, "source-refs": True},
+                                   **{"source-repo": repo})
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
+    def test_without_a_forge_no_link_is_a_forge_s(self):
+        (self.root / "probe.md").write_text(
+            "[forge](https://git.example.org/author/other)\n\n"
+            "[dotted](https://example.invalid./page)\n")
+        self.write_config()
+        done = self.run_site("render-fixture", "probe.md")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.count('data-link-icon="forgejo"'), 1)
+        del self.config["forge-host"], self.config["source-repo"]
+        self.write_config()
+        done = self.run_site("render-fixture", "probe.md")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.count('class="link-external"'), 2)
+        self.assertNotIn('data-link-icon="forgejo"', done.stdout)
+
     def test_signing_needs_a_fingerprint(self):
         for fingerprint, refusal in (("", "the signing switch needs a signing-fingerprint"), ("ABC DEF", None)):
             with self.subTest(fingerprint=fingerprint):

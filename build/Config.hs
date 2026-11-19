@@ -474,9 +474,9 @@ instance FromJSON SiteConfig where
         c <- SiteConfig <$> o .: "title" <*> o .: "author" <*> o .: "author-sort"
                         <*> o .: "email" <*> o .: "contact-email"
                         <*> o .: "url" <*> o .: "host"
-                        <*> o .: "source-repo" <*> o .:? "source-branch" .!= "main"
-                        <*> o .: "forge-host" <*> o .: "content-license"
-                        <*> o .: "code-license" <*> o .:? "signing-fingerprint" .!= ""
+                        <*> o .:? "source-repo" .!= "" <*> o .:? "source-branch" .!= "main"
+                        <*> o .:? "forge-host" .!= "" <*> o .: "content-license"
+                        <*> o .:? "code-license" .!= "" <*> o .:? "signing-fingerprint" .!= ""
                         <*> o .: "manifest" <*> o .: "feeds"
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .: "nav-primary" <*> o .:? "library"
@@ -490,7 +490,8 @@ instance FromJSON SiteConfig where
                         <*> o .:? "scripts" .!= []
                         <*> o .:? "source-preview" .!= [] <*> o .:? "engine-repo" .!= ""
                         <*> o .:? "switches" .!= Map.empty <*> pure [] <*> pure []
-        mapM_ (uncurry singleLine) (identityValues c)
+        mapM_ (uncurry singleLine)
+            [ (key, value) | (key, value) <- identityValues c, not (null value && key `elem` unstatedKeys) ]
         singleLine "epistemic-about-label" (siteEpistemicAboutLabel c)
         forM_ (siteFontPreloads c) $ \href ->
             unless (siteAsset ".woff2" href) $
@@ -512,8 +513,9 @@ instance FromJSON SiteConfig where
             fail "signing-fingerprint must be a single-line string"
         mapM_ (\(name, value) -> unless (absoluteUrl value && not ("/" `isSuffixOf` value)) $
             fail (name ++ " must be an absolute HTTP(S) URL without a trailing slash"))
-            ([("url", siteUrl c), ("source-repo", siteSourceRepo c)]
-             ++ [("engine-repo", siteEngineRepo c) | not (null (siteEngineRepo c))])
+            ([("url", siteUrl c)]
+             ++ [(name, value) | (name, value) <- [("source-repo", siteSourceRepo c), ("engine-repo", siteEngineRepo c)]
+                               , not (null value)])
         forM_ (siteSourcePreview c) $ \glob ->
             unless (sourceGlob glob) $
                 fail ("source-preview must be globs over the site's own paths: " ++ glob)
@@ -564,6 +566,13 @@ instance ToJSON SiteConfig where
 identityKeys :: [String]
 identityKeys = ["title", "author", "author-sort", "email", "contact-email", "url", "host",
                 "source-repo", "source-branch", "forge-host", "content-license", "code-license"]
+
+-- | What a site may leave out, or give empty: where its source is and under
+--   what license, for one whose source is not public. Nothing then links a
+--   repository ('statedField'), marks a forge's links ("Filters.Links") or
+--   publishes a LICENSE ("Site"), and the source-refs switch is refused.
+unstatedKeys :: [String]
+unstatedKeys = ["source-repo", "forge-host", "code-license"]
 
 identityValues :: SiteConfig -> [(String, String)]
 identityValues c = zip identityKeys
@@ -650,6 +659,8 @@ decodeConfig registryBytes siteBytes = do
                           , not (Map.findWithDefault False name resolved), glob <- switchAssets spec ]
     when (Map.findWithDefault False "signing" resolved && null (siteSigningFingerprint cfg)) $
         Left "site.yaml: the signing switch needs a signing-fingerprint"
+    when (Map.findWithDefault False "source-refs" resolved && null (siteSourceRepo cfg)) $
+        Left "site.yaml: the source-refs switch needs a source-repo"
     when (Map.findWithDefault False "library" resolved && isNothing (siteLibrary cfg)) $
         Left "site.yaml: the library switch needs a library block"
     let ornamented = [ sectionDir s | s <- siteSections cfg, isJust (sectionDingbat s) ]
@@ -874,6 +885,16 @@ loadFeed path = do
 configField :: String -> (SiteConfig -> String) -> Context a
 configField name get = field name $ \_ -> get <$> loadConfig
 
+-- | An identity value site.yaml may leave out (its source repository, its
+--   code's license: a site whose source is not public states neither),
+--   escaped; absent then, so that a template asks @$if(…)$@ before it
+--   links one, and one that uses it unasked stops the build rather than
+--   write an empty link.
+statedField :: String -> (SiteConfig -> String) -> Context a
+statedField name get = field name $ \_ -> loadConfig >>= \c -> case get c of
+    ""    -> noResult ("site.yaml states no " ++ drop (length ("site-" :: String)) name)
+    value -> pure (escapeHtml value)
+
 -- | HTML-facing identity, escaped once at the output boundary. Keep the
 -- underlying config raw for non-HTML consumers (JSON, filters, tools).
 identityContext :: Context String
@@ -884,13 +905,14 @@ identityContext = mconcat [context | (_, _, context) <- identityFields]
 -- identity group (engine/contract.yaml) must match.
 identityFields :: [(String, [String], Context String)]
 identityFields =
-    [ (name, [], configField name (escapeHtml . get))
-    | (name, get) <- [("site-title", siteTitle), ("site-author", siteAuthor),
-                     ("site-author-sort", siteAuthorSort), ("site-url", siteUrl),
-                     ("site-host", siteHost), ("site-email", siteEmail),
-                     ("site-contact-email", siteContactEmail), ("site-source-repo", siteSourceRepo),
-                     ("site-code-license", siteCodeLicense),
-                     ("site-signing-fingerprint", siteSigningFingerprint)] ]
+    [ (name, [], if optional then statedField name get else configField name (escapeHtml . get))
+    | (name, get, optional) <-
+        [("site-title", siteTitle, False), ("site-author", siteAuthor, False),
+         ("site-author-sort", siteAuthorSort, False), ("site-url", siteUrl, False),
+         ("site-host", siteHost, False), ("site-email", siteEmail, False),
+         ("site-contact-email", siteContactEmail, False), ("site-source-repo", siteSourceRepo, True),
+         ("site-code-license", siteCodeLicense, True),
+         ("site-signing-fingerprint", siteSigningFingerprint, False)] ]
     ++ [ list "site-feeds"
               [ ("feed-title", pure . escapeHtml . feedAdvertiseTitle . itemBody)
               , ("feed-url", pure . escapeHtml . ("/" ++) . feedPath . itemBody) ]

@@ -132,7 +132,7 @@ def hover_popups(page):
         ('arxiv', 'a[href*="arxiv.org/abs/"]'),
         ('github-code', 'a[href^="https://github.com/"][href*="/blob/"]'),
         ('github-repo', 'a[href^="https://github.com/"]:not([href*="/blob/"]):not([href*="/tree/"])'),
-        ('forge', f'a[href*="{sitelib.site_config()["forge-host"]}"]'),
+        *([('forge', f'a[href*="{forge}"]')] if (forge := sitelib.site_config().get("forge-host")) else []),
         ('citation', 'a.cite-link, a[href^="#ref-"]'),
         ('internal', '#markdownBody a[href^="/"]:not([href*="#"]), #markdownBody a[href^="./"], #markdownBody a[href^="../"]'),
         ('pdf', 'a.pdf-link[data-pdf-src]'),

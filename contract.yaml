@@ -221,6 +221,8 @@ contexts:
     site-host: example.org
     site-email: author@example.org
     site-contact-email: contact@example.org
+    # These two only where site.yaml states them (a site whose source is
+    # not public states neither): a template asks $if(…)$ before either.
     site-source-repo: https://git.example.org/author/site
     site-code-license: MIT
     site-signing-fingerprint: 0000 1111 2222 3333 4444 5555 6666 7777 8888 9999

@@ -345,8 +345,10 @@ rules = do
     staticRules twins (siteWithheld cfg) (switchOn cfg) themes
     templateRules twins
 
-    -- The repository and the public site carry the same licence texts.
-    match (fromList ["LICENSE", "LICENSE-CONTENT"]) $ do
+    -- The repository and the public site carry the same licence texts: the
+    -- code's only where site.yaml names its license (a site whose source
+    -- is not public names none, and has no file to publish under one).
+    match (fromList (["LICENSE" | not (null (siteCodeLicense cfg))] ++ ["LICENSE-CONTENT"])) $ do
         route $ customRoute $ \ident -> "licenses/" ++
             (if toFilePath ident == "LICENSE" then siteCodeLicense cfg else siteContentLicense cfg) ++ ".txt"
         compile copyFileCompiler

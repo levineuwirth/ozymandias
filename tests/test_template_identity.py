@@ -227,6 +227,31 @@ main = hakyll $ do
             self.assertEqual(ornaments, expected)
             self.assertEqual((root / "_site/link-graph.txt").read_text(), "True")
 
+    def test_the_engine_s_footer_links_only_a_source_the_site_states(self):
+        # Both stated: the license's name, linked to the repository (the
+        # test below). A license with no repository is named unlinked; a
+        # site that states neither has nothing there, and no empty link.
+        with tempfile.TemporaryDirectory(prefix="engine-footer-") as tmp:
+            root = Path(tmp)
+            shutil.copytree(engine_path("templates"), root / "templates")
+            stated = write_site_config(root)
+            footers = {}
+            for name, unstated in (("both", ()), ("license", ("source-repo", "forge-host")),
+                                   ("neither", ("source-repo", "forge-host", "code-license"))):
+                (root / "site.yaml").write_text(json.dumps({k: v for k, v in stated.items() if k not in unstated}))
+                done = subprocess.run([str(self.binary), "rebuild"], cwd=root, env=script_env(),
+                                      capture_output=True, text=True, timeout=60)
+                self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+                footers[name] = (root / "_site/partials/footer.html").read_text()
+            linked = '<span class="footer-license"><a href="https://git.example.org/author/site">MIT</a></span>'
+            self.assertIn(linked, footers["both"])
+            self.assertEqual(footers["license"],
+                             footers["both"].replace(linked, '<span class="footer-license">MIT</span>'))
+            self.assertEqual(footers["neither"], footers["both"].replace("        " + linked + "\n", ""))
+            for name in ("license", "neither"):
+                self.assertNotIn("<a href=\"\"", footers[name], name)
+                self.assertNotIn("git.example.org", footers[name], name)
+
     def test_the_engine_defaults_carry_the_site_s_identity_and_no_other(self):
         # The engine's own footer, not-found page and ornament, which this
         # site overrides (overrides.yaml), so its build never renders them.
