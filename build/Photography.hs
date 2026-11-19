@@ -47,7 +47,7 @@ import           Contexts               (feedTitleField, photographyCtx, pageCtx
                                          recentFirstByDisplay, feedMetaFields,
                                          photoVariantName)
 import qualified Patterns               as P
-import           Utils                  (exposureISO, formatBytes, inDefault, stripPrefixRoute)
+import           Utils                  (canonicalUrlPath, exposureISO, formatBytes, inDefault, stripPrefixRoute)
 
 -- ---------------------------------------------------------------------------
 -- Rules
@@ -441,17 +441,6 @@ photographyLandingRules =
 -- this build step. Full-precision coords never reach @map.json@.
 -- @geo-precision: hidden@ omits the entry entirely.
 
--- | Strip a trailing @"index.html"@ component so a Hakyll route
---   like @"photography/foo/index.html"@ becomes @"photography/foo/"@.
---   Used for map.json click-through URLs.
-stripIndexHtml :: String -> String
-stripIndexHtml r
-    | suffixMatches = take (length r - 10) r  -- 10 = length "index.html"
-    | otherwise     = r
-  where
-    suffix         = "/index.html" :: String
-    suffixMatches  = suffix == drop (length r - length suffix) r
-
 -- | Round a decimal coordinate to the precision that matches the
 --   author's @geo-precision:@ declaration.
 --
@@ -519,9 +508,9 @@ buildPin item = do
                                     else takeFileName (takeDirectory fp)
                 title   = fromMaybe slug (lookupString "title" meta)
                 photo   = lookupString "photo" meta
-                -- Trim trailing "index.html" so the click-through URL
-                -- is the canonical directory form (no implicit redirect).
-                url     = "/" ++ stripIndexHtml r
+                -- The page's canonical URL, as photos.json's
+                -- canonical-url has it: the key that joins the two.
+                url     = canonicalUrlPath r
                 -- Co-located assets live beside the entry's Markdown and
                 -- route to the directory the entry's own URL is under.
                 assetDir = takeDirectory fp

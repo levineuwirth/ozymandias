@@ -96,13 +96,14 @@ SITE_MAP = """(() => {
     }});
 })();"""
 
-# The engine's own map, whatever the site under test registers (its markers
-# are a site's to replace): registerMap does nothing.
-DEFAULT_MAP = """(() => {
+# The engine's own map and views, whatever the site under test registers
+# (its markers and its layouts are a site's to replace): registerMap and
+# registerMode do nothing.
+ENGINE_OWN = """(() => {
     let held;
     Object.defineProperty(window, 'ozyPhotography', {configurable: true, get: () => held, set: v => {
         held = v;
-        v.registerMap = function () {};
+        v.registerMap = v.registerMode = function () {};
     }});
 })();"""
 
@@ -177,8 +178,10 @@ class Photography(unittest.TestCase):
     def test_masonry_cards_hold_their_photographs(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page, _ = self.open(browser, "/photography/",
-                                    init="try { localStorage.setItem('photography-mode', 'masonry'); } catch (e) {}")
+                # The engine's masonry, which sets each card's span; a site's
+                # own may lay its cards out otherwise.
+                page, _ = self.open(browser, "/photography/", init=ENGINE_OWN +
+                                    "try { localStorage.setItem('photography-mode', 'masonry'); } catch (e) {}")
                 self.expect(page.locator(".photography-grid")).to_have_attribute("data-photography-mode", "masonry")
                 # Every image loaded (they are lazy), then one frame for the spans.
                 page.evaluate("""async () => {
@@ -214,7 +217,7 @@ class Photography(unittest.TestCase):
     def map_page(self, browser: str, pins=PINS, **changed):
         answers = self.map_answers(pins)
         answers.update(changed)
-        return self.open(browser, "/photography/map/", fakes=answers, init=RECORD_FETCH + DEFAULT_MAP)
+        return self.open(browser, "/photography/map/", fakes=answers, init=RECORD_FETCH + ENGINE_OWN)
 
     def zoom(self, page) -> int:
         """The map's zoom, from the tiles it shows."""

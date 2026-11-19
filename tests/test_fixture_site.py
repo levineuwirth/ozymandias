@@ -253,13 +253,17 @@ class FixtureBuilds(unittest.TestCase):
         return self.rebuilt(f"full-{name}-turned-off", lambda config: fixture_variants.switched(
             config, fixture_variants.settle(dict(config["switches"], **{name: False}), fixture_variants.registry())))
 
-    def rebuilt(self, name: str, change, files: dict[str, str] | None = None) -> Path:
+    def rebuilt(self, name: str, change, files: dict[str, str | bytes] | None = None) -> Path:
         """The full build's copy, as `turned_off` has it, built again with
         `change` made to its site.yaml's contents, and `files` written."""
         site = self.sites["full"].with_name(name)
         shutil.copytree(self.sites["full"], site, symlinks=True, ignore=shutil.ignore_patterns("_site", "_cache"))
-        for rel, text in (files or {}).items():
-            (site / rel).write_text(text, encoding="utf-8")
+        for rel, data in (files or {}).items():
+            (site / rel).parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(data, bytes):
+                (site / rel).write_bytes(data)
+            else:
+                (site / rel).write_text(data, encoding="utf-8")
         config = change(yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8")))
         (site / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
         binary = str(site_binary())
@@ -337,6 +341,35 @@ class FixtureBuilds(unittest.TestCase):
             with self.subTest(thumb=pin.get("thumb")):
                 self.assertTrue(pin["thumb"].startswith("/") and not pin["thumb"].startswith("//"))
                 self.assertTrue((site.parent / pin["thumb"].lstrip("/")).is_file())
+
+    def test_a_photograph_s_page_is_its_own_whatever_its_name_or_directory(self):
+        # A flat photograph whose name ends in "index" and a frame in a
+        # directory with no index.md: each pin joins its entry by url, and
+        # the route check knows each page by its source, whatever markup a
+        # site's template gives it.
+        photography = FIXTURE / "content/photography"
+        flat = (photography / "lone-frame.md").read_text(encoding="utf-8").replace("Lone Frame", "Subject Index")
+        frame = (photography / "fixture-series/two.md").read_text(encoding="utf-8")
+        site = self.rebuilt("photo-routes", lambda c: c, {
+            "content/photography/subject-index.md": flat,
+            "content/photography/portfolio-selection/first.md": frame.replace("series: fixture-series\n", ""),
+            "content/photography/portfolio-selection/two.jpg": (photography / "fixture-series/two.jpg").read_bytes()})
+        built = site / "_site/photography"
+        photos = json.loads((built / "photos.json").read_text(encoding="utf-8"))["photos"]
+        pins = json.loads((built / "map.json").read_text(encoding="utf-8"))
+        urls = {e["canonical-url"] for e in photos}
+        self.assertLessEqual({"/photography/subject-index.html", "/photography/portfolio-selection/first/"}, urls)
+        self.assertEqual({pin["url"] for pin in pins} - urls, set())
+        self.assertIn("/photography/subject-index.html", {pin["url"] for pin in pins})
+        switches = yaml.safe_load((site / "site.yaml").read_text(encoding="utf-8"))["switches"]
+        routes = load_tool("browser/routes.py", "fixture_routes").Routes(site)
+        for path, file in (("/photography/subject-index.html", "subject-index.html"),
+                           ("/photography/portfolio-selection/first/", "portfolio-selection/first/index.html")):
+            with self.subTest(path=path):
+                html = (built / file).read_text(encoding="utf-8")
+                self.assertEqual(routes.kinds_of(path, html, switches), {"photo-single"})
+                self.assertEqual(routes.kinds_of(path, '<ul class="item-card-list"></ul>' + html, switches),
+                                 {"photo-single"})
 
     def test_the_site_s_own_scripts_load_on_every_page_after_the_engine_s(self):
         # site.yaml's scripts: under the asset version, published, and after

@@ -36,9 +36,11 @@ from sitelib import ENGINE, SITE_ROOT, site_binary
 
 MANIFEST = "overrides.yaml"
 CONTRACT = ENGINE / "contract.yaml"
-# A hook: a tag, then classes, an id and attributes (a value optional).
-SELECTOR = re.compile(r"([a-z][a-z0-9-]*)?((?:\.[\w-]+|#[\w-]+|\[[\w-]+(?:=[\w-]+)?\])*)")
-SIMPLE = re.compile(r"\.([\w-]+)|#([\w-]+)|\[([\w-]+)(?:=([\w-]+))?\]")
+# A hook: a tag, then classes, an id and attributes (a value optional),
+# and attributes it lacks (:not([name]), :not([name=value])).
+SELECTOR = re.compile(r"([a-z][a-z0-9-]*)?((?:\.[\w-]+|#[\w-]+|\[[\w-]+(?:=[\w-]+)?\]"
+                      r"|:not\(\[[\w-]+(?:=[\w-]+)?\]\))*)")
+SIMPLE = re.compile(r"\.([\w-]+)|#([\w-]+)|(:not\()?\[([\w-]+)(?:=([\w-]+))?\]")
 # What a template's $...$ uses a field by: name, if(name), for(name).
 # $plain(f)$ uses f, as $if(f)$ does (Contexts.plainField).
 FIELD = re.compile(r"(?:if|for|plain)\(([\w-]+)\)|([a-z][\w-]*)")
@@ -117,13 +119,15 @@ def accept(root: Path, path: str) -> str:
 
 def selector_parts(selector: str) -> tuple[str | None, list[tuple[str, str, str | None]]]:
     """A hook's tag and its classes, id and attributes, as (kind, name,
-    value) with kind "class", "id" or "attr"."""
+    value) with kind "class", "id", "attr" or "not" (an attribute it
+    lacks, or has with another value)."""
     whole = SELECTOR.fullmatch(selector)
     if not whole or not selector:
         raise ValueError(f"not a hook selector: {selector!r}")
     parts = []
-    for cls, ident, attr, value in SIMPLE.findall(whole.group(2)):
-        parts.append(("class", cls, None) if cls else ("id", ident, None) if ident else ("attr", attr, value or None))
+    for cls, ident, negated, attr, value in SIMPLE.findall(whole.group(2)):
+        parts.append(("class", cls, None) if cls else ("id", ident, None) if ident
+                     else ("not" if negated else "attr", attr, value or None))
     return whole.group(1), parts
 
 
@@ -166,6 +170,8 @@ def matches(html: str, selector: str, root: bool = False) -> bool:
             if kind == "id" and attrs.get("id") != name:
                 return False
             if kind == "attr" and (name not in attrs or (value is not None and attrs[name] != value)):
+                return False
+            if kind == "not" and name in attrs and (value is None or attrs[name] == value):
                 return False
         return True
 
@@ -237,6 +243,21 @@ def site_fields(root: Path, template: str, points: frozenset[str] = frozenset())
     return found
 
 
+def includes(root: Path, template: str) -> set[str]:
+    """The partials `template` includes, at any depth, as `root` resolves
+    each: its own over the engine's."""
+    found, queue = set(), [template]
+    while queue:
+        path = queue.pop()
+        source = root / path if (root / path).is_file() else ENGINE / path
+        if not source.is_file():
+            continue
+        for partial in template_uses(source.read_text(encoding="utf-8"))[1] - found:
+            found.add(partial)
+            queue.append(partial)
+    return found
+
+
 def render(root: Path, template: str, fields: dict, binary: str) -> subprocess.CompletedProcess:
     """`site render-template` for `template` as `root` resolves it, its own
     templates over the engine's (this one, wherever `root` is)."""
@@ -275,9 +296,14 @@ def template_problems(root: Path, template: str, terms: dict, binary: str) -> li
 def hook_problems(root: Path, binary: str) -> list[str]:
     """Each of the site's template overrides against the contract: it must
     be an override point, render with its fixture context and keep its
-    hooks."""
+    hooks. Then each page of the engine's that includes one of them, with
+    that page's context, as the build renders it: a partial's own context
+    is every flag the pages that include it might give it, so a branch it
+    takes on one page alone (the controls' on the landing, without the
+    map's or a series' flags) is rendered there."""
     terms = contract()
     problems = []
+    overridden = set()
     for entry in manifest(root):
         path = entry["site"]
         if not path.startswith("templates/"):
@@ -285,7 +311,13 @@ def hook_problems(root: Path, binary: str) -> list[str]:
         if path not in terms["templates"]:
             problems.append(f"{path}: not an override point (engine/contract.yaml)")
             continue
+        overridden.add(path)
         problems += template_problems(root, path, terms, binary)
+    for page in terms["templates"]:
+        if page in overridden or not (theirs := sorted(includes(root, page) & overridden)):
+            continue
+        problems += [f"{page}, the engine's, with the site's {', '.join(theirs)}: {p.removeprefix(page + ': ')}"
+                     for p in template_problems(root, page, terms, binary)]
     return problems
 
 

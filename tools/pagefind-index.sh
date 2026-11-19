@@ -13,6 +13,10 @@
 # replaced, and one Pagefind no longer writes is deleted, as the old
 # fragments of a removed page must be. The .gz/.br sidecars are
 # compress-assets.sh's (it refreshes and sweeps them), so they are left out.
+#
+# Pagefind indexes only the pages that carry data-pagefind-body once any
+# page does, as the engine's templates do: a page without it is left out of
+# keyword search (contract.yaml holds the photography templates to it).
 set -euo pipefail
 
 site=${1:-_site}

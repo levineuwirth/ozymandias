@@ -115,7 +115,9 @@ data:
     keys:
       kind: photo or series
       frames: a series' frames' URLs, in its grid's order (series only)
-      slug: its directory's name, or a flat single's own
+      slug: >-
+        a directory entry's (index.md) directory name, else its file's
+        name: a series frame's or a flat single's
       title: the title
       alt: the authored alt text
       abstract: the caption
@@ -389,6 +391,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
       - selector: img[data-lightbox]
         by: [static/js/lightbox.js]
         why: the photograph opens in the darkroom
@@ -406,6 +411,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/photography-slideshow.js, static/js/popups/photography.js]
         why: >-
@@ -422,6 +430,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/popups/photography.js]
         why: the grid the view modes lay out, and popups leave alone
@@ -432,6 +443,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
     optional:
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/popups/photography.js]
@@ -443,6 +457,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
 
   templates/photography-contact-sheet.html:
     context: [identity, page, switches, photography, photo-list, portal]
@@ -450,6 +467,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
     optional:
       - selector: .photography-contact-sheet
         by: [static/js/photography-modes.js]
@@ -461,6 +481,9 @@ templates:
       - selector: "#markdownBody"
         by: [templates/default.html]
         why: the skip link's destination, the page's main content
+      - selector: "[data-pagefind-body]"
+        by: [tools/pagefind-index.sh]
+        why: keyword search indexes only the pages that carry it, once any page does
       - selector: "#photography-map"
         by: [static/js/photography-map.js]
         why: the element the map is drawn in, its state classes added to it
@@ -497,12 +520,13 @@ templates:
   templates/partials/photography-controls.html:
     context: [series, photo-view]
     hooks:
-      - selector: .mode-btn[data-mode]
+      - selector: .mode-btn[data-mode]:not([data-mode=slideshow])
         by: [static/js/photography-modes.js]
         why: >-
           a view, wherever the controls put it: its data-mode is a
           registered mode, which choosing applies in place (the chosen one
-          carries aria-current), or a page (map) it links to
+          carries aria-current), or a page (map) it links to; the
+          slideshow's button is not one
     optional:
       - selector: button[data-mode=slideshow]
         by: [static/js/photography-slideshow.js]

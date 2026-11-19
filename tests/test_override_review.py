@@ -92,6 +92,17 @@ class SelectorTests(unittest.TestCase):
             with self.subTest(selector=selector):
                 self.assertFalse(review.matches(self.HTML, selector))
 
+    def test_a_hook_may_name_an_attribute_its_element_lacks(self):
+        html = '<a class="mode-btn" data-mode="grid"></a><button class="mode-btn" data-mode="slideshow"></button>'
+        for selector, found in ((".mode-btn:not([data-mode=slideshow])", True),
+                                (".mode-btn[data-mode]:not([data-mode=slideshow])", True),
+                                ("button.mode-btn:not([data-mode=slideshow])", False),
+                                ("button:not([data-mode])", False), ("a:not([href])", True)):
+            with self.subTest(selector=selector):
+                self.assertEqual(review.matches(html, selector), found)
+        self.assertFalse(review.matches(html.split("<button")[0].replace("grid", "slideshow"),
+                                        ".mode-btn[data-mode]:not([data-mode=slideshow])"))
+
     def test_a_root_hook_matches_only_at_the_top_level(self):
         html = ('<hr class="rule">\n<footer data-pagefind-ignore><svg><line x1="0"/><g class="leaf"/></svg>'
                 '<br class="inner"></footer><p class="after"></p>')
@@ -104,7 +115,7 @@ class SelectorTests(unittest.TestCase):
                 self.assertFalse(review.matches(html, selector, root=True))
 
     def test_a_selector_beyond_a_compound_one_is_refused(self):
-        for selector in ("", "footer > button", "a:hover", ".a .b"):
+        for selector in ("", "footer > button", "a:hover", ".a .b", "a:not(.b)", "a:not([x]"):
             with self.subTest(selector=selector), self.assertRaises(ValueError):
                 review.selector_parts(selector)
 

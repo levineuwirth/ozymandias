@@ -89,14 +89,15 @@ cacheDirFor dev = if dev then "_cache-dev" else "_cache"
 --   @essays\/foo\/index.html@ is the route, @\/essays\/foo\/@ the URL.
 --   Deliberate @.html@ routes (@\/about.html@, @\/new.html@) keep their
 --   extension — this normalizes one spelling of the same page, it does not
---   restyle the site's URL scheme.
+--   restyle the site's URL scheme. Only a whole final component is
+--   dropped: @photography\/subject-index.html@ is a page of its own.
 --
 --   Lives here rather than in "Contexts" so that "Backlinks" — which
 --   "Contexts" imports, and which writes the href of every backlink
 --   source — can reach it without an import cycle.
 canonicalUrlPath :: FilePath -> String
 canonicalUrlPath r
-    | "index.html" `isSuffixOf` withSlash =
+    | "/index.html" `isSuffixOf` withSlash =
         take (length withSlash - length ("index.html" :: String)) withSlash
     | otherwise = withSlash
   where

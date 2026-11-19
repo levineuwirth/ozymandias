@@ -143,6 +143,35 @@ class TemplateContractTests(unittest.TestCase):
                                    '<span class="photo-card-title">$title$ · $site-title$ · $url$</span>'))
         self.assertEqual(review.hook_problems(self.root, self.binary), [])
 
+    def test_an_overridden_partial_renders_in_each_page_that_includes_it(self):
+        # The controls' own context has the map's and a series' flags; the
+        # landing gives neither, so a branch only it takes is rendered there.
+        self.override("templates/partials/photography-controls.html",
+                      '<nav><a class="mode-btn" data-mode="grid" href="/photography/">Grid</a>'
+                      '$if(photography-view-map)$<b>Map</b>$else$<i>$series-frame-count$</i>$endif$</nav>\n')
+        problems = review.hook_problems(self.root, self.binary)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertTrue(problems[0].startswith(
+            "templates/photography-index.html, the engine's, with the site's"
+            " templates/partials/photography-controls.html: does not render"), problems)
+        self.assertIn("series-frame-count", problems[0])
+
+    def test_the_slideshow_s_button_is_not_a_view(self):
+        self.override("templates/partials/photography-controls.html",
+                      '<div>$if(is-series)$<button class="mode-btn" type="button"'
+                      ' data-mode="slideshow">Slideshow</button>$endif$</div>\n')
+        self.assertEqual(review.hook_problems(self.root, self.binary), [
+            "templates/partials/photography-controls.html: lacks"
+            " .mode-btn[data-mode]:not([data-mode=slideshow])"])
+
+    def test_a_photograph_s_page_stays_in_keyword_search(self):
+        engine = Path(review.ENGINE) / "templates/photography.html"
+        text = engine.read_text(encoding="utf-8")
+        self.assertIn("data-pagefind-body", text)
+        self.override("templates/photography.html", text.replace("data-pagefind-body", "data-kept"))
+        self.assertEqual(review.hook_problems(self.root, self.binary),
+                         ["templates/photography.html: lacks [data-pagefind-body]"])
+
     def test_plain_is_given_where_the_engine_gives_it(self):
         # A photograph's context has plain, in a list of them too; a link's
         # (photo-links) has only its name and URL, and the build stops on it.

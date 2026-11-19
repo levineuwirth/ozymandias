@@ -190,25 +190,36 @@ class Routes:
     @functools.cached_property
     def source_paths(self) -> dict[str, set[str]]:
         """The paths photography's published sources route to (Photography.hs):
-        a flat photograph's <slug>.html, a directory's <slug>/ (a series
-        when it has frames beside its index.md, else a photograph) and a
-        frame's <series>/<frame>/."""
+        a flat photograph's <slug>.html, every frame's <directory>/<frame>/,
+        whether or not its directory has an index.md, and a directory's
+        index.md's <slug>/ (a series when frames are beside it, else a
+        photograph)."""
         found: dict[str, set[str]] = {"photo-single": set(), "photo-series": set()}
         root = self.site / "content/photography"
         if not root.is_dir():
             return found
+        def shown(md: Path) -> bool:
+            return published(self.site, md.relative_to(self.site))
         for md in sorted(root.glob("*.md")):
-            if md.name != "index.md" and published(self.site, md.relative_to(self.site)):
+            if md.name != "index.md" and shown(md):
                 found["photo-single"].add(f"/photography/{md.stem}.html")
+        framed = set()
+        for md in sorted(root.glob("*/*.md")):
+            if md.name != "index.md" and shown(md):
+                found["photo-single"].add(f"/photography/{md.parent.name}/{md.stem}/")
+                framed.add(md.parent.name)
         for index in sorted(root.glob("*/index.md")):
-            if not published(self.site, index.relative_to(self.site)):
-                continue
-            frames = [f for f in index.parent.glob("*.md")
-                      if f.name != "index.md" and published(self.site, f.relative_to(self.site))]
-            slug = index.parent.name
-            found["photo-series" if frames else "photo-single"].add(f"/photography/{slug}/")
-            found["photo-single"].update(f"/photography/{slug}/{f.stem}/" for f in frames)
+            if shown(index):
+                slug = index.parent.name
+                found["photo-series" if slug in framed else "photo-single"].add(f"/photography/{slug}/")
         return found
+
+    def sourced(self, path: str, switches: dict[str, bool]) -> str | None:
+        """The kind a photography source publishes at `path`, if one does:
+        its route is its own, whatever markup a site's template gives it."""
+        return next((name for name, kind in KINDS.items() if kind.routed_by_source
+                     and (kind.switch is None or switches[kind.switch])
+                     and path in self.source_paths.get(name, set())), None)
 
     def has(self, name: str, switches: dict[str, bool]) -> bool:
         """Whether the site has pages of this kind."""
@@ -248,7 +259,10 @@ class Routes:
         """Every kind a built page fits: its switch, route or context, and
         mark, on a path nothing the site has claims from it. `page` is what is
         left over, for page.html leaves no mark of its own but the title every
-        page.html and many others have."""
+        page.html and many others have. A path a photography source
+        publishes is that source's kind alone (`sourced`)."""
+        if sourced := self.sourced(path, switches):
+            return {sourced}
         claims = self.claims(switches)
         found = {name for name, kind in KINDS.items() if name not in ("page", "not-found")
                  and (kind.switch is None or switches[kind.switch])
