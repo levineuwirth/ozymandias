@@ -916,6 +916,23 @@ class FixtureBuilds(unittest.TestCase):
         essay = (self.sites["minimal"] / "_site/essays/long/index.html").read_text(encoding="utf-8")
         self.assertIn("fixture-ornament", essay)
 
+    def test_its_banner_stands_between_the_menu_and_the_page_on_every_page(self):
+        # templates/partials/banner.html, empty in the engine: the fixture's
+        # is on each page default.html renders, once, after the menu's
+        # header and before the page shell, with the fields its entry gives.
+        banner = '<div class="fixture-banner" data-pagefind-ignore>Example Site</div>'
+        for name in ("full", "minimal"):
+            with self.subTest(build=name):
+                self.refused(name)
+                site = self.sites[name] / "_site"
+                pages = [p for p in site.rglob("*.html") if '<div class="page-shell">' in p.read_text(encoding="utf-8")]
+                self.assertTrue(pages)
+                for page in pages:
+                    html = page.read_text(encoding="utf-8")
+                    self.assertEqual(html.count('class="fixture-banner"'), 1, page)
+                    self.assertIn(banner + '<div class="page-shell">', html.replace("\n", ""), page)
+                    self.assertLess(html.index("</header>"), html.index(banner), page)
+
 
 if __name__ == "__main__":
     unittest.main()

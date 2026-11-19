@@ -368,6 +368,17 @@ opens part-way down is not away until the reader scrolls. The panel's
 first button, Top of page, is the way back for a page whose header has
 scrolled off.
 
+Between the menu and the page a site may put a banner of its own:
+`templates/partials/banner.html`, an override point (`contract.yaml`) that
+`default.html` renders on every page with the site's identity and the page's
+title and address. The engine's is an empty file, so a site without one has
+nothing there, and the engine styles nothing of a site's, in print either: a
+band of sky, a name, a strip the site's script draws into are the site's to
+lay out, and to hide where it wants them hidden. A site that draws there by
+script gives the element its room in CSS, so that nothing moves when the
+script runs. Its words stay out of the semantic search's embeddings when
+its element carries `data-pagefind-ignore`.
+
 `frontmatter.css` and `callouts.css` are always present: the title grid and
 editorial callouts do not require the marks or math switches. The fixture
 site demonstrates a complete skin. A mechanical restyling records before

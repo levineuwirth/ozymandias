@@ -382,6 +382,23 @@ templates:
         by: [static/css/aftermatter.css, static/css/print.css]
         why: its width and ink, and hidden in print
 
+  # A site's banner: default.html puts it on every page between the menu
+  # (body > header) and the page shell. The engine's is an empty file and it
+  # styles nothing of a site's, in print either: the lights, a name, a strip
+  # of sky are the site's to draw, lay out and hide. No hook is required,
+  # since the engine binds to nothing in it.
+  templates/partials/banner.html:
+    context: [identity, page]
+    hooks: []
+    optional:
+      - selector: "[data-pagefind-ignore]"
+        by: [tools/embed.py]
+        why: >-
+          the semantic embeddings leave out an element that carries it, as
+          they do the menu and the footer; without it a banner's words are
+          embedded as every page's own (Pagefind reads only
+          [data-pagefind-body], so it needs nothing)
+
   # Photography (the photography switch). A hook here is what the engine's
   # scripts bind to; the classes the engine's stylesheets style are not
   # hooks, since a site that overrides a template styles its own markup.
