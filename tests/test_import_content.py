@@ -71,22 +71,25 @@ class ImportContentTests(unittest.TestCase):
     # A page collection is checked against `site shared-rules`.
     @requires_cabal
     def test_collections_support_every_content_type(self) -> None:
+        # A collection's address is under its section's, which is the
+        # directory's name unless the site this runs for gives another.
+        address = import_content.sitelib.section_address
         expected = {
             "essay": (
                 "content/essays/cycle",
-                "/essays/cycle/",
+                f"/{address('essays')}/cycle/",
             ),
             "blog": (
                 "content/blog/cycle",
-                "/blog/cycle/",
+                f"/{address('blog')}/cycle/",
             ),
             "fiction": (
                 "content/fiction/cycle",
-                "/fiction/cycle/",
+                f"/{address('fiction')}/cycle/",
             ),
             "poetry": (
                 "content/poetry/cycle",
-                "/poetry/cycle/",
+                f"/{address('poetry')}/cycle/",
             ),
             "page": (
                 "content/cycle",

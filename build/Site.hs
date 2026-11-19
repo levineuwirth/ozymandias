@@ -7,7 +7,7 @@ import Control.Monad.Except (catchError)
 import Data.Char     (isSpace, toUpper)
 import Data.List     (groupBy, isInfixOf, isPrefixOf, isSuffixOf, nub, sort, sortBy)
 import Data.Map.Strict (Map)
-import Data.Maybe    (catMaybes, fromMaybe, listToMaybe, mapMaybe)
+import Data.Maybe    (catMaybes, fromMaybe, isNothing, listToMaybe, mapMaybe)
 import Data.Ord      (Down (..), comparing)
 import Data.Set      (Set)
 import qualified Data.Set as Set
@@ -20,9 +20,10 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Map.Strict as Map
 import Hakyll hiding (escapeHtml)
-import Config     (SiteConfig (..), FeedSpec (..), FeedSection (..), LibraryConfig (..),
+import Config     (SiteConfig (..), FeedSpec (..), FeedSection (..), LibraryConfig (..), Section (..),
                    NavLink (..), Portal (..), Standalone (..), PageKind (..),
                    engineSources, standaloneDir, configRules, manifestRules,
+                   sectionLandingTitle, writingDirs,
                    readSiteConfig, loadConfig, loadFeed, renderSiteFeed, photoFeed, switchOn, sourcePreviewPattern)
 import Archive    (archiveRules)
 import Authors    (buildAllAuthors, applyAuthorRules)
@@ -49,9 +50,9 @@ import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
-import Sections   (tagPageUrl)
+import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, tagPageUrl)
 import Stats      (statsRules)
-import Utils      (cacheDirFor, confidencePercent, contentPageRoute, escapeHtml, formatIso, inDefault,
+import Utils      (cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
                    isDevBuild, metadataKeywords, outputDirFor, stripPrefixRoute,
                    trustScore)
 
@@ -258,6 +259,36 @@ rules = do
     -- ---------------------------------------------------------------------------
     isDev <- preprocess isDevBuild
     twins <- engineTwins
+
+    -- Where content is served: its path under content/, a section's
+    -- directory given as the section's address ("Sections").
+    let pageRoute = contentPageRoute cfg
+        fileRoute = contentRoute cfg
+        listed    = listedSection cfg
+
+    -- A section of writing site.yaml does not list is not the site's: no
+    -- landing is made for it, and its patterns must match nothing, so its
+    -- directory holds nothing. A file there would be compiled by a rule
+    -- for a section the site does not have; refuse it instead.
+    forM_ [ dir | dir <- writingDirs, isNothing (listed dir) ] $ \dir -> do
+        strays <- getMatches (fromGlob ("content/" ++ dir ++ "/**")
+                              .||. fromGlob ("content/drafts/" ++ dir ++ "/**"))
+        unless (null strays) $ preprocess $ ioError $ userError $
+            "site.yaml: sections lists no " ++ dir ++ ", and content/ holds its files: "
+            ++ unwords (map toFilePath (take 5 strays))
+            ++ (if length strays > 5 then " …" else "")
+
+    -- A section's address is where its pages are served, not where they
+    -- are written: a file under content/<address>/ would be served among
+    -- them, so no rule takes it ("Sections", the reserved directories).
+    -- Say so rather than drop it.
+    forM_ [ s | s <- siteSections cfg, sectionAddress s /= sectionDir s ] $ \s -> do
+        strays <- getMatches (fromGlob ("content/" ++ sectionAddress s ++ "/**"))
+        unless (null strays) $ preprocess $ ioError $ userError $
+            "site.yaml: /" ++ sectionAddress s ++ "/ is the " ++ sectionDir s
+            ++ " section's address, and its pages are written in content/" ++ sectionDir s
+            ++ "/: " ++ unwords (map toFilePath (take 5 strays))
+            ++ (if length strays > 5 then " …" else "")
     let musicOn = switchOn cfg "music"
         allEssays = if isDev
                     then P.essayPattern .||. P.draftEssayPattern
@@ -331,12 +362,12 @@ rules = do
     -- Per-page JS files — authored alongside content in content/**/*.js.
     -- Draft JS is handled by a separate dev-only rule below.
     match ("content/**/*.js" .&&. complement "content/drafts/**") $ do
-        route   $ stripPrefixRoute "content/"
+        route   fileRoute
         compile copyFileCompiler
 
     -- Per-page JS co-located with draft essays (dev-only).
     when isDev $ match "content/drafts/**/*.js" $ do
-        route   $ stripPrefixRoute "content/"
+        route   fileRoute
         compile copyFileCompiler
 
     -- Static files and templates, the site's and the engine's that no site
@@ -502,14 +533,14 @@ rules = do
     -- Every other top-level page.
     match ("content/*.md" .&&. complement (fromList (map fromFilePath ownSources)
                                              .||. P.standaloneSources cfg)) $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ pageCompiler
             >>= inDefault "templates/page.html" pageCtx
 
     -- Generic page collections
     -- (content/<collection>/<slug>.md → <collection>/<slug>.html).
     match (P.pageCollectionPattern cfg) $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ pageCompiler
             >>= inDefault "templates/page.html" pageCtx
 
@@ -574,7 +605,7 @@ rules = do
         -- content/essays/foo.md → essays/foo.html, a directory essay or
         -- collection entry keeps its path below content/, and a dev draft
         -- under content/drafts/essays/ lands under drafts/essays/.
-        route contentPageRoute
+        route pageRoute
         compile $ essayCompiler
             >>= saveSnapshot "content"
             >>= inDefault "templates/essay.html" essayCtx
@@ -613,7 +644,7 @@ rules = do
     -- Build-time dimension sidecars are excluded; they're consumed by
     -- Filters/Images.hs at compile time, not shipped.
     match essayAssets $ do
-        route $ stripPrefixRoute "content/"
+        route fileRoute
         compile copyFileCompiler
 
     -- A bibliography beside its essay: published where it is, as the other
@@ -623,7 +654,7 @@ rules = do
     -- load found a CopyFile where it asked for a String, and a clean build
     -- of the essay failed (a draft's, in dev, first).
     match colocatedBibs $ do
-        route $ stripPrefixRoute "content/"
+        route fileRoute
         compile getResourceString
 
     -- Static assets co-located with draft essays (dev-only).
@@ -632,14 +663,14 @@ rules = do
                         .&&. complement "content/drafts/essays/*/index.md"
                         .&&. complement "content/drafts/essays/**/*.dims.yaml"
                         .&&. complement colocatedBibs) $ do
-        route $ stripPrefixRoute "content/"
+        route fileRoute
         compile copyFileCompiler
 
     -- ---------------------------------------------------------------------------
     -- Blog posts
     -- ---------------------------------------------------------------------------
     match P.blogPattern $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ postCompiler
             >>= saveSnapshot "content"
             >>= inDefault "templates/blog-post.html" postCtx
@@ -647,7 +678,7 @@ rules = do
     -- Blog collection index pages
     -- (content/blog/<collection>/index.md → blog/<collection>/index.html).
     match "content/blog/*/index.md" $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ pageCompiler
             >>= loadAndApplyTemplate "templates/default.html" pageCtx
             >>= relativizeUrls
@@ -660,7 +691,7 @@ rules = do
     -- rule; collection index pages are excluded by 'P.poetryPattern'
     -- itself and matched separately below.
     match P.poetryPattern $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ poetryCompiler
             >>= saveSnapshot "content"
             >>= inDefault "templates/reading.html" poetryCtx
@@ -670,7 +701,7 @@ rules = do
     -- still scaffolding carries @draft: true@ and never reaches this rule in
     -- production (build/Drafts.hs; audit C05, C06).
     match "content/poetry/*/index.md" $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ do
             ctx <- collectionCtx P.poetryPattern poetryCtx pageCtx
             pageCompiler
@@ -680,7 +711,7 @@ rules = do
     -- Fiction
     -- ---------------------------------------------------------------------------
     match P.fictionPattern $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ fictionCompiler
             >>= saveSnapshot "content"
             >>= inDefault "templates/reading.html" fictionCtx
@@ -688,7 +719,7 @@ rules = do
     -- Fiction collection index pages
     -- (content/fiction/<collection>/index.md → fiction/<collection>/index.html).
     match "content/fiction/*/index.md" $ do
-        route   contentPageRoute
+        route   pageRoute
         compile $ do
             ctx <- collectionCtx P.fictionPattern fictionCtx pageCtx
             pageCompiler
@@ -729,14 +760,14 @@ rules = do
         -- --audio): when each bar sounds and where it stands on its page, read
         -- by score-follow.js.
         match musicAssets $ do
-            route   $ stripPrefixRoute "content/"
+            route   fileRoute
             compile copyFileCompiler
 
         -- Landing page — full essay pipeline. Its score dependency is
         -- 'musicScoreDep', above the catalog.
 
         rulesExtraDependencies [musicScoreDep] $ match "content/music/*/index.md" $ do
-            route   contentPageRoute
+            route   pageRoute
             compile $ compositionCompiler
                 >>= saveSnapshot "content"
                 >>= inDefault "templates/composition.html" compositionCtx
@@ -784,18 +815,18 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Blog index (paginated)
     -- ---------------------------------------------------------------------------
-    blogPaginateRules postCtx siteCtx
+    forM_ (listed "blog") $ \section -> blogPaginateRules section postCtx siteCtx
 
     -- ---------------------------------------------------------------------------
     -- Essay index
     -- ---------------------------------------------------------------------------
-    create ["essays/index.html"] $ do
+    forM_ (listed "essays") $ \section -> create [fromFilePath (sectionLanding section)] $ do
         route idRoute
         compile $ do
             essays <- recentFirst =<< loadAll (allEssays .&&. hasNoVersion)
             let ctx =
                     listField "essays" essayCtx (return essays)
-                    <> constField "title"  "Essays"
+                    <> constField "title"  (sectionLandingTitle section)
                     <> constField "portal" "true"
                     -- C01: an explicit description, ahead of siteCtx's
                     -- fallback. Left to the fallback, a list page's
@@ -815,13 +846,13 @@ rules = do
     -- rule is what keeps those links from 404ing. Lists flat poems and
     -- collection poems alike; collection index pages are excluded by
     -- 'P.poetryPattern' itself.
-    create ["poetry/index.html"] $ do
+    forM_ (listed "poetry") $ \section -> create [fromFilePath (sectionLanding section)] $ do
         route idRoute
         compile $ do
             poems <- recentFirst =<< loadAll (P.poetryPattern .&&. hasNoVersion)
             let ctx =
                     listField "essays" poetryCtx (return poems)
-                    <> constField "title"  "Poetry"
+                    <> constField "title"  (sectionLandingTitle section)
                     <> constField "portal" "true"
                     <> constField "description"
                         "Every poem published here, newest first."
@@ -834,13 +865,13 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Same rationale as the poetry index. content/fiction/ has no entries
     -- yet; an empty match list renders an empty index rather than a 404.
-    create ["fiction/index.html"] $ do
+    forM_ (listed "fiction") $ \section -> create [fromFilePath (sectionLanding section)] $ do
         route idRoute
         compile $ do
             stories <- recentFirst =<< loadAll (P.fictionPattern .&&. hasNoVersion)
             let ctx =
                     listField "essays" fictionCtx (return stories)
-                    <> constField "title"  "Fiction"
+                    <> constField "title"  (sectionLandingTitle section)
                     <> constField "portal" "true"
                     <> constField "description"
                         "Every piece of fiction published here, newest first."
@@ -1384,7 +1415,7 @@ rules = do
             let standaloneIds = map (fromFilePath . standaloneSource) (siteStandalone current)
                 nowIds = [ fromFilePath (standaloneSource page)
                          | page <- siteStandalone current, standaloneContext page == NowPage ]
-                otherIds = map fromFilePath
+                otherIds = map fromFilePath $
                     -- Other authored top-level pages.
                     [ "content/work.md"
                     , "content/links.md"
@@ -1393,11 +1424,14 @@ rules = do
                     -- Section landings.
                     , "content/photography/index.md"
                     , "content/music/index.md"
-                    -- Generated landings and indexes.
-                    , "essays/index.html"
-                    , "poetry/index.html"
-                    , "fiction/index.html"
-                    , "library.html"
+                    ]
+                    -- Generated landings and indexes: the sections' the
+                    -- site has, at their addresses.
+                    ++ [ sectionLanding section
+                       | dir <- ["essays", "poetry", "fiction"]
+                       , Just section <- [listedSection current dir] ]
+                    ++
+                    [ "library.html"
                     , "new.html"
                     , "bibliography/index.html"
                     ]

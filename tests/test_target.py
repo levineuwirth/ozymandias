@@ -128,11 +128,13 @@ class Routes(unittest.TestCase):
         self.assertEqual(routes.uncovered(target.switches()), [])
         self.assertEqual(routes.misnamed(target.built, target.switches()), [])
 
-    def scratch_routes(self, tmp: str, kinds: str = "{home: home}", pages: str = "{home: /}"):
-        """A scratch site's Routes, and every switch off."""
+    def scratch_routes(self, tmp: str, kinds: str = "{home: home}", pages: str = "{home: /}",
+                       sections: str = "[{dir: essays}, {dir: blog}, {dir: poetry}, {dir: fiction}]"):
+        """A scratch site's Routes, and every switch off. It lists the four
+        sections of writing, each at its directory's name, unless told."""
         site = Path(tmp)
         (site / "tests").mkdir()
-        (site / "site.yaml").write_text("{}")
+        (site / "site.yaml").write_text(f"sections: {sections}\n")
         (site / "tests/routes.yaml").write_text(f"pages: {pages}\nkinds: {kinds}\n")
         module = load_tool("browser/routes.py", "site_routes_kinds")
         return site, module.Routes(site), {k.switch: False for k in module.KINDS.values() if k.switch}
@@ -200,6 +202,24 @@ class Routes(unittest.TestCase):
                 with self.subTest(kinds=kinds, build=build is not None):
                     found = self.problems(kinds, pages, build)
                     self.assertTrue([p for p in found if p.startswith(problem)], found)
+
+    def test_a_section_index_is_at_a_listed_section_s_address(self):
+        # The landings of the sections of writing site.yaml lists, each at
+        # its address: nowhere else, and no kind at all on a site with none.
+        mark = 'class="page-title"'
+        pages = "{home: /, notebook: /notebook/, essays: /essays/, blog: /blog/}"
+        for sections, has, indexes in (
+                ("[{dir: blog, address: notebook}]", True, {"/notebook/"}),
+                ("[{dir: blog}, {dir: essays, address: notebook}]", True, {"/notebook/", "/blog/"}),
+                ("[{dir: music}]", False, set()), ("[]", False, set())):
+            with self.subTest(sections=sections), tempfile.TemporaryDirectory() as tmp:
+                site, routes, switches = self.scratch_routes(tmp, "{home: home}", pages, sections)
+                self.assertEqual(routes.has("section-index", switches), has)
+                for path in ("/notebook/", "/essays/", "/blog/"):
+                    kinds = routes.kinds_of(path, mark, switches)
+                    self.assertEqual("section-index" in kinds, path in indexes, (path, kinds))
+                named = [p for p in routes.uncovered(switches) if p.startswith("section-index:")]
+                self.assertEqual(bool(named), has, named)
 
     def test_a_path_is_kept_only_by_a_kind_the_site_has(self):
         # With stats-page off a tag `stats` has /stats/ (test_route_check), and

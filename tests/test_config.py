@@ -537,6 +537,67 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout)["scripts"], ["/js/portfolio.js", "/js/more/map.js"])
 
+    def test_a_site_lists_the_sections_of_writing_it_has(self):
+        # Any of essays, blog, poetry and fiction, or none: the engine
+        # routes the ones listed. A feed carries only what is listed.
+        original = self.config["sections"]
+        self.assertEqual({s["dir"] for s in original}, {"essays", "blog", "poetry", "fiction"})
+        feed = {"path": "feed.xml", "title": "All", "description": "All", "sections": ["essays"],
+                "advertise": True, "limit": 30}
+        for sections in ([s for s in original if s["dir"] != omitted["dir"]] for omitted in original):
+            with self.subTest(listed=[s["dir"] for s in sections]):
+                self.config = dict(self.config, sections=sections, feeds=[])
+                self.write_config()
+                done = self.run_site("config")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(json.loads(done.stdout)["sections"], sections)
+        for sections, refusal in (([], "feeds carry a section that sections does not list: essays"),
+                                  ([s for s in original if s["dir"] == "essays"], None)):
+            with self.subTest(fed="essays", listed=[s["dir"] for s in sections]):
+                self.config = dict(self.config, sections=sections, feeds=[feed])
+                self.write_config()
+                done = self.run_site("config")
+                if refusal is None:
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                else:
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn(refusal, done.stderr)
+
+    def test_a_section_of_writing_takes_an_address_and_a_title(self):
+        original = self.config["sections"]
+        blog = next(s for s in original if s["dir"] == "blog")
+        others = [s for s in original if s["dir"] != "blog"]
+        # Written back as given: neither key where the site gave none, and
+        # an address that is the directory's name is no address of its own.
+        for given, back in ((blog | {"address": "notebook", "title": "Notebook & Co"},) * 2,
+                            (blog | {"address": "blog"}, blog), (blog | {"title": "Notes"},) * 2):
+            with self.subTest(given=given):
+                self.config = dict(self.config, sections=[given] + others)
+                self.write_config()
+                done = self.run_site("config")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(json.loads(done.stdout)["sections"], [back] + others)
+        music = {"dir": "music", "kind": "Composition", "dingbat": None}
+        for sections, switches, refusal in (
+                ([blog | {"address": "Notebook"}], {}, "section address must be a lowercase slug"),
+                ([blog | {"address": "note/book"}], {}, "section address must be a lowercase slug"),
+                ([blog | {"address": ""}], {}, "section address must be a lowercase slug"),
+                ([blog | {"title": ""}], {}, "section title must be a nonempty single-line string"),
+                # Another section's directory, listed or not, and one address twice.
+                ([blog | {"address": "essays"}], {}, "section address is another section's directory: essays"),
+                ([blog | {"address": "essays"}] + others, {}, "section addresses must be unique"),
+                ([blog | {"address": "writing"}, others[0] | {"address": "writing"}], {},
+                 "section addresses must be unique"),
+                # Templates and scripts name /music/ and /photography/.
+                (original + [music | {"address": "works"}], {"music": True},
+                 "the music section's address is the engine's")):
+            with self.subTest(refusal=refusal, sections=[s["dir"] for s in sections]):
+                self.config = dict(self.config, sections=sections, feeds=[], switches=switches)
+                self.write_config()
+                done = self.run_site("config")
+                self.assertNotEqual(done.returncode, 0)
+                self.assertIn(refusal, done.stderr)
+
     def test_taxonomy_rejects_declarations_the_routes_cannot_honor(self):
         original = self.config["sections"]
         cases = [
@@ -545,8 +606,6 @@ class ConfigTests(unittest.TestCase):
             (original + [{"dir": "memento-mori", "kind": "Page"}], "unsupported section directory"),
             ([dict(s, landing=False) if s["dir"] == "essays" else s
               for s in original], "unknown configuration keys"),
-            *[([s for s in original if s["dir"] != omitted["dir"]], "must include")
-              for omitted in original],
         ]
         for sections, error in cases:
             with self.subTest(sections=sections):

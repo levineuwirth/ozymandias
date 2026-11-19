@@ -10,7 +10,7 @@ import unittest
 
 import yaml
 
-from tests._helpers import SITE_ROOT, engine_path
+from tests._helpers import engine_path
 
 BUILD = engine_path("build")
 
@@ -24,8 +24,12 @@ def generated_indexes() -> dict[str, str]:
 
 
 def section_landings() -> set[str]:
-    config = yaml.safe_load((SITE_ROOT / "site.yaml").read_text(encoding="utf-8"))
-    return {s["dir"] for s in config["sections"]}
+    """The engine's sections (Config.sectionName), whichever of them the
+    site lists and at whatever address: a landing named in build/ is one
+    of these, a writing section's is made from its address."""
+    src = (BUILD / "Config.hs").read_text(encoding="utf-8")
+    body = re.search(r"^sectionName s = case s of\n(.*?)^\S", src, re.M | re.S).group(1)
+    return set(re.findall(r'-> "([a-z-]+)"', body))
 
 
 def directory_routes() -> set[str]:
@@ -45,7 +49,7 @@ class DirectoryRouteSlugs(unittest.TestCase):
         missing = directory_routes() - set(generated_indexes()) - section_landings()
         self.assertEqual(missing, set(),
                          "a generated index belongs in generatedIndexPages in build/Sections.hs; "
-                         "a section landing in site.yaml's sections")
+                         "a section's landing is one of the engine's sections (Config.sectionName)")
 
     def test_each_generated_index_is_its_switch_s_route(self):
         # So it is a directory slug only when it is built.

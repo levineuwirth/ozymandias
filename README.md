@@ -127,12 +127,24 @@ the freshness check hashes it.
   and `limit` (`null` for all entries). Only advertised feeds appear in the
   head; photography has its own image-bearing feed context. An empty feed is
   valid, its `<updated>` the build time.
-- **Sections:** the content directories (`dir`), the label their pages carry
-  on the New page (`kind`) and an ornament (`dingbat`: one the site's
-  stylesheets draw, a rule for `body[data-dingbat="NAME"]`, as its
-  `site.css` declares them; `site dingbats` lists them). The engine routes
-  essays, blog, poetry and fiction, and music and photography with their
-  switches; labels, ornaments and order are the site's. `portals` are the
+- **Sections:** the sections the site has, each one of the engine's by its
+  content directory (`dir`), with the label its pages carry on the New
+  page (`kind`) and an ornament (`dingbat`: one the site's stylesheets
+  draw, a rule for `body[data-dingbat="NAME"]`, as its `site.css` declares
+  them; `site dingbats` lists them). The sections of writing are `essays`,
+  `blog`, `poetry` and `fiction`, and a site lists the ones it has, any or
+  none. One it does not list is not routed: it has no landing, a feed may
+  not carry it, and a file under its `content/` directory stops the build.
+  A section of writing may be served somewhere else than at its
+  directory's name, with `address`, and its landing may be titled with
+  `title`: `{dir: blog, address: notebook, title: Notebook, kind: Note}`
+  is written in `content/blog/` and served at `/notebook/`, its pages,
+  collections, the files beside them and its landing, which is there
+  before the first entry. Wikilinks and tags follow the address
+  (`[[Notebook]]` is the landing; a tag `notebook` has no page of its
+  own), and a page collection may not take it. `music` and `photography`
+  are listed with their switches on, and are always at `/music/` and
+  `/photography/`. Labels, ornaments and order are the site's. `portals` are the
   home page's tags in order; `nav-primary` the first navigation row;
   `library` the library page's shelves and see-also links.
 - **`standalone`:** the one-off pages, each a `source`, `route`, `template`

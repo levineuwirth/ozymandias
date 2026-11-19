@@ -92,6 +92,16 @@ class AtomicPath(unittest.TestCase):
         self.assertEqual(sitelib.slugify("Rilke's  Duino_Elegies — I"), "rilkes-duino-elegies-i")
 
 
+class SectionAddress(unittest.TestCase):
+    def test_a_section_s_address_is_its_directory_s_name_unless_the_site_gives_another(self):
+        settings = {"sections": [{"dir": "blog", "address": "notebook"}, {"dir": "essays"}]}
+        self.assertEqual(sitelib.section_address("blog", settings), "notebook")
+        self.assertEqual(sitelib.section_address("essays", settings), "essays")
+        # A section the site does not list, and a site with no sections.
+        self.assertEqual(sitelib.section_address("poetry", settings), "poetry")
+        self.assertEqual(sitelib.section_address("blog", {}), "blog")
+
+
 class SiteConfig(unittest.TestCase):
     """The site's identity comes from the generator last built: the link-rot
     timer and the passphrase preset ask outside the build lock, where a

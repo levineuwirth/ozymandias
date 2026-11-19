@@ -14,6 +14,10 @@
 module Sections
     ( Section (..)
     , sectionOfRoute
+    , listedSection
+    , sectionLanding
+    , contentRoute
+    , contentPageRoute
     , reservedSectionDirs
     , sectionOwnedTopLevelTags
     , directoryRouteSlugs
@@ -22,10 +26,11 @@ module Sections
     , tagPageUrl
     ) where
 
-import Data.List  (find, isPrefixOf, isSuffixOf, nub, sort)
-import Data.Maybe (mapMaybe)
+import Data.List  (find, isPrefixOf, isSuffixOf, nub, sort, stripPrefix)
+import Data.Maybe (fromMaybe, mapMaybe)
+import Hakyll     (Routes, composeRoutes, customRoute, setExtension, toFilePath)
 import Config     (SiteConfig (..), Section (..), Portal (..), Standalone (..),
-                   engineContentDirs, standaloneDir, switchOn)
+                   engineContentDirs, standaloneDir, switchOn, writingDirs)
 
 -- | Where a tag's page is, @/<tag>/@: with the tag-pages switch on, or
 --   when the tag names a section, whose landing is there. None otherwise,
@@ -35,11 +40,37 @@ tagPageUrl cfg t
     | switchOn cfg "tag-pages" || t `elem` landings cfg = Just ("/" ++ t ++ "/")
     | otherwise                                         = Nothing
 
--- | The section a route belongs to.
+-- | The section a route belongs to: the one at whose address it is.
 sectionOfRoute :: SiteConfig -> FilePath -> Maybe Section
 sectionOfRoute cfg r = find owns (siteSections cfg)
   where
-    owns s = (sectionDir s ++ "/") `isPrefixOf` r
+    owns s = (sectionAddress s ++ "/") `isPrefixOf` r
+
+-- | A section the site has, by its directory.
+listedSection :: SiteConfig -> String -> Maybe Section
+listedSection cfg dir = find ((== dir) . sectionDir) (siteSections cfg)
+
+-- | A section's landing, @<address>/index.html@.
+sectionLanding :: Section -> FilePath
+sectionLanding s = sectionAddress s ++ "/index.html"
+
+-- | Where a file under @content/@ is served: its path there, with a
+--   section's directory given as the section's address
+--   (@content/blog/a.md@ at @notebook/a.md@ for a blog at @notebook@).
+--   Every other path is its own address, drafts' included
+--   (@content/drafts/essays/…@ stays under @drafts/essays/@).
+contentRoute :: SiteConfig -> Routes
+contentRoute cfg = customRoute $ \ident ->
+    let path = toFilePath ident
+    in  addressed (fromMaybe path (stripPrefix "content/" path))
+  where
+    addressed path = case break (== '/') path of
+        (dir, rest@('/' : _)) | Just s <- listedSection cfg dir -> sectionAddress s ++ rest
+        _                                                       -> path
+
+-- | 'contentRoute' for a page: @.md@ → @.html@.
+contentPageRoute :: SiteConfig -> Routes
+contentPageRoute cfg = contentRoute cfg `composeRoutes` setExtension "html"
 
 -- | The pages the engine generates at @<name>/index.html@, each with the
 --   switch that builds it. @tests/test_wikilink_routes.py@ checks this
@@ -65,16 +96,21 @@ standaloneDirs cfg = mapMaybe standaloneDir (siteStandalone cfg)
 standaloneNamespaces cfg =
     [ dir | p <- siteStandalone cfg, (dir, '/' : _) <- [break (== '/') (standaloneRoute p)] ]
 
+-- | The sections' landings, by their addresses: URL namespaces.
 landings :: SiteConfig -> [String]
-landings = map sectionDir . siteSections
+landings = map sectionAddress . siteSections
 
 -- | The directories under @content/@ that belong to a section, a standalone
---   page or the engine, never to a generic page collection.
+--   page or the engine, never to a generic page collection: the sections
+--   of writing whether the site lists them or not (an unlisted one's
+--   directory holds nothing), the others as listed, and the sections'
+--   addresses, where a collection's pages would be served among theirs.
 --   tools/import-content.py refuses a page collection by one of these
 --   names, reading this list through @site shared-rules@.
 reservedSectionDirs :: SiteConfig -> [String]
 reservedSectionDirs cfg = sort . nub $
-    engineContentDirs ++ map sectionDir (siteSections cfg) ++ standaloneDirs cfg
+    engineContentDirs ++ writingDirs ++ map sectionDir (siteSections cfg) ++ landings cfg
+    ++ standaloneDirs cfg
 
 -- | Top-level tags that must NOT get a tag page, because a section landing
 --   or a generated page already owns @<tag>/index.html@. The build refuses

@@ -74,6 +74,9 @@ KINDS = {
     "home": Kind(None, r"/"),
     "essay": Kind(None, None, 'class="essay-frontmatter"', ESSAYS),
     "page": Kind(None),
+    # A section of writing's landing, at the section's address: the route
+    # here is for a site that serves each at its directory's name, and
+    # Routes.route gives the site's own (site.yaml's sections).
     "section-index": Kind(None, r"/(?:essays|poetry|fiction|blog)/"),
     "poem": Kind(None, None, 'class="reading-mode poetry"', **writing("poetry")),
     "story": Kind(None, None, 'class="reading-mode fiction"', **writing("fiction")),
@@ -116,6 +119,10 @@ KINDS = {
 OPEN_ROUTE = ("tag",)
 # Withholding a directory-form entry withholds its directory (build/Drafts.hs).
 DIRECTORY_ENTRIES = ("essays", "music", "photography")
+# The sections of writing (Config.writingDirs), which a site lists as it has
+# them and may serve at an address of its own.
+WRITING = ("essays", "blog", "poetry", "fiction")
+NOWHERE = r"(?!)"
 FRONT_MATTER = re.compile(r"\A-{3,}[ \t]*\n(.*?)\n-{3,}[ \t]*(?:\n|\Z)", re.S)
 
 
@@ -179,6 +186,24 @@ class Routes:
             raise ValueError(f"{ROUTES_FILE}: {'; '.join(problems)}")
 
     @functools.cached_property
+    def section_addresses(self) -> list[str]:
+        """Where the sections of writing site.yaml lists are served: each
+        at its `address`, or at its directory's name."""
+        config = yaml.safe_load((self.site / "site.yaml").read_text(encoding="utf-8")) or {}
+        return [section.get("address") or section["dir"] for section in config.get("sections") or []
+                if section.get("dir") in WRITING]
+
+    def route(self, name: str) -> str | None:
+        """A kind's route on this site: the generator's, but a section
+        index's, which is at a listed section's address and nowhere on a
+        site that lists none."""
+        if name != "section-index":
+            return KINDS[name].route
+        if not self.section_addresses:
+            return NOWHERE
+        return "/(?:%s)/" % "|".join(re.escape(address) for address in self.section_addresses)
+
+    @functools.cached_property
     def standalone_paths(self) -> dict[str, list[str]]:
         """site.yaml's standalone pages' paths, by their context."""
         config = yaml.safe_load((self.site / "site.yaml").read_text(encoding="utf-8")) or {}
@@ -226,6 +251,8 @@ class Routes:
         kind = KINDS[name]
         if kind.switch is not None and not switches[kind.switch]:
             return False
+        if name == "section-index":
+            return bool(self.section_addresses)
         if kind.context:
             return kind.context in self.standalone_paths
         if kind.routed_by_source:
@@ -244,14 +271,14 @@ class Routes:
         off, /stats/ is free for a tag or a standalone essay (RouteCheck refuses
         two pages on one path)."""
         return [name for name, kind in KINDS.items()
-                if (kind.route or kind.context) and name not in OPEN_ROUTE and self.has(name, switches)]
+                if (self.route(name) or kind.context) and name not in OPEN_ROUTE and self.has(name, switches)]
 
     def fits_path(self, name: str, path: str, claims: list[str]) -> bool:
         """Whether `path` can be a page of this kind, before looking at one,
         on a site whose `claims` these are."""
         def own(n: str) -> bool:
             k = KINDS[n]
-            return ((k.route is None or re.fullmatch(k.route, path) is not None)
+            return ((self.route(n) is None or re.fullmatch(self.route(n), path) is not None)
                     and (k.context is None or path in self.standalone_paths.get(k.context, []))
                     and (not k.routed_by_source or path in self.source_paths.get(n, set())))
 

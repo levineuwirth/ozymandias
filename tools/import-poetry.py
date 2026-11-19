@@ -31,7 +31,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from front_matter import scalar, tags_field  # noqa: E402
-from sitelib import SITE_ROOT, slugify  # noqa: E402
+from sitelib import SITE_ROOT, section_address, slugify  # noqa: E402
 
 POETRY_DIR  = SITE_ROOT / "content" / "poetry"
 
@@ -190,7 +190,7 @@ def make_poem_file(
     slug      = slugify(title)
     norm      = normalize_stanzas(poem["lines"])
     abstract  = first_content_line(norm)
-    col_url   = f"/poetry/{collection_slug}/"
+    col_url   = f"/{section_address('poetry')}/{collection_slug}/"
 
     fm = f"""\
 ---

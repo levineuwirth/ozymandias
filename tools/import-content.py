@@ -680,9 +680,12 @@ def validate_collection_request(
 
 def collection_prefix(type_name: str, collection_slug: str) -> str:
     """The URL path a collection's pages live under, without the leading
-    slash: `<slug>/` for pages, `<section>/<slug>/` otherwise."""
+    slash: `<slug>/` for pages, `<address>/<slug>/` otherwise, the
+    section's address being its directory's name unless site.yaml gives
+    another (sitelib.section_address)."""
     profile = TYPE_PROFILES.get(type_name, TYPE_PROFILES["page"])
-    section_path = profile["output_dir"].removeprefix("content").strip("/")
+    section_dir = profile["output_dir"].removeprefix("content").strip("/")
+    section_path = sitelib.section_address(section_dir) if section_dir else ""
     return "/".join(part for part in (section_path, collection_slug) if part) + "/"
 
 

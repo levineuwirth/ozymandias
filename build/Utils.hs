@@ -37,7 +37,6 @@ module Utils
     , median
     , isSafeUrl
     , stripPrefixRoute
-    , contentPageRoute
     , loadYaml
     , pdfViewerUrl
     , encodeQueryValue
@@ -61,9 +60,9 @@ import           Data.Time.Format (FormatTime, ParseTime, defaultTimeLocale, for
 import           Data.Aeson (FromJSON)
 import qualified Data.Text.Encoding as TE
 import qualified Data.Yaml as Y
-import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes, composeRoutes,
+import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes,
                          customRoute, fromFilePath, itemBody, load, loadAndApplyTemplate,
-                         lookupString, lookupStringList, relativizeUrls, setExtension,
+                         lookupString, lookupStringList, relativizeUrls,
                          stripTags, toFilePath)
 import           System.Environment (lookupEnv)
 import           Text.Pandoc.Definition (Format (..), Inline (..), QuoteType (..))
@@ -428,10 +427,6 @@ encodeQueryValue = concatMap enc
 -- | Whether a URL names a PDF: @.pdf@, in any case, before any fragment.
 isPdfUrl :: String -> Bool
 isPdfUrl u = ".pdf" `isSuffixOf` map toLower (takeWhile (/= '#') u)
-
--- | A Markdown page's route: its path below @content/@, as @.html@.
-contentPageRoute :: Routes
-contentPageRoute = stripPrefixRoute "content/" `composeRoutes` setExtension "html"
 
 -- | The tail every page shares: its own template, then the site frame
 -- (@templates/default.html@), with the same context, and URLs made

@@ -6,7 +6,7 @@
 -- process-global configuration.
 module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
-    , Section (..), Portal (..), NavLink (..), LibraryConfig (..)
+    , Section (..), writingDirs, sectionLandingTitle, Portal (..), NavLink (..), LibraryConfig (..)
     , Standalone (..), PageKind (..), Season (..), ReaderSetting (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, bundleContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
@@ -282,17 +282,43 @@ manifestValues m = [("name", manifestName m), ("short-name", manifestShortName m
 instance ToJSON ManifestConfig where
     toJSON m = object [Key.fromString k .= v | (k, v) <- manifestValues m]
 
--- | A content section, keyed by the route its pages take (@<dir>/…@), with
---   a landing at @<dir>/index.html@. Its kind labels its pages
---   (@$item-kind$@); its dingbat is their default ornament. The reserved
---   content directories, the tags that may not have pages and the wikilink
---   directory slugs derive from these, the portals and the standalone pages
---   ("Sections").
+-- | A content section the site has: one of the engine's, by the directory
+--   its pages are written in (@content/<dir>/…@), served at its address
+--   (@/<address>/…@, the directory's name unless the site gives another),
+--   with a landing at @<address>/index.html@ under its title. Its kind
+--   labels its pages (@$item-kind$@); its dingbat is their default
+--   ornament. The reserved content directories, the tags that may not have
+--   pages and the wikilink directory slugs derive from these, the portals
+--   and the standalone pages ("Sections"). A section site.yaml does not
+--   list is not the site's: nothing of it is routed, and its directory
+--   must hold nothing ("Site").
 data Section = Section
-    { sectionDir     :: String        -- ^ its pages: @<dir>/…@
+    { sectionDir     :: String        -- ^ its sources: @content/<dir>/…@
+    , sectionAddress :: String        -- ^ its pages: @<address>/…@
+    , sectionTitle   :: Maybe String  -- ^ its landing's title; 'Nothing' takes the engine's
     , sectionKind    :: String        -- ^ @$item-kind$@
     , sectionDingbat :: Maybe String  -- ^ default ornament; 'Nothing' takes the fallback
     } deriving (Eq, Show)
+
+-- | The sections of writing, which a site lists as it has them and may
+--   serve at an address of its own. The others (music, photography) are
+--   their switches', and their addresses are the engine's: templates and
+--   scripts name them.
+writingDirs :: [String]
+writingDirs = map sectionName [Essays, Blog, Poetry, Fiction]
+
+-- | A section's landing's title: the site's, or the engine's for it. As a
+--   page's own @title:@ is, it is the template's to escape
+--   (@$plain(title)$@ in the head).
+sectionLandingTitle :: Section -> String
+sectionLandingTitle s = fromMaybe engine's (sectionTitle s)
+  where
+    engine's = case sectionDir s of
+        "essays"  -> "Essays"
+        "blog"    -> "Blog"
+        "poetry"  -> "Poetry"
+        "fiction" -> "Fiction"
+        dir       -> dir
 
 -- The current rules own these section namespaces. This is a routing contract,
 -- not another set of display defaults: names come from the engine's section
@@ -304,17 +330,28 @@ sectionRoutes = [sectionName s | s <- [minBound .. maxBound]]
 
 instance FromJSON Section where
     parseJSON = withObject "section" $ \o -> do
-        onlyKeys ["dir", "kind", "dingbat"] o
-        s <- Section <$> o .: "dir" <*> o .: "kind" <*> o .:? "dingbat"
+        onlyKeys ["dir", "address", "title", "kind", "dingbat"] o
+        dir <- o .: "dir"
+        s <- Section dir <$> o .:? "address" .!= dir <*> o .:? "title"
+                         <*> o .: "kind" <*> o .:? "dingbat"
         unless (slug (sectionDir s)) $ fail "section dir must be a lowercase slug"
         unless (sectionDir s `elem` sectionRoutes) $
             fail ("unsupported section directory: " ++ sectionDir s)
+        unless (slug (sectionAddress s)) $ fail "section address must be a lowercase slug"
+        unless (sectionAddress s == sectionDir s || sectionDir s `elem` writingDirs) $
+            fail ("the " ++ sectionDir s ++ " section's address is the engine's; only "
+                  ++ intercalate ", " writingDirs ++ " take one of their own")
+        mapM_ (singleLine "section title") (sectionTitle s)
         singleLine "section kind" (sectionKind s)
         pure s
 
+-- An address or a title is written only where the site gave one, so that
+-- a configuration without them reads back as it was written.
 instance ToJSON Section where
-    toJSON s = object [ "dir" .= sectionDir s, "kind" .= sectionKind s
-                      , "dingbat" .= sectionDingbat s ]
+    toJSON s = object ([ "dir" .= sectionDir s ]
+                       ++ [ "address" .= sectionAddress s | sectionAddress s /= sectionDir s ]
+                       ++ [ "title" .= title | Just title <- [sectionTitle s] ]
+                       ++ [ "kind" .= sectionKind s, "dingbat" .= sectionDingbat s ])
 
 -- | A home-page portal: a top-level tag whose page is @/<tag>/@, in
 --   home-page order. The navigation lists them alphabetically.
@@ -534,6 +571,11 @@ instance FromJSON SiteConfig where
         let dirs = map sectionDir (siteSections c)
             tags = map portalTag (sitePortals c)
         when (nub dirs /= dirs) $ fail "section dirs must be unique"
+        let addresses = map sectionAddress (siteSections c)
+        when (nub addresses /= addresses) $ fail "section addresses must be unique"
+        forM_ (siteSections c) $ \s ->
+            when (sectionAddress s /= sectionDir s && sectionAddress s `elem` sectionRoutes) $
+                fail ("section address is another section's directory: " ++ sectionAddress s)
         when (nub tags /= tags) $ fail "portal tags must be unique"
         let sources = map standaloneSource (siteStandalone c)
             routes  = map standaloneRoute (siteStandalone c)
@@ -790,24 +832,30 @@ resolveSwitches registry set = do
             Left ("switches: " ++ name ++ " needs one of " ++ intercalate ", " (switchNeedsAny spec))
     pure resolved
 
--- | The sections the engine routes, as the switches have them: a section a
---   switch owns is the site's only with that switch on. Then site.yaml
---   must list it, like any routed section; with it off, neither a section
---   entry nor a feed may name it.
+-- | The sections the engine routes, as the site has them. A section of
+--   writing is the site's when site.yaml lists it. A section a switch owns
+--   is the site's only with that switch on: then site.yaml must list it;
+--   with it off, no section entry may name it. A feed carries only
+--   sections the site has.
 switchedSections :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
 switchedSections registry on cfg = do
     let owners = Map.fromList [ (dir, name) | (name, spec) <- Map.toList registry
                                             , Just dir <- [switchSection spec] ]
         offSwitch dir = mfilter (not . flip (Map.findWithDefault False) on) (Map.lookup dir owners)
         dirs    = map sectionDir (siteSections cfg)
-        missing = [ dir | dir <- sectionRoutes, isNothing (offSwitch dir), dir `notElem` dirs ]
-        named   = nub (dirs ++ [ sectionName s | f <- siteFeeds cfg, s <- feedSections f ])
+        missing = [ dir | (dir, name) <- Map.toList owners, Map.findWithDefault False name on
+                        , dir `notElem` dirs ]
+        fed     = nub [ sectionName s | f <- siteFeeds cfg, s <- feedSections f ]
+        named   = nub (dirs ++ fed)
         refused = [ dir ++ " (the " ++ name ++ " switch is off)"
                   | dir <- named, Just name <- [offSwitch dir] ]
+        unlisted = [ dir | dir <- fed, dir `notElem` dirs ]
     unless (null missing) $
         Left ("sections must include the engine's routed sections: " ++ intercalate ", " missing)
     unless (null refused) $
         Left ("sections and feeds name a section the engine does not route: " ++ intercalate ", " refused)
+    unless (null unlisted) $
+        Left ("feeds carry a section that sections does not list: " ++ intercalate ", " unlisted)
 
 -- | A standalone page's context a switch owns (its registry @contexts@) is
 --   the site's only with that switch on.

@@ -182,6 +182,19 @@ def switches(settings: dict | None = None) -> dict[str, bool]:
     return {name: chosen.get(name, spec["default"]) for name, spec in registry.items()}
 
 
+def section_address(directory: str, settings: dict | None = None) -> str:
+    """Where the site serves a section's pages, without the leading slash:
+    the `address` its site.yaml (or `settings`, a site.yaml's contents)
+    gives the section, or the directory's name, as the generator has it
+    (Config.sectionAddress), without it."""
+    import yaml
+
+    if settings is None:
+        settings = yaml.safe_load((site_root() / "site.yaml").read_text(encoding="utf-8")) or {}
+    listed = next((s for s in settings.get("sections") or [] if s.get("dir") == directory), {})
+    return listed.get("address") or directory
+
+
 def switch_on(name: str, settings: dict | None = None) -> bool:
     """Whether the site (or `settings`) has switch `name` on. A name the
     registry lacks raises KeyError: asking for one is a mistake."""
