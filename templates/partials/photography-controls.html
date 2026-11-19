@@ -6,11 +6,14 @@
      landing page photography-modes.js applies the layout in place.
 
      The slideshow launch deliberately sits OUTSIDE the group — it is an
-     action, not one of the views, and it belongs to no current-ness. -->
+     action, not one of the views, and it belongs to no current-ness.
+
+     The map page uses it too (photography-view-map): there Map is the
+     current page, and the views applied in place are links to the grid. -->
 <div class="photography-controls">
     <nav class="photography-mode-toggle" aria-label="Photography view">
         <a class="mode-btn"           data-mode="masonry"       href="/photography/">Masonry</a>
-        <a class="mode-btn is-active" data-mode="grid"          href="/photography/" aria-current="true">Grid</a>
+        $if(photography-view-map)$<a class="mode-btn"           data-mode="grid"          href="/photography/">Grid</a>$else$<a class="mode-btn is-active" data-mode="grid"          href="/photography/" aria-current="true">Grid</a>$endif$
         <!-- Chronological is retired for now, not removed: with a corpus shot
              mostly in one orientation it read as a wider masonry, and grid
              plus masonry already cover scanning and reading. The CSS mode and
@@ -18,7 +21,7 @@
              is uncommenting this line.
         <a class="mode-btn"           data-mode="chronological" href="/photography/">Chronological</a>
         -->
-        <a class="mode-btn"           data-mode="map"           href="/photography/map/">Map</a>
+        $if(photography-view-map)$<a class="mode-btn is-active" data-mode="map"           href="/photography/map/" aria-current="page">Map</a>$else$<a class="mode-btn"           data-mode="map"           href="/photography/map/">Map</a>$endif$
     </nav>
     $if(is-series)$
     <!-- Series only. On the section landing the grid holds one card per

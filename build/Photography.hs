@@ -693,6 +693,7 @@ photographyMapPageRule =
                         "Geotagged photographs plotted on a map."
                    <> constField "photography"     "true"
                    <> constField "photography-map" "true"
+                   <> constField "photography-view-map" "true"
                    <> constField "portal"          "true"
                    <> siteCtx
             makeItem ""

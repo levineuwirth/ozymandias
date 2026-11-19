@@ -302,6 +302,9 @@ contexts:
   # section's introduction. (A photograph in a list has none to give.)
   prose:
     body: <p>Notes on the frame.</p>
+  # The view a page is: the map page's controls mark Map as current.
+  photo-view:
+    photography-view-map: true
   # A year's page, and the index of years.
   photo-year:
     year: "2026"
@@ -405,7 +408,7 @@ templates:
         why: its frames' image sizes follow their rendered width
 
   templates/photography-map.html:
-    context: [identity, page, switches]
+    context: [identity, page, switches, photo-view]
     hooks:
       - selector: "#photography-map"
         by: [static/js/photography-map.js]
@@ -441,7 +444,7 @@ templates:
         why: the slideshow's date
 
   templates/partials/photography-controls.html:
-    context: [series]
+    context: [series, photo-view]
     hooks:
       - selector: .mode-btn[data-mode]
         by: [static/js/photography-modes.js]
