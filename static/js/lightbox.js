@@ -176,9 +176,11 @@
             el.setAttribute('role', 'button');
 
             function activate() {
-                // Look for a sibling figcaption in the parent figure
+                // The figure's caption: the image may sit in a <picture>
+                // (its WebP source), so the figure is an ancestor, not
+                // the parent.
                 var figcaptionText = '';
-                var parent = el.parentElement;
+                var parent = el.closest('figure');
                 if (parent) {
                     var figcaption = parent.querySelector('figcaption');
                     if (figcaption) {

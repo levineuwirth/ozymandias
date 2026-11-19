@@ -336,7 +336,7 @@ class Photography(unittest.TestCase):
                 self.expect(page.locator(".lightbox-overlay")).not_to_have_class(re.compile(r"\bdarkroom\b"))
                 self.expect(page.locator(".lightbox-info-toggle")).to_be_hidden()
                 caption = trigger.evaluate(
-                    "i => (i.parentElement.querySelector('figcaption') || {}).textContent || ''").strip()
+                    "i => (i.closest('figure')?.querySelector('figcaption') || {}).textContent || ''").strip()
                 self.assertTrue(caption, "the essay's figure has no caption to check")
                 self.expect(page.locator(".lightbox-caption")).to_have_text(caption)
                 page.mouse.click(5, 5)   # the backdrop closes it
