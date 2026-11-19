@@ -21,7 +21,7 @@ module Photography
 
 import           Control.Applicative    ((<|>))
 import           Control.Monad          (forM, forM_)
-import           Data.List              (intercalate, nub, sort, sortBy)
+import           Data.List              (intercalate, isInfixOf, isPrefixOf, nub, sort, sortBy)
 import qualified Data.Map.Strict        as Map
 import           Data.Map.Strict        (Map)
 import           Data.Maybe             (mapMaybe, fromMaybe, catMaybes)
@@ -542,6 +542,13 @@ buildPin item = do
             -- the last tools/generate-thumbnails.py run, and fall back to
             -- the source so a map pin never loses its picture.
             thumb <- case photo of
+                -- A flat single's photo: is a URL already (root-relative,
+                -- its file under content/), or another site's.
+                Just p | "://" `isInfixOf` p -> return p
+                Just p | "/" `isPrefixOf` p -> do
+                    let variant = photoVariantName p 480
+                    hasVariant <- unsafeCompiler $ doesFileExist ("content" ++ variant)
+                    return (if hasVariant then variant else p)
                 Just p | not (null p) -> do
                     let variant = photoVariantName p 480
                     hasVariant <- unsafeCompiler $

@@ -129,7 +129,10 @@
            slideshow launch was moved out of the group (A06), which also
            keeps it out of this list, where it never belonged: it has no
            layout mode and must not be marked current. */
-        var toggleButtons = document.querySelectorAll('.photography-mode-toggle .mode-btn');
+        // The views, by their hook (contract.yaml): any .mode-btn with a
+        // data-mode, wherever a site's controls put it, but the slideshow,
+        // an action and not a view.
+        var toggleButtons = document.querySelectorAll('.mode-btn[data-mode]:not([data-mode="slideshow"])');
         var grid = document.querySelector('.photography-grid');
         document.querySelectorAll('.photography-contact-sheet').forEach(watchImageSizes);
         if (grid) watchImageSizes(grid);

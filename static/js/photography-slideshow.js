@@ -27,7 +27,8 @@
 
         var frames = [];
         grid.querySelectorAll('.photo-card').forEach(function (card) {
-            var im = card.querySelector('img');
+            // The card's photograph by its hook: a card may hold other images.
+            var im = card.querySelector('img.photo-card-img');
             if (!im) return;
             var titleEl = card.querySelector('.photo-card-title');
             var dateEl  = card.querySelector('.photo-card-date');

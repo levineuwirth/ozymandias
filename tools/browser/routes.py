@@ -46,7 +46,10 @@ class Kind(NamedTuple):
     published source fits `content` less `exclude` (Patterns.hs's patterns;
     test_route_check holds them to the generator) and sets one of `declares`, or
     site.yaml has a standalone page of `context`, whose route is then the
-    kind's."""
+    kind's. A kind `routed_by_source` has the paths its sources route to
+    (`Routes.source_paths`) in place of a marker: a photograph's or a
+    series' page, whose template a site may override (contract.yaml), so
+    that no styling class of the engine's says what it is."""
     switch: str | None
     route: str | None = None
     marker: str | None = None
@@ -54,6 +57,7 @@ class Kind(NamedTuple):
     exclude: tuple[str, ...] = ()
     context: str | None = None
     declares: tuple[str, ...] = ()
+    routed_by_source: bool = False
 
 
 def writing(section: str) -> dict:
@@ -85,14 +89,16 @@ KINDS = {
     "library": Kind("library", r"/library\.html", "library-see-also"),
     "bibliography": Kind("bibliography-index", r"/bibliography/", "library-see-also"),
     "keyword": Kind("bibliography-index", r"/bibliography/[^/]+/", None, ("_site/bibliography/*/index.html",)),
-    "photo-index": Kind("photography", r"/photography/", 'class="photography-grid"'),
-    "photo-series": Kind("photography", None, "photo-series-frontmatter", ("content/photography/*/*.md",),
-                         ("content/photography/*/index.md",)),
-    "photo-single": Kind("photography", None, 'class="photo-entry"', **FRAMES),
-    "photo-map": Kind("photography", r"/photography/map/", 'id="photography-map"'),
-    "photo-contact": Kind("photography", r"/photography/contact-sheet/", 'class="photography-contact-sheet"'),
-    "photo-years": Kind("photography", r"/photography/by-year/", "photography-by-year-back"),
-    "photo-year": Kind("photography", r"/photography/by-year/[0-9]+/", "photography-by-year-back", **FRAMES),
+    # Photography's templates are a site's to override: its pages are known
+    # by their routes, and a photograph's or a series' by its source.
+    "photo-index": Kind("photography", r"/photography/"),
+    "photo-series": Kind("photography", None, None, ("content/photography/*/*.md",),
+                         ("content/photography/*/index.md",), routed_by_source=True),
+    "photo-single": Kind("photography", None, None, **FRAMES, routed_by_source=True),
+    "photo-map": Kind("photography", r"/photography/map/"),
+    "photo-contact": Kind("photography", r"/photography/contact-sheet/"),
+    "photo-years": Kind("photography", r"/photography/by-year/"),
+    "photo-year": Kind("photography", r"/photography/by-year/[0-9]+/", None, **FRAMES),
     "music-index": Kind("music", r"/music/", 'class="music-index"', ("content/music/index.md",)),
     "composition": Kind("music", None, 'class="composition"', ("content/music/*/index.md",)),
     "score-reader": Kind("music", r"/music/[^/]+/score/", 'id="score-reader-bar"', ("content/music/*/index.md",),
@@ -181,6 +187,29 @@ class Routes:
             found.setdefault(page["context"], []).append("/" + page["route"].removesuffix("index.html"))
         return found
 
+    @functools.cached_property
+    def source_paths(self) -> dict[str, set[str]]:
+        """The paths photography's published sources route to (Photography.hs):
+        a flat photograph's <slug>.html, a directory's <slug>/ (a series
+        when it has frames beside its index.md, else a photograph) and a
+        frame's <series>/<frame>/."""
+        found: dict[str, set[str]] = {"photo-single": set(), "photo-series": set()}
+        root = self.site / "content/photography"
+        if not root.is_dir():
+            return found
+        for md in sorted(root.glob("*.md")):
+            if md.name != "index.md" and published(self.site, md.relative_to(self.site)):
+                found["photo-single"].add(f"/photography/{md.stem}.html")
+        for index in sorted(root.glob("*/index.md")):
+            if not published(self.site, index.relative_to(self.site)):
+                continue
+            frames = [f for f in index.parent.glob("*.md")
+                      if f.name != "index.md" and published(self.site, f.relative_to(self.site))]
+            slug = index.parent.name
+            found["photo-series" if frames else "photo-single"].add(f"/photography/{slug}/")
+            found["photo-single"].update(f"/photography/{slug}/{f.stem}/" for f in frames)
+        return found
+
     def has(self, name: str, switches: dict[str, bool]) -> bool:
         """Whether the site has pages of this kind."""
         kind = KINDS[name]
@@ -205,15 +234,15 @@ class Routes:
     def fits_path(self, name: str, path: str, claims: list[str]) -> bool:
         """Whether `path` can be a page of this kind, before looking at one,
         on a site whose `claims` these are."""
-        kind = KINDS[name]
-
-        def own(k: Kind) -> bool:
+        def own(n: str) -> bool:
+            k = KINDS[n]
             return ((k.route is None or re.fullmatch(k.route, path) is not None)
-                    and (k.context is None or path in self.standalone_paths.get(k.context, [])))
+                    and (k.context is None or path in self.standalone_paths.get(k.context, []))
+                    and (not k.routed_by_source or path in self.source_paths.get(n, set())))
 
-        if not own(kind):
+        if not own(name):
             return False
-        return name in claims or not any(own(KINDS[other]) for other in claims)
+        return name in claims or not any(own(other) for other in claims)
 
     def kinds_of(self, path: str, html: str, switches: dict[str, bool]) -> set[str]:
         """Every kind a built page fits: its switch, route or context, and
@@ -223,7 +252,7 @@ class Routes:
         claims = self.claims(switches)
         found = {name for name, kind in KINDS.items() if name not in ("page", "not-found")
                  and (kind.switch is None or switches[kind.switch])
-                 and (kind.route or kind.context or kind.marker)
+                 and (kind.route or kind.context or kind.marker or kind.routed_by_source)
                  and self.fits_path(name, path, claims) and (kind.marker is None or kind.marker in html)}
         if not found and 'class="page-title"' in html and self.fits_path("page", path, claims):
             found.add("page")

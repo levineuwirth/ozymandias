@@ -216,16 +216,21 @@ def template_fields(text: str) -> set[str]:
     return template_uses(text)[0]
 
 
-def site_fields(root: Path, template: str) -> dict[str, set[str]]:
+def site_fields(root: Path, template: str, points: frozenset[str] = frozenset()) -> dict[str, set[str]]:
     """The fields `template` uses, by file: its own (the site's, else the
     engine's) and those of each partial of the site's it includes, in
-    turn; the engine's partials are the engine's to keep to the contract."""
+    turn; the engine's partials are the engine's to keep to the contract.
+    A partial that is itself an override point (`points`) is held to its
+    own entry instead: where a page includes it, it may ask, in $if$, for
+    what that page does not give (the controls' is-series, false on the
+    landing). The page's render runs it with the page's fields, as the
+    build does, so what it needs outside $if$ is still checked there."""
     found: dict[str, set[str]] = {}
     queue = [template]
     while queue:
         path = queue.pop(0)
         source = root / path if (root / path).is_file() else ENGINE / path if path == template else None
-        if path in found or source is None:
+        if path in found or source is None or (path != template and path in points):
             continue
         found[path], partials = template_uses(source.read_text(encoding="utf-8"))
         queue += sorted(partials)
@@ -252,7 +257,7 @@ def template_problems(root: Path, template: str, terms: dict, binary: str) -> li
     contract does not give, a failed render, a hook missing from it."""
     fields = context(terms, template)
     problems = []
-    for path, used in site_fields(root, template).items():
+    for path, used in site_fields(root, template, frozenset(terms["templates"])).items():
         if undeclared := sorted(used - field_names(fields)):
             where = "" if path == template else f" (in {path})"
             problems.append(f"{template}: uses {', '.join(undeclared)}{where}, which the contract does not give it")

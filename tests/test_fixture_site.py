@@ -329,6 +329,14 @@ class FixtureBuilds(unittest.TestCase):
         pins = json.loads((site / "map.json").read_text(encoding="utf-8"))
         self.assertTrue(pins)
         self.assertEqual({k for pin in pins for k in pin} - set(data["photography/map.json"]["keys"]), set())
+        # A pin joins its entry by url (canonical-url); a local thumbnail is
+        # a file the build published, the flat single's too.
+        self.assertEqual({pin["url"] for pin in pins} - {e["canonical-url"] for e in photos}, set())
+        self.assertIn("/photography/lone-frame.html", {pin["url"] for pin in pins})
+        for pin in pins:
+            with self.subTest(thumb=pin.get("thumb")):
+                self.assertTrue(pin["thumb"].startswith("/") and not pin["thumb"].startswith("//"))
+                self.assertTrue((site.parent / pin["thumb"].lstrip("/")).is_file())
 
     def test_the_site_s_own_scripts_load_on_every_page_after_the_engine_s(self):
         # site.yaml's scripts: under the asset version, published, and after

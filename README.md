@@ -126,8 +126,11 @@ the freshness check hashes it.
   draws with `static/js/stage.js`.
 - **`scripts`:** the site's own scripts for every page, paths under `/js/`
   (its `static/js/`), published under the asset version and loaded after
-  the engine's, deferred, before a page's own `js:`. See "Overriding
-  engine files" for what they may extend.
+  the engine's (but `math.js`, which typesets and comes last), deferred,
+  before a page's own `js:`. A registry exists only where its switch
+  loads it (`window.ozyPhotography` on photography's pages), so a script
+  for every page asks for one before using it. See "Overriding engine
+  files" for what they may extend.
 - **`reader-settings`:** choices the site gives its readers in Settings,
   each an `id`, a `label` for its row and two or more `options`, buttons
   named from their ids as themes are. The first option is the default and

@@ -78,8 +78,8 @@ data SiteConfig = SiteConfig
     , siteReaderSettings :: [ReaderSetting]
       -- | The site's own scripts for every page (site.yaml's @scripts@):
       --   paths under @/js/@, published under the asset version as the
-      --   engine's are, and loaded after them, deferred, before a page's
-      --   own @js:@. A site's script extends the engine's registries
+      --   engine's are, and loaded after them (but math.js, which comes
+      --   last), deferred, before a page's own @js:@. A site's script extends the engine's registries
       --   (contract.yaml's scripts) from here rather than from each page.
     , siteScripts :: [String]
       -- | What @/source/@ publishes of the site's own files, as Hakyll globs

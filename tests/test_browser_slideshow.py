@@ -24,7 +24,7 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwri
 from tests.target import requires_switch
 
 CARD = """<figure class="photo-card"><a class="photo-card-link" href="/photography/">
-<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'%3E%3Crect width='40' height='30' fill='%23{fill}'/%3E%3C/svg%3E" alt="{title}"></a>
+<img class="photo-card-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='30'%3E%3Crect width='40' height='30' fill='%23{fill}'/%3E%3C/svg%3E" alt="{title}"></a>
 <span class="photo-card-title">{title}</span><span class="photo-card-date">2026</span></figure>"""
 
 PAGE = """<!doctype html>

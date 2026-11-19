@@ -19,3 +19,7 @@
   engine: templates/partials/photo-card.html
   reviewed: 0d0dd0b8952378f58d217d8b4b191a7a30171b79
   note: a figure with its caption, keeping the card's hooks, and a probe of the contract's photo fields
+- site: templates/photography-index.html
+  engine: templates/photography-index.html
+  reviewed: 1ae17267bddb1d30a3410d66a2087a6986ae2384
+  note: the landing with a header of its own, overridden with the card it includes

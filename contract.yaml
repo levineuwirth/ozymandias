@@ -5,7 +5,9 @@
 #
 # contexts: the fields the engine renders a template with, by group, each
 #   with a fixture value: a string; true for a flag; a list of objects for
-#   a loop. A template is rendered with its groups' fields and no others,
+#   a loop (whose items have $plain(...)$ only with `$plain: true`, as the
+#   engine's lists of pages do and its lists of links or tags do not). A
+#   template is rendered with its groups' fields and no others,
 #   so a field it uses that the contract does not give fails the check
 #   (`site render-template`, build/Contract.hs).
 # templates: each override point, by its path under templates/:
@@ -34,7 +36,8 @@
 #   defining it, and how to use it. A site's script comes after the
 #   engine's, deferred (site.yaml's scripts, on every page; a page's `js:`
 #   front matter; or a template override), and registers before the page
-#   has loaded;
+#   has loaded (on a page with math, math.js alone comes after a site's
+#   scripts: it typesets, and registers nothing);
 #   tests/test_browser_registries.py is one.
 scripts:
   ozy:content-added:
@@ -83,9 +86,11 @@ scripts:
       A mode owns its listeners and queued work: enter installs them and
       leave removes or cancels them. Repeated selection can call enter
       again without leave, so enter must not stack listeners.
-      photos() is a Promise of photos.json's entries (data:), fetched once:
-      a presentation of a site's own builds from them, not from the
-      engine's markup. registerMap({marker, tooltip, target, ready}) draws
+      Defined on photography's pages (photography-modes.js loads with
+      them), so a script that runs on every page asks for it first:
+      if (window.ozyPhotography) .... photos() is a Promise of
+      photos.json's entries (data:), fetched once: a presentation of a
+      site's own builds from them, not from the engine's markup. registerMap({marker, tooltip, target, ready}) draws
       the map's places a site's way, each hook given a place {lat, lon,
       pins (map.json's), label}: marker returns any of {className, html,
       size, title} over the engine's; tooltip its HTML, or null for none;
@@ -160,12 +165,18 @@ data:
       geo-precision other than hidden (default city), its coordinates
       rounded to that precision before they leave the build.
     keys:
-      slug: as in photos.json
+      slug: >-
+        the directory its photograph is in (a frame's series, a directory
+        single's own), or a flat single's name: not photos.json's slug
       title: the title
-      url: the entry's page
+      url: >-
+        the entry's page: photos.json's canonical-url, the key that joins
+        a pin to its entry
       lat: latitude, rounded
       lon: longitude, rounded
-      thumb: its 480px variant's URL, else the photograph's
+      thumb: >-
+        its 480px variant's URL, else the photograph's: root-relative on
+        this site, or the photo key's own URL when that names another
       captured: the capture date as written
       location: the place, as written
       series: a frame's series' slug
@@ -200,7 +211,7 @@ data:
       height: pixel height
 
 contexts:
-  identity:
+  identity: &identity
     site-title: Example Site
     site-author: Example Author
     site-author-sort: "Author, Example"
@@ -215,7 +226,7 @@ contexts:
       - {feed-title: Example Site, feed-url: /feed.xml}
     font-preloads:
       - {href: /fonts/example-regular.woff2}
-  page:
+  page: &page
     url: /essays/example/
     title: An Example
     # A page's own license, when its front matter has one (`license:`), and
@@ -224,7 +235,7 @@ contexts:
     license-url-resolved: https://creativecommons.org/publicdomain/mark/1.0/
   # The switches a template asks ($if(switch-NAME)$, Config.switchContext),
   # each on, so that what they gate renders and its hooks are checked.
-  switches:
+  switches: &switches
     switch-build-page: true
     switch-footer-build-time: true
     switch-signature-link: true
@@ -281,10 +292,18 @@ contexts:
     footer-deps: true
   # A series landing's (Photography.seriesCtx), over its own photo fields:
   # its photographs, newest first, and what the build counts of them, each
-  # absent when the series cannot say.
+  # absent when the series cannot say. A list's photograph is given what a
+  # photograph's own page is (photographyCtx, with the site's fields and
+  # plain), so photo-card.html, which renders one, has the same in a loop
+  # as alone.
   series:
     is-series: true
-    series-photos: [*photo, *photo]
+    series-photos:
+      - &card
+        <<: [*photo, *page, *identity, *switches]
+        url: /photography/example-series/example-frame/
+        $plain: true
+      - *card
     series-frame-count: "2"
     series-bytes: 3.1 MB
     series-captured-span: April 2026
@@ -297,8 +316,18 @@ contexts:
   # body), a year's page and the contact sheet. Newest first, but the
   # contact sheet's, oldest first.
   photo-list:
-    photos: [*photo, *photo]
+    photos: [*card, *card]
+  # The flags the section's generated pages carry: every one (photography),
+  # the landing's and a year's (list-page), the contact sheet's and the
+  # map's (portal), and the map's own (photography-map).
+  photography:
+    photography: true
+  list-page:
     list-page: true
+  portal:
+    portal: true
+  photo-map:
+    photography-map: true
   # A page's own prose, rendered: a photograph's notes, a series' or the
   # section's introduction. (A photograph in a list has none to give.)
   prose:
@@ -357,6 +386,9 @@ templates:
   templates/photography.html:
     context: [identity, page, switches, photo, prose]
     hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
       - selector: img[data-lightbox]
         by: [static/js/lightbox.js]
         why: the photograph opens in the darkroom
@@ -371,6 +403,9 @@ templates:
   templates/photography-series.html:
     context: [identity, page, switches, photo, series, prose]
     hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/photography-slideshow.js, static/js/popups/photography.js]
         why: >-
@@ -382,35 +417,50 @@ templates:
         why: the lead photograph opens in the darkroom
 
   templates/photography-index.html:
-    context: [identity, page, switches, photo-list, prose]
+    context: [identity, page, switches, photography, photo-list, list-page, prose]
     hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/popups/photography.js]
         why: the grid the view modes lay out, and popups leave alone
 
   templates/photography-by-year.html:
-    context: [identity, page, switches, photo-list, photo-year]
-    hooks: []
+    context: [identity, page, switches, photography, photo-list, list-page, photo-year]
+    hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
     optional:
       - selector: .photography-grid[data-photography-mode]
         by: [static/js/photography-modes.js, static/js/popups/photography.js]
         why: a grid of cards is sized as the landing's is, and popups leave it alone
 
   templates/photography-by-year-index.html:
-    context: [identity, page, switches, photo-years]
-    hooks: []
+    context: [identity, page, switches, photography, photo-years]
+    hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
 
   templates/photography-contact-sheet.html:
-    context: [identity, page, switches, photo-list]
-    hooks: []
+    context: [identity, page, switches, photography, photo-list, portal]
+    hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
     optional:
       - selector: .photography-contact-sheet
         by: [static/js/photography-modes.js]
         why: its frames' image sizes follow their rendered width
 
   templates/photography-map.html:
-    context: [identity, page, switches, photo-view]
+    context: [identity, page, switches, photography, photo-map, portal, photo-view]
     hooks:
+      - selector: "#markdownBody"
+        by: [templates/default.html]
+        why: the skip link's destination, the page's main content
       - selector: "#photography-map"
         by: [static/js/photography-map.js]
         why: the element the map is drawn in, its state classes added to it
@@ -450,12 +500,10 @@ templates:
       - selector: .mode-btn[data-mode]
         by: [static/js/photography-modes.js]
         why: >-
-          a view: its data-mode is a registered mode, which choosing
-          applies in place, or a page (map) it links to
+          a view, wherever the controls put it: its data-mode is a
+          registered mode, which choosing applies in place (the chosen one
+          carries aria-current), or a page (map) it links to
     optional:
-      - selector: .photography-mode-toggle
-        by: [static/js/photography-modes.js]
-        why: the group whose entries carry aria-current
       - selector: button[data-mode=slideshow]
         by: [static/js/photography-slideshow.js]
         why: starts the slideshow, on a series

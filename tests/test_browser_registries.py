@@ -18,6 +18,7 @@ photography-modes.js as the site serves them, then a site script
 
 from __future__ import annotations
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +63,27 @@ window.ozyPhotography.registerMode('strip', {
 });
 """
 
+# A site's own controls and card, keeping only the contract's hooks: the
+# views are .mode-btn[data-mode] in a plain div (no .photography-mode-toggle),
+# and the card holds a logo before its img.photo-card-img.
+BARE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Hooks fixture</title>
+<script src="/js/utils.js"></script>
+<script src="/js/photography-modes.js" defer></script>
+<script src="/js/photography-slideshow.js" defer></script>
+</head><body><main id="markdownBody">
+<div class="site-controls">
+  <a class="mode-btn" data-mode="grid" href="#">Grid</a>
+  <a class="mode-btn" data-mode="masonry" href="#">Masonry</a>
+  <button class="mode-btn" type="button" data-mode="slideshow">Play</button>
+</div>
+<ul class="photography-grid" data-photography-mode="grid"><li class="photo-card">
+  <img class="site-logo" src="/__fixture/logo.svg" alt="">
+  <a class="photo-card-link" href="/__fixture/frame.html"><img class="photo-card-img" src="/__fixture/photo.svg" alt="A frame"></a>
+</li></ul>
+</main></body></html>
+"""
+
 REPLACE_MASONRY = """
 window.ozyPhotography.registerMode('masonry', {
     enter: function (grid) { grid.querySelector('.photo-card').style.gridRowEnd = 'span 99'; },
@@ -88,6 +110,9 @@ class SiteRegistries(unittest.TestCase):
             PAGE.replace('/__fixture/site.js', '/__fixture/replacement.js'), encoding="utf-8")
         (tmp / "fixtures" / "replacement.js").write_text(SITE_JS + REPLACE_MASONRY, encoding="utf-8")
         (tmp / "fixtures" / "registry.css").write_text('.photo-card { width: 25vw; }', encoding="utf-8")
+        (tmp / "fixtures" / "bare.html").write_text(BARE, encoding="utf-8")
+        (tmp / "fixtures" / "logo.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', encoding="utf-8")
         (tmp / "fixtures" / "photo.svg").write_text(
             '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="40"></svg>', encoding="utf-8")
         cls.base = cls.enterClassContext(site_server(tmp, enforcing_csp(), tmp / "fixtures"))
@@ -206,6 +231,21 @@ class SiteRegistries(unittest.TestCase):
                 page.click(".mode-btn[data-mode=strip]")
                 page.reload(wait_until="load")
                 self.expect(grid).to_have_attribute("data-photography-mode", "strip")
+
+    def test_the_views_and_frames_bind_through_their_hooks_alone(self) -> None:
+        # contract.yaml: a view is any .mode-btn[data-mode], a frame's image
+        # its img.photo-card-img, whatever else a site's markup holds.
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page = self.open_page(browser, "bare.html")
+                grid = page.locator(".photography-grid")
+                page.click(".mode-btn[data-mode=masonry]")
+                self.expect(grid).to_have_attribute("data-photography-mode", "masonry")
+                self.expect(page.locator(".mode-btn[data-mode=masonry]")).to_have_attribute("aria-current", "true")
+                # The slideshow is an action, never the current view.
+                self.expect(page.locator("[data-mode=slideshow]")).not_to_have_attribute("aria-current", "true")
+                page.click("[data-mode=slideshow]")
+                self.expect(page.locator(".slideshow-img")).to_have_attribute("src", re.compile(r"/__fixture/photo\.svg$"))
 
 
 if __name__ == "__main__":

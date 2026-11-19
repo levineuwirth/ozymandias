@@ -9,7 +9,10 @@
 --
 --   A string is a field; true a flag, for @$if$@; a list of objects a list,
 --   for @$for$@; false, or no entry, no field at all. @$plain(field)$@ is
---   the engine's own ('Contexts.plainField'), as every page has it. A field the template
+--   the engine's own ('Contexts.plainField') where the engine gives it: at
+--   the top level, as every page has it, and in a loop's item only when
+--   the item has @"$plain": true@, as a list of pages has it (photographs)
+--   and a list of links or tags does not. A field the template
 --   uses outside @$if$@ that the context lacks fails the render, as it
 --   fails the build. WORKDIR, empty and outside the site, holds Hakyll's
 --   store and output and links to the two template directories, which are
@@ -65,13 +68,21 @@ renderTemplate template contextFile work = do
     die what msg = hPutStrLn stderr ("render-template: " ++ what ++ ": " ++ msg) >> exitFailure
 
 -- | The fields of the item's object, as 'renderTemplate' describes them,
---   with @plain@, at every depth.
+--   with @plain@ at the top level.
 fixtureContext :: Context Aeson.Object
 fixtureContext = plainField <> objectContext
+
+-- | A loop's item: its fields, and @plain@ if it says it has it.
+itemContext :: Context Aeson.Object
+itemContext = Context plainIfMarked <> objectContext
+  where
+    plainIfMarked key args item
+        | KeyMap.lookup "$plain" (itemBody item) == Just (Aeson.Bool True) = unContext plainField key args item
+        | otherwise = noResult ("no " ++ key ++ " in this loop's items")
 
 objectContext :: Context Aeson.Object
 objectContext = Context $ \key _ item -> case KeyMap.lookup (Key.fromString key) (itemBody item) of
     Just (Aeson.String s)  -> pure (StringField (T.unpack s))
     Just (Aeson.Bool True) -> pure EmptyField
-    Just (Aeson.Array xs)  -> ListField fixtureContext <$> mapM makeItem [o | Aeson.Object o <- V.toList xs]
+    Just (Aeson.Array xs)  -> ListField itemContext <$> mapM makeItem [o | Aeson.Object o <- V.toList xs]
     _                      -> noResult ("no " ++ key ++ " in the fixture context")

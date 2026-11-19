@@ -127,6 +127,37 @@ class TemplateContractTests(unittest.TestCase):
         self.assertEqual(review.hook_problems(self.root, self.binary),
                          ["templates/partials/toc.html: not an override point (engine/contract.yaml)"])
 
+    def test_a_page_and_its_partials_overridden_together_keep_it(self):
+        # The landing with the engine's own controls and a card of the site's
+        # that names the site and its page: the controls ask, in $if$, for
+        # is-series and photography-view-map, which the landing does not
+        # give, and the card is given in the landing's loop what it is
+        # alone (a photograph's context has the site's fields), as the build
+        # gives it.
+        engine = Path(review.ENGINE)
+        for path in ("templates/photography-index.html", "templates/partials/photography-controls.html"):
+            self.override(path, (engine / path).read_text(encoding="utf-8"))
+        card = (engine / "templates/partials/photo-card.html").read_text(encoding="utf-8")
+        self.override("templates/partials/photo-card.html",
+                      card.replace('<span class="photo-card-title">$title$</span>',
+                                   '<span class="photo-card-title">$title$ · $site-title$ · $url$</span>'))
+        self.assertEqual(review.hook_problems(self.root, self.binary), [])
+
+    def test_plain_is_given_where_the_engine_gives_it(self):
+        # A photograph's context has plain, in a list of them too; a link's
+        # (photo-links) has only its name and URL, and the build stops on it.
+        self.override("templates/partials/photo-card.html",
+                      '<li class="photo-card"><a class="photo-card-link" href="$canonical-url$">'
+                      '<img class="photo-card-img" alt="$plain(title)$"></a></li>\n')
+        self.override("templates/photography.html",
+                      '<main id="markdownBody"><img data-lightbox="true" alt="$plain(title)$">'
+                      '$if(photo-links)$$for(photo-links)$<a title="$plain(link-name)$">$link-name$</a>'
+                      '$endfor$$endif$</main>\n')
+        problems = review.hook_problems(self.root, self.binary)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertTrue(problems[0].startswith("templates/photography.html: does not render"), problems)
+        self.assertIn("plain", problems[0])
+
     def test_render_template_gives_the_context_s_fields_and_no_others(self):
         (self.root / "templates").mkdir()
         (self.root / "templates/t.html").write_text(
@@ -145,15 +176,21 @@ class TemplateContractTests(unittest.TestCase):
         self.assertEqual(failed.returncode, 1)
         self.assertIn("Missing field 'a'", failed.stderr)
 
-    def test_plain_is_the_engine_s_in_a_loop_too(self):
-        # Every photography template writes $plain(title)$ into attributes.
+    def test_plain_is_the_engine_s_at_the_top_and_in_items_that_say_so(self):
+        # Every photography template writes $plain(title)$ into attributes; a
+        # loop's items have it as the engine's lists of pages do ($plain),
+        # and not as its lists of links do.
         (self.root / "templates").mkdir()
         (self.root / "templates/t.html").write_text(
             '<i title="$plain(t)$"></i>$for(items)$<b title="$plain(t)$"></b>$endfor$')
-        context = {"t": "<em>A</em> \"q\"", "items": [{"t": "B &amp; c"}]}
+        context = {"t": "<em>A</em> \"q\"", "items": [{"t": "B &amp; c", "$plain": True}]}
         done = review.render(self.root, "templates/t.html", context, self.binary)
         self.assertEqual((done.returncode, done.stdout),
                          (0, '<i title="A &quot;q&quot;"></i><b title="B &amp;amp; c"></b>'), done.stderr)
+        del context["items"][0]["$plain"]
+        done = review.render(self.root, "templates/t.html", context, self.binary)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("plain", done.stderr)
         self.assertEqual(review.template_fields('$plain(alt)$$if(x)$$endif$'), {"alt", "x"})
 
 

@@ -81,7 +81,10 @@ SITE_MAP = """(() => {
     let held;
     Object.defineProperty(window, 'ozyPhotography', {configurable: true, get: () => held, set: v => {
         held = v;
-        v.registerMap({
+        const register = v.registerMap;
+        // The site's own script, if it has one, registers nothing over these.
+        v.registerMap = function () {};
+        register({
             marker: place => ({className: 'site-pin', html: '<b>' + place.pins.length + '</b>'}),
             tooltip: place => place.pins.length > 1 ? '<p class="site-tip">' + place.label + '</p>' : null,
             target: place => place.pins.length === 1 ? '/elsewhere/' : null,
@@ -90,6 +93,16 @@ SITE_MAP = """(() => {
                                   places.map(p => p.label).sort()];
             }
         });
+    }});
+})();"""
+
+# The engine's own map, whatever the site under test registers (its markers
+# are a site's to replace): registerMap does nothing.
+DEFAULT_MAP = """(() => {
+    let held;
+    Object.defineProperty(window, 'ozyPhotography', {configurable: true, get: () => held, set: v => {
+        held = v;
+        v.registerMap = function () {};
     }});
 })();"""
 
@@ -201,7 +214,7 @@ class Photography(unittest.TestCase):
     def map_page(self, browser: str, pins=PINS, **changed):
         answers = self.map_answers(pins)
         answers.update(changed)
-        return self.open(browser, "/photography/map/", fakes=answers, init=RECORD_FETCH)
+        return self.open(browser, "/photography/map/", fakes=answers, init=RECORD_FETCH + DEFAULT_MAP)
 
     def zoom(self, page) -> int:
         """The map's zoom, from the tiles it shows."""
