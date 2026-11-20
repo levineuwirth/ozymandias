@@ -297,6 +297,41 @@ class EngineFilesTests(unittest.TestCase):
         self.assertIn("updated stamped.html", log)
         self.assertNotEqual(self.version(), first)
 
+    def test_an_engine_file_s_coming_and_going_moves_the_version(self):
+        # The engine's half of the version's dependency must match files the
+        # engine gains after the build that recorded it: once nothing changed
+        # recompiled nothing, a new engine script was published under a new
+        # version that no page named, and the prune could remove it.
+        self.write("engine/static/css/base.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        self.run_probe("build")
+        first = self.version()
+        self.write("engine/static/js/new-file.js", "fresh();\n")
+        self.run_probe("build")
+        second = self.version()
+        self.assertNotEqual(second, first)
+        self.assertEqual(self.asset("js/new-file.js"), "fresh();\n")
+        self.assertEqual(self.asset("css/base.css"), "a{color:red}")
+        self.assertNotIn("updated", self.run_probe("build"))
+        # A site file that comes to shadow an engine file, and its going.
+        self.write("static/js/new-file.js", "shadow();\n")
+        self.run_probe("build")
+        third = self.version()
+        self.assertNotIn(third, (first, second))
+        self.assertEqual(self.asset("js/new-file.js"), "shadow();\n")
+        self.assertNotIn("updated", self.run_probe("build"))
+        (self.root / "static/js/new-file.js").unlink()
+        self.run_probe("build")
+        self.assertEqual(self.version(), second)
+        self.assertEqual(self.asset("js/new-file.js"), "fresh();\n")
+        # And the engine file's going.
+        (self.root / "engine/static/js/new-file.js").unlink()
+        self.run_probe("build")
+        self.assertEqual(self.version(), first)
+        self.assertFalse((self.root / f"_site/assets/{first}/js/new-file.js").exists())
+        self.assertNotIn("updated", self.run_probe("build"))
+
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.
         from tests.test_build_freshness import BuildFreshnessTestCase
