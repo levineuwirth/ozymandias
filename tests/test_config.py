@@ -590,13 +590,31 @@ class ConfigTests(unittest.TestCase):
                  "section addresses must be unique"),
                 # Templates and scripts name /music/ and /photography/.
                 (original + [music | {"address": "works"}], {"music": True},
-                 "the music section's address is the engine's")):
+                 "the music section's address is the engine's"),
+                # The engine's own directories: a dev build's drafts, which
+                # `make build` deletes; the generator's data; Pagefind's index.
+                ([blog | {"address": "drafts"}], {}, "section address is a directory of the engine's: drafts"),
+                ([blog | {"address": "data"}], {}, "section address is a directory of the engine's: data"),
+                ([blog | {"address": "pagefind"}], {}, "section address is a directory of the engine's: pagefind"),
+                # A page a switch generates, with the switch on.
+                ([blog | {"address": "stats"}], {"stats-page": True},
+                 "section address is a page the engine generates: stats (the stats-page switch's)"),
+                ([blog | {"address": "archive"}], {"archive": True},
+                 "section address is a page the engine generates: archive (the archive switch's)")):
             with self.subTest(refusal=refusal, sections=[s["dir"] for s in sections]):
                 self.config = dict(self.config, sections=sections, feeds=[], switches=switches)
                 self.write_config()
                 done = self.run_site("config")
                 self.assertNotEqual(done.returncode, 0)
                 self.assertIn(refusal, done.stderr)
+
+    def test_a_generated_page_s_address_is_free_with_its_switch_off(self):
+        blog = next(s for s in self.config["sections"] if s["dir"] == "blog")
+        self.config = dict(self.config, sections=[blog | {"address": "stats"}], feeds=[],
+                           switches={"stats-page": False})
+        self.write_config()
+        done = self.run_site("config")
+        self.assertEqual(done.returncode, 0, done.stderr)
 
     def test_taxonomy_rejects_declarations_the_routes_cannot_honor(self):
         original = self.config["sections"]

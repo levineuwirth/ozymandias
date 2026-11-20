@@ -360,13 +360,16 @@ rules = do
     statsRules cfg tags
 
     -- Per-page JS files — authored alongside content in content/**/*.js.
-    -- Draft JS is handled by a separate dev-only rule below.
-    match ("content/**/*.js" .&&. complement "content/drafts/**") $ do
+    -- Draft JS is handled by a separate dev-only rule below. An essay's
+    -- own script is one of its assets, which their rule copies: one rule
+    -- for one item ("RouteCheck").
+    match ("content/**/*.js" .&&. complement "content/drafts/**" .&&. complement essayAssets) $ do
         route   fileRoute
         compile copyFileCompiler
 
-    -- Per-page JS co-located with draft essays (dev-only).
-    when isDev $ match "content/drafts/**/*.js" $ do
+    -- Per-page JS beside drafts (dev-only); a draft essay's is copied
+    -- with its other assets.
+    when isDev $ match ("content/drafts/**/*.js" .&&. complement "content/drafts/essays/**") $ do
         route   fileRoute
         compile copyFileCompiler
 
@@ -1427,8 +1430,10 @@ rules = do
                     ]
                     -- Generated landings and indexes: the sections' the
                     -- site has, at their addresses.
+                    -- The blog's is its first page, which is there before
+                    -- any post; its later pages list the same posts.
                     ++ [ sectionLanding section
-                       | dir <- ["essays", "poetry", "fiction"]
+                       | dir <- ["essays", "blog", "poetry", "fiction"]
                        , Just section <- [listedSection current dir] ]
                     ++
                     [ "library.html"

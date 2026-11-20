@@ -3,13 +3,29 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import load_tool, requires_cabal, write_site_config
+from unittest import mock
+
+from tests._helpers import engine_path, load_tool, requires_cabal, script_env, write_site_config
 
 
 import_content = load_tool("import-content.py", register=True)
+
+
+@contextlib.contextmanager
+def site_at(root: Path):
+    """The importer at work on the site at `root` and no other. It finds
+    its site at $SITE_ROOT before the working directory (sitelib.site_root),
+    so with SITE_ROOT exported, as `make test` and a site's own runs have
+    it, a test that only changed directory read that site's routes and
+    wrote its pages into that site's content/."""
+    with contextlib.chdir(root), mock.patch.dict(os.environ, {"SITE_ROOT": str(root)}):
+        yield
 
 
 def args_for(**overrides: object) -> argparse.Namespace:
@@ -144,7 +160,7 @@ class ImportContentTests(unittest.TestCase):
             source.write_text("Title\n\nBody\n", encoding="utf-8")
             stderr = io.StringIO()
 
-            with contextlib.chdir(root), contextlib.redirect_stdout(io.StringIO()), \
+            with site_at(root), contextlib.redirect_stdout(io.StringIO()), \
                     contextlib.redirect_stderr(stderr):
                 refused = import_content.main([str(source), "--collection", "Notes"])
                 accepted = import_content.main([str(source), "--collection", "Fresh"])
@@ -155,6 +171,53 @@ class ImportContentTests(unittest.TestCase):
             self.assertFalse((root / "content" / "notes").exists())
             self.assertEqual(accepted, 0, stderr.getvalue())
             self.assertTrue((root / "content" / "fresh" / "index.md").exists())
+
+    def test_a_test_s_site_is_its_own_whatever_site_root_says(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as other:
+            with mock.patch.dict(os.environ, {"SITE_ROOT": other}), site_at(Path(directory)):
+                self.assertEqual(import_content.sitelib.site_root(), Path(directory).resolve())
+            self.assertEqual(os.listdir(other), [])
+
+    def test_a_section_the_site_does_not_list_takes_no_import(self) -> None:
+        # The build publishes nothing from an unlisted section's directory
+        # and stops at a file in it, so the importer refuses first.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_site_config(root, sections=[{"dir": "blog", "address": "notebook", "kind": "Note",
+                                               "dingbat": None}])
+            source = root / "source.txt"
+            source.write_text("A Poem\n\nA line.\n", encoding="utf-8")
+            stderr = io.StringIO()
+            with site_at(root), contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(stderr):
+                refused = import_content.main([str(source), "--type", "poetry", "--date", "2026-01-02"])
+                dry = import_content.main([str(source), "--type", "poetry", "--date", "2026-01-02",
+                                           "--dry-run"])
+                accepted = import_content.main([str(source), "--type", "blog", "--date", "2026-01-02"])
+            self.assertEqual((refused, dry), (2, 2))
+            self.assertIn("error: site.yaml lists no poetry section", stderr.getvalue())
+            self.assertFalse((root / "content" / "poetry").exists())
+            self.assertEqual(accepted, 0, stderr.getvalue())
+            self.assertEqual([p.name for p in (root / "content" / "blog").iterdir()], ["a-poem.md"])
+
+    def test_the_poetry_importer_refuses_a_site_without_the_section(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "sonnets.txt"
+            source.write_text("I\n\nFrom fairest creatures we desire increase,\n"
+                              "That thereby beauty's rose might never die,\n", encoding="utf-8")
+            command = [sys.executable, engine_path("tools/import-poetry.py"), str(source),
+                       "--poet", "A Poet", "--collection", "Sonnets", "--date", "1609"]
+            for sections, status in (([{"dir": "blog", "kind": "Post", "dingbat": None}], 1),
+                                     ([{"dir": "poetry", "kind": "Poem", "dingbat": None}], 0)):
+                with self.subTest(sections=sections):
+                    write_site_config(root, sections=sections)
+                    done = subprocess.run(command, cwd=root, env=script_env(SITE_ROOT=str(root)),
+                                          capture_output=True, text=True, timeout=60)
+                    self.assertEqual(done.returncode, status, done.stdout + done.stderr)
+                    self.assertEqual((root / "content" / "poetry").exists(), status == 0)
+                    if status:
+                        self.assertIn("site.yaml lists no poetry section", done.stderr)
 
     def test_writing_types_require_valid_iso_dates(self) -> None:
         with self.assertRaisesRegex(
@@ -195,7 +258,7 @@ class ImportContentTests(unittest.TestCase):
             stdout = io.StringIO()
             stderr = io.StringIO()
 
-            with contextlib.chdir(root), contextlib.redirect_stdout(stdout), \
+            with site_at(root), contextlib.redirect_stdout(stdout), \
                     contextlib.redirect_stderr(stderr):
                 status = import_content.main([
                     str(source), "--splitter", "regex", "--regex", "(",
@@ -237,7 +300,7 @@ class ImportContentTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with contextlib.chdir(root), self.assertRaisesRegex(
+            with site_at(root), self.assertRaisesRegex(
                 import_content.ContentImportError,
                 "frontmatter must be a YAML mapping",
             ):

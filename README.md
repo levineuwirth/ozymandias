@@ -138,11 +138,21 @@ the freshness check hashes it.
   A section of writing may be served somewhere else than at its
   directory's name, with `address`, and its landing may be titled with
   `title`: `{dir: blog, address: notebook, title: Notebook, kind: Note}`
-  is written in `content/blog/` and served at `/notebook/`, its pages,
-  collections, the files beside them and its landing, which is there
-  before the first entry. Wikilinks and tags follow the address
-  (`[[Notebook]]` is the landing; a tag `notebook` has no page of its
-  own), and a page collection may not take it. `music` and `photography`
+  is written in `content/blog/` and served at `/notebook/`: its pages,
+  its collections, a page's own script (a `.js` beside it) and its
+  landing, which is there before the first entry and is in the sitemap.
+  Only `essays` publishes the other files beside a page (figures, data,
+  PDFs, at the essay's address); in `blog`, `poetry` and `fiction` an
+  image or a file beside a page is not published, and a relative link to
+  one is a missing file (`check-site` reports it), so those go under
+  `static/`. Wikilinks and tags follow the address (`[[Notebook]]` is
+  the landing; a tag `notebook` has no page of its own), and a page
+  collection may not take it. An address may not be a directory the
+  engine or the build writes (`assets`, `data`, `drafts`, `pagefind`,
+  `source` and the like; the build names it), nor a page a switch that
+  is on generates (`stats`, `build`, `archive`, `bibliography`). The
+  importers (`import-content.py`, `import-poetry.py`) write only into a
+  section the site lists. `music` and `photography`
   are listed with their switches on, and are always at `/music/` and
   `/photography/`. Labels, ornaments and order are the site's. `portals` are the
   home page's tags in order; `nav-primary` the first navigation row;

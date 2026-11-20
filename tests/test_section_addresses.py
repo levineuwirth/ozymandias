@@ -49,7 +49,9 @@ class SectionAddresses(unittest.TestCase):
         (self.root / "site.yaml").write_text(json.dumps(config), encoding="utf-8")
 
     def site(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([str(site_binary()), *args], cwd=self.root, env=script_env(),
+        # One worker: with several, a build of a site this small has failed
+        # in Hakyll's metadata cache before any page was compiled.
+        return subprocess.run([str(site_binary()), *args], cwd=self.root, env=script_env(SITE_THREADS="1"),
                               capture_output=True, text=True, timeout=240)
 
     def built(self) -> set[str]:
@@ -73,6 +75,8 @@ class SectionAddresses(unittest.TestCase):
         self.assertRegex(landing, r"<h1[^>]*>Notebook</h1>")
         self.assertIn("<feed", self.read("feed.xml"))
         self.assertNotIn("<entry>", self.read("feed.xml"))
+        # The landing is a page of the site before it has an entry.
+        self.assertIn("<loc>https://example.org/notebook/</loc>", self.read("sitemap.xml"))
 
     def test_a_section_s_pages_are_at_its_address(self):
         root = self.root
@@ -115,6 +119,7 @@ class SectionAddresses(unittest.TestCase):
                       self.read("writing/long/index.html"))
         sitemap = self.read("sitemap.xml")
         self.assertIn("<loc>https://example.org/writing/</loc>", sitemap)
+        self.assertIn("<loc>https://example.org/notebook/</loc>", sitemap)
         self.assertIn("<loc>https://example.org/notebook/first.html</loc>", sitemap)
         self.assertNotRegex(sitemap, r"example\.org/(essays|blog)/")
         # A wikilink to a section is to its landing, by its address.
@@ -141,6 +146,39 @@ class SectionAddresses(unittest.TestCase):
         self.assertIn("/notebook/ is the blog section's address, and its pages are written in content/blog/: "
                       "content/notebook/a.md", done.stdout + done.stderr)
 
+    def test_no_directory_the_engine_writes_is_a_section_s_address(self):
+        # Every directory at the root that a build routes from the engine
+        # or generates, with the switches that generate pages on, is
+        # refused as an address (Config.engineAddresses, and the switches'
+        # routes): at /stats/ the statistics page replaced the landing.
+        switches = {"stats-page": True, "build-page": True, "archive": True, "bibliography": True,
+                    "bibliography-index": True, "authors": True}
+        (self.root / "data").mkdir()    # the bibliography's, read by its rules
+        self.configure(sections=[NOTEBOOK], feeds=[], switches=switches)
+        listed = self.site("list-routes")
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        routed = {route.split("/")[0] for route, _, source in
+                  (line.partition("\t") for line in listed.stdout.splitlines())
+                  if "/" in route and not source.startswith("content/")}
+        self.assertLessEqual({"assets", "data", "stats", "build", "archive", "bibliography", "notebook"}, routed)
+        for directory in sorted(routed - {"notebook"}):
+            with self.subTest(address=directory):
+                self.configure(sections=[NOTEBOOK | {"address": directory}], feeds=[], switches=switches)
+                done = self.site("config")
+                self.assertNotEqual(done.returncode, 0, directory)
+                self.assertRegex(done.stderr, "section address is (a directory of the engine's|a page the engine "
+                                              "generates): " + re.escape(directory))
+
+    def test_two_rules_for_one_item_stop_the_build(self):
+        # Hakyll keeps one compiler of two for the same item and says
+        # nothing, and one item has one route, so the route check saw no
+        # clash: a feed at sitemap.xml built, with the sitemap or the feed
+        # gone.
+        self.configure(sections=[NOTEBOOK], feeds=[FEED | {"path": "sitemap.xml"}])
+        done = self.site("rebuild")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("Two or more rules compile the same item", done.stdout + done.stderr)
+        self.assertIn("sitemap.xml", done.stdout + done.stderr)
 
 if __name__ == "__main__":
     unittest.main()

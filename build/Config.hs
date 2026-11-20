@@ -28,7 +28,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map.Strict as Map
 import Data.Char (isControl, isSpace, toLower, toUpper)
-import Data.List (find, intercalate, isPrefixOf, isSuffixOf, nub, sortOn, stripPrefix)
+import Data.List (find, intercalate, isPrefixOf, isSuffixOf, nub, sort, sortOn, stripPrefix)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -500,6 +500,22 @@ engineSources = ["content/index.md", "content/library.md", "content/commonplace.
 engineContentDirs :: [String]
 engineContentDirs = ["bibliography-meta", "drafts", "scripts", "tag-meta"]
 
+-- | Directories at the site's root that are the engine's or the build's
+--   whatever the site lists, so never a section's address: the engine's
+--   content directories ('engineContentDirs': a dev build serves drafts
+--   at @/drafts/@, and @make build@ deletes that directory), what the
+--   generator writes for itself (@/assets/@, @/authors/@, @/code-refs/@,
+--   @/data/@, @/scores/@, @/source/@), the directories of the engine's
+--   @static/@, the downloaded ones included, and Pagefind's index, written
+--   after the generator has run. The pages a switch generates
+--   (@/stats/@, @/archive/@) are reserved with the switch on
+--   ('switchedSections'). @tests/test_section_addresses.py@ checks the
+--   list against the routes of a build.
+engineAddresses :: [String]
+engineAddresses = sort $ engineContentDirs ++
+    [ "assets", "authors", "code-refs", "data", "images", "leaflet", "licenses", "models"
+    , "pagefind", "pdfjs", "scores", "source", "templates", "transformers", "vega" ]
+
 instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
@@ -576,6 +592,8 @@ instance FromJSON SiteConfig where
         forM_ (siteSections c) $ \s ->
             when (sectionAddress s /= sectionDir s && sectionAddress s `elem` sectionRoutes) $
                 fail ("section address is another section's directory: " ++ sectionAddress s)
+        forM_ addresses $ \address -> when (address `elem` engineAddresses) $
+            fail ("section address is a directory of the engine's: " ++ address)
         when (nub tags /= tags) $ fail "portal tags must be unique"
         let sources = map standaloneSource (siteStandalone c)
             routes  = map standaloneRoute (siteStandalone c)
@@ -836,7 +854,8 @@ resolveSwitches registry set = do
 --   writing is the site's when site.yaml lists it. A section a switch owns
 --   is the site's only with that switch on: then site.yaml must list it;
 --   with it off, no section entry may name it. A feed carries only
---   sections the site has.
+--   sections the site has, and no section is at the address of a page a
+--   switch that is on generates.
 switchedSections :: Map.Map String SwitchSpec -> Map.Map String Bool -> SiteConfig -> Either String ()
 switchedSections registry on cfg = do
     let owners = Map.fromList [ (dir, name) | (name, spec) <- Map.toList registry
@@ -850,12 +869,21 @@ switchedSections registry on cfg = do
         refused = [ dir ++ " (the " ++ name ++ " switch is off)"
                   | dir <- named, Just name <- [offSwitch dir] ]
         unlisted = [ dir | dir <- fed, dir `notElem` dirs ]
+        -- A page a switch generates (its registry @routes@: @/stats/@)
+        -- is at its address before any section, with the switch on.
+        taken   = [ address ++ " (the " ++ name ++ " switch's)"
+                  | (name, spec) <- Map.toList registry, Map.findWithDefault False name on
+                  , path <- switchRoutes spec
+                  , let address = takeWhile (/= '/') (drop 1 path)
+                  , address `elem` map sectionAddress (siteSections cfg) ]
     unless (null missing) $
         Left ("sections must include the engine's routed sections: " ++ intercalate ", " missing)
     unless (null refused) $
         Left ("sections and feeds name a section the engine does not route: " ++ intercalate ", " refused)
     unless (null unlisted) $
         Left ("feeds carry a section that sections does not list: " ++ intercalate ", " unlisted)
+    unless (null taken) $
+        Left ("section address is a page the engine generates: " ++ intercalate ", " taken)
 
 -- | A standalone page's context a switch owns (its registry @contexts@) is
 --   the site's only with that switch on.

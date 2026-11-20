@@ -31,7 +31,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from front_matter import scalar, tags_field  # noqa: E402
-from sitelib import SITE_ROOT, section_address, slugify  # noqa: E402
+from sitelib import SITE_ROOT, listed_section, section_address, slugify  # noqa: E402
 
 POETRY_DIR  = SITE_ROOT / "content" / "poetry"
 
@@ -286,6 +286,13 @@ def main() -> None:
     parser.add_argument("--dry-run",         action="store_true", help="Show what would be written; write nothing")
     parser.add_argument("--overwrite",       action="store_true", help="Overwrite existing files")
     args = parser.parse_args()
+
+    # A site that does not list the section publishes nothing from
+    # content/poetry/ and its build stops at a file there.
+    if listed_section("poetry") is None:
+        print("error: site.yaml lists no poetry section (sections:), so the site "
+              "publishes nothing from content/poetry/; list it there first", file=sys.stderr)
+        sys.exit(1)
 
     source = Path(args.source)
     if not source.exists():

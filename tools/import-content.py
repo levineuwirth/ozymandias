@@ -678,6 +678,19 @@ def validate_collection_request(
         )
 
 
+def require_listed_section(type_name: str) -> None:
+    """Refuse a type whose section the site does not list (site.yaml's
+    sections): the build publishes nothing from that directory and stops
+    at a file in it, so an import there would only break the next build."""
+    profile = TYPE_PROFILES.get(type_name, TYPE_PROFILES["page"])
+    section_dir = profile["output_dir"].removeprefix("content").strip("/")
+    if section_dir and sitelib.listed_section(section_dir) is None:
+        raise ContentImportError(
+            f"site.yaml lists no {section_dir} section, so the site publishes nothing "
+            f"from {profile['output_dir']}/; list it under sections: or choose another --type"
+        )
+
+
 def collection_prefix(type_name: str, collection_slug: str) -> str:
     """The URL path a collection's pages live under, without the leading
     slash: `<slug>/` for pages, `<address>/<slug>/` otherwise, the
@@ -874,6 +887,12 @@ def main(argv: list[str]) -> int:
             "(use --list-readers or --list-splitters to see available options)",
             file=sys.stderr,
         )
+        return 2
+
+    try:
+        require_listed_section(args.type)
+    except (ContentImportError, OSError, yaml.YAMLError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
 
     reader_fn = get_reader(args.reader)

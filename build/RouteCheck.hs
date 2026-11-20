@@ -59,6 +59,14 @@ routeClashes routed =
     | (path, is) <- Map.toList (Map.fromListWith (++) [(p, [i]) | (p, i) <- routed])
     , length is > 1 ]
 
+-- | Items that more than one rule compiles. Hakyll keeps one of the
+--   compilers and says nothing, and 'routeClashes' sees a single item: a
+--   section whose landing was @create@d at @stats/index.html@ beside the
+--   statistics page built, exit 0, with one of the two pages gone.
+compiledTwice :: RuleSet -> [Identifier]
+compiledTwice rs =
+    [ i | (i, n) <- Map.toList (Map.fromListWith (+) [ (i, 1 :: Int) | (i, _) <- rulesCompilers rs ]), n > 1 ]
+
 -- | The rules, refusing to run when two items share a route, or when one
 --   of @links@ (site.yaml's links to pages of switches it has off, each
 --   with its switch: 'Config.siteSwitchedLinks') names a file no item
@@ -70,6 +78,10 @@ withCheckedRoutes links (Rules m) = Rules $ do
     (a, rs)  <- listen m
     provider <- asks rulesProvider
     routed   <- liftIO (routedItems provider rs)
+    let twice = compiledTwice rs
+    unless (null twice) $ fail $ unlines $
+        "Two or more rules compile the same item; the build would keep only one of them:"
+        : map (("  " ++) . show) twice
     let clashes = routeClashes routed
     unless (null clashes) $ fail $ unlines $
         "Two or more items route to the same file; the build would keep only one:"
