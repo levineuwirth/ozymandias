@@ -7,6 +7,12 @@
 # An extension counts in either case (IMG_0042.JPG, as a camera writes it):
 # build/Filters/Images.hs and tools/check-site.py look for its companion too.
 #
+# Two images that differ only in their extension (map.png, map.JPG) have one
+# companion between them, and a page showing either would be served whichever
+# was converted last: a draft's picture on a published page, for one. The
+# script refuses them, naming both, before it writes anything, with or
+# without cwebp.
+#
 # Photography's .w480/.w960/.w1440 variants arrive with WebP siblings that
 # tools/generate-thumbnails.py encoded from the source pixels (it runs first
 # in `make build`); they are newer than their JPEG, so this skips them. It
@@ -20,6 +26,35 @@
 # are already highly compressed, -lossless avoids further degradation.
 
 set -euo pipefail
+
+# shellcheck source=tools/site-paths.sh
+source "$(dirname "$0")/site-paths.sh"
+# The site's images and content, and the engine's images once they move.
+roots=("$SITE_ROOT/static" "$SITE_ROOT/content")
+[ "$(engine_path static)" = "$SITE_ROOT/static" ] || roots+=("$(engine_path static)")
+
+# Every image, in one order on every machine, with the companion it would
+# be given. A directory may be named as an image is (album.JPG) and is not
+# one; a link to an image is.
+images=()
+declare -A source_of
+clashes=0
+while IFS= read -r -d '' img; do
+    [[ -f "$img" ]] || continue
+    webp="${img%.*}.webp"
+    if [[ -n "${source_of[$webp]:-}" ]]; then
+        echo "convert-images: ${source_of[$webp]#"$SITE_ROOT/"} and ${img#"$SITE_ROOT/"}" \
+             "would both be converted to ${webp#"$SITE_ROOT/"}," \
+             "and a page showing one would be served the other. Rename one of them." >&2
+        clashes=$((clashes + 1))
+    else
+        source_of[$webp]=$img
+        images+=("$img")
+    fi
+done < <(find "${roots[@]}" \
+              \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) \
+              -print0 2>/dev/null | LC_ALL=C sort -z)
+[ "$clashes" -eq 0 ] || exit 1
 
 if ! command -v cwebp >/dev/null 2>&1; then
     # Exit 0 deliberately: build/Filters/Images.hs only emits a
@@ -58,16 +93,10 @@ WARN
     exit 0
 fi
 
-# shellcheck source=tools/site-paths.sh
-source "$(dirname "$0")/site-paths.sh"
-# The site's images and content, and the engine's images once they move.
-roots=("$SITE_ROOT/static" "$SITE_ROOT/content")
-[ "$(engine_path static)" = "$SITE_ROOT/static" ] || roots+=("$(engine_path static)")
-
 converted=0
 skipped=0
 
-while IFS= read -r -d '' img; do
+for img in ${images[@]+"${images[@]}"}; do
     webp="${img%.*}.webp"
     if [ -f "$webp" ] && [ ! "$img" -nt "$webp" ]; then
         skipped=$((skipped + 1))
@@ -80,8 +109,6 @@ while IFS= read -r -d '' img; do
         mv "$webp.part" "$webp"
         converted=$((converted + 1))
     fi
-done < <(find "${roots[@]}" \
-              \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) \
-              -print0 2>/dev/null)
+done
 
 echo "convert-images: ${converted} converted, ${skipped} already present."

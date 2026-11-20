@@ -14,7 +14,9 @@ Whole builds of a small scratch site against this engine:
   · a page is rebuilt when a sidecar of an image it shows changes or
     appears, and no other page is;
   · through `make build`: an entry made a draft takes its page and its
-    images out of the site, and so does a reference taken out of a page.
+    images out of the site, and so does a reference taken out of a page;
+    a draft's image that would take a published image's WebP companion
+    stops the build.
 
     python -m unittest tests.test_blog_images -v
 """
@@ -271,10 +273,13 @@ class ThroughMake(Site):
                         ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "site"]):
             subprocess.run(["git", *command], cwd=root, check=True, capture_output=True)
 
-    def make_build(self) -> str:
-        done = subprocess.run(["make", "--no-print-directory", f"PY={sys.executable}", "build"], cwd=self.root,
+    def make(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["make", "--no-print-directory", f"PY={sys.executable}", "build"], cwd=self.root,
                               env=script_env(self.stubs, SKIP_SNAPSHOT="1", ENGINE_DEV="1", SITE_THREADS="1"),
                               capture_output=True, text=True, timeout=600)
+
+    def make_build(self) -> str:
+        done = self.make()
         self.assertEqual(done.returncode, 0, done.stdout[-4000:] + done.stderr[-4000:])
         return done.stdout + done.stderr
 
@@ -313,6 +318,30 @@ class ThroughMake(Site):
                          encoding="utf-8")
         self.assertIn("full rebuild required", self.make_build())
         self.assertEqual(self.files(), self.expected(self.PUBLISHED - {"notebook/trip/day-one.map.svg"}))
+
+    def test_a_draft_s_image_cannot_take_a_published_image_s_companion(self):
+        self.make_build()
+        companion = self.blog / "first.lake.webp"
+        before, served = companion.read_bytes(), (self.root / "_site/notebook/first.lake.webp").read_bytes()
+        # The draft starts to show first.lake.JPG, newer than the companion
+        # the published post's first.lake.png has (tools/convert-images.sh
+        # would give them the same one). The build stops and says which two.
+        secret = self.blog / "secret.md"
+        secret.write_text(secret.read_text(encoding="utf-8") + "\n![The lake, drafted](first.lake.JPG)\n",
+                          encoding="utf-8")
+        image(self.blog / "first.lake.JPG")
+        done = self.make()
+        self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
+        self.assertIn("content/blog/first.lake.JPG and content/blog/first.lake.png would both be converted to "
+                      "content/blog/first.lake.webp", done.stderr)
+        self.assertEqual(companion.read_bytes(), before)
+        # Under a name of its own it is a draft's image like any other.
+        (self.blog / "first.lake.JPG").rename(self.blog / "secret.lake.JPG")
+        secret.write_text(secret.read_text(encoding="utf-8").replace("first.lake.JPG", "secret.lake.JPG"),
+                          encoding="utf-8")
+        self.make_build()
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED))
+        self.assertEqual((self.root / "_site/notebook/first.lake.webp").read_bytes(), served)
 
 
 if __name__ == "__main__":

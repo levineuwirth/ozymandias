@@ -8,7 +8,13 @@ this must write nothing into the real one) with a stand-in for cwebp:
     camera writes it);
   · a companion that is not older than its image is left alone, and one
     that is older is made again;
-  · a file that is not a JPEG or PNG gets none.
+  · a file that is not a JPEG or PNG gets none;
+  · two images with one companion between them (map.png, map.JPG) are
+    refused, both named, before anything is written, with or without
+    cwebp: the companion a published page shows must not become a
+    draft's picture;
+  · a directory named as an image is passed over, and a link to an image
+    is converted.
 
     python -m unittest tests.test_convert_images -v
 """
@@ -50,10 +56,13 @@ class ConvertImages(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def convert(self) -> str:
-        done = subprocess.run(["bash", str(self.root / "engine/tools/convert-images.sh")], cwd=self.root,
-                              env=script_env(self.stubs, SITE_ROOT=str(self.root)),
+    def run_script(self, **env: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["bash", str(self.root / "engine/tools/convert-images.sh")], cwd=self.root,
+                              env={**script_env(self.stubs, SITE_ROOT=str(self.root)), **env},
                               capture_output=True, text=True, timeout=60)
+
+    def convert(self) -> str:
+        done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout
 
@@ -82,6 +91,51 @@ class ConvertImages(unittest.TestCase):
         os.utime(kept, (900_000_000, 900_000_000))
         self.assertIn("1 converted, 0 already present", self.convert())
         self.assertEqual(kept.read_text(encoding="utf-8"), "Lake.JPG")
+
+    def test_two_images_with_one_companion_are_refused_before_anything_is_written(self):
+        # A published page shows map.png, and its companion is made.
+        self.write("content/blog/map.png")
+        self.convert()
+        self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
+        # Then a draft's map.JPG arrives, newer, beside an image not yet
+        # converted. Its pixels must not become map.webp.
+        self.write("content/blog/map.JPG")
+        self.write("content/blog/also.jpeg")
+        self.write("content/blog/other.jpg")
+        self.write("content/blog/also.PNG")
+        # With cwebp, and on a machine without it (a PATH of what the
+        # script needs besides).
+        bare = self.root / "bare"
+        bare.mkdir()
+        for tool in ("bash", "cat", "dirname", "find", "sort"):
+            (bare / tool).symlink_to(shutil.which(tool))
+        for env in ({}, {"PATH": str(bare)}):
+            with self.subTest(env=env):
+                done = self.run_script(**env)
+                self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+                self.assertIn("content/blog/map.JPG and content/blog/map.png would both be converted to "
+                              "content/blog/map.webp", done.stderr)
+                self.assertIn("content/blog/also.PNG and content/blog/also.jpeg would both be converted to "
+                              "content/blog/also.webp", done.stderr)
+                self.assertNotIn("other.jpg", done.stderr)
+                self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
+        # One of each pair renamed, the rest is converted.
+        (self.root / "content/blog/map.JPG").rename(self.root / "content/blog/plan.JPG")
+        (self.root / "content/blog/also.PNG").unlink()
+        self.assertIn("3 converted, 1 already present", self.convert())
+        self.assertEqual(self.companions(), {
+            "content/blog/map.webp": "map.png", "content/blog/plan.webp": "plan.JPG",
+            "content/blog/also.webp": "also.jpeg", "content/blog/other.webp": "other.jpg"})
+
+    def test_a_directory_named_as_an_image_is_passed_over_and_a_link_is_followed(self):
+        self.write("content/photography/album.JPG/inside.png")
+        (self.root / "content/photography/album.png").mkdir()
+        original = self.write("originals/real.jpg")
+        (self.root / "content/photography/linked.jpg").symlink_to(original)
+        (self.root / "content/photography/dangling.jpg").symlink_to(self.root / "originals/gone.jpg")
+        self.assertIn("2 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/photography/album.JPG/inside.webp": "inside.png",
+                                             "content/photography/linked.webp": "linked.jpg"})
 
 
 if __name__ == "__main__":
