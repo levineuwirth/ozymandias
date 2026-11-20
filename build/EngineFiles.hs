@@ -282,7 +282,10 @@ staticRules twins withheld on themes = do
         -- CSS, at any depth (modules/, seasons/) — must be matched before
         -- the broad rule to avoid double-matching (compressCssCompiler vs.
         -- copyFileCompiler).
-        match (served "static/css/**") $ do
+        -- A dimension sidecar beside an image kept with the stylesheets or
+        -- the scripts is the sidecars' rule's below, as one anywhere else
+        -- under static/ is: one rule for one item ("RouteCheck").
+        match (served "static/css/**" .&&. complement staticImageDimensions) $ do
             route   versioned
             compile $ do
                 path <- toFilePath <$> getUnderlying
@@ -293,13 +296,15 @@ staticRules twins withheld on themes = do
                            | otherwise                            = id
                 fmap (compressCss . copies) <$> getResourceString
 
-        match (firstParty .&&. complement (inBoth "static/css/**" .||. hosts .||. parts)) $ do
+        match (firstParty .&&. complement (inBoth "static/css/**" .||. hosts .||. parts
+                                           .||. staticImageDimensions)) $ do
             route   versioned
             compile copyFileCompiler
 
         -- A script's modules ('scriptModules'), read for it and not
         -- published alone.
-        match (served "static/js/**" .&&. parts) $ compile getResourceString
+        match (served "static/js/**" .&&. parts .&&. complement staticImageDimensions) $
+            compile getResourceString
 
         -- Each script with modules: itself, then those the switches let in,
         -- the site's file or else the engine's. With none, its own bytes.

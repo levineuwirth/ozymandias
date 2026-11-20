@@ -45,7 +45,7 @@ import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCt
 import MarkdownSections (markdownSectionsCompiler)
 import Marks      (monogramPattern)
 import qualified Patterns as P
-import Photography (photographyRules)
+import Photography (photographyAssets, photographyRules)
 import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
@@ -166,6 +166,25 @@ data Shelf = Shelf
 portalPair :: Portal -> (String, String)
 portalPair p = (portalName p, portalTag p)
 
+-- | The directory whose score fragments a standalone page with @scores@
+--   inlines: its source's.
+standaloneScoreDir :: Standalone -> [String]
+standaloneScoreDir page = [ dir | standaloneScores page, Just dir <- [standaloneDir page] ]
+
+standaloneScoreFragments :: String -> Pattern
+standaloneScoreFragments dir = fromGlob ("content/" ++ dir ++ "/scores/*.svg")
+
+-- | The fragments' copy rule, one for a directory however many of its
+--   pages have @scores@ (two pages of @content/works/@ share its
+--   @scores/@; one rule for one item, "RouteCheck"). Each page depends on
+--   the pattern for itself ('standaloneRules').
+standaloneScoreRules :: [Standalone] -> Rules ()
+standaloneScoreRules pages =
+    forM_ (nub (concatMap standaloneScoreDir pages)) $ \dir ->
+        match (standaloneScoreFragments dir) $ do
+            route   $ stripPrefixRoute ("content/" ++ dir ++ "/")
+            compile copyFileCompiler
+
 -- | The rules for one of site.yaml's standalone pages: the page at its
 --   route, compiled with its context's compiler and rendered into its
 --   template, and, with @scores@, the score fragments beside its source.
@@ -179,14 +198,7 @@ portalPair p = (portalName p, portalTag p)
 --   why a page with scores lives in a directory of its own.
 standaloneRules :: Standalone -> Rules ()
 standaloneRules page = do
-    scoreDeps <- case (standaloneScores page, standaloneDir page) of
-        (True, Just dir) -> do
-            let scores = fromGlob ("content/" ++ dir ++ "/scores/*.svg")
-            match scores $ do
-                route   $ stripPrefixRoute ("content/" ++ dir ++ "/")
-                compile copyFileCompiler
-            (: []) <$> makePatternDependency scores
-        _ -> return []
+    scoreDeps <- mapM (makePatternDependency . standaloneScoreFragments) (standaloneScoreDir page)
     rulesExtraDependencies scoreDeps $ match (fromList [fromFilePath (standaloneSource page)]) $ do
         route   $ constRoute (standaloneRoute page)
         compile $ compiler
@@ -361,9 +373,12 @@ rules = do
 
     -- Per-page JS files — authored alongside content in content/**/*.js.
     -- Draft JS is handled by a separate dev-only rule below. An essay's
-    -- own script is one of its assets, which their rule copies: one rule
-    -- for one item ("RouteCheck").
-    match ("content/**/*.js" .&&. complement "content/drafts/**" .&&. complement essayAssets) $ do
+    -- own script is one of its assets, which their rule copies, and a
+    -- photograph's one of its: one rule for one item ("RouteCheck").
+    let photoAssets | switchOn cfg "photography" = photographyAssets
+                    | otherwise                  = fromList []
+    match ("content/**/*.js" .&&. complement "content/drafts/**"
+           .&&. complement (essayAssets .||. photoAssets)) $ do
         route   fileRoute
         compile copyFileCompiler
 
@@ -509,6 +524,7 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Standalone pages: site.yaml's table (me, colophon, current, …)
     -- ---------------------------------------------------------------------------
+    standaloneScoreRules (siteStandalone cfg)
     forM_ (siteStandalone cfg) standaloneRules
 
     -- A Markdown file in a standalone page's own directory that no entry
@@ -638,8 +654,12 @@ rules = do
     -- photography asset rules claim (and copy) theirs; this claims the rest
     -- (standalone pages, /me/, /music/, poetry), with no route. Drafts' are
     -- claimed by the dev asset rule, or not built.
+    -- A standalone page's score fragments are their copy rule's, one
+    -- named like a monogram too.
+    let scoreFragments = foldr (.||.) (fromList [])
+            (map standaloneScoreFragments (concatMap standaloneScoreDir (siteStandalone cfg)))
     when (switchOn cfg "marks") $ match (monogramPattern
-           .&&. complement (essayAssets .||. musicAssets
+           .&&. complement (essayAssets .||. musicAssets .||. scoreFragments
                             .||. "content/photography/**" .||. "content/drafts/**")) $
         compile getResourceLBS
 

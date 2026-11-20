@@ -17,6 +17,7 @@
 --   phased implementation plan.
 module Photography
     ( photographyRules
+    , photographyAssets
     ) where
 
 import           Control.Applicative    ((<|>))
@@ -125,34 +126,27 @@ photographyRules cfg = do
 --   one slips into the repo. The build is not load-bearing on
 --   sidecar absence.
 photographyAssetRules :: Rules ()
-photographyAssetRules = do
-    -- Top-level non-Markdown files (flat-single co-located assets, plus
-    -- any future top-level photography assets like a landing-page hero).
-    --
-    -- Sidecars produced by the Phase 3 Python tooling
-    -- (@{photo}.exif.yaml@, @{photo}.palette.yaml@) are excluded —
-    -- they're consumed by Hakyll at build time and have no role in
-    -- the deployed site.
-    match ("content/photography/*"
-           .&&. complement "content/photography/*.md"
-           .&&. complement "content/photography/*.exif.yaml"
-           .&&. complement "content/photography/*.palette.yaml"
-           .&&. complement "content/photography/*.dims.yaml") $ do
-        route $ stripPrefixRoute "content/"
-        compile copyFileCompiler
+photographyAssetRules = match photographyAssets $ do
+    route $ stripPrefixRoute "content/"
+    compile copyFileCompiler
 
-    -- Directory-form entries' co-located assets. Excludes the entry's
-    -- @index.md@, any other Markdown sibling files (collection photos
-    -- in Phase 5), and every build-time YAML sidecar (EXIF, palette,
-    -- dimensions).
-    match ("content/photography/*/*"
-           .&&. complement "content/photography/*/index.md"
-           .&&. complement "content/photography/*/*.md"
-           .&&. complement "content/photography/*/*.exif.yaml"
-           .&&. complement "content/photography/*/*.palette.yaml"
-           .&&. complement "content/photography/*/*.dims.yaml") $ do
-        route $ stripPrefixRoute "content/"
-        compile copyFileCompiler
+-- | The files those rules copy, a page's own script among them, so that
+--   no other rule takes one ("Site": the per-page script rule; one rule
+--   for one item, "RouteCheck").
+--
+--   * Top-level non-Markdown files (flat-single co-located assets, plus
+--     any future top-level photography assets like a landing-page hero).
+--   * Directory-form entries' co-located assets, which excludes the
+--     entry's @index.md@ and any other Markdown sibling (a series'
+--     photos).
+--
+--   The build-time YAML sidecars (EXIF, palette, dimensions) are read by
+--   Hakyll and have no role in the deployed site.
+photographyAssets :: Pattern
+photographyAssets = foldr1 (.||.)
+    [ fromGlob (dir ++ "*") .&&. complement (foldr1 (.||.)
+          [ fromGlob (dir ++ "*." ++ ext) | ext <- ["md", "exif.yaml", "palette.yaml", "dims.yaml"] ])
+    | dir <- ["content/photography/", "content/photography/*/"] ]
 
 -- ---------------------------------------------------------------------------
 -- Single-photo entries
