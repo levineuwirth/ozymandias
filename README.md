@@ -141,11 +141,19 @@ the freshness check hashes it.
   is written in `content/blog/` and served at `/notebook/`: its pages,
   its collections, a page's own script (a `.js` beside it) and its
   landing, which is there before the first entry and is in the sitemap.
-  Only `essays` publishes the other files beside a page (figures, data,
-  PDFs, at the essay's address); in `blog`, `poetry` and `fiction` an
-  image or a file beside a page is not published, and a relative link to
-  one is a missing file (`check-site` reports it), so those go under
-  `static/`. Wikilinks and tags follow the address (`[[Notebook]]` is
+  `essays` publishes every other file beside a page (figures, data,
+  PDFs, at the essay's address). `blog` publishes the images beside or
+  below an entry (`.avif`, `.gif`, `.jpeg`, `.jpg`, `.png`, `.svg`,
+  `.webp`), so an entry shows one by a relative path
+  (`![The lake](first.lake.jpg)` in `content/blog/first.md`), with the
+  width, height and WebP companion the build's tools make for it. An
+  entry with `draft: true` withholds the images named for it
+  (`first.jpg`, `first.<anything>.jpg` beside `first.md`) from a
+  production build; an image beside it under another name is published
+  whatever shows it, so a draft's images are named for it. No other file
+  beside a blog entry is published, and none beside a page of `poetry`
+  or `fiction`: a relative link to one is a missing file (`check-site`
+  reports it), and those go under `static/`. Wikilinks and tags follow the address (`[[Notebook]]` is
   the landing; a tag `notebook` has no page of its own), and a page
   collection may not take it. An address may not be a directory the
   engine or the build writes (`assets`, `data`, `drafts`, `pagefind`,

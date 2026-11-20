@@ -44,7 +44,9 @@ class UnpublishedTests(unittest.TestCase):
         self.write("content/essays/live.md", LIVE)
         self.assertEqual(self.unpublished(), sorted([
             "file content/about-me.md", "file content/blog/post.md", "file content/essays/flat.md",
-            "file content/fiction/story.md", "file content/notes/page.md", "file content/poetry/poem.md"]))
+            "file content/fiction/story.md", "file content/notes/page.md", "file content/poetry/poem.md",
+            # A blog entry's images go with it.
+            "images content/blog/post."]))
 
     def test_a_directory_entry_withholds_its_directory(self):
         self.write("content/essays/dir-essay/index.md", DRAFT)
@@ -66,6 +68,17 @@ class UnpublishedTests(unittest.TestCase):
         self.assertEqual(self.unpublished(), [
             "file content/photography/harbor.md",
             "stem content/photography/IMG_0042.", "stem content/photography/harbor."])
+
+    def test_a_blog_entry_withholds_the_images_named_for_it(self):
+        # A flat post and a collection's entry; the collection's landing
+        # withholds only itself, as a poetry or fiction landing does.
+        self.write("content/blog/post.md", DRAFT)
+        self.write("content/blog/trip/index.md", DRAFT)
+        self.write("content/blog/trip/day-one.md", DRAFT)
+        self.write("content/blog/live.md", LIVE)
+        self.assertEqual(self.unpublished(), [
+            "file content/blog/post.md", "file content/blog/trip/day-one.md", "file content/blog/trip/index.md",
+            "images content/blog/post.", "images content/blog/trip/day-one."])
 
     def test_truthy_spellings_and_non_flags(self):
         self.write("content/a.md", "---\ndraft: yes\n---\n")

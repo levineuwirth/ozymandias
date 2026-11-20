@@ -692,7 +692,21 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Blog posts
     -- ---------------------------------------------------------------------------
-    match P.blogPattern $ do
+    -- An entry's images, shown by a relative path from beside it or
+    -- below it: published where they are, at the section's address, as a
+    -- post and a collection are. Their dimension sidecars are read by
+    -- Filters.Images while a page is compiled and are claimed without a
+    -- route, as the essays' are, so that the dependency below can fire.
+    -- The pattern is of published, unversioned files, all of them claimed
+    -- here: one that no rule claimed would put every post out of date on
+    -- every build (audit H05).
+    match P.blogImages $ do
+        route   fileRoute
+        compile copyFileCompiler
+    match P.blogImageDimensions $ compile getResourceLBS
+    blogImageDep <- makePatternDependency (hasNoVersion .&&. (P.blogImages .||. P.blogImageDimensions))
+
+    rulesExtraDependencies [blogImageDep] $ match P.blogPattern $ do
         route   pageRoute
         compile $ postCompiler
             >>= saveSnapshot "content"
@@ -700,7 +714,7 @@ rules = do
 
     -- Blog collection index pages
     -- (content/blog/<collection>/index.md → blog/<collection>/index.html).
-    match "content/blog/*/index.md" $ do
+    rulesExtraDependencies [blogImageDep] $ match "content/blog/*/index.md" $ do
         route   pageRoute
         compile $ pageCompiler
             >>= loadAndApplyTemplate "templates/default.html" pageCtx

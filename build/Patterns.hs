@@ -13,6 +13,8 @@ module Patterns
       essayPattern
     , draftEssayPattern
     , blogPattern
+    , blogImages
+    , blogImageDimensions
     , poetryPattern
     , fictionPattern
     , musicPattern
@@ -31,7 +33,7 @@ module Patterns
 
 import Hakyll
 import Config (SiteConfig (..), Standalone (..), switchOn)
-import Drafts (currentUnpublished, unpublishedPattern)
+import Drafts (currentUnpublished, entryImageExtensions, unpublishedPattern)
 import Sections (reservedSectionDirs)
 
 -- | Pages a production build withholds for @draft: true@, and the files
@@ -71,6 +73,21 @@ blogPattern :: Pattern
 blogPattern = published $
        "content/blog/*.md"
   .||. ("content/blog/*/*.md" .&&. complement "content/blog/*/index.md")
+
+-- | The image files a blog entry shows by a relative path, beside it or
+--   below it (@content/blog/first.lake.jpg@, @content/blog/trip/map.svg@):
+--   published where they are, at the section's address. A WebP companion
+--   (tools/convert-images.sh) is one of them. A monogram is not: it is
+--   read into a page ("Marks"), never published.
+blogImages :: Pattern
+blogImages = published $
+    foldr1 (.||.) [ fromGlob ("content/blog/**." ++ ext) | ext <- entryImageExtensions ]
+    .&&. complement ("content/**/mark.svg" .||. "content/**.mark.svg")
+
+-- | Their dimension sidecars (tools/extract-dimensions.py), which
+--   "Filters.Images" reads while a page is compiled: inputs, not published.
+blogImageDimensions :: Pattern
+blogImageDimensions = published "content/blog/**.dims.yaml"
 
 -- | All poetry: flat poems plus collection poems, excluding collection
 -- index pages (which are landing pages, not poems).

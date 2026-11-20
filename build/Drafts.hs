@@ -26,7 +26,14 @@
 --   * for a directory-form entry (@content/{essays,music,photography}/<slug>/index.md@),
 --     its whole directory: figures, scores, recordings, a series' frames;
 --   * for a flat photograph (@content/photography/<slug>.md@), the image
---     files that share its stem or its @photo:@ field's stem.
+--     files that share its stem or its @photo:@ field's stem;
+--   * for a blog entry (@content/blog/<slug>.md@, or one in a collection),
+--     the images named for it: @<slug>.<ext>@ and @<slug>.<anything>.<ext>@
+--     beside it, for an image's extension ('entryImageExtensions'), and
+--     their dimension sidecars. Another page beside it whose name begins
+--     the same way (@<slug>.2.md@) is not an image and publishes on its
+--     own flag. An image beside it under another name is not the entry's
+--     and is published.
 --
 -- A poetry, fiction or blog collection's @index.md@ withholds only that
 -- landing page; the pieces inside publish on their own flags.
@@ -43,6 +50,7 @@ module Drafts
     , withoutUnpublished
     , unpublishedSummary
     , markdownUnder
+    , entryImageExtensions
     ) where
 
 import           Control.Exception    (IOException, try)
@@ -52,7 +60,7 @@ import qualified Data.Aeson           as A
 import qualified Data.Aeson.KeyMap    as KM
 import qualified Data.ByteString.Char8 as BS
 import           Data.Char            (isSpace)
-import           Data.List            (isPrefixOf, sort)
+import           Data.List            (isPrefixOf, isSuffixOf, sort)
 import           Data.Maybe           (catMaybes, listToMaybe)
 import qualified Data.Set             as Set
 import qualified Data.Text            as T
@@ -75,10 +83,20 @@ data Unpublished = Unpublished
     { upFiles :: Set.Set FilePath   -- ^ the flagged files themselves
     , upDirs  :: [FilePath]         -- ^ directories withheld whole
     , upStems :: [FilePath]         -- ^ @dir/stem.@ prefixes of a flat photo's images
+    , upImages :: [FilePath]        -- ^ @dir/stem.@ prefixes of a blog entry's images
     }
 
 noneUnpublished :: Unpublished
-noneUnpublished = Unpublished Set.empty [] []
+noneUnpublished = Unpublished Set.empty [] [] []
+
+-- | The extensions of the image files a blog entry shows from beside it
+--   ('Patterns.blogImages' publishes them), a WebP companion's among them.
+entryImageExtensions :: [String]
+entryImageExtensions = ["avif", "gif", "jpeg", "jpg", "png", "svg", "webp"]
+
+-- | Is this file an image or an image's dimension sidecar, by its name?
+entryImage :: FilePath -> Bool
+entryImage p = drop 1 (takeExtension p) `elem` entryImageExtensions || ".dims.yaml" `isSuffixOf` p
 
 -- | Walk @root@ (normally @content@) and collect every flagged file.
 -- @content/drafts/@ is skipped: nothing there is published anyway.
@@ -89,8 +107,16 @@ scanUnpublished root = do
     let files = [fp | (fp, _) <- flagged]
         dirs  = [takeDirectory fp | (fp, _) <- flagged, isDirectoryEntry fp]
         stems = concat [flatPhotoStems fp photo | (fp, photo) <- flagged, isFlatPhoto fp]
-    return (Unpublished (Set.fromList (map norm files)) (map norm dirs) (map norm stems))
+        images = [stemPrefix fp | (fp, _) <- flagged, isBlogEntry fp]
+    return (Unpublished (Set.fromList (map norm files)) (map norm dirs) (map norm stems) (map norm images))
   where
+    stemPrefix fp = takeDirectory fp </> dropExtension (takeFileName fp) ++ "."
+    -- A flat post or an entry of a collection; a collection's index.md
+    -- is its landing, and withholds only itself.
+    isBlogEntry fp = case splitDirectories (makeRelative root fp) of
+        ["blog", _]          -> True
+        ["blog", _, name]    -> name /= "index.md"
+        _                    -> False
     isDirectoryEntry fp = case splitDirectories (makeRelative root fp) of
         [section, _, "index.md"] -> section `elem` ["essays", "music", "photography"]
         _                                   -> False
@@ -116,7 +142,13 @@ unpublishedPattern :: Unpublished -> Pattern
 unpublishedPattern up =
     foldr (.||.) (fromList (map fromFilePath (Set.toList (upFiles up))))
         (  [fromGlob (d ++ "/**") | d <- upDirs up]
-        ++ [fromGlob (s ++ "*")   | s <- upStems up] )
+        ++ [fromGlob (s ++ "*")   | s <- upStems up]
+        -- @stem.ext@ and @stem.<anything>.ext@; a sidecar's name is its
+        -- image's and @.dims.yaml@.
+        ++ concat [ fromGlob (s ++ "*.dims.yaml")
+                    : concat [ [fromGlob (s ++ ext), fromGlob (s ++ "*." ++ ext)]
+                             | ext <- entryImageExtensions ]
+                  | s <- upImages up ] )
 
 -- | Drop every compiler and resource for a withheld file from the rules'
 -- output. Uses Hakyll's exposed 'Hakyll.Core.Rules.Internal'; a Hakyll
@@ -138,16 +170,19 @@ isUnpublished up path =
        p `Set.member` upFiles up
     || any (\d -> p == d || (d ++ "/") `isPrefixOf` p) (upDirs up)
     || any (`isPrefixOf` p) (upStems up)
+    || (entryImage p && any (`isPrefixOf` p) (upImages up))
   where
     p = norm path
 
--- | One line per withheld file, directory and image stem, sorted; for
+-- | One line per withheld file, directory, image stem and blog entry's
+-- images, sorted; for
 -- @site list-unpublished@ and the tests.
 unpublishedSummary :: Unpublished -> [String]
 unpublishedSummary up = sort $
        ["file " ++ f | f <- Set.toList (upFiles up)]
     ++ ["dir "  ++ d | d <- upDirs up]
     ++ ["stem " ++ s | s <- upStems up]
+    ++ ["images " ++ s | s <- upImages up]
 
 -- ---------------------------------------------------------------------------
 
