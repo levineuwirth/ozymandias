@@ -26,7 +26,8 @@
 --   * for a directory-form entry (@content/{essays,music,photography}/<slug>/index.md@),
 --     its whole directory: figures, scores, recordings, a series' frames;
 --   * for a flat photograph (@content/photography/<slug>.md@), the image
---     files that share its stem or its @photo:@ field's stem.
+--     files beside it that share its stem or its @photo:@ field's stem
+--     (nothing in a directory below, whatever the directory is called).
 --
 -- And one thing no flag names: an image under @content/blog/@ that no
 -- published entry or collection landing of the blog refers to
@@ -83,7 +84,7 @@ import           BlogImages           (imageInputs, isImage, isMonogram, referen
 data Unpublished = Unpublished
     { upFiles :: Set.Set FilePath   -- ^ the flagged files themselves, and the blog's unshown images
     , upDirs  :: [FilePath]         -- ^ directories withheld whole
-    , upStems :: [FilePath]         -- ^ @dir/stem.@ prefixes of a flat photo's images
+    , upStems :: [FilePath]         -- ^ @dir/stem.@: what a flat photo's images' names begin with, in @dir@
     }
 
 noneUnpublished :: Unpublished
@@ -173,9 +174,14 @@ isUnpublished :: Unpublished -> FilePath -> Bool
 isUnpublished up path =
        p `Set.member` upFiles up
     || any (\d -> p == d || (d ++ "/") `isPrefixOf` p) (upDirs up)
-    || any (`isPrefixOf` p) (upStems up)
+    || any stemOf (upStems up)
   where
     p = norm path
+    -- A stem is the beginning of a file's name, in the draft's own
+    -- directory: @photography\/harbor.@ is @harbor.jpg@'s and is not
+    -- @harbor.2024\/dock.jpg@'s, as 'unpublishedPattern' has it (a
+    -- glob's @*@ stops at a slash).
+    stemOf s = s `isPrefixOf` p && '/' `notElem` drop (length s) p
 
 -- | One line per withheld file, directory and image stem, sorted; for
 -- @site list-unpublished@ and the tests.

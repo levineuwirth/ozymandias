@@ -30,7 +30,8 @@ def withheld(path: Path, boundary: dict[str, list[str]]) -> bool:
     name = str(path.resolve())
     return (name in boundary["file"]
             or any(name == d or name.startswith(d + "/") for d in boundary["dir"])
-            or any(name.startswith(s) for s in boundary["stem"]))
+            # A stem begins a file's name in the draft's own directory.
+            or any(name.startswith(s) and "/" not in name[len(s):] for s in boundary["stem"]))
 
 
 if __name__ == "__main__":

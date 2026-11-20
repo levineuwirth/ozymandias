@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import requires_cabal, site_binary
+from tests._helpers import load_tool, requires_cabal, script_env, site_binary, write_photo_site_config
 
 
 DRAFT = "---\ntitle: T\ndraft: true\n---\nBody.\n"
@@ -66,6 +66,37 @@ class UnpublishedTests(unittest.TestCase):
         self.assertEqual(self.unpublished(), [
             "file content/photography/harbor.md",
             "stem content/photography/IMG_0042.", "stem content/photography/harbor."])
+
+    def test_a_flat_photograph_withholds_nothing_in_another_directory(self):
+        # A draft's stem is a file name's beginning, in the draft's own
+        # directory. A series beside it whose directory begins the same way
+        # is another entry: it and its frames are published.
+        self.write("content/photography/harbor.md",
+                   "---\ntitle: Harbor\ndate: 2026-01-01\nphoto: IMG_0042.jpg\ndraft: true\n---\n")
+        for name in ("harbor.jpg", "harbor.w480.jpg", "IMG_0042.jpg"):
+            self.write(f"content/photography/{name}")
+        self.write("content/photography/harbor.2024/index.md", "---\ntitle: Harbor, 2024\ndate: 2026-01-02\n---\n")
+        self.write("content/photography/harbor.2024/dock.md",
+                   "---\ntitle: Dock\ndate: 2026-01-03\nphoto: dock.jpg\nseries: harbor.2024\n---\n")
+        self.write("content/photography/harbor.2024/dock.jpg")
+        (self.root / "data").mkdir()
+        write_photo_site_config(self.root)
+        done = subprocess.run([str(self.binary), "list-routes"], cwd=self.root, env=script_env(),
+                              capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        sources = {line.split("\t")[1] for line in done.stdout.splitlines()}
+        self.assertEqual({s for s in sources if s.startswith("content/photography/")}, {"content/photography/harbor.2024/index.md", "content/photography/harbor.2024/dock.md",
+                                 "content/photography/harbor.2024/dock.jpg"})
+
+    def test_the_python_reader_keeps_a_stem_to_its_directory(self):
+        # tools/unpublished.py reads the same lines the same way.
+        at = self.root.resolve() / "content/photography"
+        boundary = {"file": [], "dir": [], "stem": [f"{at}/harbor."]}
+        withheld = load_tool("unpublished.py").withheld
+        self.assertTrue(withheld(at / "harbor.jpg", boundary))
+        self.assertTrue(withheld(at / "harbor.w480.webp", boundary))
+        self.assertFalse(withheld(at / "harbor.2024/dock.jpg", boundary))
+        self.assertFalse(withheld(at / "harbors.jpg", boundary))
 
     def test_truthy_spellings_and_non_flags(self):
         self.write("content/a.md", "---\ndraft: yes\n---\n")
