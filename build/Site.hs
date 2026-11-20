@@ -41,7 +41,7 @@ import EngineFiles  (engineTwins, readThemes, siteRelative, staticImageDimension
 import Now          (nowCtx, nowLastUpdated)
 import Vita         (vitaCtx, projectsCtx)
 import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCtx, fictionCtx, compositionCtx,
-                   contentKindField, declaresScore, recentFirstByDisplay,
+                   contentKindField, declaresScore, recentFirstByDisplay, revisionDateFields,
                    tagLinksFieldExcludingTopSegment,
                    canonicalUrlPath, feedBodyField, feedMetaFields, identifierDisplayUTC)
 import MarkdownSections (markdownSectionsCompiler)
@@ -733,12 +733,15 @@ rules = do
             >>= inDefault "templates/blog-post.html" postCtx
 
     -- Blog collection index pages
-    -- (content/blog/<collection>/index.md → blog/<collection>/index.html).
+    -- (content/blog/<collection>/index.md → blog/<collection>/index.html):
+    -- a landing as poetry's and fiction's are ('collectionCtx'), with the
+    -- collection's entries listed under its own prose.
     match "content/blog/*/index.md" $ do
         route   pageRoute
-        compile $ blogImageInputs >> pageCompiler
-            >>= loadAndApplyTemplate "templates/default.html" pageCtx
-            >>= relativizeUrls
+        compile $ do
+            ctx <- collectionCtx P.blogPattern (revisionDateFields <> postCtx) pageCtx
+            blogImageInputs >> pageCompiler
+                >>= inDefault "templates/collection.html" ctx
 
     -- ---------------------------------------------------------------------------
     -- Poetry
@@ -1569,7 +1572,7 @@ rules = do
 --     builds render the last production build's.
 
 -- ---------------------------------------------------------------------------
--- Collections (poetry / fiction landing pages)
+-- Collections (blog / poetry / fiction landing pages)
 -- ---------------------------------------------------------------------------
 
 -- | Context for a collection landing page: the ordinary page fields plus

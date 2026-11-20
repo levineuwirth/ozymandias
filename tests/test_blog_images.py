@@ -267,11 +267,6 @@ class ThroughMake(Site):
         self.stubs = stub_bin(root / "bin", ["cabal"], CABAL.format(binary=site_binary()))
         self.configure(sections=[NOTEBOOK], switches={
             "authors": False, "new": False, "popups": False, "reading-progress": False, "tag-pages": False})
-        # The gate at the end of `make build` (tools/check-site.py) refuses a
-        # blog collection's landing as the engine writes it, with no
-        # #markdownBody for the skip link to go to. That is the landing
-        # rule's and older than this; the collection is kept without one.
-        (self.blog / "trip/index.md").unlink()
         for command in (["init", "-q", "-b", "main"], ["add", "-A"],
                         ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "site"]):
             subprocess.run(["git", *command], cwd=root, check=True, capture_output=True)
@@ -284,11 +279,11 @@ class ThroughMake(Site):
         return done.stdout + done.stderr
 
     def expected(self, published: set[str]) -> set[str]:
-        """`published` without the landing, and with the companions the
-        build made where cwebp is installed (tools/convert-images.sh)."""
+        """`published`, with the companions the build made where cwebp is
+        installed (tools/convert-images.sh)."""
         made = {p.rsplit(".", 1)[0] + ".webp" for p in published
                 if p.rsplit(".", 1)[-1] in ("jpg", "jpeg", "png", "gif")}
-        return (published - {"notebook/trip/index.html"}) | {
+        return published | {
             p for p in made if (self.root / "content" / p.replace("notebook/", "blog/", 1)).is_file()}
 
     def test_an_entry_made_a_draft_takes_its_page_and_images_out_of_the_site(self):
@@ -305,7 +300,7 @@ class ThroughMake(Site):
         self.assertIn("full rebuild required", log)
         self.assertIn("draft flag changed", log)
         self.assertEqual(self.files(), self.expected({
-            "notebook/index.html", "notebook/second.html", "notebook/trip/day-one.html",
+            "notebook/index.html", "notebook/second.html", "notebook/trip/index.html", "notebook/trip/day-one.html",
             "notebook/trip/day-one.map.svg", "notebook/trip/route.jpg", "notebook/shared.svg"}))
         self.assertNotIn("first.lake", self.read("feed.xml"))
         self.assertIn("incremental build OK", self.make_build())

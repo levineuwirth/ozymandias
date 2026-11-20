@@ -1,11 +1,12 @@
-<!-- Collection landing page — content/poetry/<slug>/index.md and
-     content/fiction/<slug>/index.md.
+<!-- Collection landing page — content/blog/<slug>/index.md,
+     content/poetry/<slug>/index.md and content/fiction/<slug>/index.md.
 
-     Audit C05: both rules used to apply templates/default.html straight to
+     Audit C05: the rules used to apply templates/default.html straight to
      the compiled Markdown, so the page had no h1, no <main> landmark, no
      #markdownBody (the site-wide skip link's target), and no list of the
      collection's own children — even though the scaffold prose promised
-     that poems "link from here automatically".
+     that poems "link from here automatically". (The blog's rule did until
+     2026-11-20, and tools/check-site.py refused the page.)
 
      Children come from the `collection-entries` listField built by
      Site.rules from the sibling files in the same directory, most recent
