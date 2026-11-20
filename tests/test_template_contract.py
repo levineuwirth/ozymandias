@@ -200,6 +200,32 @@ class TemplateContractTests(unittest.TestCase):
         self.assertEqual(review.hook_problems(self.root, self.binary), [
             f"{landing}: lacks .mode-btn[data-mode]:not([data-mode=slideshow]) ({controls}'s)"])
 
+    def test_controls_must_be_elements_in_the_site_landing(self):
+        landing = "templates/photography-index.html"
+        controls = "templates/partials/photography-controls.html"
+        call = f'$partial("{controls}")$'
+        page = engine_path("fixture-site/" + landing).read_text()
+        self.override(landing, page)
+        self.override(controls, '<button class="mode-btn" data-mode="grid">Grid</button>')
+        for wrapped in (f'<script type="text/x-template">{call}</script>', f'<template>{call}</template>',
+                        f"<div data-controls='{call}'></div>"):
+            with self.subTest(wrapped=wrapped):
+                (self.root / landing).write_text(page.replace(call, wrapped))
+                self.assertEqual(review.hook_problems(self.root, self.binary), [
+                    f"{landing}: lacks .mode-btn[data-mode]:not([data-mode=slideshow]) ({controls}'s)"])
+
+    def test_nested_ornament_must_be_an_element_in_its_caller(self):
+        controls = "templates/partials/photography-controls.html"
+        ornament = "templates/partials/ornament.html"
+        self.override(ornament, '<hr class="footer-ornament">')
+        self.override(controls, '<button class="mode-btn" data-mode="grid">Grid</button>'
+                      '<hr class="footer-ornament">'
+                      f'$if(is-series)$<script type="text/x-template">$partial("{ornament}")$</script>$endif$')
+        series = "templates/photography-series.html"
+        self.assertEqual(review.template_problems(self.root, series, self.terms, self.binary,
+                                                  (controls, ornament)), [
+            f"{series}: lacks .footer-ornament ({ornament}'s)"])
+
     def test_a_conditional_partial_only_needs_its_hooks_where_it_renders(self):
         controls = "templates/partials/photography-controls.html"
         ornament = "templates/partials/ornament.html"

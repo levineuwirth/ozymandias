@@ -134,34 +134,55 @@ def selector_parts(selector: str) -> tuple[str | None, list[tuple[str, str, str 
 
 
 class _Elements(HTMLParser):
-    """Each element's tag, attributes and depth (0: at the top level)."""
+    """Start tags in the caller's HTML, with their source spans and parent positions."""
 
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.found: list[tuple[str, dict[str, str], int]] = []
-        self.depth = 0
+    def __init__(self, html: str):
+        super().__init__(convert_charrefs=True, scripting=True)
+        self.line_starts = [0, *(m.end() for m in re.finditer("\n", html))]
+        self.parents: list[tuple[str, int]] = []
+        self.found: list[tuple[int, int, int, str, dict[str, str]]] = []
+        self.feed(html)
+        self.close()
 
     def handle_starttag(self, tag, attrs):
-        self.handle_startendtag(tag, attrs)
+        start = self._record(tag, attrs)
         if tag not in VOID:
-            self.depth += 1
+            self.parents.append((tag, start))
 
     def handle_startendtag(self, tag, attrs):
-        self.found.append((tag, {k: v or "" for k, v in attrs}, self.depth))
+        self._record(tag, attrs)
+
+    def _record(self, tag, attrs) -> int:
+        line, col = self.getpos()
+        start = self.line_starts[line - 1] + col
+        # A template's contents belong to its separate document fragment.
+        if not any(name == "template" for name, _ in self.parents):
+            end = start + len(self.get_starttag_text())
+            parent = self.parents[-1][1] if self.parents else -1
+            self.found.append((start, end, parent, tag, {k: v or "" for k, v in attrs}))
+        return start
 
     def handle_endtag(self, tag):
-        if tag not in VOID:
-            self.depth = max(self.depth - 1, 0)
+        for i in reversed(range(len(self.parents))):
+            if self.parents[i][0] == tag:
+                del self.parents[i:]
+                break
+
+    def in_span(self, start: int, end: int) -> list[tuple[str, dict[str, str], bool]]:
+        """Elements opened by this invocation; its roots have a parent outside it."""
+        return [(tag, attrs, parent < start) for opening, after, parent, tag, attrs in self.found
+                if start <= opening and after <= end]
 
 
 def matches(html: str, selector: str, root: bool = False) -> bool:
     """Whether some element of `html` matches the hook `selector`; with
     `root`, one at the top level, which the engine places as it is (the
     footer, a direct child of the page shell)."""
+    return _matches_elements(_Elements(html).in_span(0, len(html)), selector, root)
+
+
+def _matches_elements(elements: list[tuple[str, dict[str, str], bool]], selector: str, root: bool) -> bool:
     tag, parts = selector_parts(selector)
-    parser = _Elements()
-    parser.feed(html)
-    parser.close()
 
     def element_matches(element_tag: str, attrs: dict[str, str]) -> bool:
         if tag and element_tag != tag:
@@ -177,7 +198,7 @@ def matches(html: str, selector: str, root: bool = False) -> bool:
                 return False
         return True
 
-    return any(element_matches(t, a) for t, a, depth in parser.found if not root or depth == 0)
+    return any(element_matches(t, a) for t, a, at_root in elements if not root or at_root)
 
 
 def context(terms: dict, template: str) -> dict:
@@ -286,8 +307,8 @@ def render(root: Path, template: str, fields: dict, binary: str,
                                str(scratch / "work")], cwd=site, capture_output=True, text=True)
 
 
-def rendered_fragments(output: str, marker: str, partials: tuple[str, ...]) -> tuple[str, list[tuple[str, str]]]:
-    """Remove the render's markers and recover the HTML of each partial call,
+def rendered_spans(output: str, marker: str, partials: tuple[str, ...]) -> tuple[str, list[tuple[str, int, int]]]:
+    """Remove the render's markers and recover the source range of each partial call,
     including nested calls and separate iterations of the same loop."""
     pattern = re.compile(marker + r"(\d*):")
     starts, spans = [], []
@@ -301,7 +322,7 @@ def rendered_fragments(output: str, marker: str, partials: tuple[str, ...]) -> t
             spans.append((path, start, offset))
         removed += match.end() - match.start()
     html = pattern.sub("", output)
-    return html, [(path, html[start:end]) for path, start, end in spans]
+    return html, spans
 
 
 def template_problems(root: Path, template: str, terms: dict, binary: str,
@@ -322,12 +343,14 @@ def template_problems(root: Path, template: str, terms: dict, binary: str,
     done = render(root, template, fields, binary, boundaries)
     if done.returncode != 0:
         return problems + [f"{template}: does not render with its fixture context: {done.stderr.strip()}"]
-    html, fragments = rendered_fragments(done.stdout, marker, partials)
+    html, spans = rendered_spans(done.stdout, marker, partials)
+    document = _Elements(html)
     missing = []
-    for path, fragment in [(template, html), *fragments]:
+    for path, start, end in [(template, 0, len(html)), *spans]:
+        elements = document.in_span(start, end)
         for hook in terms["templates"][path].get("hooks") or []:
             selector, at_root = hook["selector"], bool(hook.get("root"))
-            if not matches(fragment, selector, root=at_root):
+            if not _matches_elements(elements, selector, root=at_root):
                 level = " at its top level" if at_root else ""
                 owner = f" ({path}'s)" if path != template else ""
                 missing.append(f"{selector}{level}{owner}")
