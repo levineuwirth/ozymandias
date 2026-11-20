@@ -4,6 +4,8 @@
 # Walks static/ and content/ for JPEG and PNG files and calls cwebp to produce
 # a .webp file alongside each one.  Existing .webp files are skipped (safe to
 # re-run).  If cwebp is not found the script exits 0 so the build continues.
+# An extension counts in either case (IMG_0042.JPG, as a camera writes it):
+# build/Filters/Images.hs and tools/check-site.py look for its companion too.
 #
 # Photography's .w480/.w960/.w1440 variants arrive with WebP siblings that
 # tools/generate-thumbnails.py encoded from the source pixels (it runs first
@@ -79,7 +81,7 @@ while IFS= read -r -d '' img; do
         converted=$((converted + 1))
     fi
 done < <(find "${roots[@]}" \
-              \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) \
+              \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) \
               -print0 2>/dev/null)
 
 echo "convert-images: ${converted} converted, ${skipped} already present."

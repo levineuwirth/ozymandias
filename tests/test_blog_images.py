@@ -282,7 +282,7 @@ class ThroughMake(Site):
         """`published`, with the companions the build made where cwebp is
         installed (tools/convert-images.sh)."""
         made = {p.rsplit(".", 1)[0] + ".webp" for p in published
-                if p.rsplit(".", 1)[-1] in ("jpg", "jpeg", "png", "gif")}
+                if p.rsplit(".", 1)[-1].lower() in ("jpg", "jpeg", "png")}
         return published | {
             p for p in made if (self.root / "content" / p.replace("notebook/", "blog/", 1)).is_file()}
 
