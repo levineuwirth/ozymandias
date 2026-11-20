@@ -268,7 +268,13 @@ staticRules twins withheld on themes = do
     assets  <- getMatches firstParty
     current <- preprocess (assetVersion (show (plan, modules)) assets)
     dingbats <- preprocess readDingbats
-    changed <- makePatternDependency firstParty
+    -- Hakyll matches a held pattern again, on every build, against every
+    -- identifier the rules claim, versions included, and compares that with
+    -- what it matched here, among the files. The site's own files are also
+    -- compiled in the "source-preview" version (Site.hs), so without
+    -- 'hasNoVersion' the two never agreed: the version, and every page with
+    -- it, was out of date on every build.
+    changed <- makePatternDependency (hasNoVersion .&&. firstParty)
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
 

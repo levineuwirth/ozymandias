@@ -52,6 +52,11 @@ main = getArgs >>= \\args -> case args of
         create ["stamped.html"] $ do
             route idRoute
             compile $ makeItem ("$assets$" :: String) >>= applyAsTemplate assetsField
+        -- A second, versioned rule over the site's static files, as Site.hs
+        -- has for the source-preview corpus.
+        match "static/**" $ version "source-preview" $ do
+            route $ customRoute (("source/" ++) . toFilePath)
+            compile copyFileCompiler
 '''
 
 
@@ -270,6 +275,27 @@ class EngineFilesTests(unittest.TestCase):
         self.write("static/css/site.css", "c{}", mtime=6000)
         self.run_probe("build")
         self.assertEqual(self.version(), fourth)
+
+    def test_a_build_with_nothing_changed_recompiles_nothing(self):
+        # The version's pattern dependency is matched again, on every build,
+        # against every identifier the rules claim, versions included: a site
+        # file also compiled in a version (the source-preview corpus) put it
+        # out of date on every build, and every page with it.
+        self.write("engine/static/css/base.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        self.write("static/js/site.js", "site();\n")
+        self.run_probe("build")
+        self.assertEqual(self.built("source/static/css/site.css"), "b { color: blue; }\n")
+        first = self.version()
+        log = self.run_probe("build")
+        self.assertNotIn("updated", log)
+        # A change still reaches the version, and the pages with it.
+        self.write("static/css/site.css", "b { color: green; }\n",
+                   (self.root / "static/css/site.css").stat().st_mtime + 2)
+        log = self.run_probe("build")
+        self.assertIn("updated stamped.html", log)
+        self.assertNotEqual(self.version(), first)
 
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.

@@ -184,7 +184,7 @@ standaloneRules page = do
             match scores $ do
                 route   $ stripPrefixRoute ("content/" ++ dir ++ "/")
                 compile copyFileCompiler
-            (: []) <$> makePatternDependency scores
+            (: []) <$> makePatternDependency (hasNoVersion .&&. scores)
         _ -> return []
     rulesExtraDependencies scoreDeps $ match (fromList [fromFilePath (standaloneSource page)]) $ do
         route   $ constRoute (standaloneRoute page)
@@ -707,9 +707,9 @@ rules = do
         -- removing a realization would otherwise leave the reader stale. It is
         -- also the only dependency on the score pages that 'scorePageList'
         -- lists, which records none of its own (audit H06).
-        musicScoreDep <- makePatternDependency $
+        musicScoreDep <- makePatternDependency $ hasNoVersion .&&. (
                              "content/music/**/*.svg" .||. "content/music/**/*.json"
-                             .||. "content/music/**/*.webp"
+                             .||. "content/music/**/*.webp")
 
         rulesExtraDependencies [musicScoreDep] $ match "content/music/index.md" $ do
             route   $ constRoute "music/index.html"
