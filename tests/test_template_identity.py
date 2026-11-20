@@ -272,7 +272,10 @@ main = hakyll $ do
             for name, config in (("stated", stated),
                                  ("unstated", {k: v for k, v in stated.items() if k not in unstated})):
                 (root / "site.yaml").write_text(json.dumps(config))
-                done = subprocess.run([str(site_binary()), "rebuild"], cwd=root, env=script_env(),
+                # One worker: with several, a build of a site this small
+                # has failed in Hakyll's metadata cache before any page.
+                done = subprocess.run([str(site_binary()), "rebuild"], cwd=root,
+                                      env={**script_env(), "SITE_THREADS": "1"},
                                       capture_output=True, text=True, timeout=180)
                 self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
                 page = (root / "_site/about.html").read_text()
