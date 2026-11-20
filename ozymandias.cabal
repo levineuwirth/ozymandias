@@ -14,6 +14,8 @@ executable site
     main-is:          Main.hs
     hs-source-dirs:   build
     other-modules:
+        BlogImages
+        HtmlUrls
         Config
         EngineVersion
         Site

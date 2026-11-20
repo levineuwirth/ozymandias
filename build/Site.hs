@@ -11,6 +11,8 @@ import Data.Maybe    (catMaybes, fromMaybe, isNothing, listToMaybe, mapMaybe)
 import Data.Ord      (Down (..), comparing)
 import Data.Set      (Set)
 import qualified Data.Set as Set
+import BlogImages (imageInputs, referencedFiles)
+import Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import qualified Data.Text as T
 import System.Directory (listDirectory)
 import System.FilePath (splitDirectories, takeDirectory, takeFileName, takeExtension,
@@ -41,7 +43,7 @@ import Vita         (vitaCtx, projectsCtx)
 import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCtx, fictionCtx, compositionCtx,
                    contentKindField, declaresScore, recentFirstByDisplay,
                    tagLinksFieldExcludingTopSegment,
-                   canonicalUrlPath, feedMetaFields, identifierDisplayUTC)
+                   canonicalUrlPath, feedBodyField, feedMetaFields, identifierDisplayUTC)
 import MarkdownSections (markdownSectionsCompiler)
 import Marks      (monogramPattern)
 import qualified Patterns as P
@@ -237,7 +239,7 @@ feedCtx :: Context String
 feedCtx =
     feedTitleField
     <> feedMetaFields
-    <> bodyField "description"
+    <> feedBodyField
     <> defaultContext
 
 -- | Context for the home page. Extends 'pageCtx' with a @portals@
@@ -258,6 +260,26 @@ homeCtx = listField "portals" portalItemCtx portalItems <> pageCtx
            field "portal-name" (return . escapeHtml . fst . itemBody)
         <> field "portal-url"  (\i -> return $ "/" ++ snd (itemBody i) ++ "/")
         <> portalTooltipField (sidecarIdentifier . snd . itemBody)
+
+-- | Record what a blog page is built from besides its source: for each
+--   image it shows, the files "Filters.Images" reads in IO, where Hakyll
+--   cannot see ('BlogImages.imageInputs'). The page is rebuilt when one of
+--   them changes, appears or goes, and a page that shows no image depends
+--   on none.
+--
+--   The pattern names only files the blog's two image rules claim,
+--   unversioned: Hakyll matches it against the files on disk now
+--   and against the claimed identifiers on the next run, and a file in
+--   one set and not the other would put the page out of date on every
+--   build (audit H05).
+blogImageInputs :: Compiler ()
+blogImageInputs = do
+    dir  <- takeDirectory . toFilePath <$> getUnderlying
+    body <- itemBody <$> getResourceBody
+    let inputs  = concatMap imageInputs (referencedFiles dir body)
+        pattern = fromList (map fromFilePath inputs) .&&. (P.blogImages .||. P.blogImageDimensions)
+    present <- getMatches pattern
+    compilerTellDependencies [PatternDependency pattern (Set.fromList present)]
 
 rules :: Rules ()
 rules = do
@@ -692,31 +714,29 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Blog posts
     -- ---------------------------------------------------------------------------
-    -- An entry's images, shown by a relative path from beside it or
-    -- below it: published where they are, at the section's address, as a
-    -- post and a collection are. Their dimension sidecars are read by
-    -- Filters.Images while a page is compiled and are claimed without a
-    -- route, as the essays' are, so that the dependency below can fire.
-    -- The pattern is of published, unversioned files, all of them claimed
-    -- here: one that no rule claimed would put every post out of date on
-    -- every build (audit H05).
+    -- The images the blog's published pages show by a relative path, from
+    -- beside them or below: published where they are, at the section's
+    -- address, as a post and a collection are. An image no published page
+    -- shows is withheld ("BlogImages", "Drafts"). Their dimension sidecars
+    -- are read by Filters.Images while a page is compiled and are claimed
+    -- without a route, as the essays' are, so that a page's dependency on
+    -- its own ('blogImageInputs') can fire.
     match P.blogImages $ do
         route   fileRoute
         compile copyFileCompiler
     match P.blogImageDimensions $ compile getResourceLBS
-    blogImageDep <- makePatternDependency (hasNoVersion .&&. (P.blogImages .||. P.blogImageDimensions))
 
-    rulesExtraDependencies [blogImageDep] $ match P.blogPattern $ do
+    match P.blogPattern $ do
         route   pageRoute
-        compile $ postCompiler
+        compile $ blogImageInputs >> postCompiler
             >>= saveSnapshot "content"
             >>= inDefault "templates/blog-post.html" postCtx
 
     -- Blog collection index pages
     -- (content/blog/<collection>/index.md → blog/<collection>/index.html).
-    rulesExtraDependencies [blogImageDep] $ match "content/blog/*/index.md" $ do
+    match "content/blog/*/index.md" $ do
         route   pageRoute
-        compile $ pageCompiler
+        compile $ blogImageInputs >> pageCompiler
             >>= loadAndApplyTemplate "templates/default.html" pageCtx
             >>= relativizeUrls
 

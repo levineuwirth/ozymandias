@@ -33,7 +33,10 @@ module Patterns
 
 import Hakyll
 import Config (SiteConfig (..), Standalone (..), switchOn)
-import Drafts (currentUnpublished, entryImageExtensions, unpublishedPattern)
+import BlogImages (imageExtensions)
+import Data.Char (toLower, toUpper)
+import Data.List (intercalate)
+import Drafts (currentUnpublished, unpublishedPattern)
 import Sections (reservedSectionDirs)
 
 -- | Pages a production build withholds for @draft: true@, and the files
@@ -74,15 +77,20 @@ blogPattern = published $
        "content/blog/*.md"
   .||. ("content/blog/*/*.md" .&&. complement "content/blog/*/index.md")
 
--- | The image files a blog entry shows by a relative path, beside it or
---   below it (@content/blog/first.lake.jpg@, @content/blog/trip/map.svg@):
---   published where they are, at the section's address. A WebP companion
---   (tools/convert-images.sh) is one of them. A monogram is not: it is
---   read into a page ("Marks"), never published.
+-- | The image files the blog's published pages show by a relative path,
+--   beside them or below (@content/blog/first.lake.jpg@,
+--   @content/blog/trip/map.svg@): published where they are, at the
+--   section's address. "BlogImages" says which those are; every other is
+--   among the withheld files ("Drafts"), so 'published' leaves it out. An
+--   extension counts in either case, as "Filters.Images" reads it. A WebP
+--   companion (tools/convert-images.sh) is one of them. A monogram is not:
+--   it is read into a page ("Marks"), never published.
 blogImages :: Pattern
 blogImages = published $
-    foldr1 (.||.) [ fromGlob ("content/blog/**." ++ ext) | ext <- entryImageExtensions ]
+    fromRegex ("^content/blog/.+\\.(" ++ intercalate "|" (map anyCase imageExtensions) ++ ")$")
     .&&. complement ("content/**/mark.svg" .||. "content/**.mark.svg")
+  where
+    anyCase = concatMap (\c -> ['[', toLower c, toUpper c, ']'])
 
 -- | Their dimension sidecars (tools/extract-dimensions.py), which
 --   "Filters.Images" reads while a page is compiled: inputs, not published.

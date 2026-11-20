@@ -29,7 +29,9 @@
 #      now generates is new and an incremental build creates those correctly.
 #   2c. The draft flag. `draft: true` withholds the page (build/Drafts.hs),
 #      and Hakyll never deletes the output of a file it stops seeing, so a
-#      changed set of withheld files forces a clean. The generator reads
+#      changed set of withheld files forces a clean. So does an image
+#      under content/blog/ that the published pages stop showing, or
+#      start to: it is one of the withheld files. The generator reads
 #      YAML once per scan; snapshot discovery uses the same boundary. The
 #      recorded hash describes the last built worktree, including uncommitted
 #      or untracked flags, rather than assuming that worktree matched HEAD.

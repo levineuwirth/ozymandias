@@ -45,7 +45,7 @@ import           Hakyll
 import           Config                (SiteConfig (..), FeedSpec (..), loadConfig, loadFeed, renderSiteFeed, photoFeed)
 import           Compilers              (pageCompiler, photographyCompiler)
 import           Contexts               (feedTitleField, photographyCtx, pageCtx, siteCtx,
-                                         recentFirstByDisplay, feedMetaFields,
+                                         recentFirstByDisplay, feedBody, feedMetaFields,
                                          photoVariantName)
 import qualified Patterns               as P
 import           Utils                  (canonicalUrlPath, exposureISO, formatBytes, inDefault, stripPrefixRoute)
@@ -719,7 +719,7 @@ photographyFeedDescription = field "description" $ \item -> do
                 in  "<p><img src=\"" ++ siteUrl cfg
                     ++ src ++ "\" alt=\"\"></p>\n"
             _ -> ""
-    return (imgTag ++ body)
+    (imgTag ++) <$> feedBody item body
 
 -- | @/photography/feed.xml@ — Atom feed of the most recent 30 photo
 --   entries, with each photograph embedded inline at the top of its

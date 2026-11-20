@@ -31,6 +31,8 @@ module Contexts
     , recentFirstByDisplay
     , canonicalUrlField
     , feedMetaFields
+    , feedBodyField
+    , feedBody
     , canonicalUrlPath
     , itemDisplayUTC
     , identifierDisplayUTC
@@ -60,6 +62,7 @@ import qualified Data.Map.Strict    as Map
 import System.Directory        (doesFileExist, getModificationTime)
 import System.IO.Unsafe        (unsafePerformIO)
 import System.FilePath         (makeRelative, takeDirectory, takeFileName, (</>))
+import HtmlUrls                (isRelative, mapUrls, resolveAgainst)
 import System.IO               (hPutStrLn, stderr)
 import Text.Read               (readMaybe)
 import qualified Data.Text     as T
@@ -1160,6 +1163,27 @@ feedMetaFields =
            case mRoute of
                Just r  -> return (canonicalUrlPath r)
                Nothing -> noResult "feed item has no route")
+
+-- | @$description$@ for a feed entry: the page's body ('feedBody').
+feedBodyField :: Context String
+feedBodyField = field "description" (\item -> feedBody item (itemBody item))
+
+-- | An entry's HTML as a feed carries it: every relative URL in its
+--   attributes (@src@, @srcset@, @href@, @poster@) made whole against the
+--   entry's own address. On its page, @cover.svg@ is the file beside the
+--   page; in a feed there is no page beside it, and a reader resolved it
+--   against the feed's address or its own and found nothing. A URL rooted
+--   at the site, one with a host, and a fragment are left as written, and
+--   so is every other character ("HtmlUrls").
+feedBody :: Item a -> String -> Compiler String
+feedBody item html = do
+    cfg    <- loadConfig
+    mRoute <- getRoute (itemIdentifier item)
+    return $ case mRoute of
+        Nothing -> html
+        Just r  ->
+            let base = siteUrl cfg ++ "/" ++ (case takeDirectory r of { "." -> ""; d -> d ++ "/" })
+            in  mapUrls (\url -> if isRelative url then resolveAgainst base url else url) html
 
 -- | @$canonical-url$@ — 'canonicalUrlPath' of the item's own route.
 --

@@ -142,18 +142,21 @@ the freshness check hashes it.
   its collections, a page's own script (a `.js` beside it) and its
   landing, which is there before the first entry and is in the sitemap.
   `essays` publishes every other file beside a page (figures, data,
-  PDFs, at the essay's address). `blog` publishes the images beside or
-  below an entry (`.avif`, `.gif`, `.jpeg`, `.jpg`, `.png`, `.svg`,
-  `.webp`), so an entry shows one by a relative path
-  (`![The lake](first.lake.jpg)` in `content/blog/first.md`), with the
-  width, height and WebP companion the build's tools make for it. An
-  entry with `draft: true` withholds the images named for it
-  (`first.jpg`, `first.<anything>.jpg` beside `first.md`) from a
-  production build; an image beside it under another name is published
-  whatever shows it, so a draft's images are named for it. No other file
-  beside a blog entry is published, and none beside a page of `poetry`
-  or `fiction`: a relative link to one is a missing file (`check-site`
-  reports it), and those go under `static/`. Wikilinks and tags follow the address (`[[Notebook]]` is
+  PDFs, at the essay's address). `blog` publishes the images its pages
+  show (`.avif`, `.gif`, `.jpeg`, `.jpg`, `.png`, `.svg`, `.webp`): an
+  entry or a collection's landing names an image beside or below it by
+  a relative path (`![The lake](first.lake.jpg)` in
+  `content/blog/first.md`; a link or an `<img>` counts too), and the
+  image is published at the section's address with the width, height
+  and WebP companion the build's tools make for it. An image under
+  `content/blog/` that no published page names is not published: one
+  only a `draft: true` entry shows is withheld with it, one a published
+  entry shows too stays, and `site list-unpublished` lists what is
+  withheld. A feed's entries name their images, and every other
+  relative link, by the whole address. No other file beside a blog
+  entry is published, and none beside a page of `poetry` or `fiction`:
+  a relative link to one is a missing file (`check-site` reports it),
+  and those go under `static/`. Wikilinks and tags follow the address (`[[Notebook]]` is
   the landing; a tag `notebook` has no page of its own), and a page
   collection may not take it. An address may not be a directory the
   engine or the build writes (`assets`, `data`, `drafts`, `pagefind`,
