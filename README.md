@@ -433,9 +433,15 @@ lacks, for a site that doesn't push the engine itself.
   notes what the record pairs so that a page is built again when that
   changes (a watch notes it again as it runs: within two seconds of a
   tool's run or a declaration's edit, within ten of a file changed by
-  hand). Under `data/pairings/`
-  the build deletes only the state files its own manifest lists, and
-  writes nothing through a link. The engine's images
+  hand; `site --verbose build` is a build like any other). Under
+  `data/pairings/` the build writes over and deletes only a state file
+  its own manifest lists and that is still the bytes it wrote, and writes
+  nothing through a link. Where it cannot keep the states (another file
+  where a state file goes, a state file edited since, `data/` or
+  `data/pairings/` a link, a manifest that is not its own) the build
+  stops and names the file, and a watch ends: built on, a page would
+  keep a pairing that no longer holds. Deleting `data/pairings/` is
+  always safe; the next build writes it again. The engine's images
   have a record of their own in the engine, which its sites share; a tool
   holds a record's lock while it works, so two sites building at once
   wait for each other there.
@@ -444,7 +450,10 @@ lacks, for a site that doesn't push the engine itself.
     file is made again when its image is not the one it was made from
     (other bytes, whichever file is older, or another file altogether;
     an image whose time alone changed, as a checkout changes it, is the
-    same image). `--prune` finds a variant's WebP by the record when the
+    same image). What an entry says of the image is said of the bytes the
+    tool read: an image saved again while it was being converted is
+    converted again, and a photograph's variants are made again by the
+    next run. `--prune` finds a variant's WebP by the record when the
     variant itself is already gone. Any other
     file of that name (made by hand, shown by a page as an image of its
     own, edited after the tool wrote it) is left exactly as it is, by a
@@ -465,7 +474,9 @@ lacks, for a site that doesn't push the engine itself.
     declare FILE.webp` writes the line, and takes the file out of the
     record if a tool made it). No tool writes to a declared file, and it
     is shown with the image declared and no other. A line is read as the
-    file it leads to (`./static/lake.webp` is `static/lake.webp`). A
+    file it leads to (`./static/lake.webp` is `static/lake.webp`, and so
+    is a path through a link to that directory), by the tools and the
+    build alike. A
     site declares its own files; one for an engine image goes in the
     engine's `data/companions.json`, where `declare` puts it and every
     site that links the engine reads it, and a site's own line for an
@@ -475,6 +486,8 @@ lacks, for a site that doesn't push the engine itself.
     each again in a scratch place and records those that come out byte
     for byte the same, lists the rest, and writes nothing else
     (`ADOPT_FLAGS=--dry-run` says what it would do, and changes nothing).
+    An entry from an earlier form of the record, which does not say which
+    bytes its image had, is completed the same way.
     Until then the site is correct and heavier: the images are shown
     without them.
 

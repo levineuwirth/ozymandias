@@ -11,7 +11,9 @@ says which those are, by the image they were made from and the bytes last
 written. Its own companion is made again when its image is not the one it
 was made from: other bytes than the record noted (an older file counts as
 much as a newer one; a file whose time alone changed is the same image),
-or another file altogether, the first being gone. Any other WebP of that
+or another file altogether, the first being gone. It is made of the image
+as the script read it, and recorded as that: an image saved again while
+cwebp ran is converted again, at once. Any other WebP of that
 name is the author's (made by hand, shown by a page as an image of its
 own, or simply older than the record) and is left exactly as it is,
 however old. The generator shows an image with a
@@ -192,6 +194,18 @@ def cwebp(image: Path, destination: Path) -> None:
     subprocess.run(["cwebp", "-quiet", "-q", "85", str(image), "-o", str(destination)], check=True)
 
 
+def cwebp_of(taken: derived_images.Consumed, image: Path, scratch: Path, destination: Path) -> None:
+    """Convert the image as it was read: cwebp is given those bytes, in a
+    file of this run's own, and not the path, where another image may
+    have been saved since."""
+    given = scratch / image.name
+    given.write_bytes(taken.data)
+    cwebp(given, destination)
+
+
+TRIES = 3
+
+
 def plan(records: derived_images.Records) -> tuple[Slots, list[Path]]:
     site_static = Path(sitelib.SITE_ROOT) / "static"
     engine_static = Path(sitelib.engine_path("static"))
@@ -210,28 +224,54 @@ def plan(records: derived_images.Records) -> tuple[Slots, list[Path]]:
 def convert(records: derived_images.Records, convertible: list[Path]) -> int:
     converted = present = 0
     left: list[Path] = []
-    for image in convertible:
-        companion = companion_of(image)
-        if records.declared_for(companion) is not None:
-            present += 1
-        elif not records.may_write(companion, PRODUCER, image):
-            left.append(companion)
-        elif records.fresh(companion, PRODUCER, image):
-            present += 1
-        else:
-            print(f"  webp  {show(image)}")
-            # Written under a temporary name and moved: an interrupted
-            # cwebp leaves nothing where the companion goes. Recorded and
-            # saved at once: a companion on disk without its entry would
-            # no longer be the script's.
-            with sitelib.atomic_path(companion, durable=False) as tmp:
-                cwebp(image, tmp)
-            records.wrote(companion, PRODUCER, image)
-            records.save_all()
-            converted += 1
+    unsettled: list[Path] = []
+    with tempfile.TemporaryDirectory(prefix="convert-webp-") as scratch:
+        for image in convertible:
+            companion = companion_of(image)
+            if records.declared_for(companion) is not None:
+                present += 1
+            elif not records.may_write(companion, PRODUCER, image):
+                left.append(companion)
+            elif records.fresh(companion, PRODUCER, image):
+                present += 1
+            else:
+                print(f"  webp  {show(image)}")
+                if not convert_one(records, image, companion, Path(scratch)):
+                    unsettled.append(image)
+                converted += 1
     print(f"convert-images: {converted} converted, {present} already present.")
+    for image in unsettled:
+        print(f"convert-images: {show(image)} was saved again each of the {TRIES} times it was converted; its "
+              "companion is of an earlier save, recorded as that, and is not shown with it. The next build "
+              "converts it again.", file=sys.stderr)
     report_left(left)
     return 0
+
+
+def convert_one(records: derived_images.Records, image: Path, companion: Path, scratch: Path) -> bool:
+    """Make the companion of the image as it is read, and say so in the
+    record; again, when the image was saved anew meanwhile, since the
+    companion is then of the image before. Is the companion, in the end,
+    of the image that is there?"""
+    for attempt in range(TRIES):
+        try:
+            taken = derived_images.consume(image)
+        except FileNotFoundError:
+            if attempt == 0:
+                raise
+            return True             # gone since: its companion is of an image no longer there
+        # Written under a temporary name and moved: an interrupted cwebp
+        # leaves nothing where the companion goes. Recorded and saved at
+        # once: a companion on disk without its entry would no longer be
+        # the script's.
+        with sitelib.atomic_path(companion, durable=False) as tmp:
+            cwebp_of(taken, image, scratch, tmp)
+            written = derived_images.digest(tmp)
+        records.wrote(companion, PRODUCER, image, taken, written)
+        records.save_all()
+        if derived_images.still(image, taken):
+            return True
+    return False
 
 
 def report_left(left: list[Path]) -> None:
@@ -259,25 +299,37 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
               file=sys.stderr)
         return 0, True
     slots, convertible = plan(records)
-    adopted = differ = 0
+    adopted = differ = partial = 0
     with tempfile.TemporaryDirectory(prefix="adopt-webp-") as scratch:
         fresh = Path(scratch) / "fresh.webp"
         for image in convertible:
             companion = companion_of(image)
-            if (not companion.is_file() or companion.is_symlink() or records.entry(companion) is not None
+            # One with no entry, or with an entry that does not say which
+            # bytes its image had (an earlier form of the record).
+            known = records.entry(companion) is not None
+            if (not companion.is_file() or companion.is_symlink()
+                    or (known and not records.incomplete(companion, PRODUCER, image))
                     or records.declared_for(companion) is not None
                     or len(slots.shown_with.get(slots.slot_of.get(image, ""), [])) > 1):
                 continue
-            cwebp(image, fresh)
-            if fresh.read_bytes() == companion.read_bytes():
+            taken = derived_images.consume(image)
+            cwebp_of(taken, image, Path(scratch), fresh)
+            there = companion.read_bytes()
+            if fresh.read_bytes() == there:
                 adopted += 1
-                records.wrote(companion, PRODUCER, image)
+                records.wrote(companion, PRODUCER, image, taken, derived_images.digest_of(there))
+            elif known:
+                partial += 1
             else:
                 differ += 1
                 print(f"  differs  {show(companion)}  (not what cwebp makes of {show(image)} now)")
     verb = "would be recorded" if dry_run else "recorded"
     print(f"convert-images: {adopted} companion(s) {verb} as this script's; {differ} differ and are left "
           "unrecorded.")
+    if partial:
+        print(f"  {partial} more are this script's by an entry that does not say which bytes their image had, and "
+              "are not what cwebp\n  makes of it now: left as recorded, and converted again by the next build "
+              "that cannot tell the image is the same.")
     if differ:
         print("  One that differs is yours, or was made by another cwebp. Look at it; delete it to have it made "
               "again,\n  or declare it yours: python3 engine/tools/derived_images.py declare FILE.webp")

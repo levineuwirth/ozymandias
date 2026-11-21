@@ -13,6 +13,7 @@ there is nothing to assert.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -21,6 +22,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 from tests._helpers import engine_path, load_tool, script_env, stub_bin
 
 
@@ -505,6 +507,40 @@ class OwnershipTests(unittest.TestCase):
         code, out = run(str(self.root))
         self.assertIn("0 written, 2 current", out)
 
+    def test_a_photograph_saved_again_while_its_variants_are_made_is_recorded_as_it_was_read(self) -> None:
+        # Another photograph is saved over this one after it was read and
+        # before its variants are recorded. They are of the one before,
+        # and their entries say so: the next run makes them again.
+        photo = self.photo("view.jpg")
+        first = photo.read_bytes()
+        render = generate_thumbnails.render_variant
+
+        def render_and_save_again(source, destination, width, **how):
+            written = render(source, destination, width, **how)
+            if destination.name == "view.w480.jpg":
+                Image.new("RGB", (1000, 10), (200, 30, 30)).save(source, format="JPEG")
+            return written
+
+        errors = io.StringIO()
+        with mock.patch.object(generate_thumbnails, "render_variant", render_and_save_again), \
+                contextlib.redirect_stderr(errors):
+            code, _ = run(str(self.root))
+        self.assertEqual(code, 0)
+        self.assertIn("trip/view.jpg was saved again while its variants were made", errors.getvalue())
+        was = "sha256:" + hashlib.sha256(first).hexdigest()
+        self.assertNotEqual(photo.read_bytes(), first)
+        made_first = (self.photos / "view.w480.jpg").read_bytes()
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], was)
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"],
+                         "sha256:" + hashlib.sha256(made_first).hexdigest())
+        # The wider variant was made after, of the photograph that is there.
+        code, said = run(str(self.root))
+        self.assertIn("1 written, 1 current", said)
+        self.assertNotEqual((self.photos / "view.w480.jpg").read_bytes(), made_first)
+        now = "sha256:" + hashlib.sha256(photo.read_bytes()).hexdigest()
+        self.assertEqual({entry["source-digest"] for entry in self.record().values()}, {now})
+        self.assertIn("0 written, 2 current", run(str(self.root))[1])
+
     def test_a_record_that_cannot_be_read_stops_the_script(self) -> None:
         self.photo("view.jpg")
         (self.root / "data").mkdir()
@@ -584,6 +620,32 @@ class AdoptionTests(unittest.TestCase):
         said = self.tool("generate-thumbnails.py", "--force").stdout
         self.assertEqual((self.photos / "view.w960.webp").read_bytes(), self.AUTHORED)
         self.assertIn("1 not this script's", said)
+
+    def test_an_entry_that_does_not_say_which_bytes_its_photograph_had_is_completed(self) -> None:
+        # A record of an earlier form: adopted then, with the photograph's
+        # path and nothing of its bytes or its time.
+        self.tool("derived_images.py", "adopt")
+        path = self.root / "data/derived-images.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(len(document["outputs"]), 4)
+        for entry in document["outputs"].values():
+            del entry["source-digest"], entry["source-stamp"]
+        path.write_text(json.dumps(document), encoding="utf-8")
+        before = self.state()
+        preview = self.tool("derived_images.py", "adopt", "--dry-run").stdout
+        self.assertEqual(self.state(), before)
+        real = self.tool("derived_images.py", "adopt").stdout
+        self.assertEqual(preview.replace("would be recorded", "recorded"), real)
+        self.assertIn("generate-thumbnails: 3 variant file(s) recorded as this script's", real)
+        self.assertIn("convert-images: 1 companion(s) recorded as this script's", real)
+        source = "sha256:" + hashlib.sha256((self.photos / "view.jpg").read_bytes()).hexdigest()
+        record = json.loads(path.read_text(encoding="utf-8"))["outputs"]
+        self.assertEqual({entry["source-digest"] for entry in record.values()}, {source})
+        self.assertEqual({key: entry["digest"] for key, entry in record.items()},
+                         {key: entry["digest"] for key, entry in document["outputs"].items()})
+        self.assertEqual(self.state()[0], before[0])
+        # And nothing is made again for it.
+        self.assertIn("0 written, 2 current", self.tool("generate-thumbnails.py").stdout)
 
 
 if __name__ == "__main__":

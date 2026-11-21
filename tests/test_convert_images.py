@@ -45,6 +45,7 @@ this must write nothing into the real one) with a stand-in for cwebp:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -453,6 +454,104 @@ class ConvertImages(unittest.TestCase):
         self.assertIn("content/photography/trip/view.w480.jpg", self.record())
 
     # -- adoption ----------------------------------------------------------
+
+    def with_cwebp(self, name: str, script: str) -> subprocess.CompletedProcess[str]:
+        """The script, with another stand-in for cwebp."""
+        stubs = stub_bin(self.root / name, ["cwebp"], script)
+        return subprocess.run(["bash", str(self.root / "engine/tools/convert-images.sh")], cwd=self.root,
+                              env=script_env(stubs, SITE_ROOT=str(self.root)),
+                              capture_output=True, text=True, timeout=60)
+
+    @staticmethod
+    def sha(text: str) -> str:
+        return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    def test_an_image_saved_again_while_it_is_converted_is_converted_again(self):
+        # Another picture is saved over the image after cwebp has read it
+        # and before the script has recorded what it made (once: the
+        # stand-in leaves a mark). The companion is of the picture before,
+        # and is made again, in the same run, of the one that is there.
+        image = self.write("content/blog/lake.jpg", "first")
+        mark = self.root / "saved-again"
+        done = self.with_cwebp("saving", CWEBP + f'''
+[ -e "{mark}" ] || {{ : > "{mark}"; printf 'another, longer' > "{image}"; }}
+''')
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertTrue(mark.exists())
+        self.assertEqual(self.companions(), {"content/blog/lake.webp": made("lake.jpg", "another, longer")})
+        entry = self.record()["content/blog/lake.webp"]
+        self.assertEqual(entry["source-digest"], self.sha("another, longer"))
+        self.assertEqual(entry["digest"], self.sha(made("lake.jpg", "another, longer")))
+        self.assertIn("0 converted, 1 already present", self.convert())
+
+    def test_an_image_saved_again_every_time_is_recorded_as_the_one_that_was_converted(self):
+        # The image never holds still. The script stops trying, and what
+        # it leaves is true: the entry names the bytes the companion was
+        # made of, which are not the image's now, so nothing takes the
+        # companion for the image's and the next run makes it again.
+        image = self.write("content/blog/lake.jpg", "v")
+        done = self.with_cwebp("restless", CWEBP + f'''printf '+' >> "{image}"\n''')
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("was saved again each of the 3 times", done.stderr)
+        self.assertEqual(image.read_text(encoding="utf-8"), "v+++")
+        self.assertEqual(self.companions(), {"content/blog/lake.webp": made("lake.jpg", "v++")})
+        entry = self.record()["content/blog/lake.webp"]
+        self.assertEqual(entry["source-digest"], self.sha("v++"))
+        self.assertEqual(entry["digest"], self.sha(made("lake.jpg", "v++")))
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/lake.webp": made("lake.jpg", "v+++")})
+        self.assertEqual(self.record()["content/blog/lake.webp"]["source-digest"], self.sha("v+++"))
+
+    def test_declaring_a_site_s_webp_for_an_image_of_the_engine_inside_it_is_refused(self):
+        # The engine as a directory of the site: `declare` writes no line
+        # the next run of the tools would stop on.
+        self.write("engine/static/lake.png")
+        self.write("static/lake.webp", "by hand")
+        done = subprocess.run([shutil.which("python3"), str(self.root / "engine/tools/derived_images.py"),
+                               "declare", "static/lake.webp", "engine/static/lake.png"], cwd=self.root,
+                              env=script_env(SITE_ROOT=str(self.root)), capture_output=True, text=True)
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("are not files of one tree", done.stderr)
+        self.assertFalse((self.root / "data/companions.json").exists())
+        self.assertFalse((self.root / "engine/data/companions.json").exists())
+        self.assertIn("1 converted", self.convert())
+
+    def test_a_declaration_through_a_link_to_a_directory_is_the_file_it_leads_to(self):
+        self.write("static/brand-dir/lake.jpg")
+        webp = self.write("static/brand-dir/lake.webp", "by hand")
+        (self.root / "shortcut").symlink_to("static/brand-dir")
+        self.write("data/companions.json", '{"shortcut/lake.webp": "shortcut/lake.jpg"}')
+        self.assertIn("0 converted, 1 already present", self.convert())
+        self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+
+    def test_adoption_completes_an_entry_that_does_not_say_which_bytes_its_image_had(self):
+        # A record of an earlier form: each entry with the image's path,
+        # and nothing of its bytes or its time. One image was edited since.
+        for name in ("lake.jpg", "edited.jpg"):
+            self.write(f"content/blog/{name}")
+        self.convert()
+        path = self.root / "data/derived-images.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        for entry in document["outputs"].values():
+            del entry["source-digest"], entry["source-stamp"]
+        path.write_text(json.dumps(document), encoding="utf-8")
+        self.write("content/blog/edited.jpg", "edited since")
+        before = (self.companions(), path.read_bytes())
+
+        said = self.adopt("--dry-run").stdout
+        self.assertIn("1 companion(s) would be recorded as this script's; 0 differ", said)
+        self.assertEqual((self.companions(), path.read_bytes()), before)
+
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("1 companion(s) recorded as this script's; 0 differ", done.stdout)
+        self.assertIn("1 more are this script's by an entry that does not say which bytes", done.stdout)
+        self.assertEqual(self.record()["content/blog/lake.webp"]["source-digest"], self.sha("x"))
+        self.assertNotIn("source-digest", self.record()["content/blog/edited.webp"])
+        self.assertEqual(self.companions(), before[0])
+        # The one that is not its image's any more is made again.
+        self.assertIn("1 converted, 1 already present", self.convert())
+        self.assertEqual(self.record()["content/blog/edited.webp"]["source-digest"], self.sha("edited since"))
 
     def test_adoption_records_what_a_fresh_conversion_reproduces(self):
         # Companions from before there was a record: three the script

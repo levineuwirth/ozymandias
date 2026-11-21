@@ -179,13 +179,14 @@ class Site(unittest.TestCase):
 
 @requires_cabal
 class BlogImages(Site):
-    def site(self, command: str, environment: str = "build") -> str:
+    def site(self, command: str, environment: str = "build", stops: bool = False) -> str:
         # One worker: with several, a build of a site this small has failed
         # in Hakyll's metadata cache before any page was compiled.
-        done = subprocess.run([str(site_binary()), command], cwd=self.root,
+        done = subprocess.run([str(site_binary()), *command.split()], cwd=self.root,
                               env=script_env(SITE_ENV=environment, SITE_THREADS="1"),
                               capture_output=True, text=True, timeout=240)
-        self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr[-3000:])
+        (self.assertNotEqual if stops else self.assertEqual)(
+            done.returncode, 0, done.stdout[-3000:] + done.stderr[-3000:])
         return done.stdout + done.stderr
 
     def test_an_image_a_published_page_shows_is_published_and_no_other(self):
@@ -396,57 +397,158 @@ class BlogImages(Site):
         self.assertIn('<source srcset="../newdir/blue.webp" type="image/webp">', self.read("notebook/second.html"))
         self.assertEqual(self.updated(self.site("build")), set())
 
-    def test_only_a_state_file_the_build_wrote_is_ever_deleted(self):
-        # Files of the author's under data/pairings/, a state file from
-        # another layout, and a directory that is a link to elsewhere.
+    def test_only_a_state_file_the_build_wrote_is_ever_written_over_or_deleted(self):
+        # Files of the author's under data/pairings/: beside the state
+        # files, where one goes, named as a temporary file might be, in
+        # the place of another layout, and behind a link to elsewhere.
         pairings = self.root / "data/pairings"
         outside = self.root / "elsewhere"
         for directory in (pairings / "states/content", pairings / "content", outside / "images"):
             directory.mkdir(parents=True)
+        state = pairings / "states/content/blog.json"
         mine = {pairings / "notes.md": "notes", pairings / "states/notes.md": "more",
                 pairings / "states/content/mine.json": "[]", pairings / "content/blog.json": "[]",
+                state: "mine, where the notebook's state goes", state.with_name("blog.json.tmp"): "mine too",
+                state.with_name(".blog.json.tmp"): "and this",
                 outside / "kept.json": "[]", outside / "images/deep.json": "[]"}
         for path, text in mine.items():
             path.write_text(text, encoding="utf-8")
         (pairings / "states/linked").symlink_to(outside)
-        # A manifest that names what is not a state file at all.
-        (pairings / "manifest.json").write_text(json.dumps({
-            "data/pairings/notes.md": "sha256:0", "data/pairings/states/../../companions.json": "sha256:0",
-            "data/pairings/states/linked/kept.json": "sha256:0", "data/companions.json": "sha256:0"}),
-            encoding="utf-8")
+        listing = pairings / "manifest.json"
 
         def manifest() -> set[str]:
             # The site's own: the engine's images have their states too.
-            return {state for state in json.loads((pairings / "manifest.json").read_text(encoding="utf-8"))
-                    if not state.startswith("data/pairings/states/engine/")}
+            return {name for name in json.loads(listing.read_text(encoding="utf-8"))
+                    if not name.startswith("data/pairings/states/engine/")}
 
         def intact() -> None:
             for path, text in mine.items():
                 self.assertEqual(path.read_text(encoding="utf-8"), text, path)
             self.assertTrue((self.root / "data/companions.json").is_file())
+            self.assertEqual(sorted(p.name for p in outside.rglob("*") if p.is_file()), ["deep.json", "kept.json"])
+            self.assertFalse((pairings / "manifest.pending.json").exists())
+            # No temporary file of the build's is left beside the author's.
+            self.assertEqual([p.name for p in pairings.rglob("*.tmp") if p.name not in ("blog.json.tmp",
+                                                                                          ".blog.json.tmp")], [])
 
+        # A file where a state file goes, which no build wrote: the build
+        # stops and names it. Written over, it would be lost; built
+        # around, the notebook's pages would not follow their pairings.
+        log = self.site("build", stops=True)
+        self.assertIn("data/pairings/states/content/blog.json: not a file this build wrote", log)
+        intact()
+        self.assertFalse((self.root / "_site/notebook/first.html").exists())
+        state.unlink()
+        del mine[state]
         self.site("rebuild")
         intact()
-        state = pairings / "states/content/blog.json"
         self.assertEqual(manifest(), {"data/pairings/states/content/blog.json"})
         self.assertIn("content/blog/first.lake.webp", state.read_text(encoding="utf-8"))
-        # Nothing is paired in the notebook any more: its state file goes,
-        # being one the manifest says was written here, and nothing else.
+
+        # A manifest that is not the build's (it names what is no state
+        # file) says nothing of what the build may delete.
+        written = listing.read_text(encoding="utf-8")
+        for other in ({"data/pairings/notes.md": "sha256:0"}, {"data/companions.json": "sha256:0"},
+                      {"data/pairings/states/../../companions.json": "sha256:0"}, ["a list"], "not JSON {"):
+            with self.subTest(manifest=other):
+                listing.write_text(other if isinstance(other, str) else json.dumps(other), encoding="utf-8")
+                self.assertIn("manifest.json: not the build's list of its state files", self.site("build", stops=True))
+                intact()
+        listing.write_text(written, encoding="utf-8")
+
+        # The state file edited since it was written is the author's by
+        # now. Nothing is paired in the notebook any more, and its state
+        # file would go: it stays, and the build stops.
+        built = state.read_text(encoding="utf-8")
+        state.write_text(built + "\n", encoding="utf-8")
+        record = (self.root / "data/derived-images.json").read_text(encoding="utf-8")
+        declared = (self.root / "data/companions.json").read_text(encoding="utf-8")
         (self.root / "data/derived-images.json").unlink()
         (self.root / "data/companions.json").write_text("{}", encoding="utf-8")
+        self.assertIn("blog.json: not a file this build wrote, or changed since", self.site("build", stops=True))
+        self.assertEqual(state.read_text(encoding="utf-8"), built + "\n")
+        intact()
+        # As the build wrote it, it is the build's to delete.
+        state.write_text(built, encoding="utf-8")
         self.site("build")
         self.assertFalse(state.exists())
         self.assertEqual(manifest(), set())
         intact()
-        # A state file's place that is reached through a link is not
-        # written: what is there is not the build's.
+
+        # A build killed after it wrote a state file and before it wrote
+        # the manifest: its note of what it was writing says the file is
+        # its own. Without the note, the file is no one's it knows of.
+        (self.root / "data/derived-images.json").write_text(record, encoding="utf-8")
+        (self.root / "data/companions.json").write_text(declared, encoding="utf-8")
+        self.site("build")
+        after = listing.read_text(encoding="utf-8")
+        name = "data/pairings/states/content/blog.json"
+        listed = json.loads(after)
+        digest = listed.pop(name)
+        listing.write_text(json.dumps(listed), encoding="utf-8")
+        self.site("build", stops=True)
+        (pairings / "manifest.pending.json").write_text(json.dumps({name: ["sha256:0", digest]}), encoding="utf-8")
+        self.site("build")
+        self.assertEqual(json.loads(listing.read_text(encoding="utf-8")), json.loads(after))
+        intact()
+
+        # A link on the way to where a state file goes: nothing is written
+        # through it, and the build stops.
         (pairings / "states/static").symlink_to(outside)
         self.brand()
-        log = self.site("build")
-        self.assertIn("a link is in the way", log)
-        self.assertEqual(sorted(p.name for p in outside.rglob("*") if p.is_file()), ["deep.json", "kept.json"])
-        self.assertEqual((outside / "images/deep.json").read_text(encoding="utf-8"), "[]")
+        self.assertIn("a link is in the way", self.site("build", stops=True))
         intact()
+        (pairings / "states/static").unlink()
+        self.site("build")
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        # And data/pairings itself a link, or data/: a page would keep the
+        # pairing it was built with (here: a companion changed by hand).
+        (self.root / "static/images/brand.webp").write_bytes(DRAFTED)
+        moved = self.root / "pairings-elsewhere"
+        pairings.rename(moved)
+        pairings.symlink_to(moved)
+        self.assertIn("data/pairings: it, or a directory on the way to it", self.site("build", stops=True))
+        pairings.unlink()
+        moved.rename(pairings)
+        (self.root / "data").rename(self.root / "data-elsewhere")
+        (self.root / "data").symlink_to("data-elsewhere")
+        self.assertIn("data/pairings: it, or a directory on the way to it", self.site("build", stops=True))
+        (self.root / "data").unlink()
+        (self.root / "data-elsewhere").rename(self.root / "data")
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        self.site("build")
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        intact()
+
+    def test_a_build_asked_for_with_a_flag_before_the_command_follows_the_pairings_too(self):
+        # `site --verbose build` is a build: the companion changed by hand
+        # since the last one is no longer shown.
+        brand = self.brand()
+        self.site("rebuild")
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        brand.with_suffix(".webp").write_bytes(DRAFTED)
+        self.site("--verbose build")
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        brand.with_suffix(".webp").write_bytes(AUTHORED)
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        self.site("-v build")
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+
+    def test_a_declaration_through_a_link_to_a_directory_is_the_file_it_leads_to(self):
+        # The tools read the line as the file it leads to, and write no
+        # companion there (tests/test_convert_images.py). The page shows
+        # the image with it, as it would by the plain path.
+        image(self.root / "static/newdir/blue.gif")
+        (self.root / "static/newdir/blue.webp").write_bytes(AUTHORED)
+        (self.root / "shortcut").symlink_to("static/newdir")
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Blue](/newdir/blue.gif)\n", encoding="utf-8")
+        declared = json.loads((self.root / "data/companions.json").read_text(encoding="utf-8"))
+        (self.root / "data/companions.json").write_text(
+            json.dumps({**declared, "shortcut/blue.webp": "shortcut/blue.gif"}), encoding="utf-8")
+        self.site("rebuild")
+        self.assertIn('<source srcset="../newdir/blue.webp" type="image/webp">', self.read("notebook/second.html"))
+        self.assertIn('<source srcset="hand.webp" type="image/webp">', self.read("notebook/first.html"))
 
     def test_a_watch_follows_the_pairings_as_they_change(self):
         # second.md shows a rooted image with no companion yet; first.md
@@ -512,6 +614,22 @@ class BlogImages(Site):
         until(lambda: hand in self.read("notebook/first.html"), "first.html with the WebP declared again")
         until(lambda: "../newdir/blue.webp" in self.read("notebook/second.html"),
               "second.html with its first companion")
+        # A file of the author's where the next state file goes: the watch
+        # cannot keep its pages to their pairings, and ends, saying why.
+        blocked = self.root / "data/pairings/states/static/other.json"
+        blocked.write_text("mine", encoding="utf-8")
+        image(self.root / "static/other/red.gif")
+        (self.root / "static/other/red.webp").write_bytes(AUTHORED)
+        declared.write_text(json.dumps({**json.loads(declared.read_text(encoding="utf-8")),
+                                        "static/other/red.webp": "static/other/red.gif"}), encoding="utf-8")
+        try:
+            code = watch.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            self.fail("the watch went on:\n" + "".join(said)[-3000:])
+        listener.join(timeout=5)
+        self.assertNotEqual(code, 0)
+        self.assertIn("other.json: not a file this build wrote", "".join(said).replace("\r", ""))
+        self.assertEqual(blocked.read_text(encoding="utf-8"), "mine")
 
 
 CABAL = """#!/bin/sh

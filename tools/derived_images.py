@@ -65,11 +65,18 @@ An image of the same size and the same time to the nanosecond is taken
 for the same image without being read, as make and Git take a file.
 An entry that says nothing of its image pairs nothing.
 
+What an entry says of the image is said of the bytes the tool read, not of
+the file as it is when the entry is written: an image saved again while it
+was being converted has an output of the image before, and an entry that
+says so (`consume`, `still`). The tool then makes the output again.
+
 Files that were there before the record (every companion of a site that
 upgrades) are unrecorded, and so are not used until they are adopted:
 `make adopt-images` makes each one again in a scratch place and records
 those that come out byte for byte the same, which only the tool's own
-output does; the rest are listed and left for the author to look at.
+output does; the rest are listed and left for the author to look at. An
+entry of an earlier form of the record, which does not say which bytes
+its image had, is completed the same way.
 
     python3 engine/tools/derived_images.py declare WEBP [IMAGE]
     python3 engine/tools/derived_images.py adopt [--dry-run]     (make adopt-images)
@@ -85,6 +92,7 @@ import json
 import os
 import sys
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -129,6 +137,45 @@ def stamp(path: Path) -> list[int]:
     """An image's size and time, as an entry notes them."""
     stat = os.stat(path)
     return [stat.st_mtime_ns, stat.st_size]
+
+
+@dataclass(frozen=True)
+class Consumed:
+    """An image as a tool read it: the bytes it made its output from, and
+    which file they were."""
+    data: bytes
+    digest: str
+    stamp: list
+    file: tuple
+
+
+def consume(source: Path) -> Consumed:
+    """Read an image once, for the tool to work from and for the record to
+    name: what is recorded as an output's image is then the image the
+    output was made of, whatever is saved at its path meanwhile. A file
+    written to as it is read is read again."""
+    for _ in range(5):
+        with open(source, "rb") as handle:
+            before = os.fstat(handle.fileno())
+            data = handle.read()
+            after = os.fstat(handle.fileno())
+        if (before.st_mtime_ns, before.st_size) == (after.st_mtime_ns, after.st_size) and len(data) == after.st_size:
+            return Consumed(data, "sha256:" + hashlib.sha256(data).hexdigest(), [after.st_mtime_ns, after.st_size],
+                            (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_size))
+    raise OSError(f"{source}: being written as it is read")
+
+
+def still(source: Path, taken: Consumed) -> bool:
+    """Is the file at this path the one that was read, unchanged?"""
+    try:
+        stat = os.stat(source)
+    except OSError:
+        return False
+    return (stat.st_dev, stat.st_ino, stat.st_mtime_ns, stat.st_size) == taken.file
+
+
+def digest_of(data: bytes) -> str:
+    return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
 class Tree:
@@ -337,14 +384,29 @@ class Records:
             return False
         return os.stat(output).st_mtime >= os.stat(source).st_mtime
 
-    def wrote(self, output: Path, producer: str, source: Path) -> None:
+    def wrote(self, output: Path, producer: str, source: Path, taken: Consumed | None = None,
+              written: str | None = None) -> None:
         """Enter a file just written (or, in an adoption, just found to be
-        what the tool would write)."""
+        what the tool would write): made of the image as it was read
+        (`taken`), and with the digest of the bytes written (`written`).
+        Both are given by a tool, which knows them; what is at the two
+        paths by now may be something else."""
         tree = self._tree(output)
+        if taken is None:
+            taken = consume(source)
         tree.outputs[tree.rel(output)] = {"producer": producer, "source": tree.rel(source),
-                                          "digest": digest(output), "source-digest": digest(source),
-                                          "source-stamp": stamp(source)}
+                                          "digest": digest(output) if written is None else written,
+                                          "source-digest": taken.digest, "source-stamp": list(taken.stamp)}
         tree.dirty = True
+
+    def incomplete(self, output: Path, producer: str, source: Path) -> bool:
+        """Is this the tool's own output of this image, by an entry that
+        does not say which bytes the image had (a record of an earlier
+        form)? An adoption completes it."""
+        entry = self.entry(output)
+        return (entry is not None and "source-digest" not in entry
+                and self.declared_for(output) is None and self.owns(output, producer, source)
+                and self._tree(output).within(source) and entry["source"] == self._tree(output).rel(source))
 
     def removed(self, output: Path) -> None:
         tree = self._tree(output)
@@ -419,7 +481,13 @@ def declare(webp: Path, image: Path | None) -> int:
             tree = records._tree(webp)
         except RecordError:
             tree = None
-        if tree is None or not tree.within(image):
+        # One tree for both, by the tree each is in: with the engine inside
+        # the site, an engine image is under the site's root as well.
+        try:
+            same = tree is not None and records._tree(image) is tree
+        except RecordError:
+            same = False
+        if not same:
             print(f"declare: {show(webp)} and {show(image)} are not files of one tree (the site, or the engine)",
                   file=sys.stderr)
             return 1

@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Concurrent    (forkIO, setNumCapabilities)
+import Control.Concurrent    (forkIO, myThreadId, setNumCapabilities)
 import Control.Exception     (IOException, try)
 import Control.Monad         (void, when)
 import Data.Time.Clock.POSIX (getPOSIXTime)
@@ -13,7 +13,8 @@ import Themes                (Themes (..), Theme (..), systemDark, themeLabel)
 import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
-import Hakyll                (hakyllWith, toFilePath)
+import Hakyll                (toFilePath)
+import Hakyll.Main           (Command (..), Options (..), defaultParser, hakyllWithArgs)
 import Golden                (renderFixture)
 import Contract              (renderTemplate)
 import Site                  (refusedPath, rules, siteConfigurationFor)
@@ -149,19 +150,37 @@ main = do
             cfg <- readSiteConfig
             writeFooterData (switchOn cfg "similar-links") (outputDirFor False)
         _ -> do
-            when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) checkSources
+            dev <- isDevBuild
+            let conf = siteConfigurationFor dev
+            -- Hakyll's own reading of the command line says which command
+            -- this is: `site --verbose build` is a build too.
+            options <- defaultParser conf
+            let run = running (optCommand options)
+            when (run /= NoBuild) checkSources
             -- What the tools' records pair now, where the pages' dependencies
             -- look for it, before Hakyll reads the site.
-            when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) refreshPairingStates
+            when (run /= NoBuild) refreshPairingStates
             -- And again as a watch runs: a pairing withdrawn while it does
             -- is no longer shown.
-            when (take 1 args == ["watch"]) (void (forkIO watchPairingStates))
+            when (run == Watching) (myThreadId >>= void . forkIO . watchPairingStates)
             siteThreads >>= setNumCapabilities
             writeBuildStamp
-            dev <- isDevBuild
             cfg <- readSiteConfig
-            hakyllWith (siteConfigurationFor dev)
+            hakyllWithArgs conf options
                 (withCheckedRoutes (siteSwitchedLinks cfg) (withoutUnpublished currentUnpublished rules))
+
+-- | What a Hakyll command does with the site's pages.
+data Running = NoBuild | OneBuild | Watching deriving Eq
+
+running :: Command -> Running
+running command = case command of
+    Build _  -> OneBuild
+    Rebuild  -> OneBuild
+    Check {} -> NoBuild
+    Clean    -> NoBuild
+    Deploy   -> NoBuild
+    Server {} -> NoBuild
+    _        -> Watching       -- watch, and the older name for it, preview
 
 -- | Plan §3.7: a build runs with the engine sources this binary was compiled
 --   from, so that its templates, scripts and tools are that engine's too.
