@@ -14,14 +14,12 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import (engine_path, load_tool, requires_cabal, script_env, site_binary,
-                            write_photo_site_config)
+from tests._helpers import load_tool
 
 
 generate_thumbnails = load_tool("generate-thumbnails.py", register=True)
@@ -258,7 +256,6 @@ class ThumbnailContractTests(unittest.TestCase):
         run(str(self.root))
         orphan = self.root / "series" / "doomed.w960.jpg"
         companion = self.root / "series" / "doomed.w960.webp"
-        companion.write_bytes(b"stub")
         (self.root / "series" / "doomed.jpg").unlink()
 
         code, out = run(str(self.root), "--prune")
@@ -347,79 +344,142 @@ class ThumbnailContractTests(unittest.TestCase):
 
 
 
-@requires_cabal
 @unittest.skipUnless(HAVE_PILLOW, "Pillow not installed")
-class ShownByNameTests(unittest.TestCase):
-    """A variant's WebP that a page shows by name is the page's author's
-    image: the script asks the generator (`site list-named`) before it
-    writes, and writes nothing where one is in the way."""
+class OwnershipTests(unittest.TestCase):
+    """The script writes over, and prunes, only what its record says it
+    made (tools/derived_images.py): a file of a variant's name that an
+    author put there, or changed, stays byte for byte."""
 
-    AUTHORED = b"RIFF\x1a\x00\x00\x00WEBPVP8 made by its author"
+    AUTHORED = b"made by its author"
 
     def setUp(self) -> None:
-        tmp = tempfile.TemporaryDirectory(prefix="thumbnails-site-")
+        tmp = tempfile.TemporaryDirectory(prefix="thumbnails-own-")
         self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
-        write_photo_site_config(self.root)
-        self.photos = self.root / "content/photography/trip"
-        self.photos.mkdir(parents=True)
-        for name in ("view.jpg", "harbor.jpg", "plain.jpg"):
-            Image.new("RGB", (1000, 10), (10, 120, 200)).save(self.photos / name, format="JPEG")
+        self.root = Path(tmp.name).resolve()
+        self.photos = self.root / "trip"
+        self.photos.mkdir()
 
-    def page(self, rel: str, front: str, body: str = "") -> None:
-        path = self.root / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"---\n{front}\n---\n\n{body}\n", encoding="utf-8")
+    def photo(self, name: str, width: int = 1000) -> Path:
+        path = self.photos / name
+        Image.new("RGB", (width, 10), (10, 120, 200)).save(path, format="JPEG")
+        os.utime(path, (NEWER, NEWER))
+        return path
 
-    def thumbnails(self, *argv: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, str(engine_path("tools/generate-thumbnails.py")), *argv],
-                              cwd=self.root, capture_output=True, text=True, timeout=120,
-                              env=script_env(SITE_ROOT=str(self.root), SITE_BINARY=str(site_binary())))
+    def authored(self, name: str) -> Path:
+        path = self.photos / name
+        path.write_bytes(self.AUTHORED)
+        # Older than the photograph: what a rule by the dates rewrites.
+        os.utime(path, (OLD, OLD))
+        return path
 
-    def written(self) -> set[str]:
-        return {p.name for p in self.photos.iterdir() if generate_thumbnails.is_variant(p) or ".w" in p.stem}
+    def files(self) -> dict[str, bytes]:
+        return {p.name: p.read_bytes() for p in self.photos.iterdir()}
 
-    def test_a_variant_s_webp_a_page_shows_is_not_written_over(self) -> None:
-        # An essay shows a WebP its author made, named as a variant of
-        # view.jpg would be; a photograph's front matter names another.
-        self.page("content/essays/a.md", "title: A", "![The view](../photography/trip/view.w480.webp)")
-        self.page("content/photography/trip/harbor.md", "title: Harbor\nphoto: harbor.w960.webp")
-        for name in ("view.w480.webp", "harbor.w960.webp"):
-            (self.photos / name).write_bytes(self.AUTHORED)
-        before = self.written()
-        for argv in ((), ("--force",), ("--prune",), ("--dry-run",)):
+    def record(self) -> dict[str, dict[str, str]]:
+        path = self.root / "data/derived-images.json"
+        return json.loads(path.read_text(encoding="utf-8"))["outputs"] if path.is_file() else {}
+
+    def test_what_it_writes_is_recorded_with_its_photograph(self) -> None:
+        self.photo("view.jpg")
+        code, _ = run(str(self.root))
+        self.assertEqual(code, 0)
+        self.assertEqual(set(self.record()), {f"trip/view.w{w}.{ext}" for w in (480, 960) for ext in ("jpg", "webp")})
+        for entry in self.record().values():
+            self.assertEqual((entry["producer"], entry["source"]), ("generate-thumbnails", "trip/view.jpg"))
+            self.assertRegex(entry["digest"], r"^sha256:[0-9a-f]{64}$")
+
+    def test_a_file_of_a_variant_s_name_that_is_not_its_own_is_left(self) -> None:
+        self.photo("view.jpg")
+        mine = [self.authored("view.w480.jpg"), self.authored("view.w960.webp")]
+        for argv in ((), ("--force",), ("--prune",), ("--force", "--prune")):
             with self.subTest(argv=argv):
-                done = self.thumbnails(*argv)
-                self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
-                self.assertIn("content/essays/a.md shows content/photography/trip/view.w480.webp by name, as an "
-                              "image of its own, and it is where a variant of content/photography/trip/view.jpg "
-                              "would be written", done.stderr)
-                self.assertIn("content/photography/trip/harbor.md shows content/photography/trip/harbor.w960.webp "
-                              "by name", done.stderr)
-                self.assertNotIn("plain", done.stderr)
-                # Nothing is written, for the image in no one's way either.
-                self.assertEqual(self.written(), before)
-                for name in ("view.w480.webp", "harbor.w960.webp"):
-                    self.assertEqual((self.photos / name).read_bytes(), self.AUTHORED)
-        # Under names of their own they are the author's still, and the
-        # ladders are written.
-        (self.photos / "view.w480.webp").rename(self.photos / "view-small.webp")
-        (self.photos / "harbor.w960.webp").rename(self.photos / "harbor-mid.webp")
-        self.page("content/essays/a.md", "title: A", "![The view](../photography/trip/view-small.webp)")
-        self.page("content/photography/trip/harbor.md", "title: Harbor\nphoto: harbor-mid.webp")
-        done = self.thumbnails()
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertEqual(self.written(), {f"{stem}.w{width}.{ext}" for stem in ("view", "harbor", "plain")
-                                          for width in (480, 960) for ext in ("jpg", "webp")})
-        self.assertEqual((self.photos / "view-small.webp").read_bytes(), self.AUTHORED)
+                code, out = run(str(self.root), *argv)
+                self.assertEqual(code, 0, out)
+                for path in mine:
+                    self.assertEqual(path.read_bytes(), self.AUTHORED)
+                    self.assertRegex(out, rf"keep   \S*{path.name}  \(not recorded as made here")
+                self.assertIn("not this script's and left as they are", out)
+        # The places that were free hold its own, and only those are recorded.
+        self.assertEqual(set(self.record()), {"trip/view.w480.webp", "trip/view.w960.jpg"})
 
-    def test_a_generator_that_cannot_be_asked_stops_the_script(self) -> None:
-        done = subprocess.run([sys.executable, str(engine_path("tools/generate-thumbnails.py"))],
-                              cwd=self.root, capture_output=True, text=True, timeout=120,
-                              env=script_env(SITE_ROOT=str(self.root), SITE_BINARY="/bin/false"))
-        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
-        self.assertIn("could not ask the generator", done.stderr)
-        self.assertEqual(self.written(), set())
+    def test_its_own_variant_changed_by_the_author_is_the_author_s(self) -> None:
+        source = self.photo("view.jpg")
+        run(str(self.root))
+        edited = self.photos / "view.w480.jpg"
+        edited.write_bytes(self.AUTHORED)
+        source.unlink()
+        self.photo("view.jpg", 1100)
+        for argv in ((), ("--force",)):
+            code, out = run(str(self.root), *argv)
+            self.assertEqual(code, 0, out)
+            self.assertEqual(edited.read_bytes(), self.AUTHORED)
+        # The others, still its own, were made again from the new photograph.
+        with Image.open(self.photos / "view.w960.jpg") as variant:
+            self.assertEqual(variant.size[0], 960)
+
+    def test_prune_takes_only_what_the_record_says_it_made(self) -> None:
+        # The photograph is gone. Its variants are the script's, but a
+        # page shows a WebP of a variant's name that an author made, and
+        # another variant was changed by hand; a sidecar is another tool's.
+        source = self.photo("view.jpg")
+        run(str(self.root))
+        (self.photos / "view.w480.webp").write_bytes(self.AUTHORED)
+        (self.photos / "view.w960.jpg").write_bytes(self.AUTHORED)
+        (self.photos / "view.w480.jpg.dims.yaml").write_text("width: 480\n", encoding="utf-8")
+        loose = self.authored("gone.w480.jpg")
+        source.unlink()
+
+        code, out = run(str(self.root), "--prune", "--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(self.files()), 6)
+
+        code, out = run(str(self.root), "--prune")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.files(), {
+            "view.w480.webp": self.AUTHORED, "view.w960.jpg": self.AUTHORED, "gone.w480.jpg": self.AUTHORED,
+            "view.w480.jpg.dims.yaml": b"width: 480\n"})
+        self.assertEqual(loose.read_bytes(), self.AUTHORED)
+        self.assertIn("not recorded as made here", out)
+        self.assertIn("a sidecar this script did not write", out)
+        # What it pruned it no longer records; what it kept it never owned.
+        self.assertEqual(set(self.record()), {"trip/view.w480.webp", "trip/view.w960.jpg"})
+
+    def test_adoption_records_what_a_fresh_rendering_reproduces(self) -> None:
+        # Variants from before there was a record, and one an author made.
+        self.photo("view.jpg")
+        run(str(self.root))
+        (self.root / "data/derived-images.json").unlink()
+        (self.photos / "view.w960.webp").write_bytes(self.AUTHORED)
+        before = self.files()
+        # Until adopted they are no one's: nothing is rewritten or pruned.
+        code, out = run(str(self.root), "--force", "--prune")
+        self.assertEqual((code, self.files(), self.record()), (0, before, {}))
+
+        code, out = run(str(self.root), "--adopt", "--dry-run")
+        self.assertIn("3 variant file(s) would be recorded as this script's; 1 differ", out)
+        self.assertEqual(self.record(), {})
+        code, out = run(str(self.root), "--adopt")
+        self.assertEqual(code, 0, out)
+        self.assertIn("3 variant file(s) recorded as this script's; 1 differ and are left unrecorded", out)
+        self.assertIn("differs  ", out)
+        self.assertIn("view.w960.webp", out)
+        self.assertEqual(set(self.record()), {"trip/view.w480.jpg", "trip/view.w480.webp", "trip/view.w960.jpg"})
+        self.assertEqual(self.files(), before)
+        # Adopted, they are its own again.
+        code, out = run(str(self.root), "--force")
+        self.assertEqual((self.photos / "view.w960.webp").read_bytes(), self.AUTHORED)
+        self.assertIn("1 not this script's", out)
+
+    def test_a_record_that_cannot_be_read_stops_the_script(self) -> None:
+        self.photo("view.jpg")
+        (self.root / "data").mkdir()
+        (self.root / "data/derived-images.json").write_text("{", encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code, _ = run(str(self.root))
+        self.assertEqual(code, 1)
+        self.assertIn("nothing was written", err.getvalue())
+        self.assertEqual(set(self.files()), {"view.jpg"})
 
 
 if __name__ == "__main__":

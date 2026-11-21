@@ -39,7 +39,9 @@ urlAttributes = ["src", "href", "poster", "data", "srcset"]
 urlsIn :: String -> [String]
 urlsIn html = concat [ candidates name value | Value name value <- pieces html ]
   where
-    candidates "srcset" value = [ text url | (_, url, _) <- srcsetCandidates value ]
+    -- The whole value first: a reference may write the space or the
+    -- comma a srcset is cut at (@art.webp&#32;1x@).
+    candidates "srcset" value = [ url | (_, url, _) <- srcsetCandidates (text value) ]
     candidates _        value = [trim (text value)]
     text = T.unpack . fromEntities . T.pack
 

@@ -422,30 +422,45 @@ lacks, for a site that doesn't push the engine itself.
   transformers.js library and ONNX runtime it runs the model in (and Vega,
   for `viz`), so neither search nor a figure asks another host for code.
 - **Images:** `tools/convert-images.sh` writes a `.webp` beside every JPEG
-  and PNG, with `cwebp`; without it the build warns and images fall back.
-  A page shows `map.png`, `map.JPG` or `map.gif` with `map.webp`, so one
-  name is one image, and the script stops the build, naming the files,
-  where it is two:
-  - two images beside each other that differ only in the extension;
-  - the same under `static/` and the engine's `static/`, which are served
-    as one tree: the site's `images/color.png` and the engine's
-    `images/color.JPG` would both be shown with `/images/color.webp`. A
-    site file of the engine file's exact name (`images/color.JPG` in
-    both) is an override, not a second image: the site's is served, and
-    it is shown with the site's `color.webp` or, until there is one,
-    alone, never with the engine's;
-  - a JPEG or PNG beside a WebP that a page shows by name, which is an
-    image of its own and would be converted over. A page names a file
-    in its body (`![](color.webp)`, a link, raw HTML) or its front matter
-    (`photo: harbor.webp`), by a relative path or one from the site's
-    root, wherever that is served from: `static/`, `content/`, or a
-    section's directory at its address. `tools/generate-thumbnails.py`
-    asks the same before it writes a photograph's variants
-    (`view.w480.webp` beside `view.jpg`).
+  and PNG, with `cwebp` (without it the build warns and images fall
+  back), and `tools/generate-thumbnails.py` a photograph's variants
+  (`view.w480.jpg`, `view.w480.webp`). Those are names an author may give
+  a file too, so the tools keep a record of what they wrote
+  (`data/derived-images.json`: the tool, the image it was made from, the
+  path, and the bytes last written; local state, to be kept out of Git
+  with the files it describes) and go by it:
+  - a tool writes where there is no file, and writes over or prunes only
+    a file the record says it made and that is unchanged since. Any other
+    file of that name (made by hand, shown by a page as an image of its
+    own, edited after the tool wrote it) is left exactly as it is, by a
+    plain run, `--force` and `--prune` alike, and is counted in the
+    tool's summary;
+  - a page shows an image with a WebP of its name, a photograph's srcset
+    offers a variant, and the blog publishes an image's companion, only
+    when the record pairs them and the bytes are still the recorded ones.
+    A `lake.jpg` beside a `lake.webp` the record does not know is shown
+    alone;
+  - a WebP made by hand is paired by declaring it, in
+    `data/companions.json` (`{"content/blog/moving.webp":
+    "content/blog/moving.gif"}`; `python3 engine/tools/derived_images.py
+    declare FILE.webp` writes the line). No tool writes to a declared
+    file;
+  - `make adopt-images` is for the files that were there before the
+    record, which is every companion of a site that upgrades: it makes
+    each again in a scratch place and records those that come out byte
+    for byte the same, lists the rest, and writes nothing else
+    (`ADOPT_FLAGS=--dry-run` only says). Until then the site is correct
+    and heavier: the images are shown without them.
 
-  It deletes nothing. Where a companion is already there it says so: it
-  may hold the pixels of the image that gets the other name, and is to be
-  moved aside, or deleted if the script made it.
+  One name is still one image, and the converter stops the build, naming
+  the files and deleting nothing, where two images would be shown with
+  one companion: two beside each other that differ only in the extension
+  (`map.png`, `map.JPG`, `map.gif`), or the same under `static/` and the
+  engine's `static/`, which are served as one tree (the site's
+  `images/color.png` and the engine's `images/color.JPG` at
+  `/images/color.webp`). A site file of the engine file's exact name is
+  an override, not a second image: the site's is served, and it is shown
+  with the site's own companion or alone, never with the engine's.
 - **PDF thumbnails:** `make pdf-thumbs`, with `pdftoppm`.
 
 ## This repository

@@ -15,7 +15,8 @@ import subprocess
 import tempfile
 import unittest
 
-from tests._helpers import CABAL_PROJECT, ENGINE, SITE_ROOT, engine_path, requires_cabal, script_env, site_binary
+from tests._helpers import (CABAL_PROJECT, ENGINE, SITE_ROOT, engine_path, record_derived, requires_cabal,
+                            script_env, site_binary)
 
 PROBE = '''{-# LANGUAGE OverloadedStrings #-}
 import Control.Monad (forM_, (>=>))
@@ -316,6 +317,9 @@ class EngineFilesTests(unittest.TestCase):
             self.write(str(Path(page).parent / "local.jpg.dims.yaml"), "width: 33\nheight: 22\n")
         self.write("static/images/probe.jpg", "image fixture")
         self.write("static/images/probe.webp", "webp fixture")
+        # The converter's, by its record: a page shows an image with a
+        # companion only on that.
+        record_derived(self.root, {"static/images/probe.webp": "static/images/probe.jpg"})
         self.write("static/images/probe.jpg.dims.yaml", "width: 640\nheight: 480\n")
         return [str(Path(page).with_suffix(".html")) for page in pages]
 
@@ -327,7 +331,9 @@ class EngineFilesTests(unittest.TestCase):
             self.assertEqual(html.count('<picture>'), 2)
             self.assertEqual(html.count('width="640"'), 2)
             self.assertIn('width="33"', html)
+        # The images move into the engine, and their record with them.
         (self.root / "static").rename(self.root / "engine/static")
+        (self.root / "data").rename(self.root / "engine/data")
         self.run_probe("clean")
         self.run_probe("build")
         self.assertEqual([self.built(page) for page in pages], before)
@@ -344,6 +350,7 @@ class EngineFilesTests(unittest.TestCase):
     def test_engine_sidecar_edits_rebuild_essay_and_photo(self):
         pages = self.image_pages()
         (self.root / "static").rename(self.root / "engine/static")
+        (self.root / "data").rename(self.root / "engine/data")
         self.run_probe("build")
         sidecar = self.root / "engine/static/images/probe.jpg.dims.yaml"
         self.write(str(sidecar.relative_to(self.root)), "width: 800\nheight: 600\n",
@@ -357,7 +364,8 @@ class EngineFilesTests(unittest.TestCase):
         (self.root / "engine").mkdir(exist_ok=True)
         (self.root / "engine/switches.yaml").symlink_to(engine_path("switches.yaml"))
         self.write("content/essays/image.md", "\n\n".join(
-            f"![{name}](/images/{name})" for name in ("brand.png", "mark.jpg", "plain.png", "ours.png")))
+            f"![{name}](/images/{name})"
+            for name in ("brand.png", "mark.jpg", "plain.png", "ours.png", "theirs.png", "hand.gif")))
         engine, site = "engine/static/images/", "static/images/"
         # The site's brand.png over the engine's, which alone has a
         # companion and a sidecar: they are the engine's picture's.
@@ -376,6 +384,20 @@ class EngineFilesTests(unittest.TestCase):
             self.write(tree + name, "image")
             self.write(tree + name.replace(".png", ".webp"), "companion")
             self.write(tree + name + ".dims.yaml", "width: 64\nheight: 48\n")
+        # Each tree's record says which companions the converter made
+        # there, and from which image.
+        record_derived(self.root / "engine", {"static/images/brand.webp": "static/images/brand.png",
+                                              "static/images/mark.webp": "static/images/mark.jpg",
+                                              "static/images/plain.webp": "static/images/plain.png"})
+        record_derived(self.root, {"static/images/ours.webp": "static/images/ours.png"})
+        # A WebP that only has an image's name is another picture: one no
+        # record names, and one the record names with other bytes (changed
+        # since). One its author declared is the image's.
+        self.write(site + "theirs.png", "image")
+        self.write(site + "theirs.webp", "an author's own picture")
+        self.write(site + "hand.gif", "image")
+        self.write(site + "hand.webp", "made by hand")
+        self.write("data/companions.json", '{"static/images/hand.webp": "static/images/hand.gif"}')
         self.run_probe("build")
         html = self.built("content/essays/image.html")
 
@@ -386,17 +408,25 @@ class EngineFilesTests(unittest.TestCase):
         self.assertNotIn("<picture>", shown("brand.png"))
         self.assertNotIn("width=", shown("brand.png"))
         self.assertNotIn("<picture>", shown("mark.jpg"))
+        self.assertNotIn("<picture>", shown("theirs.png"))
+        self.assertIn('<source srcset="/images/hand.webp" type="image/webp">', shown("hand.gif"))
         for name in ("plain.png", "ours.png"):
             self.assertIn(f'<source srcset="/images/{name.replace(".png", ".webp")}" type="image/webp">', shown(name))
             self.assertIn('width="64"', shown(name))
         # With a companion and a sidecar of its own, the site's image has both.
         self.write(site + "brand.webp", "site companion")
         self.write(site + "brand.png.dims.yaml", "width: 8\nheight: 8\n")
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        # And the site's own companion, changed by hand since it was made,
+        # is no longer the one the record names.
+        self.write(site + "ours.webp", "retouched")
         self.run_probe("clean")
         self.run_probe("build")
         html = self.built("content/essays/image.html")
         self.assertIn('<source srcset="/images/brand.webp" type="image/webp">', shown("brand.png"))
         self.assertIn('width="8"', shown("brand.png"))
+        self.assertNotIn("<picture>", shown("ours.png"))
+        self.assertIn('width="64"', shown("ours.png"))
 
     def test_raw_reads_take_the_site_file_then_the_engine_s(self):
         self.write("data/both.csl", "site")

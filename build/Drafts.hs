@@ -52,7 +52,6 @@ module Drafts
     , withoutUnpublished
     , unpublishedSummary
     , markdownUnder
-    , filesUnder
     ) where
 
 import           Control.Exception    (IOException, try)
@@ -81,6 +80,7 @@ import           Hakyll               (Pattern, Rules, fromFilePath, fromGlob, f
 import           Hakyll.Core.Rules.Internal (RuleSet (..), Rules (..))
 import           Utils                (isDevBuild)
 import           BlogImages           (imageInputs, isImage, isMonogram, referencedFiles)
+import           DerivedImages        (pairedWith)
 
 data Unpublished = Unpublished
     { upFiles :: Set.Set FilePath   -- ^ the flagged files themselves, and the blog's unshown images
@@ -133,8 +133,13 @@ unshownBlogImages root pages = do
             return $ case r of
                 Left _    -> []
                 Right src -> referencedFiles (norm (takeDirectory fp)) (bodyOf src)
-        -- A raster image's WebP companion is shown in its place.
-        let used = Set.fromList (concat [f : imageInputs f | f <- shown])
+        -- A raster image's WebP companion is shown in its place, where
+        -- it is the image's ("DerivedImages"): a WebP that only has the
+        -- name is another picture, which the image's page does not show
+        -- and so does not publish.
+        companions <- fmap concat $ forM shown $ \f ->
+            filterM (pairedWith f) [c | c <- imageInputs f, isImage c]
+        let used = Set.fromList (shown ++ companions)
         return (filter (`Set.notMember` used) images)
   where
     bodyOf src = let text = T.unpack (TE.decodeUtf8With TEE.lenientDecode src)

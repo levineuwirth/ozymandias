@@ -89,6 +89,7 @@ import Themes       (themeContext)
 import Config       (SiteConfig (..), loadConfig, identityOver, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
+import           DerivedImages (pairedWith)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
@@ -2082,12 +2083,15 @@ resolvePhotoWidth item = do
                     dims <- readPhotoSidecar ".dims.yaml" item
                     return (readMaybe =<< sidecarLookupString "width" dims)
 
--- | Keep only the candidates whose file is on disk, preserving order.
-photoCandidatesOnDisk :: [(FilePath, String, Int)]
+-- | Keep only the candidates that are this photograph's ("DerivedImages":
+--   on disk, and made from it or declared for it), preserving order. A
+--   file that only has a variant's name is not offered in its srcset.
+photoCandidatesOnDisk :: FilePath
+                      -> [(FilePath, String, Int)]
                       -> Compiler [(FilePath, String, Int)]
-photoCandidatesOnDisk cands = do
+photoCandidatesOnDisk photo cands = do
     marked <- unsafeCompiler $
-        mapM (\c@(disk, _, _) -> (,) c <$> doesFileExist disk) cands
+        mapM (\c@(disk, _, _) -> (,) c <$> pairedWith photo disk) cands
     return [ c | (c, True) <- marked ]
 
 -- | Render a candidate list as a @srcset@ attribute value.
@@ -2370,7 +2374,7 @@ photographyCtx =
             Nothing -> noResult "no co-located photo (flat single, or photo: key absent)"
             Just (dir, urlDir, photo) -> do
                 let webp = photoWebpName photo
-                exists <- unsafeCompiler (doesFileExist (dir </> webp))
+                exists <- unsafeCompiler (pairedWith (dir </> photo) (dir </> webp))
                 if exists
                     then return (urlDir ++ "/" ++ webp)
                     else noResult "no webp companion on disk"
@@ -2393,7 +2397,7 @@ photographyCtx =
                               , urlDir ++ "/" ++ photoVariantName photo w
                               , w )
                             | w <- photoVariantWidths, w < srcW ]
-                kept <- photoCandidatesOnDisk rungs
+                kept <- photoCandidatesOnDisk (dir </> photo) rungs
                 if null kept
                     then noResult "no delivery variants on disk"
                     else return $ photoSrcsetString $
@@ -2425,7 +2429,7 @@ photographyCtx =
                                , fromMaybe 0 mWidth )
                 case mWidth of
                     Nothing -> do
-                        kept <- photoCandidatesOnDisk [baseCand]
+                        kept <- photoCandidatesOnDisk (dir </> photo) [baseCand]
                         case kept of
                             [(_, url, _)] -> return url
                             _             -> noResult "no webp companion on disk"
@@ -2435,7 +2439,7 @@ photographyCtx =
                                       , w )
                                     | w <- photoVariantWidths, w < srcW ]
                                     ++ [ (dir </> webpOf photo, urlDir ++ "/" ++ webpOf photo, srcW) ]
-                        kept <- photoCandidatesOnDisk cands
+                        kept <- photoCandidatesOnDisk (dir </> photo) cands
                         if null kept
                             then noResult "no webp companions on disk"
                             else return (photoSrcsetString kept)

@@ -28,6 +28,8 @@ dist-newstyle/
 # fixture's sidecar is test input (the expected width and height of
 # plate.png), and a fresh checkout without it failed the golden test.
 /static/**/*.webp
+# and the record of which of those the tools made (tools/derived_images.py).
+/data/derived-images.json
 **/*.dims.yaml
 !/tests/golden/*.dims.yaml
 # The fixture site's are its content, as a site's own would be.

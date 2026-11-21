@@ -1,28 +1,32 @@
-"""tools/convert-images.sh: a WebP companion beside every JPEG and PNG.
+"""tools/convert-images.sh: a WebP companion beside every JPEG and PNG, and
+no other file touched.
 
 Run over a scratch site and a scratch engine (the script walks both, and
 this must write nothing into the real one) with a stand-in for cwebp:
 
-  · an image gets its companion whichever case its extension is in, as the
-    image filter and the site check expect one (IMG_0042.JPG is how a
-    camera writes it);
-  · a companion that is not older than its image is left alone, and one
-    that is older is made again;
-  · a file that is not a JPEG or PNG gets none;
-  · two images a page would be shown with one companion for (map.png,
-    map.JPG, map.gif) are refused, each named, before anything is
-    converted, with or without cwebp: the companion a published page
-    shows must not become a draft's picture. Nothing is deleted: the
-    message names the companion that is already there, which may be the
-    author's own;
-  · so are an image of the site's static/ and one of the engine's that
-    are served with one companion, while a site image that replaces the
-    engine's of the same name is not;
-  · so is an image beside a WebP that a page shows by name, which is an
-    image of its own and not to be converted over;
+  · an image gets its companion whichever case its extension is in, and
+    the ownership record says which image and which bytes
+    (tools/derived_images.py; the engine's images in the engine's record);
+  · the script's own companion is made again when its image is newer, and
+    left when it is not;
+  · a WebP the script did not record is never written over, however old:
+    one beside a JPEG that was there first, one a page shows by any name
+    or path, one the script made and the author has changed since. It is
+    counted and named, and stays byte for byte;
+  · a companion whose image is gone is still the script's, and the image
+    that takes the name gets a new one;
+  · a declared companion (data/companions.json) is the author's: not
+    written, not counted as left;
+  · --adopt records the companions already there that a fresh conversion
+    reproduces, lists the others, and with --dry-run records nothing;
+  · two images that would be shown with one companion (map.png, map.JPG,
+    map.gif; the site's static image and the engine's) are refused, each
+    named, before anything is converted, with or without cwebp, and
+    nothing is deleted;
+  · another tool's output (a photograph's variant) is not an image to
+    convert;
   · no name is told from another by what is in it, a newline included;
-  · a walk that fails, or a generator that cannot be asked, is a failure,
-    not a site with nothing to refuse;
+  · a walk that fails, or a record that cannot be read, is a failure;
   · a directory named as an image is passed over, and a link to an image
     is converted.
 
@@ -31,6 +35,7 @@ this must write nothing into the real one) with a stand-in for cwebp:
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -38,33 +43,34 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import engine_path, requires_cabal, script_env, site_binary, stub_bin, write_site_config
+from tests._helpers import engine_path, script_env, stub_bin
 
-# cwebp -quiet -q 85 <image> -o <companion>: writes the image's name.
+# cwebp -quiet -q 85 <image> -o <companion>: writes the image's name and
+# what the image holds, as a conversion depends on both.
 CWEBP = """#!/bin/sh
 image=$4
 while [ "$1" != "-o" ]; do shift; done
-printf '%s' "$(basename "$image")" > "$2"
+{ printf '%s:' "$(basename "$image")"; cat "$image"; } > "$2"
 """
+TOOLS = ("convert-images.sh", "convert_images.py", "derived_images.py", "sitelib.py")
 
 
-@requires_cabal
+def made(name: str, holds: str = "x") -> str:
+    """What the stand-in makes of an image of that name and content."""
+    return f"{name}:{holds}"
+
+
 class ConvertImages(unittest.TestCase):
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory(prefix="convert-images-")
         self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
+        self.root = Path(tmp.name).resolve()
         self.stubs = stub_bin(self.root / "bin", ["cwebp"], CWEBP)
         # The script takes the engine to be the directory above its own.
         tools = self.root / "engine/tools"
         tools.mkdir(parents=True)
-        for name in ("convert-images.sh", "site-paths.sh", "sitelib.py"):
+        for name in TOOLS:
             shutil.copy(engine_path(f"tools/{name}"), tools / name)
-        # The generator says where a page's paths lead, by the site's
-        # sections: essays are served at /articles/ here.
-        write_site_config(self.root, sections=[
-            {"dir": "essays", "address": "articles", "kind": "Essay", "dingbat": None},
-            {"dir": "blog", "kind": "Post", "dingbat": None}])
 
     def write(self, rel: str, text: str = "x") -> Path:
         path = self.root / rel
@@ -72,52 +78,15 @@ class ConvertImages(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def run_script(self, **env: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["bash", str(self.root / "engine/tools/convert-images.sh")], cwd=self.root,
-                              env={**script_env(self.stubs, SITE_ROOT=str(self.root),
-                                                SITE_BINARY=str(site_binary())), **env},
+    def run_script(self, *argv: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["bash", str(self.root / "engine/tools/convert-images.sh"), *argv], cwd=self.root,
+                              env={**script_env(self.stubs, SITE_ROOT=str(self.root)), **env},
                               capture_output=True, text=True, timeout=60)
 
-    def convert(self) -> str:
-        done = self.run_script()
+    def convert(self, *argv: str) -> str:
+        done = self.run_script(*argv)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        return done.stdout
-
-    def companions(self) -> dict[str, str]:
-        return {p.relative_to(self.root).as_posix(): p.read_text(encoding="utf-8")
-                for p in self.root.rglob("*.webp")}
-
-    def test_an_extension_counts_in_either_case(self):
-        for rel in ("content/blog/lake.jpg", "content/blog/big/Lake.JPG", "content/essays/a/Figure.Png",
-                    "static/images/portrait.JPEG", "engine/static/images/Mark.PNG",
-                    "content/blog/chart.svg", "content/blog/moving.GIF"):
-            self.write(rel)
-        self.assertIn("5 converted, 0 already present", self.convert())
-        self.assertEqual(self.companions(), {
-            "content/blog/lake.webp": "lake.jpg", "content/blog/big/Lake.webp": "Lake.JPG",
-            "content/essays/a/Figure.webp": "Figure.Png", "static/images/portrait.webp": "portrait.JPEG",
-            "engine/static/images/Mark.webp": "Mark.PNG"})
-        self.assertIn("0 converted, 5 already present", self.convert())
-
-    def test_a_current_companion_is_left_and_a_stale_one_is_made_again(self):
-        image = self.write("content/blog/big/Lake.JPG")
-        kept = self.write("content/blog/big/Lake.webp", "kept")
-        os.utime(image, (1_000_000_000, 1_000_000_000))
-        self.assertIn("0 converted, 1 already present", self.convert())
-        self.assertEqual(kept.read_text(encoding="utf-8"), "kept")
-        os.utime(kept, (900_000_000, 900_000_000))
-        self.assertIn("1 converted, 0 already present", self.convert())
-        self.assertEqual(kept.read_text(encoding="utf-8"), "Lake.JPG")
-
-    def bare_path(self) -> str:
-        """A PATH of what the script needs besides cwebp: a machine
-        without the converter."""
-        bare = self.root / "bare"
-        if not bare.is_dir():
-            bare.mkdir()
-            for tool in ("bash", "cat", "dirname", "find", "mktemp", "python3", "rm", "sort"):
-                (bare / tool).symlink_to(shutil.which(tool))
-        return str(bare)
+        return done.stdout + done.stderr
 
     def refused(self, **env: str) -> str:
         done = self.run_script(**env)
@@ -125,11 +94,215 @@ class ConvertImages(unittest.TestCase):
         self.assertNotIn("converted", done.stdout)
         return done.stderr
 
+    def companions(self) -> dict[str, str]:
+        return {p.relative_to(self.root).as_posix(): p.read_text(encoding="utf-8")
+                for p in self.root.rglob("*.webp")}
+
+    def record(self, tree: str = "") -> dict[str, dict[str, str]]:
+        path = self.root / tree / "data/derived-images.json"
+        return json.loads(path.read_text(encoding="utf-8"))["outputs"] if path.is_file() else {}
+
+    def bare_path(self) -> str:
+        """A PATH of what the script needs besides cwebp: a machine
+        without the converter."""
+        bare = self.root / "bare"
+        if not bare.is_dir():
+            bare.mkdir()
+            for tool in ("bash", "dirname", "python3"):
+                (bare / tool).symlink_to(shutil.which(tool))
+        return str(bare)
+
+    # -- what it makes, and says it made ---------------------------------
+
+    def test_an_extension_counts_in_either_case_and_each_companion_is_recorded(self):
+        for rel in ("content/blog/lake.jpg", "content/blog/big/Lake.JPG", "content/essays/a/Figure.Png",
+                    "static/images/portrait.JPEG", "engine/static/images/Mark.PNG",
+                    "content/blog/chart.svg", "content/blog/moving.GIF"):
+            self.write(rel)
+        self.assertIn("5 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {
+            "content/blog/lake.webp": made("lake.jpg"), "content/blog/big/Lake.webp": made("Lake.JPG"),
+            "content/essays/a/Figure.webp": made("Figure.Png"), "static/images/portrait.webp": made("portrait.JPEG"),
+            "engine/static/images/Mark.webp": made("Mark.PNG")})
+        # Each bound to the script, its image and the bytes written; the
+        # engine's in the engine's own record, which its sites share.
+        site, engine = self.record(), self.record("engine")
+        self.assertEqual(set(site), {"content/blog/lake.webp", "content/blog/big/Lake.webp",
+                                     "content/essays/a/Figure.webp", "static/images/portrait.webp"})
+        self.assertEqual(site["content/blog/big/Lake.webp"]["producer"], "convert-images")
+        self.assertEqual(site["content/blog/big/Lake.webp"]["source"], "content/blog/big/Lake.JPG")
+        self.assertRegex(site["content/blog/big/Lake.webp"]["digest"], r"^sha256:[0-9a-f]{64}$")
+        self.assertEqual({k: v["source"] for k, v in engine.items()},
+                         {"static/images/Mark.webp": "static/images/Mark.PNG"})
+        self.assertIn("0 converted, 5 already present", self.convert())
+
+    def test_its_own_companion_is_made_again_when_the_image_is_newer(self):
+        image = self.write("content/blog/big/Lake.JPG")
+        self.convert()
+        companion = self.root / "content/blog/big/Lake.webp"
+        self.assertIn("0 converted, 1 already present", self.convert())
+        os.utime(companion, (1_000_000_000,) * 2)
+        image.write_text("edited", encoding="utf-8")
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(companion.read_text(encoding="utf-8"), made("Lake.JPG", "edited"))
+        self.assertIn("0 converted, 1 already present", self.convert())
+
+    # -- what it leaves alone --------------------------------------------
+
+    def test_a_webp_it_did_not_record_is_never_written_over(self):
+        # Every way an author's WebP came to be beside an image of its
+        # name, each older than the image, which is when a converter that
+        # went by the dates wrote over it. No page is read to find out.
+        theirs = ("content/blog/color.webp",                  # shown by a page: ![](color.webp)
+                  "content/essays/trip/figures/map.webp",     # shown by a path from the site's root
+                  "content/photography/harbor/harbor.webp",   # a photograph's `photo:`
+                  "static/images/A&B.webp",                   # named with a character reference
+                  "static/images/art.webp",                   # in a srcset
+                  "engine/static/images/brand.webp")
+        for rel in theirs:
+            webp = self.write(rel, "the author's")
+            os.utime(webp, (1_000_000_000,) * 2)
+        for rel in ("content/blog/color.JPG", "content/essays/trip/figures/map.JPG",
+                    "content/photography/harbor/harbor.JPG", "static/images/A&B.JPG", "static/images/art.png",
+                    "engine/static/images/brand.png", "content/blog/new.jpg"):
+            self.write(rel)
+        for counted in ("1 converted, 0 already present", "0 converted, 1 already present"):
+            said = self.convert()
+            self.assertIn(counted, said)
+            self.assertIn("6 WebP file(s) beside an image are not recorded as made from it by this script, and are "
+                          "left as they are", said)
+            self.assertIn("content/blog/color.webp", said)
+            self.assertEqual(self.companions(), {**{rel: "the author's" for rel in theirs},
+                                                 "content/blog/new.webp": made("new.jpg")})
+            self.assertEqual(set(self.record()), {"content/blog/new.webp"})
+            self.assertEqual(self.record("engine"), {})
+
+    def test_its_own_companion_changed_by_the_author_is_the_author_s(self):
+        image = self.write("content/blog/lake.jpg")
+        self.convert()
+        companion = self.root / "content/blog/lake.webp"
+        companion.write_text("retouched by hand", encoding="utf-8")
+        os.utime(companion, (1_000_000_000,) * 2)
+        image.write_text("edited too", encoding="utf-8")
+        said = self.convert()
+        self.assertIn("0 converted, 0 already present", said)
+        self.assertIn("1 WebP file(s) beside an image are not recorded", said)
+        self.assertEqual(companion.read_text(encoding="utf-8"), "retouched by hand")
+
+    def test_a_companion_whose_image_is_gone_is_the_script_s_still(self):
+        self.write("content/blog/map.png")
+        self.convert()
+        # The image is exported again under another extension: the old
+        # companion is the script's own bytes, of an image that is gone.
+        (self.root / "content/blog/map.png").unlink()
+        self.write("content/blog/map.JPG", "exported again")
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.JPG", "exported again")})
+        self.assertEqual(self.record()["content/blog/map.webp"]["source"], "content/blog/map.JPG")
+        # Had the author changed it meanwhile, it would not be.
+        (self.root / "content/blog/map.webp").write_text("retouched", encoding="utf-8")
+        (self.root / "content/blog/map.JPG").unlink()
+        self.write("content/blog/map.jpeg")
+        self.assertIn("0 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/map.webp": "retouched"})
+
+    def test_a_declared_companion_is_the_author_s_and_is_not_written(self):
+        gif = self.write("content/blog/moving.gif")
+        webp = self.write("content/blog/moving.webp", "by hand")
+        still = self.write("content/blog/still.jpg")
+        hand = self.write("content/blog/still.webp", "by hand too")
+        os.utime(hand, (1_000_000_000,) * 2)
+        declare = [shutil.which("python3"), str(self.root / "engine/tools/derived_images.py"), "declare"]
+        env = script_env(SITE_ROOT=str(self.root))
+        (self.root / "data").mkdir()
+        (self.root / "data/rules-hash.txt").write_text("abc\n", encoding="utf-8")
+        # The one image of its name beside it, or the image named.
+        for argv in ([str(webp)], [str(hand), str(still)]):
+            done = subprocess.run(declare + argv, cwd=self.root, env=env, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(json.loads((self.root / "data/companions.json").read_text(encoding="utf-8")),
+                         {"content/blog/moving.webp": "content/blog/moving.gif",
+                          "content/blog/still.webp": "content/blog/still.jpg"})
+        # Pages were built without it: the next build is a full one.
+        self.assertFalse((self.root / "data/rules-hash.txt").exists())
+        said = self.convert()
+        self.assertIn("0 converted, 1 already present", said)
+        self.assertNotIn("not recorded", said)
+        self.assertEqual(self.companions(), {"content/blog/moving.webp": "by hand",
+                                             "content/blog/still.webp": "by hand too"})
+        self.assertEqual(self.record(), {})
+        # What cannot be declared: a file that is not there, one with two
+        # images of its name and none said.
+        self.write("content/blog/moving.png")
+        for argv in ([str(self.root / "content/blog/none.webp")], [str(webp)]):
+            done = subprocess.run(declare + argv, cwd=self.root, env=env, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertEqual(gif.read_text(encoding="utf-8"), "x")
+
+    def test_another_tool_s_output_is_not_an_image_to_convert(self):
+        # A photograph's variant and its WebP are generate-thumbnails'.
+        self.write("content/photography/trip/view.jpg")
+        self.write("content/photography/trip/view.w480.jpg")
+        (self.root / "data").mkdir()
+        (self.root / "data/derived-images.json").write_text(json.dumps({"version": 1, "outputs": {
+            "content/photography/trip/view.w480.jpg": {
+                "producer": "generate-thumbnails", "source": "content/photography/trip/view.jpg",
+                "digest": "sha256:" + "0" * 64}}}), encoding="utf-8")
+        said = self.convert()
+        self.assertIn("1 converted, 0 already present", said)
+        self.assertEqual(set(self.companions()), {"content/photography/trip/view.webp"})
+        self.assertIn("content/photography/trip/view.w480.jpg", self.record())
+
+    # -- adoption ----------------------------------------------------------
+
+    def test_adoption_records_what_a_fresh_conversion_reproduces(self):
+        # Companions from before there was a record: three the script
+        # made, one of them of an image edited since, and one an author
+        # made.
+        for name in ("lake.jpg", "hill.png", "edited.jpg", "sea.jpg"):
+            self.write(f"content/blog/{name}")
+        self.convert()
+        (self.root / "data/derived-images.json").unlink()
+        self.write("content/blog/edited.jpg", "edited since")
+        self.write("content/blog/sea.webp", "by hand")
+        (self.root / "data/rules-hash.txt").write_text("abc\n", encoding="utf-8")
+        before = self.companions()
+        # Until adopted, they are no one's: nothing is converted or kept.
+        said = self.convert()
+        self.assertIn("0 converted, 0 already present", said)
+        self.assertIn("4 WebP file(s) beside an image are not recorded", said)
+        self.assertIn("make adopt-images", said)
+
+        said = self.convert("--adopt", "--dry-run")
+        self.assertIn("2 companion(s) would be recorded as this script's; 2 differ and are left unrecorded", said)
+        self.assertEqual(self.record(), {})
+        self.assertTrue((self.root / "data/rules-hash.txt").exists())
+
+        said = self.convert("--adopt")
+        self.assertIn("2 companion(s) recorded as this script's; 2 differ and are left unrecorded", said)
+        self.assertIn("differs  content/blog/edited.webp", said)
+        self.assertIn("differs  content/blog/sea.webp", said)
+        self.assertEqual(set(self.record()), {"content/blog/lake.webp", "content/blog/hill.webp"})
+        self.assertEqual(self.record()["content/blog/hill.webp"]["source"], "content/blog/hill.png")
+        # Nothing was written but the record, and the next build is full.
+        self.assertEqual(self.companions(), before)
+        self.assertFalse((self.root / "data/rules-hash.txt").exists())
+        said = self.convert()
+        self.assertIn("0 converted, 2 already present", said)
+        self.assertIn("2 WebP file(s) beside an image are not recorded", said)
+        self.assertEqual(self.companions(), before)
+        # Adoption needs the converter it compares with.
+        done = self.run_script("--adopt", PATH=self.bare_path())
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("no cwebp", done.stderr)
+
+    # -- one companion, one image -----------------------------------------
+
     def test_two_images_with_one_companion_are_refused_before_anything_is_converted(self):
         # A published page shows map.png, and its companion is made.
         self.write("content/blog/map.png")
         self.convert()
-        self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.png")})
         # Then a draft's map.JPG arrives, newer, beside images not yet
         # converted. Its pixels must not become map.webp.
         for name in ("map.JPG", "also.jpeg", "also.PNG", "also.jpg", "other.jpg"):
@@ -141,38 +314,48 @@ class ConvertImages(unittest.TestCase):
                               "content/blog/map.webp", said)
                 self.assertIn("content/blog/also.PNG, content/blog/also.jpeg and content/blog/also.jpg share "
                               "one WebP companion, content/blog/also.webp", said)
-                self.assertIn("content/blog/map.webp is there already", said)
+                self.assertIn("Rename all but one of the images.", said)
+                self.assertIn("content/blog/map.webp is there already; this script made it from "
+                              "content/blog/map.png", said)
                 self.assertNotIn("content/blog/also.webp is there", said)
                 self.assertNotIn("other.jpg", said)
                 # Nothing was converted, and nothing was taken away.
-                self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
-        # All but one of each renamed or taken away, everything is converted.
+                self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.png")})
+        # The draft's image renamed, and no more than that: the published
+        # image keeps the companion made from it.
         (self.root / "content/blog/map.JPG").rename(self.root / "content/blog/plan.JPG")
         (self.root / "content/blog/also.PNG").unlink()
         (self.root / "content/blog/also.jpg").unlink()
         self.assertIn("3 converted, 1 already present", self.convert())
         self.assertEqual(self.companions(), {
-            "content/blog/map.webp": "map.png", "content/blog/plan.webp": "plan.JPG",
-            "content/blog/also.webp": "also.jpeg", "content/blog/other.webp": "other.jpg"})
+            "content/blog/map.webp": made("map.png"), "content/blog/plan.webp": made("plan.JPG"),
+            "content/blog/also.webp": made("also.jpeg"), "content/blog/other.webp": made("other.jpg")})
 
-    def test_a_companion_already_made_from_the_wrong_image_is_named_for_the_author(self):
-        # As a converter before this check left it: the draft's newer
+    def test_a_companion_already_made_from_the_wrong_image_does_not_outlast_the_rename(self):
+        # As a converter before the record left it: the draft's newer
         # map.JPG has overwritten the companion of the published map.png,
         # and the companion is newer than both.
-        for age, (name, text) in enumerate((("map.png", "x"), ("map.JPG", "x"), ("map.webp", "map.JPG"))):
-            os.utime(self.write(f"content/blog/{name}", text), (1_000_000_000 + age, 1_000_000_000 + age))
+        for age, (name, text) in enumerate((("map.png", "x"), ("map.JPG", "x"), ("map.webp", made("map.JPG")))):
+            os.utime(self.write(f"content/blog/{name}", text), (1_000_000_000 + age,) * 2)
         said = self.refused()
-        self.assertIn("Rename all but one of the images.", said)
-        # The script cannot tell whose pixels the companion holds, and it
-        # may be the author's own file: it says which one to see to.
-        self.assertIn("content/blog/map.webp is there already, and may hold the pixels of an image that is renamed. "
-                      "Move it aside before the next build, or delete it if this script made it", said)
-        self.assertEqual(self.companions(), {"content/blog/map.webp": "map.JPG"})
-        # The author does both things the message says.
+        self.assertIn("content/blog/map.webp is there already; it is not one this script made: if it is yours, "
+                      "move it aside until the images are renamed", said)
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.JPG")})
+        # The author renames the draft's image and does nothing else. The
+        # WebP is no one's by the record: it is not written over, and not
+        # the companion of map.png either (the generator asks the record),
+        # so the draft's pixels are shown with nothing.
         (self.root / "content/blog/map.JPG").rename(self.root / "content/blog/plan.JPG")
+        said = self.convert()
+        self.assertIn("1 converted, 0 already present", said)
+        self.assertIn("1 WebP file(s) beside an image are not recorded", said)
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.JPG"),
+                                             "content/blog/plan.webp": made("plan.JPG")})
+        self.assertNotIn("content/blog/map.webp", self.record())
+        # Deleted, it is made again from the image that kept the name.
         (self.root / "content/blog/map.webp").unlink()
         self.convert()
-        self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png", "content/blog/plan.webp": "plan.JPG"})
+        self.assertEqual(self.companions()["content/blog/map.webp"], made("map.png"))
 
     def test_a_gif_is_shown_with_a_companion_too(self):
         # The image filter gives color.gif the companion color.webp, here
@@ -183,129 +366,48 @@ class ConvertImages(unittest.TestCase):
         said = self.refused()
         self.assertIn("content/blog/color.JPG and content/blog/color.gif share one WebP companion, "
                       "content/blog/color.webp", said)
-        self.assertIn("content/blog/color.webp is there already", said)
-        # The author's file is the author's: refused or not, it stays.
+        self.assertIn("content/blog/color.webp is there already; it is not one this script made", said)
         self.assertEqual(self.companions(), {"content/blog/color.webp": "by hand"})
         (self.root / "content/blog/color.JPG").rename(self.root / "content/blog/draft.JPG")
         self.assertIn("1 converted, 0 already present", self.convert())
         self.assertEqual(self.companions(), {"content/blog/color.webp": "by hand",
-                                             "content/blog/draft.webp": "draft.JPG"})
+                                             "content/blog/draft.webp": made("draft.JPG")})
 
     def test_the_site_s_static_image_and_the_engine_s_are_served_as_one_tree(self):
         # The engine's color.JPG and the site's color.png are both shown
         # with /images/color.webp, and the site's file is the one served.
         self.write("engine/static/images/color.JPG")
-        self.write("engine/static/images/color.webp", "color.JPG")
         self.write("static/images/color.png")
-        self.write("static/images/color.webp", "color.png")
         # A site image that replaces the engine's of its name is one image,
         # and each has its companion beside it.
         self.write("engine/static/images/logo.png")
         self.write("static/images/logo.png")
         # Under content/ the same names are other addresses.
         self.write("content/images/color.jpeg")
-        before = {"engine/static/images/color.webp": "color.JPG", "static/images/color.webp": "color.png"}
+        self.write("static/images/color.webp", "someone's")
         for env in ({}, {"PATH": self.bare_path()}):
             with self.subTest(env=env):
                 said = self.refused(**env)
                 self.assertIn("engine/static/images/color.JPG and static/images/color.png share the WebP "
                               "companion served at /images/color.webp", said)
-                for file in before:
-                    self.assertIn(f"{file} is there already", said)
+                self.assertIn("static/images/color.webp is there already; it is not one this script made", said)
                 self.assertNotIn("logo", said)
                 self.assertNotIn("content/", said)
-                # Neither tree is touched, the engine's least of all.
-                self.assertEqual(self.companions(), before)
-        # The site's image renamed and its companion taken away, the
-        # engine's image is shown with its own again.
+                self.assertEqual(self.companions(), {"static/images/color.webp": "someone's"})
         (self.root / "static/images/color.png").rename(self.root / "static/images/colour.png")
         (self.root / "static/images/color.webp").unlink()
-        self.assertIn("4 converted, 1 already present", self.convert())
+        self.assertIn("5 converted, 0 already present", self.convert())
         self.assertEqual(self.companions(), {
-            "engine/static/images/color.webp": "color.JPG", "static/images/colour.webp": "colour.png",
-            "engine/static/images/logo.webp": "logo.png", "static/images/logo.webp": "logo.png",
-            "content/images/color.webp": "color.jpeg"})
+            "engine/static/images/color.webp": made("color.JPG"), "static/images/colour.webp": made("colour.png"),
+            "engine/static/images/logo.webp": made("logo.png"), "static/images/logo.webp": made("logo.png"),
+            "content/images/color.webp": made("color.jpeg")})
+        self.assertEqual(set(self.record("engine")), {"static/images/color.webp", "static/images/logo.webp"})
 
-    def page(self, rel: str, body: str, front: str = "title: A page") -> None:
-        self.write(rel, f"---\n{front}\n---\n\n{body}\n")
-
-    def test_a_webp_a_page_shows_by_name_is_not_another_image_s_companion(self):
-        # A published page shows a WebP the author made, by its name.
-        self.page("content/blog/public.md", "![Color](color.webp)")
-        self.write("content/blog/color.webp", "by hand")
-        self.convert()
-        # A draft's newer color.JPG would be converted over it.
-        self.write("content/blog/color.JPG")
-        for env in ({}, {"PATH": self.bare_path()}):
-            with self.subTest(env=env):
-                said = self.refused(**env)
-                self.assertIn("content/blog/public.md shows content/blog/color.webp by name, as an image of its "
-                              "own, and content/blog/color.JPG would be converted over it", said)
-                self.assertIn("Rename one of the two.", said)
-                self.assertEqual(self.companions(), {"content/blog/color.webp": "by hand"})
-        (self.root / "content/blog/color.JPG").rename(self.root / "content/blog/secret.JPG")
-        self.convert()
-        self.assertEqual(self.companions(), {"content/blog/color.webp": "by hand",
-                                             "content/blog/secret.webp": "secret.JPG"})
-
-    def test_every_way_a_page_names_a_webp_counts(self):
-        named = {
-            # a link, from a draft; an image from a directory above
-            "content/blog/secret.md": ("[Full size](linked.webp) ![Up](../essays/up.webp)", "title: S\ndraft: true"),
-            # raw HTML: an image, and a source's candidates
-            "content/essays/html.md": ('<img src="raw.webp" alt="">\n\n<picture><source srcset="one.webp, two.webp 2x">'
-                                       '</picture>', "title: H"),
-            # escapes: of a space, of the name's own letters, a character reference
-            "content/essays/escaped.md": ("![A](my%20pic.webp) ![B](hid.%77ebp) ![C](ref.we&#98;p)", "title: E"),
-            # from the site's root, which static/ serves, and not above it
-            "content/drafts/essays/rooted.md": ("![Brand](/images/brand.webp) ![Climb](/../../images/climb.webp)",
-                                                "title: R"),
-            # from the site's root, where a section is served at its
-            # address and any other directory of content/ under its name
-            "content/blog/routed.md": ("![Map](/articles/trip/figures/map.webp) [Cover](/music/suite/cover.webp)",
-                                       "title: Routes"),
-            # in the front matter: a photograph's file, beside the page; a
-            # list; a name YAML spells with an escape
-            "content/photography/harbor/index.md": ("", "title: Harbor\nphoto: harbor.webp"),
-            "content/essays/fields.md": ("", 'title: F\nframes: [one.frame.webp, {still: "two.frame.\\x77ebp"}]'),
-            # raw HTML, where a character reference is the character
-            "content/essays/references.md": ('<a href="/images/A&amp;B.webp">A and B</a> '
-                                             '<img src="dotted&period;webp" alt=""> <img src="fj&#46;webp" alt="">',
-                                             "title: C"),
-        }
-        for rel, (body, front) in named.items():
-            self.page(rel, body, front)
-        images = ("content/blog/linked.png", "content/essays/up.jpg", "content/essays/raw.jpeg",
-                  "content/essays/one.png", "content/essays/two.png", "content/essays/my pic.jpg",
-                  "content/essays/hid.png", "content/essays/ref.png", "static/images/brand.png",
-                  "engine/static/images/climb.JPG", "content/essays/trip/figures/map.JPG",
-                  "content/music/suite/cover.png", "content/photography/harbor/harbor.JPG",
-                  "content/essays/one.frame.jpg", "content/essays/two.frame.jpg", "static/images/A&B.JPG",
-                  "content/essays/dotted.png", "content/essays/fj.png")
-        # A path from the root that leads to a section's directory by the
-        # directory's name leads nowhere: the section is at its address.
-        self.page("content/blog/unrouted.md", "![No](/essays/elsewhere.webp)")
-        # What no page names: a WebP of another name, a WebP in code, one
-        # on another host, and a GIF, which is never converted.
-        self.page("content/essays/quiet.md", "`![](code.webp)` and ![Far](https://example.org/far.webp) "
-                  "and ![Other](other.webp) and ![Moving](moving.webp)")
-        quiet = ("content/essays/code.png", "content/essays/far.png", "content/essays/moving.gif",
-                 "content/essays/elsewhere.png")
-        for rel in images + quiet:
-            self.write(rel)
-        said = self.refused()
-        for rel in images:
-            shown = Path(rel).with_suffix(".webp").as_posix()
-            if "static/" in rel:
-                shown = "/" + shown.split("static/", 1)[1]
-            self.assertIn(f"shows {shown} by name, as an image of its own, and {rel} would be converted over it", said)
-        for rel in quiet:
-            self.assertNotIn(rel, said)
-        self.assertEqual(self.companions(), {})
+    # -- names, and failures -----------------------------------------------
 
     def test_names_a_shell_reads_twice_are_names(self):
         names = ("a b.png", "it's].jpg", "$(touch pwned).png", "[x]=1.PNG", "two\nlines.jpg", "it's].JPEG",
-                 "one\nstem.JPG", "one\nstem.png", "one\nother.png")
+                 "one\nstem.JPG", "one\nstem.png", "one\nother.png", "tab\there.jpg", 'quote"d.jpg')
         for name in names:
             self.write(f"content/blog/{name}")
         said = self.refused()
@@ -318,40 +420,29 @@ class ConvertImages(unittest.TestCase):
         self.assertEqual(self.companions(), {})
         (self.root / "content/blog/it's].JPEG").unlink()
         (self.root / "content/blog/one\nstem.JPG").unlink()
-        self.assertIn("7 converted, 0 already present", self.convert())
-        self.assertEqual(set(self.companions()), {
-            "content/blog/a b.webp", "content/blog/it's].webp", "content/blog/$(touch pwned).webp",
-            "content/blog/[x]=1.webp", "content/blog/two\nlines.webp", "content/blog/one\nstem.webp",
-            "content/blog/one\nother.webp"})
+        self.assertIn("9 converted, 0 already present", self.convert())
+        expected = {"content/blog/a b.webp", "content/blog/it's].webp", "content/blog/$(touch pwned).webp",
+                    "content/blog/[x]=1.webp", "content/blog/two\nlines.webp", "content/blog/one\nstem.webp",
+                    "content/blog/one\nother.webp", "content/blog/tab\there.webp", 'content/blog/quote"d.webp'}
+        self.assertEqual(set(self.companions()), expected)
+        # The record holds each name as it is, and knows them all again.
+        self.assertEqual(set(self.record()), expected)
+        self.assertIn("0 converted, 9 already present", self.convert())
         self.assertFalse((self.root / "pwned").exists())
 
-    def test_a_walk_that_fails_is_a_failure(self):
-        # With two images that share a companion in the tree: a failed
-        # walk must not read as a tree with nothing to refuse.
+    def test_a_walk_that_fails_or_a_record_that_cannot_be_read_is_a_failure(self):
         self.write("content/blog/map.png")
-        self.write("content/blog/map.JPG")
-        self.write("content/blog/map.webp", "map.png")
-        for tool in ("find", "sort"):
-            with self.subTest(tool=tool):
-                broken = stub_bin(self.root / f"broken-{tool}", [tool], "#!/bin/sh\nexit 1\n")
-                done = self.run_script(PATH=os.pathsep.join((str(broken), str(self.stubs), os.environ["PATH"])))
-                self.assertNotEqual(done.returncode, 0, done.stdout + done.stderr)
-                self.assertIn(f"could not list the images ({tool} failed)", done.stderr)
-                self.assertNotIn("converted", done.stdout)
-                self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
-        # So with the generator, which says what the pages show by name.
-        for binary in ("/bin/false", str(self.root / "no-such-generator")):
-            with self.subTest(binary=binary):
-                done = self.run_script(SITE_BINARY=binary)
-                self.assertNotEqual(done.returncode, 0, done.stdout + done.stderr)
-                self.assertIn("could not ask the generator", done.stderr)
-                self.assertNotIn("converted", done.stdout)
-        (self.root / "content/blog/map.JPG").unlink()
-        done = self.run_script(SITE_BINARY="/bin/false")
-        self.assertNotEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("could not ask the generator", done.stderr)
-        self.assertEqual(self.companions(), {"content/blog/map.webp": "map.png"})
-        self.write("content/blog/map.JPG")
+        # A record that is not what the script writes: nothing says which
+        # files are its own, so it touches none.
+        for text in ("{", "[]", '{"version": 2, "outputs": {}}', '{"version": 1, "outputs": {"a.webp": "mine"}}'):
+            with self.subTest(record=text):
+                self.write("data/derived-images.json", text)
+                done = self.run_script()
+                self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+                self.assertIn("data/derived-images.json", done.stderr)
+                self.assertIn("nothing was checked or converted", done.stderr)
+                self.assertEqual(self.companions(), {})
+        (self.root / "data/derived-images.json").unlink()
         # A walk that reaches only part of the tree is one that failed.
         closed = self.root / "content/closed"
         closed.mkdir()
@@ -360,8 +451,9 @@ class ConvertImages(unittest.TestCase):
         if os.access(closed, os.R_OK):
             self.skipTest("this user reads a directory without permission")
         done = self.run_script()
-        self.assertNotEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("could not list the images (find failed)", done.stderr)
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("could not list the images", done.stderr)
+        self.assertEqual(self.companions(), {})
 
     def test_a_directory_named_as_an_image_is_passed_over_and_a_link_is_followed(self):
         self.write("content/photography/album.JPG/inside.png")
@@ -369,9 +461,16 @@ class ConvertImages(unittest.TestCase):
         original = self.write("originals/real.jpg")
         (self.root / "content/photography/linked.jpg").symlink_to(original)
         (self.root / "content/photography/dangling.jpg").symlink_to(self.root / "originals/gone.jpg")
-        self.assertIn("2 converted, 0 already present", self.convert())
-        self.assertEqual(self.companions(), {"content/photography/album.JPG/inside.webp": "inside.png",
-                                             "content/photography/linked.webp": "linked.jpg"})
+        # A WebP that is a link is someone's arrangement, not a file to replace.
+        self.write("content/photography/arranged.jpg")
+        (self.root / "content/photography/arranged.webp").symlink_to(original)
+        said = self.convert()
+        self.assertIn("2 converted, 0 already present", said)
+        self.assertIn("1 WebP file(s) beside an image are not recorded", said)
+        self.assertTrue((self.root / "content/photography/arranged.webp").is_symlink())
+        self.assertEqual({k: v for k, v in self.companions().items() if "arranged" not in k},
+                         {"content/photography/album.JPG/inside.webp": made("inside.png"),
+                          "content/photography/linked.webp": made("linked.jpg")})
 
 
 if __name__ == "__main__":

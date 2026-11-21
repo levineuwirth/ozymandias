@@ -53,6 +53,7 @@ import           System.Directory     (doesFileExist)
 import           System.FilePath      (replaceExtension, takeExtension, (</>))
 import qualified Utils                as U
 import           EngineFiles          (existingFile, resolveFile)
+import           DerivedImages        (pairedWith)
 
 -- | Apply image attribute injection and WebP wrapping to the entire document.
 --
@@ -200,6 +201,12 @@ renderImg srcDir attr0 alt0 target@(src, _) lightbox = do
 
 -- | Is there a @.webp@ companion to show a Markdown image src with?
 --
+--   A file of the companion's name is not enough: it must be the image's
+--   ("DerivedImages": the tools' record says it was made from this image
+--   and is unchanged, or the author declared it). A WebP an author made
+--   and put beside a JPEG of the same name is a picture of its own, and
+--   the JPEG is written alone.
+--
 --   A relative path's is beside the image, in the source file's directory,
 --   where Pandoc already expects co-located assets to live.
 --
@@ -209,14 +216,16 @@ renderImg srcDir attr0 alt0 target@(src, _) lightbox = do
 --   a site's @foo.jpg@ over the engine's is not shown with the engine's
 --   @foo.webp@, which holds the engine's picture, and the engine's
 --   @foo.jpg@ is not shown with a @foo.webp@ the site serves in its
---   companion's place. The image is then written alone.
+--   companion's place.
 hasWebpCompanion :: FilePath -> Text -> IO Bool
 hasWebpCompanion srcDir src
     | "/" `isPrefixOf` s = do
         image  <- resolveFile ("static" ++ s)
         served <- existingFile (replaceExtension ("static" ++ s) ".webp")
-        pure (served == Just (replaceExtension image ".webp"))
-    | otherwise = doesFileExist (replaceExtension (srcDir </> s) ".webp")
+        if served == Just (replaceExtension image ".webp")
+            then pairedWith image (replaceExtension image ".webp")
+            else pure False
+    | otherwise = pairedWith (srcDir </> s) (replaceExtension (srcDir </> s) ".webp")
   where
     s = T.unpack src
 

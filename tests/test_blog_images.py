@@ -13,12 +13,17 @@ Whole builds of a small scratch site against this engine:
   · a feed's entry names its images by their whole address;
   · a page is rebuilt when a sidecar of an image it shows changes or
     appears, and no other page is;
+  · an image is shown with a WebP of its name, and the WebP published,
+    only where the WebP is the image's: the converter's by the ownership
+    record, or its author's by declaration (build/DerivedImages.hs); one
+    that only has the name is another picture, withheld unless a page
+    shows it itself;
   · through `make build`: an entry made a draft takes its page and its
     images out of the site, and so does a reference taken out of a page;
-    a draft's image that would take, or has taken, the WebP companion of
-    a published image (a JPEG, a PNG or a GIF) stops the build, which
-    names the companion and deletes nothing; so does one that would be
-    converted over a WebP a published page shows by name.
+    a draft's image that would take the WebP companion of a published
+    image stops the build, and one that has taken it is not shown,
+    published or written over; a WebP made by hand is never written, and
+    is its image's once declared.
 
     python -m unittest tests.test_blog_images -v
 """
@@ -35,7 +40,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import CABAL_PROJECT, engine_path, requires_cabal, script_env, site_binary, stub_bin, write_site_config
+from tests._helpers import (CABAL_PROJECT, engine_path, record_derived, requires_cabal, script_env, site_binary,
+                            stub_bin, write_site_config)
 
 NOTEBOOK = {"dir": "blog", "address": "notebook", "title": "Notebook", "kind": "Note", "dingbat": None}
 FEED = {"path": "feed.xml", "title": "Notes", "description": "Notes.", "sections": ["blog"],
@@ -70,6 +76,11 @@ FIRST = """![The lake](first.lake.png)
 The [full size](big/Lake.JPG) picture, and two written as HTML, where
 a character reference is the character:
 <img src="raw.gif" alt="Written as HTML"> <img src="R&amp;D.gif" alt="Research and development">
+<img src="raw.gif" srcset="wide.png&#32;2x&#44; wider.png 3x" alt="A reference may write the space or the comma">
+
+![With a WebP that only has its name](alone.png)
+
+![With a WebP its author declared](hand.gif)
 
 ## The lake {#lake}
 
@@ -92,8 +103,16 @@ class Site(unittest.TestCase):
         # below, in a directory named as a draft is, by a link, in HTML.
         page(blog / "first.md", "title: First\ndate: 2026-01-02", FIRST)
         for name in ("first.lake.png", "first.lake.webp", "charts/depth.svg", "secret.maps/route.svg",
-                     "shared.svg", "big/Lake.JPG", "raw.gif", "R&D.gif"):
+                     "shared.svg", "big/Lake.JPG", "raw.gif", "R&D.gif",
+                     "alone.png", "alone.webp", "hand.gif", "hand.webp", "wide.png", "wider.png"):
             image(blog / name)
+        # Whose a WebP beside an image is: the converter's by its record
+        # (first.lake.webp, and the draft's below), its author's by
+        # declaration (hand.webp), or no one's that the build knows of
+        # (alone.webp), which is then another picture and not alone.png's.
+        record_derived(root, {"content/blog/first.lake.webp": "content/blog/first.lake.png"})
+        (root / "data/companions.json").write_text('{"content/blog/hand.webp": "content/blog/hand.gif"}',
+                                                   encoding="utf-8")
         (blog / "first.lake.png.dims.yaml").write_text("width: 640\nheight: 480\n", encoding="utf-8")
         # A post that shows none.
         page(blog / "second.md", "title: Second\ndate: 2026-01-01")
@@ -111,6 +130,7 @@ class Site(unittest.TestCase):
              "![The plan](secret.plan.png)\n\n![Another](unrelated.svg)\n\n![Shared](shared.svg)")
         for name in ("secret.plan.png", "secret.plan.webp", "unrelated.svg"):
             image(blog / name)
+        record_derived(root, {"content/blog/secret.plan.webp": "content/blog/secret.plan.png"})
         (blog / "secret.plan.png.dims.yaml").write_text("width: 10\nheight: 10\n", encoding="utf-8")
         page(blog / "trip/day-two.md", "title: Day two\ndate: 2026-01-06\ndraft: true",
              "![A photograph](day-two.photo.jpg)")
@@ -136,11 +156,12 @@ class Site(unittest.TestCase):
     SHOWN = {"notebook/first.lake.png", "notebook/first.lake.webp", "notebook/charts/depth.svg",
              "notebook/secret.maps/route.svg", "notebook/shared.svg", "notebook/big/Lake.JPG",
              "notebook/raw.gif", "notebook/R&D.gif", "notebook/trip/day-one.map.svg",
-             "notebook/trip/route.jpg"}
+             "notebook/trip/route.jpg", "notebook/alone.png", "notebook/hand.gif", "notebook/hand.webp",
+             "notebook/wide.png", "notebook/wider.png"}
     PUBLISHED = PAGES | SHOWN
     WITHHELD = {"notebook/secret.html", "notebook/secret.plan.png", "notebook/secret.plan.webp",
                 "notebook/unrelated.svg", "notebook/trip/day-two.html", "notebook/trip/day-two.photo.jpg",
-                "notebook/nobody.svg"}
+                "notebook/nobody.svg", "notebook/alone.webp"}
 
 
 @requires_cabal
@@ -165,6 +186,11 @@ class BlogImages(Site):
         self.assertRegex(first, r'<source srcset="first\.lake\.webp" type="image/webp">')
         self.assertRegex(first, r'<img[^>]*src="first\.lake\.png"[^>]*width="640"[^>]*height="480"')
         self.assertRegex(first, r'<img[^>]*src="charts/depth\.svg"')
+        # An image is shown with a WebP of its name only where the WebP is
+        # its own: the converter's by the record, or declared by hand.
+        self.assertIn('<source srcset="hand.webp" type="image/webp">', first)
+        self.assertRegex(first, r'<img[^>]*src="alone\.png"')
+        self.assertNotIn("alone.webp", first)
         self.assertRegex(self.read("notebook/trip/day-one.html"), r'<img[^>]*src="day-one\.map\.svg"')
         self.assertRegex(self.read("notebook/trip/index.html"), r'<img[^>]*src="route\.jpg"')
         everything = "\n".join(self.read(p) for p in sorted(self.PAGES))
@@ -177,7 +203,8 @@ class BlogImages(Site):
                               capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(done.stdout.splitlines(), [
-            "file content/blog/nobody.svg", "file content/blog/secret.md", "file content/blog/secret.plan.png",
+            "file content/blog/alone.webp", "file content/blog/nobody.svg", "file content/blog/secret.md",
+            "file content/blog/secret.plan.png",
             "file content/blog/secret.plan.webp", "file content/blog/trip/day-two.md",
             "file content/blog/trip/day-two.photo.jpg", "file content/blog/unrelated.svg"])
 
@@ -238,8 +265,9 @@ class BlogImages(Site):
                           "content/blog/trip/route.jpg.dims.yaml"})
         self.assertRegex(self.read("notebook/trip/day-one.html"),
                          r'<img[^>]*src="route\.jpg"[^>]*width="30"[^>]*height="20"')
-        # A companion that was not there.
+        # A companion that was not there, made and recorded by the converter.
         image(self.blog / "trip/route.webp")
+        record_derived(self.root, {"content/blog/trip/route.webp": "content/blog/trip/route.jpg"})
         self.assertEqual(self.updated(self.site("build")),
                          {"content/blog/trip/index.md", "content/blog/trip/day-one.md",
                           "content/blog/trip/route.webp"})
@@ -292,12 +320,12 @@ class ThroughMake(Site):
         return done.stdout + done.stderr
 
     def expected(self, published: set[str]) -> set[str]:
-        """`published`, with the companions the build made where cwebp is
-        installed (tools/convert-images.sh)."""
+        """`published`, with the companions the build made, and recorded,
+        where cwebp is installed (tools/convert-images.sh)."""
+        recorded = json.loads((self.root / "data/derived-images.json").read_text(encoding="utf-8"))["outputs"]
         made = {p.rsplit(".", 1)[0] + ".webp" for p in published
                 if p.rsplit(".", 1)[-1].lower() in ("jpg", "jpeg", "png")}
-        return published | {
-            p for p in made if (self.root / "content" / p.replace("notebook/", "blog/", 1)).is_file()}
+        return published | {p for p in made if "content/" + p.replace("notebook/", "blog/", 1) in recorded}
 
     def test_an_entry_made_a_draft_takes_its_page_and_images_out_of_the_site(self):
         self.make_build()
@@ -346,71 +374,82 @@ class ThroughMake(Site):
                           encoding="utf-8")
         image(self.blog / "first.lake.JPG")
         companion.write_bytes(DRAFTED)
-        # The build stops, says which two, and which file to see to. It
-        # takes nothing away: the file might be the author's.
+        # The build stops, says which two, and which file is in question.
+        # It takes nothing away.
         said = self.refused()
         self.assertIn("content/blog/first.lake.JPG and content/blog/first.lake.png share one WebP companion, "
                       "content/blog/first.lake.webp", said)
-        self.assertIn("content/blog/first.lake.webp is there already", said)
+        self.assertIn("content/blog/first.lake.webp is there already; it is not one this script made", said)
         self.assertEqual(companion.read_bytes(), DRAFTED)
-        # The author renames the draft's image and deletes the companion,
-        # as told. The published post is shown with a companion of its own
-        # image, or with none where there is no converter.
+        # The author renames the draft's image, and no more. The WebP is
+        # not what the record says the converter wrote: it is not written
+        # over, the published post is shown without it, and it is not
+        # published. The draft's pixels are nowhere in the site.
         (self.blog / "first.lake.JPG").rename(self.blog / "secret.lake.JPG")
         secret.write_text(secret.read_text(encoding="utf-8").replace("first.lake.JPG", "secret.lake.JPG"),
                           encoding="utf-8")
+        self.make_build()
+        self.assertEqual(companion.read_bytes(), DRAFTED)
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED) - {"notebook/first.lake.webp"})
+        self.assertNotIn("first.lake.webp", self.read("notebook/first.html"))
+        self.assertNotIn(DRAFTED, self.served())
+        # Deleted, it is made again from the image that kept the name
+        # (where there is a converter), and shown with it.
         companion.unlink()
         self.make_build()
-        self.assertEqual(self.files(), self.expected(self.PUBLISHED))
         self.assertEqual(companion.exists(), shutil.which("cwebp") is not None)
+        self.assertEqual("first.lake.webp" in self.read("notebook/first.html"), companion.exists())
         self.assertNotIn(DRAFTED, self.served())
 
-    def test_a_draft_s_image_cannot_become_a_published_gif_s_companion(self):
-        # The image filter shows moving.gif with moving.webp, which the
-        # author made, and the converter would make one from the draft's
-        # moving.JPG.
+    def test_a_webp_made_by_hand_is_its_image_s_once_declared_and_is_never_written(self):
+        # A published post shows moving.gif, and its author made a
+        # moving.webp for it. Undeclared, that is a picture of its own.
         second = self.blog / "second.md"
         second.write_text(second.read_text(encoding="utf-8") + "\n![Moving](moving.gif)\n", encoding="utf-8")
         image(self.blog / "moving.gif")
         (self.blog / "moving.webp").write_bytes(AUTHORED)
         self.make_build()
+        self.assertNotIn("moving.webp", self.read("notebook/second.html"))
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/moving.gif"}))
+        # A draft's moving.JPG would be converted to that name: refused,
+        # and the author's file is as it was.
         secret = self.blog / "secret.md"
         secret.write_text(secret.read_text(encoding="utf-8") + "\n![Still](moving.JPG)\n", encoding="utf-8")
         image(self.blog / "moving.JPG")
         self.assertIn("content/blog/moving.JPG and content/blog/moving.gif share one WebP companion, "
                       "content/blog/moving.webp", self.refused())
         self.assertEqual((self.blog / "moving.webp").read_bytes(), AUTHORED)
-        # Renamed, the draft's image is its own, and the GIF is shown with
-        # the companion its author made, which nothing here could remake.
         (self.blog / "moving.JPG").rename(self.blog / "still.JPG")
         secret.write_text(secret.read_text(encoding="utf-8").replace("moving.JPG", "still.JPG"), encoding="utf-8")
-        self.make_build()
+        # Declared, it is the GIF's companion: shown with it, published,
+        # and still the author's bytes.
+        done = subprocess.run([sys.executable, str(engine_path("tools/derived_images.py")), "declare",
+                               str(self.blog / "moving.webp")], cwd=self.root,
+                              env=script_env(SITE_ROOT=str(self.root)), capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("full rebuild required", self.make_build())
         self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/moving.gif", "notebook/moving.webp"}))
         self.assertEqual((self.root / "_site/notebook/moving.webp").read_bytes(), AUTHORED)
+        self.assertEqual((self.blog / "moving.webp").read_bytes(), AUTHORED)
         self.assertIn('<source srcset="moving.webp" type="image/webp">', self.read("notebook/second.html"))
 
-    def test_a_draft_s_image_cannot_be_converted_over_a_webp_a_published_page_shows(self):
+    def test_a_draft_s_image_is_not_converted_over_a_webp_a_published_page_shows(self):
         # A published post shows a WebP its author made, by name.
         second = self.blog / "second.md"
         second.write_text(second.read_text(encoding="utf-8") + "\n![Color](color.webp)\n", encoding="utf-8")
         (self.blog / "color.webp").write_bytes(AUTHORED)
         self.make_build()
         self.assertEqual((self.root / "_site/notebook/color.webp").read_bytes(), AUTHORED)
-        # A draft shows a newer color.JPG, which the converter would write
-        # over it as its companion.
+        # A draft shows a newer color.JPG. The converter makes a companion
+        # where there is none or where its own is; this is neither.
         secret = self.blog / "secret.md"
         secret.write_text(secret.read_text(encoding="utf-8") + "\n![Color, drafted](color.JPG)\n", encoding="utf-8")
         image(self.blog / "color.JPG")
-        self.assertIn("content/blog/second.md shows content/blog/color.webp by name, as an image of its own, "
-                      "and content/blog/color.JPG would be converted over it", self.refused())
+        log = self.make_build()
+        self.assertIn("not recorded as made from it by this script, and are left as they are", log)
         self.assertEqual((self.blog / "color.webp").read_bytes(), AUTHORED)
-        (self.blog / "color.JPG").rename(self.blog / "secret.color.JPG")
-        secret.write_text(secret.read_text(encoding="utf-8").replace("color.JPG", "secret.color.JPG"),
-                          encoding="utf-8")
-        self.make_build()
-        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/color.webp"}))
         self.assertEqual((self.root / "_site/notebook/color.webp").read_bytes(), AUTHORED)
-        self.assertEqual((self.blog / "color.webp").read_bytes(), AUTHORED)
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/color.webp"}))
 
 
 if __name__ == "__main__":

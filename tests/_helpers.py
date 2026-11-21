@@ -155,6 +155,25 @@ def interrupt_when(args: list[str], env: dict[str, str], marker: Path,
 PHOTOGRAPHY_SECTION = {"dir": "photography", "kind": "Photo", "dingbat": None}
 
 
+def record_derived(root: Path, made: dict[str, str], producer: str = "convert-images") -> None:
+    """Enter fixture files in a tree's ownership record
+    (tools/derived_images.py), as the tool that makes such files would
+    have: each output (a WebP companion, a photograph's variant) with the
+    image it stands for, and its bytes as they are now. The generator
+    shows an image with a companion only on such an entry."""
+    import hashlib
+    import json
+
+    path = root / "data/derived-images.json"
+    document = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {"version": 1, "outputs": {}}
+    for output, source in made.items():
+        document["outputs"][output] = {
+            "producer": producer, "source": source,
+            "digest": "sha256:" + hashlib.sha256((root / output).read_bytes()).hexdigest()}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+
 def write_photo_site_config(root: Path, **overrides) -> dict:
     """`write_site_config` for a scratch site with photographs: their switch
     on, and the section it owns listed."""

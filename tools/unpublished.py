@@ -18,6 +18,10 @@ import sitelib  # noqa: E402
 def load_boundary(content: Path) -> dict[str, list[str]]:
     summary = subprocess.check_output(
         [sitelib.site_binary(), "list-unpublished", str(content.resolve())], text=True,
+        # From the site's root: the generator finds the images' ownership
+        # record there (build/DerivedImages.hs), which decides whether a
+        # blog image's companion is shown.
+        cwd=sitelib.site_root(),
     )
     boundary = {"file": [], "dir": [], "stem": []}
     for line in summary.splitlines():

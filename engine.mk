@@ -7,7 +7,7 @@
 #
 # and adds its own targets, its deploy among them.
 
-.PHONY: build build-locked engine-committed engine-published sign stamp-build-time download-model download-pdfjs download-leaflet download-libraries compress-assets convert-images thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
+.PHONY: build build-locked engine-committed engine-published sign stamp-build-time download-model download-pdfjs download-leaflet download-libraries compress-assets convert-images adopt-images adopt-images-locked thumbnails thumbnails-locked pdf-thumbs pdf-thumbs-locked watch watch-locked clean test test-clean override-review test-browser test-browser-locked validate validate-locked viz-provenance viz-provenance-check audit-viz audit-marks archive-gc archive-wayback archive-suggest archive-check dev dev-locked venv
 .DEFAULT_GOAL := build
 
 # Prerequisite orders (deploy: build -> sign; deploy-clean: clean ->
@@ -439,6 +439,22 @@ thumbnails:
 
 thumbnails-locked:
 	@$(PY) $(call tool,generate-thumbnails.py) $(THUMBNAIL_FLAGS)
+
+# Record, as the tools' own, the companions and variants that were there
+# before the ownership record (tools/derived_images.py): every one of a
+# site that upgrades. Each is made again in a scratch place and recorded
+# when it comes out byte for byte the same; the rest are listed and left
+# for the author. Until a file is recorded (or declared the author's), no
+# tool writes over it and no page shows an image with it.
+#
+#   make adopt-images                          record what is reproduced
+#   make adopt-images ADOPT_FLAGS=--dry-run    only say what would be
+adopt-images:
+	@$(WITH_LOCK) $(MAKE) --no-print-directory adopt-images-locked
+
+adopt-images-locked:
+	@$(call with_switch,photography,$(PY) $(call tool,generate-thumbnails.py) --adopt $(ADOPT_FLAGS))
+	@$(call tool,convert-images.sh) --adopt $(ADOPT_FLAGS)
 
 # Generate first-page thumbnails for the PDFs under static/ (also runs in
 # build). Requires pdftoppm: pacman -S poppler  /  apt install poppler-utils

@@ -15,6 +15,7 @@ executable site
     hs-source-dirs:   build
     other-modules:
         BlogImages
+        DerivedImages
         HtmlUrls
         Config
         EngineVersion

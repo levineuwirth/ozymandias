@@ -72,23 +72,33 @@ build continues, exactly as tools/convert-images.sh continues without
 cwebp, and the missing srcset targets are then the artifact gate's
 problem (tools/check-site.py). A genuine conversion failure exits 1.
 
-A variant's WebP that a page shows by name (`![](view.w480.webp)`) is
-that page's author's image, not this script's output: the script says
-which page and which source, writes nothing at all, and exits 1, as
-tools/convert-images.sh does for a companion.
+Whose file a variant is. `view.w480.jpg` is a name an author may give a
+file too. The script writes a variant where there is none, and writes
+over or prunes only what it made itself: the ownership record
+(tools/derived_images.py) says which those are, by the photograph they
+were made from and the bytes last written. Any other file of a variant's
+name is left exactly as it is, by a plain run, by --force and by --prune,
+and so are a pruned variant's sidecars, which other tools wrote. The
+generator offers a variant in a srcset only when the record pairs it with
+the photograph (build/DerivedImages.hs).
+
+    --adopt    record the variants already there that a fresh rendering
+               reproduces byte for byte (with --dry-run: only say which)
 """
 
 from __future__ import annotations
 
 import argparse
-import os
-import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import derived_images  # noqa: E402
 import photo_naming  # noqa: E402
 import sitelib  # noqa: E402
+
+PRODUCER = "generate-thumbnails"
 
 SITE_ROOT = sitelib.SITE_ROOT
 DEFAULT_ROOT = SITE_ROOT / "content" / "photography"
@@ -105,10 +115,10 @@ SOURCE_EXTS = {".jpg", ".jpeg", ".png"}
 JPEG_QUALITY = 82
 WEBP_QUALITY = 80
 
-# Sidecars and companions that belong to a variant and should follow it
-# into the bin when it is pruned. All are gitignored derived files.
-VARIANT_COMPANION_SUFFIXES = (
-    ".webp",
+# Sidecars the extractors wrote beside a variant before they learned to
+# skip variants. They are not this script's, so a prune names them and
+# leaves them.
+VARIANT_SIDECAR_SUFFIXES = (
     ".dims.yaml",
     ".exif.yaml",
     ".palette.yaml",
@@ -311,35 +321,23 @@ def plan(root: Path, *, counters: dict) -> list[tuple[Path, Path, int]]:
     return ladder
 
 
-def shown_by_name(ladder: list[tuple[Path, Path, int]]) -> list[str]:
-    """What to say of each variant's WebP that a page shows by name
-    (`site list-named`): it is an image of its own, its author's, and a
-    variant written there would replace it (and be served in its place,
-    where one is there already). Asked before anything is written."""
-    # Pages name files of their own site: a ladder outside it (an import
-    # being prepared elsewhere) is nothing a page could show.
-    site = os.path.realpath(SITE_ROOT)
-    if not any(os.path.realpath(destination).startswith(site + os.sep) for _, destination, _ in ladder):
-        return []
-    named = {os.path.realpath(file): page for file, page in sitelib.named_files([".webp"]).items()
-             if not file.startswith("static:")}
-    said = []
-    for source, destination, _width in ladder:
-        webp = webp_path(destination)
-        page = named.get(os.path.realpath(webp))
-        if page is not None:
-            said.append(f"generate-thumbnails: {_rel(Path(page))} shows {_rel(webp)} by name, as an image "
-                        f"of its own, and it is where a variant of {_rel(source)} would be written.\n"
-                        "  Rename one of the two.")
-    return said
-
-
-def generate(ladder: list[tuple[Path, Path, int]], *, dry_run: bool, force: bool, counters: dict) -> None:
+def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Records, *,
+             dry_run: bool, force: bool, counters: dict) -> None:
     for source, destination, width in ladder:
-        need_jpeg = force or not _is_current(source, destination)
-        need_webp = need_jpeg or not _is_current(source, webp_path(destination))
-        if not need_webp:
-            counters["skipped"] += 1
+        webp = webp_path(destination)
+        want_jpeg = force or not _is_current(source, destination)
+        want_webp = want_jpeg or not _is_current(source, webp)
+        # A place is written when it is free or holds this script's own
+        # file. Anything else there is someone's, and stays.
+        need_jpeg = want_jpeg and records.may_write(destination, PRODUCER, source)
+        need_webp = want_webp and records.may_write(webp, PRODUCER, source)
+        for wanted, allowed, path in ((want_jpeg, need_jpeg, destination), (want_webp, need_webp, webp)):
+            if wanted and not allowed:
+                print(f"  keep   {_rel(path)}  (not recorded as made here from {_rel(source)})")
+                counters["kept"] += 1
+        if not (need_jpeg or need_webp):
+            if not (want_jpeg or want_webp):
+                counters["skipped"] += 1
             continue
 
         rel = _rel(destination)
@@ -351,6 +349,10 @@ def generate(ladder: list[tuple[Path, Path, int]], *, dry_run: bool, force: bool
         try:
             render_variant(source, destination, width,
                            jpeg=need_jpeg, webp=need_webp)
+            if need_jpeg:
+                records.wrote(destination, PRODUCER, source)
+            if need_webp:
+                records.wrote(webp, PRODUCER, source)
         except Exception as exc:  # noqa: BLE001 — keep walking
             print(
                 f"generate-thumbnails: {destination}: {exc}",
@@ -363,7 +365,38 @@ def generate(ladder: list[tuple[Path, Path, int]], *, dry_run: bool, force: bool
         counters["written"] += 1
 
 
-def prune(root: Path, *, dry_run: bool, counters: dict) -> None:
+def adopt(ladder: list[tuple[Path, Path, int]], records: derived_images.Records, *,
+          dry_run: bool, counters: dict) -> None:
+    """Record the variants already there that this script would write the
+    same, byte for byte: only its own output is that. The rest are listed
+    and stay unrecorded."""
+    with tempfile.TemporaryDirectory(prefix="adopt-variants-") as scratch:
+        for source, destination, width in ladder:
+            there = [path for path in (destination, webp_path(destination))
+                     if path.is_file() and not path.is_symlink() and records.entry(path) is None
+                     and records.declared_for(path) is None]
+            if not there:
+                continue
+            fresh = Path(scratch) / destination.name
+            try:
+                render_variant(source, fresh, width)
+            except Exception as exc:  # noqa: BLE001 — keep walking
+                print(f"generate-thumbnails: {destination}: {exc}", file=sys.stderr)
+                counters["failed"] += 1
+                continue
+            for path in there:
+                made = fresh if path == destination else webp_path(fresh)
+                if made.read_bytes() == path.read_bytes():
+                    counters["adopted"] += 1
+                    if not dry_run:
+                        records.wrote(path, PRODUCER, source, save=False)
+                else:
+                    counters["differ"] += 1
+                    print(f"  differs  {_rel(path)}  (not what this script makes of {_rel(source)} now)")
+    records.save_all()
+
+
+def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counters: dict) -> None:
     """Delete variants the contract no longer accounts for.
 
     Two cases, both real: the source was deleted or renamed (the common
@@ -394,23 +427,37 @@ def prune(root: Path, *, dry_run: bool, counters: dict) -> None:
 
         rel = _rel(variant)
         if dry_run:
-            print(f"  prune  {rel}  ({reason}, dry run)")
-            counters["would_prune"] += 1
+            if records.owns(variant, PRODUCER, source):
+                print(f"  prune  {rel}  ({reason}, dry run)")
+                counters["would_prune"] += 1
+            else:
+                print(f"  keep   {rel}  ({reason}; not recorded as made here, dry run)")
+                counters["kept"] += 1
             continue
 
-        variant.unlink()
-        # The .webp companion and any sidecar written before the
-        # extractors learned to skip variants are orphaned by this
-        # deletion; take them too. All are gitignored derived files.
-        for suffix in VARIANT_COMPANION_SUFFIXES:
-            if suffix == ".webp":
-                companion = variant.with_suffix(".webp")
+        # Only what this script recorded as its own goes: the variant and
+        # its WebP, each on its own entry. A file of a variant's name that
+        # it did not write (or that was changed since) is someone's, and a
+        # sidecar beside one is another tool's: both stay, and are named.
+        pruned = False
+        for path in (variant, variant.with_suffix(".webp")):
+            if not path.exists():
+                continue
+            if records.owns(path, PRODUCER, source):
+                path.unlink()
+                records.removed(path)
+                pruned = True
             else:
-                companion = variant.with_name(variant.name + suffix)
-            if companion.exists():
-                companion.unlink()
-        print(f"  prune  {rel}  ({reason})")
-        counters["pruned"] += 1
+                print(f"  keep   {_rel(path)}  ({reason}; not recorded as made here)")
+                counters["kept"] += 1
+        for suffix in VARIANT_SIDECAR_SUFFIXES:
+            sidecar = variant.with_name(variant.name + suffix)
+            if sidecar.exists():
+                print(f"  keep   {_rel(sidecar)}  (a sidecar this script did not write)")
+                counters["kept"] += 1
+        if pruned:
+            print(f"  prune  {rel}  ({reason})")
+            counters["pruned"] += 1
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +511,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="delete variants whose source is gone or is no longer wider",
     )
+    parser.add_argument(
+        "--adopt",
+        action="store_true",
+        help="record the variants already there that a fresh rendering "
+        "reproduces byte for byte, and list the rest",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -493,27 +546,38 @@ def main(argv: list[str] | None = None) -> int:
         "would_write": 0,
         "pruned": 0,
         "would_prune": 0,
+        "kept": 0,
+        "adopted": 0,
+        "differ": 0,
     }
 
-    # Before anything is written or pruned: is any path this would write
-    # a file a page shows by name?
     try:
-        refused = shown_by_name(plan(root, counters=dict(counters)))
-    except (OSError, subprocess.CalledProcessError) as error:
-        print("generate-thumbnails: could not ask the generator which WebP files the pages show by name "
-              f"(site list-named): {error}; nothing was written.", file=sys.stderr)
+        # A directory outside the site and the engine (a photograph being
+        # prepared elsewhere) keeps the record of its own variants.
+        records = derived_images.Records(elsewhere=root if root.is_dir() else root.parent)
+    except derived_images.RecordError as error:
+        print(f"generate-thumbnails: {error}; nothing was written.", file=sys.stderr)
         return 1
-    if refused:
-        print("\n".join(refused), file=sys.stderr)
-        return 1
+
+    if args.adopt:
+        adopt(plan(root, counters=counters), records, dry_run=args.dry_run, counters=counters)
+        verb = "would be recorded" if args.dry_run else "recorded"
+        print(f"generate-thumbnails: {counters['adopted']} variant file(s) {verb} as this script's; "
+              f"{counters['differ']} differ and are left unrecorded.")
+        if counters["differ"]:
+            print("  One that differs is yours, or was made by another Pillow. Look at it, and delete it to "
+                  "have it made again.")
+        if counters["adopted"] and not args.dry_run:
+            derived_images.request_full_rebuild()
+        return 1 if counters["failed"] else 0
 
     # Prune first: a re-imported source that shrank should lose its stale
     # wide variant before the generate pass decides what is current.
     if args.prune:
-        prune(root, dry_run=args.dry_run, counters=counters)
+        prune(root, records, dry_run=args.dry_run, counters=counters)
 
     ladder = plan(root, counters=counters)
-    generate(ladder, dry_run=args.dry_run, force=args.force, counters=counters)
+    generate(ladder, records, dry_run=args.dry_run, force=args.force, counters=counters)
 
     summary = (
         f"generate-thumbnails: {counters['written']} written, "
@@ -525,6 +589,8 @@ def main(argv: list[str] | None = None) -> int:
         summary += f", {counters['pruned']} pruned"
     if counters["would_prune"]:
         summary += f", {counters['would_prune']} would be pruned"
+    if counters["kept"]:
+        summary += f", {counters['kept']} not this script's and left as they are"
     if counters["failed"]:
         summary += f", {counters['failed']} FAILED"
     print(summary)
