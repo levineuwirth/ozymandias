@@ -236,7 +236,11 @@ def convert(records: derived_images.Records, convertible: list[Path]) -> int:
                 present += 1
             else:
                 print(f"  webp  {show(image)}")
-                if not convert_one(records, image, companion, Path(scratch)):
+                settled = convert_one(records, image, companion, Path(scratch))
+                if settled is None:
+                    left.append(companion)
+                    continue
+                if not settled:
                     unsettled.append(image)
                 converted += 1
     print(f"convert-images: {converted} converted, {present} already present.")
@@ -248,11 +252,12 @@ def convert(records: derived_images.Records, convertible: list[Path]) -> int:
     return 0
 
 
-def convert_one(records: derived_images.Records, image: Path, companion: Path, scratch: Path) -> bool:
+def convert_one(records: derived_images.Records, image: Path, companion: Path, scratch: Path) -> bool | None:
     """Make the companion of the image as it is read, and say so in the
     record; again, when the image was saved anew meanwhile, since the
     companion is then of the image before. Is the companion, in the end,
-    of the image that is there?"""
+    of the image that is there? None means the destination was claimed
+    during encoding and was left alone."""
     for attempt in range(TRIES):
         try:
             taken = derived_images.consume(image)
@@ -260,15 +265,12 @@ def convert_one(records: derived_images.Records, image: Path, companion: Path, s
             if attempt == 0:
                 raise
             return True             # gone since: its companion is of an image no longer there
-        # Written under a temporary name and moved: an interrupted cwebp
-        # leaves nothing where the companion goes. Recorded and saved at
-        # once: a companion on disk without its entry would no longer be
-        # the script's.
-        with sitelib.atomic_path(companion, durable=False) as tmp:
-            cwebp_of(taken, image, scratch, tmp)
-            written = derived_images.digest(tmp)
-        records.wrote(companion, PRODUCER, image, taken, written)
-        records.save_all()
+        # The encoded file and the public name must share a filesystem.
+        with tempfile.TemporaryDirectory(dir=companion.parent, prefix=".convert-") as stage:
+            encoded = Path(stage) / "companion.tmp"
+            cwebp_of(taken, image, scratch, encoded)
+            if not records.publish(encoded, companion, PRODUCER, image, taken, derived_images.digest(encoded)):
+                return None
         if derived_images.still(image, taken):
             return True
     return False

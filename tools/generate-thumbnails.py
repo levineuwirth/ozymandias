@@ -95,6 +95,7 @@ import argparse
 import io
 import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -242,32 +243,28 @@ def _prepare_for_format(source: Path, image):
     return image
 
 
-def _write(image, destination: Path, kwargs: dict) -> str:
-    """Save through a temporary sibling; never leaves a partial file. Mode
-    644 matches what import-photo.sh sets on the delivery file: these are
-    rsync'd to the VPS and served by nginx. Not durable: a lost variant is
-    regenerated on the next run. Returns the digest of what was written."""
-    with sitelib.atomic_path(destination, durable=False, mode=0o644) as tmp:
-        image.save(tmp, **kwargs)
-        return_digest = derived_images.digest(tmp)
-    return return_digest
+def _write(image, output: Path, stage: Path, kwargs: dict) -> tuple[Path, Path, str]:
+    """Keep even an interrupted encode out of the tools' image scans."""
+    encoded = stage / (kwargs["format"].lower() + ".tmp")
+    image.save(encoded, **kwargs)
+    encoded.chmod(0o644)
+    return output, encoded, derived_images.digest(encoded)
 
 
-def render_variant(source: Path, destination: Path, width: int,
-                   *, jpeg: bool = True, webp: bool = True, data: bytes | None = None) -> dict[Path, str]:
-    """Write one variant and/or its WebP sibling, and return the digest of
+def render_variant(source: Path, destination: Path, width: int, *, stage: Path, data: bytes,
+                   jpeg: bool = True, webp: bool = True) -> Iterator[tuple[Path, Path, str]]:
+    """Stage one variant and/or its WebP sibling, yielding the digest of
     each file written. Raises on failure.
 
-    Rendered from `data` when it is given: the photograph as it was read
+    Rendered from `data`: the photograph as it was read
     (derived_images.consume), which the record then names, whatever is
     saved at `source` meanwhile. `source` still says which format it is.
 
-    The JPEG (or PNG) is written first, so the WebP is never older than
-    it and tools/convert-images.sh leaves it alone."""
+    Yield the raster before attempting the WebP, so the caller can publish
+    and record it even if the second encoder fails."""
     from PIL import Image
 
-    written: dict[Path, str] = {}
-    with Image.open(source if data is None else io.BytesIO(data)) as image:
+    with Image.open(io.BytesIO(data)) as image:
         image.load()
         src_w, src_h = image.size
         # Round rather than truncate: a 2400x1800 source at 960 must be
@@ -283,7 +280,7 @@ def render_variant(source: Path, destination: Path, width: int,
 
     try:
         if jpeg:
-            written[destination] = _write(resized, destination, kwargs)
+            yield _write(resized, destination, stage, kwargs)
         if webp:
             webp_kwargs: dict = {"format": "WEBP", "method": 6}
             if kwargs["format"] == "PNG":
@@ -292,10 +289,9 @@ def render_variant(source: Path, destination: Path, width: int,
                 webp_kwargs["quality"] = WEBP_QUALITY
             if "icc_profile" in kwargs:
                 webp_kwargs["icc_profile"] = kwargs["icc_profile"]
-            written[webp_path(destination)] = _write(resized, webp_path(destination), webp_kwargs)
+            yield _write(resized, webp_path(destination), stage, webp_kwargs)
     finally:
         resized.close()
-    return written
 
 
 # ---------------------------------------------------------------------------
@@ -303,16 +299,16 @@ def render_variant(source: Path, destination: Path, width: int,
 # ---------------------------------------------------------------------------
 
 
-def plan(root: Path, *, counters: dict) -> list[tuple[Path, Path, int]]:
+def plan(root: Path, *, counters: dict) -> Iterator[tuple[Path, derived_images.Consumed, Path, int]]:
     """Every variant the contract gives the sources under `root`: the
     source, the variant's path and its width. Nothing is written."""
     from PIL import Image
 
-    ladder = []
     for source in iter_sources(root):
         try:
-            with Image.open(source) as probe:
-                src_width = probe.size[0]
+            taken = derived_images.consume(source)
+            with Image.open(io.BytesIO(taken.data)) as probe:
+                src_width = probe.width
         except Exception as exc:  # noqa: BLE001 — one bad file, keep walking
             print(f"generate-thumbnails: {source}: {exc}", file=sys.stderr)
             counters["failed"] += 1
@@ -323,13 +319,12 @@ def plan(root: Path, *, counters: dict) -> list[tuple[Path, Path, int]]:
             # variant would be a byte-for-byte-pointless copy and the
             # srcset would advertise two identical candidates.
             if src_width > width:
-                ladder.append((source, variant_path(source, width), width))
-    return ladder
+                yield source, taken, variant_path(source, width), width
 
 
-def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Records, *,
+def generate(root: Path, records: derived_images.Records, *,
              dry_run: bool, force: bool, counters: dict) -> None:
-    for source, destination, width in ladder:
+    for source, taken, destination, width in plan(root, counters=counters):
         webp = webp_path(destination)
         # Its own variant is current while the photograph is the one it
         # was made from (the record notes its bytes); a file with no entry
@@ -356,17 +351,16 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
             continue
 
         try:
-            # The photograph is read once, rendered from what was read,
-            # and recorded as that: one saved again meanwhile has variants
-            # of the photograph before, and entries that say so.
-            taken = derived_images.consume(source)
-            written = render_variant(source, destination, width,
-                                     jpeg=need_jpeg, webp=need_webp, data=taken.data)
-            for path, digest in written.items():
-                records.wrote(path, PRODUCER, source, taken, digest)
-            # Saved with each: a variant on disk without its entry would
-            # no longer be the script's.
-            records.save_all()
+            published = False
+            with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".thumb-") as stage:
+                variants = render_variant(source, destination, width, stage=Path(stage), data=taken.data,
+                                          jpeg=need_jpeg, webp=need_webp)
+                for output, encoded, digest in variants:
+                    if records.publish(encoded, output, PRODUCER, source, taken, digest):
+                        published = True
+                    else:
+                        print(f"  keep   {_rel(output)}  (changed while encoding)")
+                        counters["kept"] += 1
             if not derived_images.still(source, taken):
                 counters["changed"].add(source)
         except Exception as exc:  # noqa: BLE001 — keep walking
@@ -377,8 +371,9 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
             counters["failed"] += 1
             continue
 
-        print(f"  thumb  {rel}")
-        counters["written"] += 1
+        if published:
+            print(f"  thumb  {rel}")
+            counters["written"] += 1
 
 
 def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, bool]:
@@ -400,7 +395,7 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     counters = {"failed": 0}
     adopted = differ = partial = 0
     with tempfile.TemporaryDirectory(prefix="adopt-variants-") as scratch:
-        for source, destination, width in plan(DEFAULT_ROOT, counters=counters):
+        for source, taken, destination, width in plan(DEFAULT_ROOT, counters=counters):
             # A file with no entry, or with an entry that does not say
             # which bytes its photograph had (an earlier form of the
             # record).
@@ -409,25 +404,21 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
                      and (records.entry(path) is None or records.incomplete(path, PRODUCER, source))]
             if not there:
                 continue
-            fresh = Path(scratch) / destination.name
             try:
-                taken = derived_images.consume(source)
-                render_variant(source, fresh, width, data=taken.data)
+                variants = render_variant(source, destination, width, stage=Path(scratch), data=taken.data,
+                                          jpeg=destination in there, webp=webp_path(destination) in there)
+                for path, encoded, digest in variants:
+                    if encoded.read_bytes() == path.read_bytes():
+                        adopted += 1
+                        records.wrote(path, PRODUCER, source, taken, digest)
+                    elif records.entry(path) is not None:
+                        partial += 1
+                    else:
+                        differ += 1
+                        print(f"  differs  {_rel(path)}  (not what this script makes of {_rel(source)} now)")
             except Exception as exc:  # noqa: BLE001 — keep walking
                 print(f"generate-thumbnails: {destination}: {exc}", file=sys.stderr)
                 counters["failed"] += 1
-                continue
-            for path in there:
-                made = fresh if path == destination else webp_path(fresh)
-                bytes_there = path.read_bytes()
-                if made.read_bytes() == bytes_there:
-                    adopted += 1
-                    records.wrote(path, PRODUCER, source, taken, derived_images.digest_of(bytes_there))
-                elif records.entry(path) is not None:
-                    partial += 1
-                else:
-                    differ += 1
-                    print(f"  differs  {_rel(path)}  (not what this script makes of {_rel(source)} now)")
     verb = "would be recorded" if dry_run else "recorded"
     print(f"generate-thumbnails: {adopted} variant file(s) {verb} as this script's; "
           f"{differ} differ and are left unrecorded.")
@@ -620,8 +611,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.prune:
                 prune(root, records, dry_run=args.dry_run, counters=counters)
 
-            ladder = plan(root, counters=counters)
-            generate(ladder, records, dry_run=args.dry_run, force=args.force, counters=counters)
+            generate(root, records, dry_run=args.dry_run, force=args.force, counters=counters)
     except derived_images.RecordError as error:
         print(f"generate-thumbnails: {error}; nothing was written.", file=sys.stderr)
         return 1

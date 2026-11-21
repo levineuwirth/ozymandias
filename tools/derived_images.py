@@ -91,6 +91,7 @@ import importlib.util
 import json
 import os
 import sys
+import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -358,6 +359,56 @@ class Records:
         if self.declared_for(output) is not None:
             return False
         return not os.path.lexists(output) or self.owns(output, producer, source)
+
+    def publish(self, staged: Path, output: Path, producer: str, source: Path,
+                taken: Consumed, written: str) -> bool:
+        """Publish a staged sibling without replacing an author's concurrent save.
+
+        Link into an empty slot atomically. For a replacement, take the old
+        file aside and verify the bytes actually displaced before installing
+        the new one. Another save into the slot always wins.
+        """
+        if self.declared_for(output) is not None:
+            return False
+        try:
+            os.link(staged, output)
+        except FileExistsError:
+            if not self.owns(output, producer, source):
+                return False
+            fd, backup_name = tempfile.mkstemp(dir=output.parent, prefix=".previous-image-")
+            os.close(fd)
+            backup = Path(backup_name)
+            try:
+                os.replace(output, backup)
+            except FileNotFoundError:
+                backup.unlink()
+                return False
+            except OSError:
+                backup.unlink()
+                raise
+
+            try:
+                entry = self.entry(output)
+                if backup.is_symlink() or not backup.is_file() or digest(backup) != entry["digest"]:
+                    return False
+                try:
+                    os.link(staged, output)
+                except FileExistsError:
+                    return False
+                backup.unlink()
+            finally:
+                if os.path.lexists(backup):
+                    try:
+                        os.link(backup, output, follow_symlinks=False)
+                    except FileExistsError:
+                        # Both names may now hold an author's save. Keep both.
+                        print(f"{show(output)} changed during publication. The displaced file is at "
+                              f"{show(backup)}", file=sys.stderr)
+                    else:
+                        backup.unlink()
+        self.wrote(output, producer, source, taken, written)
+        self.save_all()
+        return True
 
     def fresh(self, output: Path, producer: str, source: Path) -> bool:
         """Is the output there what `producer` would make of `source` now?

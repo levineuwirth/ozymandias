@@ -76,7 +76,7 @@ import qualified Data.Aeson.Key        as K
 import qualified Data.Aeson.KeyMap     as KM
 import qualified Data.ByteString       as BS
 import           Data.Int              (Int64)
-import           Data.IORef            (IORef, atomicModifyIORef', newIORef, readIORef, writeIORef)
+import           Data.IORef            (IORef, atomicModifyIORef', newIORef, readIORef)
 import           Data.List             (inits, intercalate, isPrefixOf, isSuffixOf, nub, stripPrefix)
 import qualified Data.Map.Strict       as Map
 import           Data.Maybe            (catMaybes)
@@ -90,9 +90,9 @@ import           Hakyll                (Compiler, Pattern, fromFilePath, fromGlo
                                         unsafeCompiler, (.||.))
 import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import           Hakyll.Core.Dependencies (Dependency (..))
-import           System.Directory      (canonicalizePath, createDirectoryIfMissing, doesFileExist,
+import           System.Directory      (canonicalizePath, createDirectoryIfMissing, doesDirectoryExist, doesFileExist,
                                         getCurrentDirectory, getFileSize, getModificationTime,
-                                        pathIsSymbolicLink, removeFile, renameFile)
+                                        listDirectory, pathIsSymbolicLink, removeFile, renameFile)
 import           System.Exit           (ExitCode (..), die)
 import           System.FilePath       (isAbsolute, joinPath, makeRelative, splitDirectories, takeDirectory,
                                         takeFileName, (</>))
@@ -116,7 +116,7 @@ data Pairings = Pairings
     , declared :: Map.Map FilePath FilePath   -- ^ a WebP, and the image it is for
     }
 
-siteRecord, engineRecord, siteDeclared, engineDeclared, engineDir, stateRoot, stateDir, manifest, pending
+siteRecord, engineRecord, siteDeclared, engineDeclared, engineDir, stateRoot, stateDir, manifest, pending, aliasState
     :: FilePath
 siteRecord     = "data/derived-images.json"
 engineRecord   = engineDir </> siteRecord
@@ -127,6 +127,7 @@ stateRoot      = "data/pairings"
 stateDir       = stateRoot </> "states"
 manifest       = stateRoot </> "manifest.json"
 pending        = stateRoot </> "manifest.pending.json"
+aliasState     = stateRoot </> "directory-aliases.json"
 
 -- | Is @output@ the file of @image@ that its name says it is? Both are
 --   paths in the site as the build has them (@content\/blog\/lake.jpg@,
@@ -208,7 +209,7 @@ pairedWithC image output = do
 --   as a change of content does.
 dependOn :: [FilePath] -> Compiler ()
 dependOn files = unless (null files) $ do
-    let pattern = fromList (map fromFilePath files)
+    let pattern = fromList (map fromFilePath (aliasState : files))
     present <- getMatches pattern
     compilerTellDependencies [PatternDependency pattern (Set.fromList present)]
 
@@ -216,7 +217,7 @@ dependOn files = unless (null files) $ do
 --   dependency on a file no rule claims never fires, and a watch wakes
 --   for a claimed file only.
 pairingStates :: Pattern
-pairingStates = fromGlob (stateDir ++ "/**.json") .||. fromList [fromFilePath manifest]
+pairingStates = fromGlob (stateDir ++ "/**.json") .||. fromList (map fromFilePath [manifest, aliasState])
 
 -- | The state file of an output's directory.
 stateFileOf :: FilePath -> FilePath
@@ -264,11 +265,42 @@ refreshed = (Right <$> refresh)
         paired <- filterM (\(output, image) -> holds pairings image output) claimed
         let states = Map.map (BS.toStrict . A.encode . Map.toAscList) $ Map.fromListWith Map.union
                 [ (stateFileOf output, Map.singleton output image) | (output, image) <- paired ]
-        -- A watch asks every little while, and mostly nothing has changed.
-        last' <- readIORef lastStates
-        unless (last' == Just states) $ do
-            writeStates states
-            writeIORef lastStates (Just states)
+        aliases <- directoryAliases
+        let allStates = if Map.null aliases then states else
+                Map.insert aliasState (BS.toStrict (A.encode aliases)) states
+        -- Even when the answers are unchanged, a local edit to the files
+        -- Hakyll watches invalidates the manifest's ownership of them.
+        writeStates allStates
+
+-- | Retargeting a served directory link changes which canonical directory a
+-- page asks about even when the pairings in both directories stay the same.
+directoryAliases :: IO (Map.Map FilePath FilePath)
+directoryAliases = do
+    visited <- newIORef Set.empty
+    let walk dir = do
+            seen <- atomicModifyIORef' visited (\dirs -> (Set.insert dir dirs, Set.member dir dirs))
+            if seen then pure [] else do
+                names <- listDirectory dir
+                concat <$> mapM (visit . (dir </>)) (filter (not . isPrefixOf ".") names)
+        visit path = do
+            dir <- doesDirectoryExist path
+            if not dir then pure [] else do
+                linked <- pathIsSymbolicLink path
+                if not linked then walk path else do
+                    target <- realDir path
+                    owner <- directoryTree target
+                    case owner of
+                        Nothing -> pure []
+                        Just (tree, rel) -> do
+                            alias <- asRecorded path
+                            rest <- walk target
+                            pure ((alias, treePath tree rel) : rest)
+        -- Start at the physical parent, keeping the last component (which
+        -- may itself be a link). Each physical directory is walked once.
+        root path = do
+            parent <- realDir (takeDirectory path)
+            visit (parent </> takeFileName path)
+    Map.fromList . concat <$> mapM root ["content", "static", engineDir </> "static"]
 
 -- | Put the state files as @states@ has them, and the manifest after.
 --
@@ -373,6 +405,7 @@ ownPlace file = if stateName file then linkFree file else pure False
 -- | Is this the name of a state file: under the state directory, a
 --   @.json@, and written plainly?
 stateName :: FilePath -> Bool
+stateName file | file == aliasState = True
 stateName file = (stateDir ++ "/") `isPrefixOf` file && ".json" `isSuffixOf` file
     && not (any (`elem` [".", ".."]) parts) && joinPath parts == file
   where parts = splitDirectories file
@@ -398,10 +431,6 @@ writeWhole file bytes = do
 digestOfBytes :: BS.ByteString -> String
 digestOfBytes bytes = "sha256:" ++ show (hash bytes :: Digest SHA256)
 
-{-# NOINLINE lastStates #-}
-lastStates :: IORef (Maybe (Map.Map FilePath BS.ByteString))
-lastStates = unsafePerformIO (newIORef Nothing)
-
 {-# NOINLINE askedAbout #-}
 askedAbout :: IORef (Map.Map FilePath (Set.Set FilePath))
 askedAbout = unsafePerformIO (newIORef Map.empty)
@@ -415,17 +444,26 @@ askedAbout = unsafePerformIO (newIORef Map.empty)
 data Tree = Site | Engine deriving Eq
 
 located :: FilePath -> IO (Maybe (Tree, FilePath))
-located path = do
+located path
+    | name `elem` ["", ".", ".."] = pure Nothing
+    | otherwise = do
+        owner <- realDir (takeDirectory path) >>= directoryTree
+        pure ((\(tree, dir) -> (tree, dir </> name)) <$> owner)
+  where name = takeFileName path
+
+directoryTree :: FilePath -> IO (Maybe (Tree, FilePath))
+directoryTree dir = do
     here <- realDir "."
     eng  <- realDir engineDir
-    dir  <- realDir (takeDirectory path)
-    let name = takeFileName path
-        under root | dir == root = Just name
-                   | otherwise   = (</> name) <$> stripPrefix (root ++ "/") dir
-    pure $ if name `elem` ["", ".", ".."] then Nothing else case (under eng, under here) of
-        (Just rel, _) -> Just (Engine, rel)
-        (_, Just rel) -> Just (Site, rel)
-        _             -> Nothing
+    let under root | dir == root = Just ""
+                   | otherwise   = stripPrefix (root ++ "/") dir
+    pure $ case under eng of
+        Just rel -> Just (Engine, rel)
+        Nothing  -> (Site,) <$> under here
+
+treePath :: Tree -> FilePath -> FilePath
+treePath Site   rel = rel
+treePath Engine rel = engineDir </> rel
 
 -- | A file as the records have it here: its path in the site, an engine
 --   file's under @engine\/@. (One of neither tree is in no record; it
@@ -434,9 +472,8 @@ asRecorded :: FilePath -> IO FilePath
 asRecorded path = do
     found <- located path
     case found of
-        Just (Engine, rel) -> pure (engineDir </> rel)
-        Just (Site, rel)   -> pure rel
-        Nothing            -> (`inSite` path) <$> getCurrentDirectory
+        Just (tree, rel) -> pure (treePath tree rel)
+        Nothing          -> (`inSite` path) <$> getCurrentDirectory
 
 -- | Where a directory really is. Asked for every image of every page, and
 --   so kept, until the states are next written.

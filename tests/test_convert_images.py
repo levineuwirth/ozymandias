@@ -466,6 +466,40 @@ class ConvertImages(unittest.TestCase):
     def sha(text: str) -> str:
         return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
+    def test_a_companion_saved_during_conversion_is_preserved(self):
+        source = self.write("content/lake.jpg", "first")
+        companion = source.with_suffix(".webp")
+        done = self.with_cwebp("author-save", CWEBP + f'printf handmade > "{companion}"\n')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(companion.read_text(), "handmade")
+        self.assertNotIn("content/lake.webp", self.record())
+
+        companion.unlink()
+        self.convert()
+        old = self.record()
+        source.write_text("second export")
+        done = self.with_cwebp("author-edit", CWEBP + f'printf edited > "{companion}"\n')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(companion.read_text(), "edited")
+        self.assertEqual(self.record(), old)
+
+    def test_a_companion_edited_on_a_retry_is_preserved(self):
+        source = self.write("content/lake.jpg", "first")
+        companion = source.with_suffix(".webp")
+        done = self.with_cwebp("save-on-retry", CWEBP + f"""
+if [ -e "{companion}" ]; then
+    printf handmade > "{companion}"
+else
+    printf second > "{source}"
+fi
+""")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(companion.read_text(), "handmade")
+        entry = self.record()["content/lake.webp"]
+        self.assertEqual(entry["digest"], self.sha(made("lake.jpg", "first")))
+        self.convert()
+        self.assertEqual(companion.read_text(), "handmade")
+
     def test_an_image_saved_again_while_it_is_converted_is_converted_again(self):
         # Another picture is saved over the image after cwebp has read it
         # and before the script has recorded what it made (once: the

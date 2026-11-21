@@ -431,9 +431,10 @@ lacks, for a site that doesn't push the engine itself.
   it. The record is local state: a site keeps it out of Git with the
   files it describes, and `data/pairings/` with it, where each build
   notes what the record pairs so that a page is built again when that
-  changes (a watch notes it again as it runs: within two seconds of a
-  tool's run or a declaration's edit, within ten of a file changed by
-  hand; `site --verbose build` is a build like any other). Under
+  changes. Pages using images also follow changes to directory aliases
+  under `content/` and `static/`. A watch checks within two seconds of a
+  tool's run or a declaration's edit, and within ten of a file changed by
+  hand. `site --verbose build` follows the same pairings. Under
   `data/pairings/` the build writes over and deletes only a state file
   its own manifest lists and that is still the bytes it wrote, and writes
   nothing through a link. Where it cannot keep the states (another file
@@ -446,7 +447,9 @@ lacks, for a site that doesn't push the engine itself.
   holds a record's lock while it works, so two sites building at once
   wait for each other there.
   - a tool writes where there is no file, and writes over or prunes only
-    a file the record says it made and that is unchanged since. Its own
+    a file the record says it made and that is unchanged since. A file saved
+    by the author while an encoder runs keeps its place. Each finished
+    thumbnail is recorded even if encoding its sibling fails. Its own
     file is made again when its image is not the one it was made from
     (other bytes, whichever file is older, or another file altogether;
     an image whose time alone changed, as a checkout changes it, is the

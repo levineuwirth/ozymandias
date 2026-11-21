@@ -507,6 +507,48 @@ class OwnershipTests(unittest.TestCase):
         code, out = run(str(self.root))
         self.assertIn("0 written, 2 current", out)
 
+    def test_a_webp_saved_while_a_thumbnail_is_encoding_is_preserved(self):
+        self.photo("view.jpg", 600)
+        webp = self.photos / "view.w480.webp"
+        save = Image.Image.save
+
+        def save_with_author_edit(image, output, **kwargs):
+            if kwargs["format"] == "WEBP":
+                webp.write_bytes(self.AUTHORED)
+            return save(image, output, **kwargs)
+
+        with mock.patch.object(Image.Image, "save", save_with_author_edit):
+            self.assertEqual(run(str(self.root))[0], 0)
+        self.assertEqual(webp.read_bytes(), self.AUTHORED)
+        self.assertEqual(set(self.record()), {"trip/view.w480.jpg"})
+
+    def test_a_successful_raster_is_recorded_even_if_webp_encoding_fails(self):
+        self.photo("view.jpg", 600)
+        save = Image.Image.save
+
+        def fail_webp(image, output, **kwargs):
+            if kwargs["format"] == "WEBP":
+                raise OSError("WebP encoder failed")
+            return save(image, output, **kwargs)
+
+        with mock.patch.object(Image.Image, "save", fail_webp), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(run(str(self.root))[0], 1)
+        self.assertEqual(run(str(self.root))[0], 0)
+        self.assertEqual(set(self.record()), {"trip/view.w480.jpg", "trip/view.w480.webp"})
+
+    def test_variant_widths_follow_the_bytes_consumed(self):
+        source = self.photo("view.jpg", 1600)
+        consume = generate_thumbnails.derived_images.consume
+
+        def consume_latest(path):
+            Image.new("RGB", (250, 10)).save(source)
+            return consume(path)
+
+        with mock.patch.object(generate_thumbnails.derived_images, "consume", consume_latest):
+            self.assertEqual(run(str(self.root))[0], 0)
+        self.assertFalse(self.record())
+        self.assertEqual(set(self.files()), {"view.jpg"})
+
     def test_a_photograph_saved_again_while_its_variants_are_made_is_recorded_as_it_was_read(self) -> None:
         # Another photograph is saved over this one after it was read and
         # before its variants are recorded. They are of the one before,
@@ -533,9 +575,9 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], was)
         self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"],
                          "sha256:" + hashlib.sha256(made_first).hexdigest())
-        # The wider variant was made after, of the photograph that is there.
+        # Both widths were made from the same snapshot.
         code, said = run(str(self.root))
-        self.assertIn("1 written, 1 current", said)
+        self.assertIn("2 written, 0 current", said)
         self.assertNotEqual((self.photos / "view.w480.jpg").read_bytes(), made_first)
         now = "sha256:" + hashlib.sha256(photo.read_bytes()).hexdigest()
         self.assertEqual({entry["source-digest"] for entry in self.record().values()}, {now})

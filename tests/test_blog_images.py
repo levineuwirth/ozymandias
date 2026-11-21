@@ -550,6 +550,30 @@ class BlogImages(Site):
         self.assertIn('<source srcset="../newdir/blue.webp" type="image/webp">', self.read("notebook/second.html"))
         self.assertIn('<source srcset="hand.webp" type="image/webp">', self.read("notebook/first.html"))
 
+    def test_idle_watch_exits_when_an_existing_state_is_edited(self):
+        self.site("build")
+        stamp = self.root / "data/build-stamp.txt"
+        original = stamp.read_bytes()
+        watch = subprocess.Popen([str(site_binary()), "watch", "--no-server"], cwd=self.root,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                                 env=script_env(SITE_ENV="build", SITE_THREADS="1"))
+        try:
+            # Wait until the watch has finished its startup refresh.
+            deadline = time.monotonic() + 20
+            while stamp.read_bytes() == original and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertNotEqual(stamp.read_bytes(), original)
+            state = self.root / "data/pairings/states/content/blog.json"
+            state.write_text("local edit")
+            _, errors = watch.communicate(timeout=18)
+            self.assertNotEqual(watch.returncode, 0)
+            self.assertIn("blog.json: not a file this build wrote", errors)
+            self.assertEqual(state.read_text(), "local edit")
+        finally:
+            if watch.poll() is None:
+                watch.terminate()
+            watch.communicate(timeout=10)
+
     def test_a_watch_follows_the_pairings_as_they_change(self):
         # second.md shows a rooted image with no companion yet; first.md
         # shows hand.gif with the WebP its author declared.
@@ -757,6 +781,29 @@ class ThroughMake(Site):
         self.assertEqual(companion.exists(), shutil.which("cwebp") is not None)
         self.assertEqual("first.lake.webp" in self.read("notebook/first.html"), companion.exists())
         self.assertNotIn(DRAFTED, self.served())
+
+    def test_a_retargeted_static_directory_changes_the_pages_pairing(self):
+        for name in ("red", "blue"):
+            for file in ("map.gif", "map.webp"):
+                image(self.root / "static" / name / file)
+        declared = self.root / "data/companions.json"
+        pairs = json.loads(declared.read_text())
+        pairs["static/red/map.webp"] = "static/red/map.gif"
+        declared.write_text(json.dumps(pairs))
+        alias = self.root / "static/album"
+        alias.symlink_to("red")
+        page = self.blog / "second.md"
+        page.write_text(page.read_text() + "\n![Map](/album/map.gif)\n")
+        self.make_build()
+        self.assertIn("album/map.webp", self.read("notebook/second.html"))
+        alias.unlink()
+        alias.symlink_to("blue")
+        self.make_build()
+        self.assertNotIn("album/map.webp", self.read("notebook/second.html"))
+        alias.unlink()
+        alias.symlink_to("red")
+        self.make_build()
+        self.assertIn("album/map.webp", self.read("notebook/second.html"))
 
     def test_a_companion_changed_by_hand_leaves_the_page_on_the_next_build(self):
         # A published post shows a static image by its path from the root,
