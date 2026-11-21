@@ -8,9 +8,9 @@
 --   the private-name and draft rules to decide which pages count.
 --
 --   And the files every page names, published or not (@site list-named
---   SUFFIX ROOT@), for tools/convert-images.sh: a WebP a page shows by
---   name is an image of its own, which the converter must not write over
---   with another image's companion.
+--   ROOT SUFFIX...@), for tools/convert-images.sh and
+--   tools/generate-thumbnails.py: a WebP a page shows by name is an image
+--   of its own, which neither may write over with one it makes.
 module PageScan
     ( publishedPages
     , pageLinks
@@ -19,20 +19,23 @@ module PageScan
 
 import qualified Data.ByteString                as BS
 import           Data.Char                      (chr, digitToInt, isAlphaNum, isHexDigit, toLower)
-import           Data.List                      (isSuffixOf)
+import           Data.List                      (isPrefixOf, isSuffixOf, stripPrefix)
+import qualified Data.Aeson                     as A
+import qualified Data.Aeson.KeyMap              as KM
 import qualified Data.Text                      as T
 import qualified Data.Text.Encoding             as TE
 import qualified Data.Text.Encoding.Error       as TEE
 import           Hakyll.Core.Provider.Metadata  (parsePage)
-import           System.FilePath                (makeRelative, normalise, takeDirectory, takeExtension)
+import           System.FilePath                (makeRelative, normalise, takeDirectory, takeExtension, (</>))
 import           Text.Pandoc                    (readMarkdown, runPure)
+import           Text.Pandoc.XML                (fromEntities)
 import           Text.Pandoc.Definition         (Inline (..))
 import           Text.Pandoc.Walk               (query)
 
 import           Compilers                      (readerOpts)
-import           Config                         (SiteConfig, switchOn)
+import           Config                         (Section (..), SiteConfig (..), switchOn)
 import           PandocOptions                  (withMath)
-import           BlogImages                     (referencedFiles, rootedFiles)
+import           BlogImages                     (namedUrls, relativeFiles, rootedPaths)
 import           Drafts                         (filesUnder, isUnpublished, markdownUnder, scanUnpublished)
 import           Filters                        (preprocessSource)
 import           Site                           (refusedPath)
@@ -65,43 +68,75 @@ pageLinks cfg fp = do
     target (Link _ _ (url, _)) = [url]
     target _                   = []
 
--- | Each file whose name ends in @suffix@ (in either case) that a Markdown
---   page under @root@ names, with the page: one it names by a relative
---   path as that path from where @root@ is given
---   (@content\/blog\/lake.webp@), one it names from the site's root as
---   @static:@ and the path there (@static:images\/lake.webp@). Every page
---   counts, a draft's and those under @root\/drafts\/@ too: a dev build
---   shows them, and their images are no less their own. The body is read
---   as "BlogImages" reads a blog page's.
+-- | Each file whose name ends in one of @suffixes@ (in either case) that a
+--   Markdown page under @root@ names, with the page.
 --
---   Reading every page costs seconds on a site of a few hundred, so a
---   page is read only if its source could spell the suffix: it holds the
---   suffix's last letters and digits as they are, or one of the two
---   things that write a letter another way: a percent-escape of one of
---   them, or a numeric character reference.
-namedFiles :: String -> FilePath -> IO [(FilePath, FilePath)]
-namedFiles suffix root = do
+--   A page names a file in its body, as "BlogImages" reads a blog page's
+--   (an image, a link, a URL attribute of raw HTML), and in its front
+--   matter: a field's value may be a file's name (@photo: harbor.webp@,
+--   which "Contexts" takes from beside the page), so every string there is
+--   read as a path would be.
+--
+--   A relative path is the file at that path from the page, under @root@
+--   as it is given (@content\/blog\/lake.webp@). A path from the site's
+--   root (@\/images\/lake.webp@) is whatever is served there, and the
+--   site serves three trees at its root: @static\/@ (given here as
+--   @static:images\/lake.webp@, the site's file or the engine's),
+--   @content\/@ at the same path, and a section's directory at its
+--   address ('Sections.contentRoute'). Each that could be meant is given;
+--   whoever asks has the files and can tell which are there.
+--
+--   Every page counts, a draft's and those under @root\/drafts\/@ too: a
+--   dev build shows them, and their images are no less their own.
+--
+--   Reading every body costs seconds on a site of a few hundred pages, so
+--   a body is read only if it could spell one of the suffixes: it holds
+--   each run of the suffix's letters and digits as they are, or one of
+--   the things that write a letter another way, a percent-escape of one
+--   of them or a character reference. The front matter is always read.
+namedFiles :: SiteConfig -> [String] -> FilePath -> IO [(FilePath, FilePath)]
+namedFiles cfg suffixes root = do
     pages <- filter ((== ".md") . takeExtension) <$> filesUnder root
     fmap concat $ mapM named pages
   where
-    wanted file = lower suffix `isSuffixOf` lower file
+    wanted file = any (\suffix -> lower suffix `isSuffixOf` lower file) suffixes
     lower = map toLower
-    ending = T.pack (reverse (takeWhile isAlphaNum (reverse (lower suffix))))
-    couldSpell src =
-           T.null ending
-        || ending `T.isInfixOf` T.toLower src
-        || T.pack "&#" `T.isInfixOf` src
-        || any escape (T.breakOnAll (T.pack "%") src)
-    -- A percent-escape of one of those letters or digits.
-    escape (_, rest) = case T.unpack (T.take 2 (T.drop 1 rest)) of
-        [a, b] | isHexDigit a && isHexDigit b ->
-            toLower (chr (digitToInt a * 16 + digitToInt b)) `T.elem` ending
-        _ -> False
+
     named fp = do
-        src <- TE.decodeUtf8With TEE.lenientDecode <$> BS.readFile fp
-        if not (couldSpell src) then return [] else do
-            let text = T.unpack src
-                body = either (const text) snd (parsePage text)
-                page = normalise fp
-            return $  [ (file, page) | file <- referencedFiles (takeDirectory page) body, wanted file ]
-                   ++ [ ("static:" ++ file, page) | file <- rootedFiles body, wanted file ]
+        src <- T.unpack . TE.decodeUtf8With TEE.lenientDecode <$> BS.readFile fp
+        let (meta, body) = either (const (mempty, src)) id (parsePage src)
+            page = normalise fp
+            urls = strings (A.Object meta)
+                   ++ (if any (couldSpell (T.pack body)) suffixes then namedUrls body else [])
+            files = relativeFiles (takeDirectory page) urls ++ concatMap served (rootedPaths urls)
+        return [ (file, page) | file <- files, wanted file ]
+
+    -- Where the site serves a path from its root. A section's directory
+    -- is served at its address and not, when that is another name, at its
+    -- own.
+    served path =
+          ("static:" ++ path)
+        : [ normalise (root </> path) | not (any (moved path) (siteSections cfg)) ]
+        ++ [ normalise (root </> sectionDir s </> rest)
+           | s <- siteSections cfg
+           , Just rest <- [stripPrefix (sectionAddress s ++ "/") path] ]
+    moved path s = sectionDir s /= sectionAddress s && (sectionDir s ++ "/") `isPrefixOf` path
+
+    strings (A.String t) = [T.unpack t]
+    strings (A.Array xs) = concatMap strings xs
+    strings (A.Object o) = concatMap strings (KM.elems o)
+    strings _            = []
+
+    couldSpell body suffix = any spells [body, fromEntities body]
+      where
+        runs = filter (not . T.null) (T.split (not . isAlphaNum) (T.toLower (T.pack suffix)))
+        letters = T.concat runs
+        spells text =
+               all (`T.isInfixOf` T.toLower text) runs
+            || T.pack "&#" `T.isInfixOf` text
+            || any escape (T.breakOnAll (T.pack "%") text)
+        -- A percent-escape of one of those letters or digits.
+        escape (_, rest) = case T.unpack (T.take 2 (T.drop 1 rest)) of
+            [a, b] | isHexDigit a && isHexDigit b ->
+                toLower (chr (digitToInt a * 16 + digitToInt b)) `T.elem` letters
+            _ -> False

@@ -15,10 +15,13 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import load_tool
+from tests._helpers import (engine_path, load_tool, requires_cabal, script_env, site_binary,
+                            write_photo_site_config)
 
 
 generate_thumbnails = load_tool("generate-thumbnails.py", register=True)
@@ -341,6 +344,82 @@ class ThumbnailContractTests(unittest.TestCase):
         code, _ = run(str(self.root / "nope"))
 
         self.assertEqual(code, 0)
+
+
+
+@requires_cabal
+@unittest.skipUnless(HAVE_PILLOW, "Pillow not installed")
+class ShownByNameTests(unittest.TestCase):
+    """A variant's WebP that a page shows by name is the page's author's
+    image: the script asks the generator (`site list-named`) before it
+    writes, and writes nothing where one is in the way."""
+
+    AUTHORED = b"RIFF\x1a\x00\x00\x00WEBPVP8 made by its author"
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(prefix="thumbnails-site-")
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        write_photo_site_config(self.root)
+        self.photos = self.root / "content/photography/trip"
+        self.photos.mkdir(parents=True)
+        for name in ("view.jpg", "harbor.jpg", "plain.jpg"):
+            Image.new("RGB", (1000, 10), (10, 120, 200)).save(self.photos / name, format="JPEG")
+
+    def page(self, rel: str, front: str, body: str = "") -> None:
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"---\n{front}\n---\n\n{body}\n", encoding="utf-8")
+
+    def thumbnails(self, *argv: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(engine_path("tools/generate-thumbnails.py")), *argv],
+                              cwd=self.root, capture_output=True, text=True, timeout=120,
+                              env=script_env(SITE_ROOT=str(self.root), SITE_BINARY=str(site_binary())))
+
+    def written(self) -> set[str]:
+        return {p.name for p in self.photos.iterdir() if generate_thumbnails.is_variant(p) or ".w" in p.stem}
+
+    def test_a_variant_s_webp_a_page_shows_is_not_written_over(self) -> None:
+        # An essay shows a WebP its author made, named as a variant of
+        # view.jpg would be; a photograph's front matter names another.
+        self.page("content/essays/a.md", "title: A", "![The view](../photography/trip/view.w480.webp)")
+        self.page("content/photography/trip/harbor.md", "title: Harbor\nphoto: harbor.w960.webp")
+        for name in ("view.w480.webp", "harbor.w960.webp"):
+            (self.photos / name).write_bytes(self.AUTHORED)
+        before = self.written()
+        for argv in ((), ("--force",), ("--prune",), ("--dry-run",)):
+            with self.subTest(argv=argv):
+                done = self.thumbnails(*argv)
+                self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+                self.assertIn("content/essays/a.md shows content/photography/trip/view.w480.webp by name, as an "
+                              "image of its own, and it is where a variant of content/photography/trip/view.jpg "
+                              "would be written", done.stderr)
+                self.assertIn("content/photography/trip/harbor.md shows content/photography/trip/harbor.w960.webp "
+                              "by name", done.stderr)
+                self.assertNotIn("plain", done.stderr)
+                # Nothing is written, for the image in no one's way either.
+                self.assertEqual(self.written(), before)
+                for name in ("view.w480.webp", "harbor.w960.webp"):
+                    self.assertEqual((self.photos / name).read_bytes(), self.AUTHORED)
+        # Under names of their own they are the author's still, and the
+        # ladders are written.
+        (self.photos / "view.w480.webp").rename(self.photos / "view-small.webp")
+        (self.photos / "harbor.w960.webp").rename(self.photos / "harbor-mid.webp")
+        self.page("content/essays/a.md", "title: A", "![The view](../photography/trip/view-small.webp)")
+        self.page("content/photography/trip/harbor.md", "title: Harbor\nphoto: harbor-mid.webp")
+        done = self.thumbnails()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.written(), {f"{stem}.w{width}.{ext}" for stem in ("view", "harbor", "plain")
+                                          for width in (480, 960) for ext in ("jpg", "webp")})
+        self.assertEqual((self.photos / "view-small.webp").read_bytes(), self.AUTHORED)
+
+    def test_a_generator_that_cannot_be_asked_stops_the_script(self) -> None:
+        done = subprocess.run([sys.executable, str(engine_path("tools/generate-thumbnails.py"))],
+                              cwd=self.root, capture_output=True, text=True, timeout=120,
+                              env=script_env(SITE_ROOT=str(self.root), SITE_BINARY="/bin/false"))
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("could not ask the generator", done.stderr)
+        self.assertEqual(self.written(), set())
 
 
 if __name__ == "__main__":

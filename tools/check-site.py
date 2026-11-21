@@ -516,13 +516,15 @@ def missing_image_targets(site_dir: str, rel: str, text: str) -> list[str]:
     seen: set[str] = set()
 
     for _tag, attrs in IMG_TAG_RE.findall(text):
+        # An attribute's value is text: its character references are read
+        # before it is taken as a URL (R&amp;D.png is the file R&D.png).
         candidates: list[str] = []
         src = ATTR_SRC_RE.search(attrs)
         if src:
-            candidates.append(src.group(1))
+            candidates.append(html.unescape(src.group(1)))
         srcset = ATTR_SRCSET_RE.search(attrs)
         if srcset:
-            for entry in srcset.group(1).split(","):
+            for entry in html.unescape(srcset.group(1)).split(","):
                 entry = entry.strip()
                 if entry:
                     candidates.append(entry.split()[0])

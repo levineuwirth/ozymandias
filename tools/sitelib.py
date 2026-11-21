@@ -140,6 +140,27 @@ def site_binary(build: bool = True) -> str:
     return listed()
 
 
+def named_files(suffixes: list[str]) -> dict[str, str]:
+    """Each file with one of those suffixes that a page under content/
+    names, in its body or its front matter, with a page that names it
+    (`site list-named`, build/PageScan.hs): a path under the site's root,
+    or `static:PATH` for what either static tree serves there. A tool that
+    writes files beside the author's asks this first: a file a page shows
+    by name is the author's, whatever a tool would call its own output.
+    Raises when the generator cannot say.
+
+    The generator last built answers, as for `site_config`: inside a
+    build it has just been rebuilt (tools/build-freshness.sh), and a
+    photograph's import asks once for each file."""
+    out = subprocess.run([site_binary(False), "list-named", str(SITE_ROOT / "content"), *suffixes],
+                         cwd=SITE_ROOT, check=True, stdout=subprocess.PIPE).stdout
+    fields = out.split(b"\0")[:-1]
+    named: dict[str, str] = {}
+    for file, page in zip(fields[::2], fields[1::2]):
+        named.setdefault(os.fsdecode(file), os.fsdecode(page))
+    return named
+
+
 @lru_cache(maxsize=None)
 def site_config(build: bool = False) -> dict:
     """The site's site.yaml as the generator reads and checks it (`site
@@ -224,11 +245,11 @@ if __name__ == "__main__":
             print(f"sitelib: switch {sys.argv[2]}: {error!r}", file=sys.stderr)
             sys.exit(2)
         sys.exit(0 if on else 1)
-    # `sitelib.py binary` prints the generator's path, built first if a
-    # source changed, for a shell tool that asks it something itself
-    # (convert-images.sh).
+    # `sitelib.py binary` prints the path of the generator last built
+    # (built if there is none), for a shell tool that asks it something
+    # itself inside a build, which has just rebuilt it (convert-images.sh).
     if sys.argv[1:] == ["binary"]:
-        print(site_binary())
+        print(site_binary(False))
         sys.exit(0)
     if len(sys.argv) != 3 or sys.argv[1] != "config":
         sys.exit("usage: sitelib.py config KEY | sitelib.py switch NAME | sitelib.py binary")

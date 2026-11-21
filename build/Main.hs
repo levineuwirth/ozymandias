@@ -78,8 +78,9 @@ writeBuildStamp = do
 -- ('ArchiveIndex.normalizeUrl'), for tools/archive.py's parity test;
 -- @site list-links ROOT@ prints each distinct link target on the published
 -- pages under ROOT ("PageScan"), for tools/code-refs.py; @site list-named
--- SUFFIX ROOT@ each file of that suffix a page under ROOT names and the page,
--- a NUL after each, for tools/convert-images.sh; @site list-routes@
+-- ROOT SUFFIX...@ each file of those suffixes a page under ROOT names and the
+-- page, a NUL after each, for tools/convert-images.sh and
+-- tools/generate-thumbnails.py; @site list-routes@
 -- prints every output path and the item routed there, tab-separated, for
 -- tools/import-content.py (build/RouteCheck.hs); @site list-tags@ each tag
 -- that gets a page, and @site expand-tags@ the pages the tags on stdin would
@@ -122,8 +123,9 @@ main = do
             cfg <- readSiteConfig
             urls <- concat <$> (publishedPages root >>= mapM (pageLinks cfg))
             mapM_ TIO.putStrLn (Set.toAscList (Set.fromList urls))
-        ["list-named", suffix, root] -> do
-            named <- namedFiles suffix root
+        "list-named" : root : suffixes@(_ : _) -> do
+            cfg   <- readSiteConfig
+            named <- namedFiles cfg suffixes root
             -- A NUL after each name: a path may hold anything else.
             putStr (concat [ file ++ "\0" ++ page ++ "\0" | (file, page) <- named ])
         ["bib-extras", path] -> do

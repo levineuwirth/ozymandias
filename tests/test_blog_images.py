@@ -67,8 +67,9 @@ FIRST = """![The lake](first.lake.png)
 
 ![Both pages show this](shared.svg)
 
-The [full size](big/Lake.JPG) picture, and one written as HTML:
-<img src="raw.gif" alt="Written as HTML">
+The [full size](big/Lake.JPG) picture, and two written as HTML, where
+a character reference is the character:
+<img src="raw.gif" alt="Written as HTML"> <img src="R&amp;D.gif" alt="Research and development">
 
 ## The lake {#lake}
 
@@ -91,7 +92,7 @@ class Site(unittest.TestCase):
         # below, in a directory named as a draft is, by a link, in HTML.
         page(blog / "first.md", "title: First\ndate: 2026-01-02", FIRST)
         for name in ("first.lake.png", "first.lake.webp", "charts/depth.svg", "secret.maps/route.svg",
-                     "shared.svg", "big/Lake.JPG", "raw.gif"):
+                     "shared.svg", "big/Lake.JPG", "raw.gif", "R&D.gif"):
             image(blog / name)
         (blog / "first.lake.png.dims.yaml").write_text("width: 640\nheight: 480\n", encoding="utf-8")
         # A post that shows none.
@@ -134,7 +135,8 @@ class Site(unittest.TestCase):
              "notebook/trip/index.html", "notebook/trip/day-one.html"}
     SHOWN = {"notebook/first.lake.png", "notebook/first.lake.webp", "notebook/charts/depth.svg",
              "notebook/secret.maps/route.svg", "notebook/shared.svg", "notebook/big/Lake.JPG",
-             "notebook/raw.gif", "notebook/trip/day-one.map.svg", "notebook/trip/route.jpg"}
+             "notebook/raw.gif", "notebook/R&D.gif", "notebook/trip/day-one.map.svg",
+             "notebook/trip/route.jpg"}
     PUBLISHED = PAGES | SHOWN
     WITHHELD = {"notebook/secret.html", "notebook/secret.plan.png", "notebook/secret.plan.webp",
                 "notebook/unrelated.svg", "notebook/trip/day-two.html", "notebook/trip/day-two.photo.jpg",

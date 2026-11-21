@@ -22,7 +22,9 @@ module BlogImages
     , isImage
     , isMonogram
     , referencedFiles
-    , rootedFiles
+    , namedUrls
+    , relativeFiles
+    , rootedPaths
     , imageInputs
     ) where
 
@@ -59,27 +61,24 @@ isMonogram p = takeFileName p == "mark.svg" || ".mark.svg" `isSuffixOf` p
 --   space in its name is found under either spelling. A body that does
 --   not parse refers to nothing.
 referencedFiles :: FilePath -> String -> [FilePath]
-referencedFiles dir body = nub
-    [ resolveAgainst (dir ++ "/") path
-    | url <- written body
-    , isRelative url
-    , path <- spellings url ]
+referencedFiles dir = relativeFiles dir . namedUrls
 
--- | The files a page's body names from the site's root (@\/images\/x.webp@),
---   as paths under the root (@images\/x.webp@): what @static\/@ serves
---   there, the site's tree or the engine's. Two slashes begin a host, and
---   a path cannot climb above the root.
-rootedFiles :: String -> [FilePath]
-rootedFiles body = nub
-    [ resolveAgainst "" path
-    | '/' : url@(c : _) <- written body
-    , c /= '/'
-    , path <- spellings url ]
+-- | Of some URLs, the files named by a relative path from @dir@.
+relativeFiles :: FilePath -> [String] -> [FilePath]
+relativeFiles dir urls = nub
+    [ resolveAgainst (dir ++ "/") path | url <- urls, isRelative url, path <- spellings url ]
+
+-- | Of some URLs, the paths named from the site's root (@\/images\/x.webp@
+--   is @images\/x.webp@). Two slashes begin a host, and a path cannot
+--   climb above the root.
+rootedPaths :: [String] -> [FilePath]
+rootedPaths urls = nub
+    [ resolveAgainst "" path | '/' : url@(c : _) <- urls, c /= '/', path <- spellings url ]
 
 -- | Every URL a body's Markdown names: an image's, a link's, and those in
 --   the URL attributes of raw HTML.
-written :: String -> [String]
-written body = case runPure (readMarkdown readerOpts (T.pack body)) of
+namedUrls :: String -> [String]
+namedUrls body = case runPure (readMarkdown readerOpts (T.pack body)) of
     Left _    -> []
     Right doc -> query inline doc ++ query block doc
   where

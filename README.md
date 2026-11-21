@@ -434,9 +434,14 @@ lacks, for a site that doesn't push the engine itself.
     both) is an override, not a second image: the site's is served, and
     it is shown with the site's `color.webp` or, until there is one,
     alone, never with the engine's;
-  - a JPEG or PNG beside a WebP that a page shows by name
-    (`![](color.webp)`), which is an image of its own and would be
-    converted over.
+  - a JPEG or PNG beside a WebP that a page shows by name, which is an
+    image of its own and would be converted over. A page names a file
+    in its body (`![](color.webp)`, a link, raw HTML) or its front matter
+    (`photo: harbor.webp`), by a relative path or one from the site's
+    root, wherever that is served from: `static/`, `content/`, or a
+    section's directory at its address. `tools/generate-thumbnails.py`
+    asks the same before it writes a photograph's variants
+    (`view.w480.webp` beside `view.jpg`).
 
   It deletes nothing. Where a companion is already there it says so: it
   may hold the pixels of the image that gets the other name, and is to be

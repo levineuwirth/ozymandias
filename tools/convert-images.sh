@@ -171,7 +171,7 @@ if [ "${#images[@]}" -gt 0 ]; then
         exit 1
     }
     generator="$(python3 "$(dirname "$0")/sitelib.py" binary)" || unasked
-    (cd "$SITE_ROOT" && "$generator" list-named .webp "$SITE_ROOT/content") > "$named" || unasked
+    (cd "$SITE_ROOT" && "$generator" list-named "$SITE_ROOT/content" .webp) > "$named" || unasked
     while IFS= read -r -d '' file && IFS= read -r -d '' page; do
         case "$file" in
             "$site_static"/*)   file="static:${file#"$site_static"/}" ;;

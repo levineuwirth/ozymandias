@@ -264,6 +264,22 @@ class CheckSiteTestCase(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("/images/a-2x.webp", output)
 
+    def test_a_character_reference_in_an_image_url_is_the_character(self):
+        # R&amp;D.png is the file R&D.png, as a browser asks for it.
+        self.site.write("essays/rel/R&D.png", "png")
+        self.site.write("essays/rel/R&D.webp", "webp")
+        self.site.write(
+            "essays/rel/index.html",
+            "<html><body><picture>"
+            '<source srcset="R&amp;D.webp 1x, R&#38;D.webp 2x" type="image/webp">'
+            '<img src="R&amp;D.png" alt=""></picture>'
+            '<img src="Q&amp;A.png" alt=""></body></html>',
+        )
+        code, output = self.run_gate()
+        self.assertEqual(code, 1)
+        self.assertIn("missing Q&A.png", output)
+        self.assertNotIn("R&", output)
+
     def test_relative_and_remote_image_urls_resolve(self):
         self.site.write("essays/rel/img.png", "png")
         self.site.write(

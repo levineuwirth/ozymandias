@@ -18,8 +18,10 @@ module HtmlUrls
     , resolveAgainst
     ) where
 
-import Data.Char (isAlpha, isAlphaNum, isSpace, toLower)
-import Data.List (intercalate, isPrefixOf)
+import           Data.Char       (isAlpha, isAlphaNum, isSpace, toLower)
+import           Data.List       (intercalate, isPrefixOf)
+import qualified Data.Text       as T
+import           Text.Pandoc.XML (fromEntities)
 
 -- | A stretch of the source kept as written, or a URL attribute's value.
 data Piece = Kept String | Value String String   -- ^ attribute (lower case), value
@@ -30,12 +32,16 @@ data Piece = Kept String | Value String String   -- ^ attribute (lower case), va
 urlAttributes :: [String]
 urlAttributes = ["src", "href", "poster", "data", "srcset"]
 
--- | Every URL the HTML's attributes name, in order.
+-- | Every URL the HTML's attributes name, in order, as a reader of the
+--   HTML has it: an attribute's value is text, so its character
+--   references are read (@A&amp;B.webp@ names @A&B.webp@). 'mapUrls'
+--   leaves them as written, since what it writes is HTML again.
 urlsIn :: String -> [String]
 urlsIn html = concat [ candidates name value | Value name value <- pieces html ]
   where
-    candidates "srcset" value = [ url | (_, url, _) <- srcsetCandidates value ]
-    candidates _        value = [trim value]
+    candidates "srcset" value = [ text url | (_, url, _) <- srcsetCandidates value ]
+    candidates _        value = [trim (text value)]
+    text = T.unpack . fromEntities . T.pack
 
 -- | The HTML with every URL in its attributes given to @f@.
 mapUrls :: (String -> String) -> String -> String

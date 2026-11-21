@@ -38,7 +38,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests._helpers import engine_path, requires_cabal, script_env, site_binary, stub_bin
+from tests._helpers import engine_path, requires_cabal, script_env, site_binary, stub_bin, write_site_config
 
 # cwebp -quiet -q 85 <image> -o <companion>: writes the image's name.
 CWEBP = """#!/bin/sh
@@ -60,6 +60,11 @@ class ConvertImages(unittest.TestCase):
         tools.mkdir(parents=True)
         for name in ("convert-images.sh", "site-paths.sh", "sitelib.py"):
             shutil.copy(engine_path(f"tools/{name}"), tools / name)
+        # The generator says where a page's paths lead, by the site's
+        # sections: essays are served at /articles/ here.
+        write_site_config(self.root, sections=[
+            {"dir": "essays", "address": "articles", "kind": "Essay", "dingbat": None},
+            {"dir": "blog", "kind": "Post", "dingbat": None}])
 
     def write(self, rel: str, text: str = "x") -> Path:
         path = self.root / rel
@@ -255,18 +260,37 @@ class ConvertImages(unittest.TestCase):
             # from the site's root, which static/ serves, and not above it
             "content/drafts/essays/rooted.md": ("![Brand](/images/brand.webp) ![Climb](/../../images/climb.webp)",
                                                 "title: R"),
+            # from the site's root, where a section is served at its
+            # address and any other directory of content/ under its name
+            "content/blog/routed.md": ("![Map](/articles/trip/figures/map.webp) [Cover](/music/suite/cover.webp)",
+                                       "title: Routes"),
+            # in the front matter: a photograph's file, beside the page; a
+            # list; a name YAML spells with an escape
+            "content/photography/harbor/index.md": ("", "title: Harbor\nphoto: harbor.webp"),
+            "content/essays/fields.md": ("", 'title: F\nframes: [one.frame.webp, {still: "two.frame.\\x77ebp"}]'),
+            # raw HTML, where a character reference is the character
+            "content/essays/references.md": ('<a href="/images/A&amp;B.webp">A and B</a> '
+                                             '<img src="dotted&period;webp" alt=""> <img src="fj&#46;webp" alt="">',
+                                             "title: C"),
         }
         for rel, (body, front) in named.items():
             self.page(rel, body, front)
         images = ("content/blog/linked.png", "content/essays/up.jpg", "content/essays/raw.jpeg",
                   "content/essays/one.png", "content/essays/two.png", "content/essays/my pic.jpg",
                   "content/essays/hid.png", "content/essays/ref.png", "static/images/brand.png",
-                  "engine/static/images/climb.JPG")
+                  "engine/static/images/climb.JPG", "content/essays/trip/figures/map.JPG",
+                  "content/music/suite/cover.png", "content/photography/harbor/harbor.JPG",
+                  "content/essays/one.frame.jpg", "content/essays/two.frame.jpg", "static/images/A&B.JPG",
+                  "content/essays/dotted.png", "content/essays/fj.png")
+        # A path from the root that leads to a section's directory by the
+        # directory's name leads nowhere: the section is at its address.
+        self.page("content/blog/unrouted.md", "![No](/essays/elsewhere.webp)")
         # What no page names: a WebP of another name, a WebP in code, one
         # on another host, and a GIF, which is never converted.
         self.page("content/essays/quiet.md", "`![](code.webp)` and ![Far](https://example.org/far.webp) "
                   "and ![Other](other.webp) and ![Moving](moving.webp)")
-        quiet = ("content/essays/code.png", "content/essays/far.png", "content/essays/moving.gif")
+        quiet = ("content/essays/code.png", "content/essays/far.png", "content/essays/moving.gif",
+                 "content/essays/elsewhere.png")
         for rel in images + quiet:
             self.write(rel)
         said = self.refused()

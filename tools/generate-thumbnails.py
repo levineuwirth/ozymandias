@@ -71,11 +71,18 @@ Exit status is 0 for a clean run and 0 when Pillow is absent — the
 build continues, exactly as tools/convert-images.sh continues without
 cwebp, and the missing srcset targets are then the artifact gate's
 problem (tools/check-site.py). A genuine conversion failure exits 1.
+
+A variant's WebP that a page shows by name (`![](view.w480.webp)`) is
+that page's author's image, not this script's output: the script says
+which page and which source, writes nothing at all, and exits 1, as
+tools/convert-images.sh does for a companion.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -280,9 +287,12 @@ def render_variant(source: Path, destination: Path, width: int,
 # ---------------------------------------------------------------------------
 
 
-def generate(root: Path, *, dry_run: bool, force: bool, counters: dict) -> None:
+def plan(root: Path, *, counters: dict) -> list[tuple[Path, Path, int]]:
+    """Every variant the contract gives the sources under `root`: the
+    source, the variant's path and its width. Nothing is written."""
     from PIL import Image
 
+    ladder = []
     for source in iter_sources(root):
         try:
             with Image.open(source) as probe:
@@ -296,35 +306,61 @@ def generate(root: Path, *, dry_run: bool, force: bool, counters: dict) -> None:
             # Strictly wider. An exactly-480px source gets no w480: the
             # variant would be a byte-for-byte-pointless copy and the
             # srcset would advertise two identical candidates.
-            if src_width <= width:
-                continue
+            if src_width > width:
+                ladder.append((source, variant_path(source, width), width))
+    return ladder
 
-            destination = variant_path(source, width)
-            need_jpeg = force or not _is_current(source, destination)
-            need_webp = need_jpeg or not _is_current(source, webp_path(destination))
-            if not need_webp:
-                counters["skipped"] += 1
-                continue
 
-            rel = _rel(destination)
-            if dry_run:
-                print(f"  thumb  {rel}  (dry run)")
-                counters["would_write"] += 1
-                continue
+def shown_by_name(ladder: list[tuple[Path, Path, int]]) -> list[str]:
+    """What to say of each variant's WebP that a page shows by name
+    (`site list-named`): it is an image of its own, its author's, and a
+    variant written there would replace it (and be served in its place,
+    where one is there already). Asked before anything is written."""
+    # Pages name files of their own site: a ladder outside it (an import
+    # being prepared elsewhere) is nothing a page could show.
+    site = os.path.realpath(SITE_ROOT)
+    if not any(os.path.realpath(destination).startswith(site + os.sep) for _, destination, _ in ladder):
+        return []
+    named = {os.path.realpath(file): page for file, page in sitelib.named_files([".webp"]).items()
+             if not file.startswith("static:")}
+    said = []
+    for source, destination, _width in ladder:
+        webp = webp_path(destination)
+        page = named.get(os.path.realpath(webp))
+        if page is not None:
+            said.append(f"generate-thumbnails: {_rel(Path(page))} shows {_rel(webp)} by name, as an image "
+                        f"of its own, and it is where a variant of {_rel(source)} would be written.\n"
+                        "  Rename one of the two.")
+    return said
 
-            try:
-                render_variant(source, destination, width,
-                               jpeg=need_jpeg, webp=need_webp)
-            except Exception as exc:  # noqa: BLE001 — keep walking
-                print(
-                    f"generate-thumbnails: {destination}: {exc}",
-                    file=sys.stderr,
-                )
-                counters["failed"] += 1
-                continue
 
-            print(f"  thumb  {rel}")
-            counters["written"] += 1
+def generate(ladder: list[tuple[Path, Path, int]], *, dry_run: bool, force: bool, counters: dict) -> None:
+    for source, destination, width in ladder:
+        need_jpeg = force or not _is_current(source, destination)
+        need_webp = need_jpeg or not _is_current(source, webp_path(destination))
+        if not need_webp:
+            counters["skipped"] += 1
+            continue
+
+        rel = _rel(destination)
+        if dry_run:
+            print(f"  thumb  {rel}  (dry run)")
+            counters["would_write"] += 1
+            continue
+
+        try:
+            render_variant(source, destination, width,
+                           jpeg=need_jpeg, webp=need_webp)
+        except Exception as exc:  # noqa: BLE001 — keep walking
+            print(
+                f"generate-thumbnails: {destination}: {exc}",
+                file=sys.stderr,
+            )
+            counters["failed"] += 1
+            continue
+
+        print(f"  thumb  {rel}")
+        counters["written"] += 1
 
 
 def prune(root: Path, *, dry_run: bool, counters: dict) -> None:
@@ -459,12 +495,25 @@ def main(argv: list[str] | None = None) -> int:
         "would_prune": 0,
     }
 
+    # Before anything is written or pruned: is any path this would write
+    # a file a page shows by name?
+    try:
+        refused = shown_by_name(plan(root, counters=dict(counters)))
+    except (OSError, subprocess.CalledProcessError) as error:
+        print("generate-thumbnails: could not ask the generator which WebP files the pages show by name "
+              f"(site list-named): {error}; nothing was written.", file=sys.stderr)
+        return 1
+    if refused:
+        print("\n".join(refused), file=sys.stderr)
+        return 1
+
     # Prune first: a re-imported source that shrank should lose its stale
     # wide variant before the generate pass decides what is current.
     if args.prune:
         prune(root, dry_run=args.dry_run, counters=counters)
 
-    generate(root, dry_run=args.dry_run, force=args.force, counters=counters)
+    ladder = plan(root, counters=counters)
+    generate(ladder, dry_run=args.dry_run, force=args.force, counters=counters)
 
     summary = (
         f"generate-thumbnails: {counters['written']} written, "
