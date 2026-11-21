@@ -423,6 +423,10 @@ lacks, for a site that doesn't push the engine itself.
   for `viz`), so neither search nor a figure asks another host for code.
 - **Images:** `tools/convert-images.sh` writes a `.webp` beside every JPEG
   and PNG, with `cwebp`; without it the build warns and images fall back.
+  Two images that would be shown with one companion (`map.png` beside
+  `map.JPG` or `map.gif`, or the same name in `static/` and the engine's)
+  stop the build: it names them and removes the companion, and one of
+  them needs another name.
 - **PDF thumbnails:** `make pdf-thumbs`, with `pdftoppm`.
 
 ## This repository

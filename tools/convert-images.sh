@@ -7,11 +7,17 @@
 # An extension counts in either case (IMG_0042.JPG, as a camera writes it):
 # build/Filters/Images.hs and tools/check-site.py look for its companion too.
 #
-# Two images that differ only in their extension (map.png, map.JPG) have one
-# companion between them, and a page showing either would be served whichever
-# was converted last: a draft's picture on a published page, for one. The
-# script refuses them, naming both, before it writes anything, with or
-# without cwebp.
+# One companion, one image. A page shows map.png, map.JPG or map.gif with
+# map.webp (build/Filters/Images.hs), so two of them beside each other have
+# one companion between them and a page showing either would be served
+# whichever was converted last: a draft's picture on a published page, for
+# one. The same holds across static/ and the engine's static/, which are
+# served as one tree with the site's file over the engine's: the site's
+# images/color.png and the engine's images/color.JPG are both shown with
+# /images/color.webp. The script refuses such images, naming them, before it
+# converts anything, with or without cwebp, and removes the companion they
+# share: nothing says whose pixels it holds, and it would outlast a rename.
+# It also stops, and says so, when it cannot list the images at all.
 #
 # Photography's .w480/.w960/.w1440 variants arrive with WebP siblings that
 # tools/generate-thumbnails.py encoded from the source pixels (it runs first
@@ -30,31 +36,96 @@ set -euo pipefail
 # shellcheck source=tools/site-paths.sh
 source "$(dirname "$0")/site-paths.sh"
 # The site's images and content, and the engine's images once they move.
-roots=("$SITE_ROOT/static" "$SITE_ROOT/content")
-[ "$(engine_path static)" = "$SITE_ROOT/static" ] || roots+=("$(engine_path static)")
+site_static="$SITE_ROOT/static"
+engine_static="$(engine_path static)"
+candidates=("$site_static" "$SITE_ROOT/content")
+[ "$engine_static" = "$site_static" ] || candidates+=("$engine_static")
+roots=()
+for root in "${candidates[@]}"; do
+    [ ! -d "$root" ] || roots+=("$root")
+done
 
-# Every image, in one order on every machine, with the companion it would
-# be given. A directory may be named as an image is (album.JPG) and is not
-# one; a link to an image is.
-images=()
-declare -A source_of
-clashes=0
+# A path as the site's author knows it.
+show() {
+    printf '%s' "${1#"$SITE_ROOT/"}"
+}
+
+# Every image a page may show with a WebP companion, in one order on every
+# machine. The list is whole or the script stops: a walk that failed halfway
+# would pass the check below for want of the files it did not reach.
+list="$(mktemp)"
+trap 'rm -f "$list"' EXIT
+if [ "${#roots[@]}" -gt 0 ]; then
+    find "${roots[@]}" \
+         \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) \
+         -print0 > "$list" \
+        || { echo "convert-images: could not list the images (find failed); nothing was checked or converted." >&2; exit 1; }
+    LC_ALL=C sort -z -o "$list" "$list" \
+        || { echo "convert-images: could not list the images (sort failed); nothing was checked or converted." >&2; exit 1; }
+fi
+
+# Which images would be shown with each companion. A companion is known by
+# where it is served: beside its image under content/, and at one address
+# for both static trees. A directory may be named as an image is
+# (album.JPG) and is not one; a link to an image is.
+images=()                # what cwebp reads: the JPEGs and PNGs
+declare -A shown_with    # companion -> its images, a newline between them
+shared=()                # the companions with more than one
 while IFS= read -r -d '' img; do
     [[ -f "$img" ]] || continue
-    webp="${img%.*}.webp"
-    if [[ -n "${source_of[$webp]:-}" ]]; then
-        echo "convert-images: ${source_of[$webp]#"$SITE_ROOT/"} and ${img#"$SITE_ROOT/"}" \
-             "would both be converted to ${webp#"$SITE_ROOT/"}," \
-             "and a page showing one would be served the other. Rename one of them." >&2
-        clashes=$((clashes + 1))
+    case "${img##*.}" in
+        [gG][iI][fF]) ;;     # shown with a companion, never given one here
+        *) images+=("$img") ;;
+    esac
+    companion="${img%.*}.webp"
+    case "$img" in
+        "$engine_static"/*)
+            rel="${img#"$engine_static"/}"
+            # A site file of the same name is served in this one's place.
+            [[ "$engine_static" == "$site_static" || ! -f "$site_static/$rel" ]] || continue
+            companion="static:${rel%.*}.webp" ;;
+        "$site_static"/*)
+            rel="${img#"$site_static"/}"
+            companion="static:${rel%.*}.webp" ;;
+    esac
+    if [[ -z "${shown_with[$companion]+set}" ]]; then
+        shown_with[$companion]=$img
     else
-        source_of[$webp]=$img
-        images+=("$img")
+        [[ "${shown_with[$companion]}" == *$'\n'* ]] || shared+=("$companion")
+        shown_with[$companion]+=$'\n'$img
     fi
-done < <(find "${roots[@]}" \
-              \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) \
-              -print0 2>/dev/null | LC_ALL=C sort -z)
-[ "$clashes" -eq 0 ] || exit 1
+done < "$list"
+
+for companion in ${shared[@]+"${shared[@]}"}; do
+    mapfile -t sharing <<< "${shown_with[$companion]}"
+    names="$(show "${sharing[0]}")"
+    for ((i = 1; i < ${#sharing[@]}; i++)); do
+        if ((i == ${#sharing[@]} - 1)); then names+=" and "; else names+=", "; fi
+        names+="$(show "${sharing[i]}")"
+    done
+    # The files that are, or would become, the companion they are shown with.
+    case "$companion" in
+        static:*)
+            rel="${companion#static:}"
+            files=("$site_static/$rel")
+            [ "$engine_static" = "$site_static" ] || files+=("$engine_static/$rel")
+            what="the WebP companion served at /$rel" ;;
+        *)
+            files=("$companion")
+            what="one WebP companion, $(show "$companion")" ;;
+    esac
+    echo "convert-images: $names share $what: a page showing one would be served another's pixels." >&2
+    for file in "${files[@]}"; do
+        [ -e "$file" ] || [ -L "$file" ] || continue
+        if rm -f -- "$file"; then
+            echo "  Removed $(show "$file"), which may hold any of theirs; the next build makes it again." >&2
+        else
+            echo "  Could not remove $(show "$file"), which may hold any of theirs: delete it." >&2
+        fi
+    done
+    echo "  Rename all but one of the images." >&2
+done
+[ "${#shared[@]}" -eq 0 ] || exit 1
 
 if ! command -v cwebp >/dev/null 2>&1; then
     # Exit 0 deliberately: build/Filters/Images.hs only emits a

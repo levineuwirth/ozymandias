@@ -15,8 +15,9 @@ Whole builds of a small scratch site against this engine:
     appears, and no other page is;
   · through `make build`: an entry made a draft takes its page and its
     images out of the site, and so does a reference taken out of a page;
-    a draft's image that would take a published image's WebP companion
-    stops the build.
+    a draft's image that would take, or has taken, the WebP companion of
+    a published image (a JPEG, a PNG or a GIF) stops the build, and the
+    companion does not outlast the rename.
 
     python -m unittest tests.test_blog_images -v
 """
@@ -40,6 +41,8 @@ FEED = {"path": "feed.xml", "title": "Notes", "description": "Notes.", "sections
         "advertise": True, "limit": 30}
 # A one-pixel PNG; the others need only be files.
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+# What stands for a draft's pixels: bytes no build of the fixture writes.
+DRAFTED = b"RIFF\x1a\x00\x00\x00WEBPVP8 the draft's lake"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"><path d="M0 0h4v4z"/></svg>\n'
 
 
@@ -322,26 +325,51 @@ class ThroughMake(Site):
     def test_a_draft_s_image_cannot_take_a_published_image_s_companion(self):
         self.make_build()
         companion = self.blog / "first.lake.webp"
-        before, served = companion.read_bytes(), (self.root / "_site/notebook/first.lake.webp").read_bytes()
-        # The draft starts to show first.lake.JPG, newer than the companion
-        # the published post's first.lake.png has (tools/convert-images.sh
-        # would give them the same one). The build stops and says which two.
+        # The draft shows first.lake.JPG, newer than the published post's
+        # first.lake.png, and a converter that did not check has already
+        # made the companion they share from it.
         secret = self.blog / "secret.md"
         secret.write_text(secret.read_text(encoding="utf-8") + "\n![The lake, drafted](first.lake.JPG)\n",
                           encoding="utf-8")
         image(self.blog / "first.lake.JPG")
+        companion.write_bytes(DRAFTED)
+        # The build stops, says which two, and takes the companion away.
         done = self.make()
         self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
-        self.assertIn("content/blog/first.lake.JPG and content/blog/first.lake.png would both be converted to "
+        self.assertIn("content/blog/first.lake.JPG and content/blog/first.lake.png share one WebP companion, "
                       "content/blog/first.lake.webp", done.stderr)
-        self.assertEqual(companion.read_bytes(), before)
-        # Under a name of its own it is a draft's image like any other.
+        self.assertFalse(companion.exists())
+        # Renamed, it is a draft's image like any other, and the published
+        # post is shown with a companion of its own image or with none.
         (self.blog / "first.lake.JPG").rename(self.blog / "secret.lake.JPG")
         secret.write_text(secret.read_text(encoding="utf-8").replace("first.lake.JPG", "secret.lake.JPG"),
                           encoding="utf-8")
         self.make_build()
         self.assertEqual(self.files(), self.expected(self.PUBLISHED))
-        self.assertEqual((self.root / "_site/notebook/first.lake.webp").read_bytes(), served)
+        self.assertEqual(companion.exists(), shutil.which("cwebp") is not None)
+        everything = b"".join(p.read_bytes() for p in (self.root / "_site").rglob("*") if p.is_file())
+        self.assertNotIn(DRAFTED, everything)
+
+    def test_a_draft_s_image_cannot_become_a_published_gif_s_companion(self):
+        # The image filter shows moving.gif with moving.webp when there is
+        # one, and the converter would make one from the draft's moving.JPG.
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Moving](moving.gif)\n", encoding="utf-8")
+        image(self.blog / "moving.gif")
+        self.make_build()
+        secret = self.blog / "secret.md"
+        secret.write_text(secret.read_text(encoding="utf-8") + "\n![Still](moving.JPG)\n", encoding="utf-8")
+        image(self.blog / "moving.JPG")
+        done = self.make()
+        self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
+        self.assertIn("content/blog/moving.JPG and content/blog/moving.gif share one WebP companion, "
+                      "content/blog/moving.webp", done.stderr)
+        self.assertFalse((self.blog / "moving.webp").exists())
+        (self.blog / "moving.JPG").rename(self.blog / "still.JPG")
+        secret.write_text(secret.read_text(encoding="utf-8").replace("moving.JPG", "still.JPG"), encoding="utf-8")
+        self.make_build()
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/moving.gif"}))
+        self.assertNotIn("moving.webp", self.read("notebook/second.html"))
 
 
 if __name__ == "__main__":
