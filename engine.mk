@@ -447,14 +447,17 @@ thumbnails-locked:
 # for the author. Until a file is recorded (or declared the author's), no
 # tool writes over it and no page shows an image with it.
 #
+# The photographs' variants first and then the companions, in one run
+# over one reading of the record, so that a preview says what the
+# adoption would do. A preview writes nothing.
+#
 #   make adopt-images                          record what is reproduced
 #   make adopt-images ADOPT_FLAGS=--dry-run    only say what would be
 adopt-images:
 	@$(WITH_LOCK) $(MAKE) --no-print-directory adopt-images-locked
 
 adopt-images-locked:
-	@$(call with_switch,photography,$(PY) $(call tool,generate-thumbnails.py) --adopt $(ADOPT_FLAGS))
-	@$(call tool,convert-images.sh) --adopt $(ADOPT_FLAGS)
+	@$(PY) $(call tool,derived_images.py) adopt $(ADOPT_FLAGS)
 
 # Generate first-page thumbnails for the PDFs under static/ (also runs in
 # build). Requires pdftoppm: pacman -S poppler  /  apt install poppler-utils

@@ -8,7 +8,9 @@ either case (IMG_0042.JPG, as a camera writes it).
 Whose file a WebP is. The script writes a companion where there is none,
 and over one it made itself: the ownership record (tools/derived_images.py)
 says which those are, by the image they were made from and the bytes last
-written. Any other WebP of that name is the author's (made by hand, shown
+written. Its own companion is made again when its image is not the file it
+was made from: another size or time than the record noted (older counts as
+much as newer), or another file altogether, the first being gone. Any other WebP of that name is the author's (made by hand, shown
 by a page as an image of its own, or simply older than the record) and is
 left exactly as it is, however old. The generator shows an image with a
 companion only when the record or the author's declaration pairs them
@@ -24,9 +26,9 @@ shown with /images/color.webp. The script refuses such images, naming
 them and any companion already there, before it converts anything, with
 or without cwebp. It deletes nothing.
 
-    --adopt      record the companions that are already there and that a
-                 fresh conversion reproduces byte for byte; list the rest
-    --dry-run    with --adopt: say what would be recorded, record nothing
+`make adopt-images` (tools/derived_images.py adopt) records the
+companions that were there before the record and that a fresh conversion
+reproduces byte for byte.
 
 Without cwebp the script warns and exits 0: build/Filters/Images.hs only
 writes a <source type="image/webp"> for a companion that is there, so the
@@ -209,20 +211,21 @@ def convert(records: derived_images.Records, convertible: list[Path]) -> int:
         companion = companion_of(image)
         if records.declared_for(companion) is not None:
             present += 1
-        elif not os.path.lexists(companion) or (
-                records.owns(companion, PRODUCER, image)
-                and image.stat().st_mtime > companion.stat().st_mtime):
+        elif not records.may_write(companion, PRODUCER, image):
+            left.append(companion)
+        elif records.fresh(companion, PRODUCER, image):
+            present += 1
+        else:
             print(f"  webp  {show(image)}")
             # Written under a temporary name and moved: an interrupted
-            # cwebp leaves nothing where the companion goes.
+            # cwebp leaves nothing where the companion goes. Recorded and
+            # saved at once: a companion on disk without its entry would
+            # no longer be the script's.
             with sitelib.atomic_path(companion, durable=False) as tmp:
                 cwebp(image, tmp)
             records.wrote(companion, PRODUCER, image)
+            records.save_all()
             converted += 1
-        elif records.owns(companion, PRODUCER, image):
-            present += 1
-        else:
-            left.append(companion)
     print(f"convert-images: {converted} converted, {present} already present.")
     report_left(left)
     return 0
@@ -242,10 +245,17 @@ def report_left(left: list[Path]) -> None:
           file=sys.stderr)
 
 
-def adopt(records: derived_images.Records, slots: Slots, convertible: list[Path], *, dry_run: bool) -> int:
-    """Record the companions already there that this script would make
+def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, bool]:
+    """Enter the companions already there that this script would make
     the same, byte for byte: only its own output is that. The rest are
-    listed, and stay unrecorded."""
+    listed, and stay unrecorded. Saves nothing itself
+    (tools/derived_images.py adopt does, unless it is a preview), and
+    returns how many it entered and whether it could not do its work."""
+    if shutil.which("cwebp") is None:
+        print("convert-images: adoption compares fresh conversions, and there is no cwebp to make them.",
+              file=sys.stderr)
+        return 0, True
+    slots, convertible = plan(records)
     adopted = differ = 0
     with tempfile.TemporaryDirectory(prefix="adopt-webp-") as scratch:
         fresh = Path(scratch) / "fresh.webp"
@@ -258,54 +268,39 @@ def adopt(records: derived_images.Records, slots: Slots, convertible: list[Path]
             cwebp(image, fresh)
             if fresh.read_bytes() == companion.read_bytes():
                 adopted += 1
-                if not dry_run:
-                    records.wrote(companion, PRODUCER, image, save=False)
+                records.wrote(companion, PRODUCER, image)
             else:
                 differ += 1
                 print(f"  differs  {show(companion)}  (not what cwebp makes of {show(image)} now)")
-    records.save_all()
     verb = "would be recorded" if dry_run else "recorded"
     print(f"convert-images: {adopted} companion(s) {verb} as this script's; {differ} differ and are left "
           "unrecorded.")
     if differ:
         print("  One that differs is yours, or was made by another cwebp. Look at it; delete it to have it made "
               "again,\n  or declare it yours: python3 engine/tools/derived_images.py declare FILE.webp")
-    if adopted and not dry_run:
-        derived_images.request_full_rebuild()
-    return 0
+    return adopted, False
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Make a WebP companion beside every local JPEG and PNG.")
-    parser.add_argument("--adopt", action="store_true",
-                        help="record the companions already there that a fresh conversion reproduces")
-    parser.add_argument("--dry-run", action="store_true", help="with --adopt: record nothing")
-    args = parser.parse_args(argv)
+    argparse.ArgumentParser(description="Make a WebP companion beside every local JPEG and PNG.").parse_args(argv)
     try:
-        records = derived_images.Records()
-        records.forget_missing()
-        slots, convertible = plan(records)
+        # Each tree is held from here until the records are saved.
+        with derived_images.Records.held() as records:
+            records.forget_missing()
+            slots, convertible = plan(records)
+            if refuse_shared(slots, records):
+                return 1
+            if shutil.which("cwebp") is None:
+                print(NO_CWEBP, file=sys.stderr)
+                return 0
+            return convert(records, convertible)
     except derived_images.RecordError as error:
         print(f"convert-images: {error}; nothing was checked or converted.", file=sys.stderr)
         return 1
     except OSError as error:
-        print(f"convert-images: could not list the images ({error}); nothing was checked or converted.",
-              file=sys.stderr)
+        print(f"convert-images: could not list the images, or write one ({error}).", file=sys.stderr)
         return 1
-    if refuse_shared(slots, records):
-        return 1
-    if shutil.which("cwebp") is None:
-        if args.adopt:
-            print("convert-images: --adopt compares fresh conversions, and there is no cwebp to make them.",
-                  file=sys.stderr)
-            return 1
-        print(NO_CWEBP, file=sys.stderr)
-        return 0
-    try:
-        if args.adopt:
-            return adopt(records, slots, convertible, dry_run=args.dry_run)
-        return convert(records, convertible)
-    except (OSError, subprocess.CalledProcessError, derived_images.RecordError) as error:
+    except subprocess.CalledProcessError as error:
         print(f"convert-images: {error}", file=sys.stderr)
         return 1
 

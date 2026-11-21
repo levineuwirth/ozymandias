@@ -53,7 +53,7 @@ import           System.Directory     (doesFileExist)
 import           System.FilePath      (replaceExtension, takeExtension, (</>))
 import qualified Utils                as U
 import           EngineFiles          (existingFile, resolveFile)
-import           DerivedImages        (pairedWith)
+import           DerivedImages        (pairedFor)
 
 -- | Apply image attribute injection and WebP wrapping to the entire document.
 --
@@ -217,15 +217,19 @@ renderImg srcDir attr0 alt0 target@(src, _) lightbox = do
 --   @foo.webp@, which holds the engine's picture, and the engine's
 --   @foo.jpg@ is not shown with a @foo.webp@ the site serves in its
 --   companion's place.
+--
+--   What was asked is noted under the page's directory, for the page's
+--   compiler to tell Hakyll ('DerivedImages.tellPairings'): a page is
+--   built again when the answer may be another.
 hasWebpCompanion :: FilePath -> Text -> IO Bool
 hasWebpCompanion srcDir src
     | "/" `isPrefixOf` s = do
         image  <- resolveFile ("static" ++ s)
         served <- existingFile (replaceExtension ("static" ++ s) ".webp")
         if served == Just (replaceExtension image ".webp")
-            then pairedWith image (replaceExtension image ".webp")
+            then pairedFor srcDir image (replaceExtension image ".webp")
             else pure False
-    | otherwise = pairedWith (srcDir </> s) (replaceExtension (srcDir </> s) ".webp")
+    | otherwise = pairedFor srcDir (srcDir </> s) (replaceExtension (srcDir </> s) ".webp")
   where
     s = T.unpack src
 

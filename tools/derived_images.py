@@ -33,11 +33,24 @@ or when the author declared it:
 A declared companion is the author's file, shown with the image named, and
 no tool writes to it.
 
-Each tree has its own record, at data/derived-images.json under its root:
-the site's (content/, static/) and the engine's (its static/), whose images
-every site that links the engine shares. Paths in a record are relative to
-its tree's root. The records are local state, like the files they describe
-(a site that keeps its companions out of Git keeps the record out too).
+Each tree has its own record and its own declarations, under its root: the
+site's (content/, static/) and the engine's (its static/), whose images
+every site that links the engine shares. Paths in them are relative to the
+tree's root, and name files of that tree only: a site cannot declare an
+engine file, which the other sites would not know of (`declare` writes an
+engine file's line in the engine's own data/companions.json). The records
+are local state, like the files they describe (a site that keeps its
+companions out of Git keeps the record out too).
+
+A tool holds a tree's lock (on its data/ directory) from before it reads
+the record until after it has saved it, so that two sites converting the
+engine's images at once do not each save a record without the other's
+entries: the second waits, and reads what the first wrote.
+
+An entry also notes its image's size and time when the output was made.
+The output is made again when they differ, in either direction, or when
+the image is another file than the entry names: a tool goes by what it
+last read, not by which file is newer.
 
 Files that were there before the record (every companion of a site that
 upgrades) are unrecorded, and so are not used until they are adopted:
@@ -46,15 +59,19 @@ those that come out byte for byte the same, which only the tool's own
 output does; the rest are listed and left for the author to look at.
 
     python3 engine/tools/derived_images.py declare WEBP [IMAGE]
+    python3 engine/tools/derived_images.py adopt [--dry-run]     (make adopt-images)
     python3 engine/tools/derived_images.py status
 """
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -95,12 +112,35 @@ def _load(path: Path) -> dict:
     return document
 
 
-class Tree:
-    """One root and the record of the outputs under it."""
+def stamp(path: Path) -> list[int]:
+    """An image's size and time, as an entry notes them."""
+    stat = os.stat(path)
+    return [stat.st_mtime_ns, stat.st_size]
 
-    def __init__(self, root: Path) -> None:
+
+class Tree:
+    """One root, the record of the outputs under it, and its author's
+    declarations."""
+
+    def __init__(self, root: Path, *, lock: bool = False) -> None:
         self.root = Path(os.path.abspath(root))
+        self.real = os.path.realpath(self.root)
         self.path = self.root / RECORD
+        self.outputs: dict[str, dict] = {}
+        self.declared: dict[str, str] = {}
+        self.dirty = False
+        self._lock: int | None = None
+        # Locked before it is read: what is read is then what is there
+        # until this tool has saved.
+        if lock:
+            self.lock()
+        try:
+            self.load()
+        except BaseException:
+            self.unlock()
+            raise
+
+    def load(self) -> None:
         document = _load(self.path)
         if document and document.get("version") != VERSION:
             raise RecordError(f"{self.path}: version {document.get('version')!r}, and this tool reads {VERSION}")
@@ -110,14 +150,45 @@ class Tree:
                                                 for key in ("producer", "source", "digest"))
                 for entry in outputs.values()):
             raise RecordError(f"{self.path}: outputs are not producer, source and digest each")
-        self.outputs: dict[str, dict[str, str]] = outputs
-        self.dirty = False
+        declared = _load(self.root / DECLARED)
+        for webp, image in declared.items():
+            for path in (webp, image):
+                # A declaration names files of its own tree. One that leads
+                # out of it (a site's line for an engine file, through the
+                # site's engine link) would be honored by this site alone.
+                if (not isinstance(path, str) or os.path.isabs(path)
+                        or not self.within(self.root / path)):
+                    raise RecordError(f"{self.root / DECLARED}: {path!r} is not a file of this tree "
+                                      "(an engine image's companion is declared in the engine)")
+        self.outputs, self.declared, self.dirty = outputs, declared, False
 
-    def holds(self, path: Path) -> bool:
-        return os.path.abspath(path).startswith(str(self.root) + os.sep)
+    def within(self, path: Path) -> bool:
+        """Is the file, where its directory really is, under this root?"""
+        parent = os.path.realpath(os.path.dirname(os.path.abspath(path)))
+        return parent == self.real or parent.startswith(self.real + os.sep)
 
     def rel(self, path: Path) -> str:
-        return Path(os.path.abspath(path)).relative_to(self.root).as_posix()
+        """A file's path in this tree, whichever way it was reached (the
+        engine's files through a site's engine link, too)."""
+        parent = os.path.realpath(os.path.dirname(os.path.abspath(path)))
+        return Path(os.path.relpath(os.path.join(parent, os.path.basename(path)), self.real)).as_posix()
+
+    def lock(self) -> None:
+        """Hold the tree, waiting for another tool to finish with it. The
+        lock is on data/ itself: the record is replaced by a rename, and a
+        lock on the file would stay with the one that was replaced."""
+        (self.root / "data").mkdir(parents=True, exist_ok=True)
+        self._lock = os.open(self.root / "data", os.O_RDONLY)
+        try:
+            fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"derived-images: waiting for another tool to finish with {self.root / RECORD}", file=sys.stderr)
+            fcntl.flock(self._lock, fcntl.LOCK_EX)
+
+    def unlock(self) -> None:
+        if self._lock is not None:
+            os.close(self._lock)
+            self._lock = None
 
     def save(self) -> None:
         if not self.dirty:
@@ -131,40 +202,61 @@ class Tree:
 class Records:
     """The records of the trees a tool writes in: the engine's and the
     site's, and one more for a directory outside both (a photograph being
-    prepared elsewhere), which keeps its own."""
+    prepared elsewhere), which keeps its own.
+
+    A tool that writes opens them with `Records.held`, which locks each
+    tree, the engine's first, reads the records under the locks, and saves
+    them before letting go (or, for a preview, does not)."""
 
     def __init__(self, *, site: Path | None = None, engine: Path | None = None,
-                 elsewhere: Path | None = None) -> None:
+                 elsewhere: Path | None = None, lock: bool = False) -> None:
         site = Path(sitelib.SITE_ROOT if site is None else site)
         engine = Path(sitelib.ENGINE if engine is None else engine)
         # The engine first: inside a site (engine/ a directory) its files
         # are under the site's root too, and they are the engine's.
-        roots = [engine] + ([site] if os.path.abspath(site) != os.path.abspath(engine) else [])
+        roots = [engine] + ([site] if os.path.realpath(site) != os.path.realpath(engine) else [])
         if elsewhere is not None and not any(
-                os.path.abspath(elsewhere).startswith(os.path.abspath(root) + os.sep)
-                or os.path.abspath(elsewhere) == os.path.abspath(root) for root in roots):
+                (os.path.realpath(elsewhere) + os.sep).startswith(os.path.realpath(root) + os.sep)
+                for root in roots):
             roots.append(elsewhere)
-        self.trees = [Tree(root) for root in roots]
-        self.site = next(tree for tree in self.trees if tree.root == Path(os.path.abspath(site)))
-        declared = _load(self.site.root / DECLARED)
-        if not all(isinstance(image, str) for image in declared.values()):
-            raise RecordError(f"{self.site.root / DECLARED}: each WebP names one image")
-        self._declared: dict[str, str] = declared
+        self.trees: list[Tree] = []
+        try:
+            for root in roots:
+                self.trees.append(Tree(root, lock=lock))
+        except BaseException:
+            self.close()
+            raise
+
+    @classmethod
+    @contextmanager
+    def held(cls, *, save: bool = True, **trees):
+        records = cls(lock=True, **trees)
+        try:
+            yield records
+            if save:
+                records.save_all()
+        finally:
+            records.close()
+
+    def close(self) -> None:
+        for tree in self.trees:
+            tree.unlock()
 
     def _tree(self, path: Path) -> Tree:
         for tree in self.trees:
-            if tree.holds(path):
+            if tree.within(path):
                 return tree
         raise RecordError(f"{path}: in no tree whose images this tool records")
 
-    def entry(self, output: Path) -> dict[str, str] | None:
+    def entry(self, output: Path) -> dict | None:
         tree = self._tree(output)
         return tree.outputs.get(tree.rel(output))
 
     def declared_for(self, output: Path) -> str | None:
         """The image the author declared this WebP the companion of, if
         any: the file is then the author's, and no tool writes to it."""
-        return self._declared.get(self.site.rel(output)) if self.site.holds(output) else None
+        tree = self._tree(output)
+        return tree.declared.get(tree.rel(output))
 
     def made_by(self, output: Path, producer: str) -> bool:
         """Is this file an output `producer` recorded, whatever its bytes
@@ -184,7 +276,7 @@ class Records:
         if os.path.islink(output) or not os.path.isfile(output) or entry["digest"] != digest(output):
             return False
         tree = self._tree(output)
-        if source is not None and tree.holds(source) and entry["source"] == tree.rel(source):
+        if source is not None and tree.within(source) and entry["source"] == tree.rel(source):
             return True
         return not os.path.lexists(tree.root / entry["source"])
 
@@ -194,26 +286,35 @@ class Records:
             return False
         return not os.path.lexists(output) or self.owns(output, producer, source)
 
-    def wrote(self, output: Path, producer: str, source: Path, *, save: bool = True) -> None:
-        """Record a file just written, and save: a file on disk without
-        its entry would no longer be the tool's. (An adoption, which
-        writes no file, saves once at its end: `save_all`.)"""
+    def fresh(self, output: Path, producer: str, source: Path) -> bool:
+        """Is the output there what `producer` would make of `source` now?
+        By its entry, when it has one for this image: the image is as it
+        was when the output was made. The dates say nothing of an image
+        replaced by an older file, or by another file of another name. A
+        file with no such entry (one from before the record) goes by the
+        dates, as it always did."""
+        if not os.path.lexists(output):
+            return False
+        tree, entry = self._tree(output), self.entry(output)
+        if entry is not None and entry["producer"] == producer:
+            if not tree.within(source) or entry["source"] != tree.rel(source):
+                return False
+            if "source-stamp" in entry:
+                return entry["source-stamp"] == stamp(source)
+        return os.stat(output).st_mtime >= os.stat(source).st_mtime
+
+    def wrote(self, output: Path, producer: str, source: Path) -> None:
+        """Enter a file just written (or, in an adoption, just found to be
+        what the tool would write)."""
         tree = self._tree(output)
         tree.outputs[tree.rel(output)] = {"producer": producer, "source": tree.rel(source),
-                                          "digest": digest(output)}
+                                          "digest": digest(output), "source-stamp": stamp(source)}
         tree.dirty = True
-        if save:
-            tree.save()
-
-    def save_all(self) -> None:
-        for tree in self.trees:
-            tree.save()
 
     def removed(self, output: Path) -> None:
         tree = self._tree(output)
         if tree.outputs.pop(tree.rel(output), None) is not None:
             tree.dirty = True
-            tree.save()
 
     def forget_missing(self) -> None:
         """Drop the entries of outputs that are no longer there."""
@@ -223,7 +324,10 @@ class Records:
                 del tree.outputs[rel]
             if gone:
                 tree.dirty = True
-                tree.save()
+
+    def save_all(self) -> None:
+        for tree in self.trees:
+            tree.save()
 
 
 def request_full_rebuild() -> None:
@@ -245,7 +349,6 @@ IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".gif")
 
 
 def declare(webp: Path, image: Path | None) -> int:
-    site = Path(sitelib.SITE_ROOT)
     webp = Path(os.path.abspath(webp))
     if not webp.is_file() or webp.suffix != ".webp":
         print(f"declare: {show(webp)} is not a .webp file", file=sys.stderr)
@@ -262,18 +365,25 @@ def declare(webp: Path, image: Path | None) -> int:
     if not image.is_file():
         print(f"declare: {show(image)} is not a file", file=sys.stderr)
         return 1
-    for path in (webp, image):
-        if not str(path).startswith(str(site) + os.sep):
-            print(f"declare: {path} is not in the site", file=sys.stderr)
+    with Records.held() as records:
+        # The line goes in the declarations of the tree the file is in: the
+        # site's, or the engine's, which every site that links it reads.
+        try:
+            tree = records._tree(webp)
+        except RecordError:
+            tree = None
+        if tree is None or not tree.within(image):
+            print(f"declare: {show(webp)} and {show(image)} are not files of one tree (the site, or the engine)",
+                  file=sys.stderr)
             return 1
-    path = site / DECLARED
-    declared = _load(path)
-    declared[webp.relative_to(site).as_posix()] = image.relative_to(site).as_posix()
-    with sitelib.atomic_path(path) as tmp:
-        tmp.write_text(json.dumps(dict(sorted(declared.items())), indent=1, ensure_ascii=False) + "\n",
-                       encoding="utf-8")
+        path = tree.root / DECLARED
+        declared = {**tree.declared, tree.rel(webp): tree.rel(image)}
+        with sitelib.atomic_path(path) as tmp:
+            tmp.write_text(json.dumps(dict(sorted(declared.items())), indent=1, ensure_ascii=False) + "\n",
+                           encoding="utf-8")
     request_full_rebuild()
-    print(f"declare: {show(webp)} is the companion of {show(image)}, by hand; no tool writes to it.")
+    print(f"declare: {show(webp)} is the companion of {show(image)}, by hand (in {show(path)}); "
+          "no tool writes to it.")
     return 0
 
 
@@ -285,20 +395,55 @@ def status() -> int:
             by[entry["producer"]] = by.get(entry["producer"], 0) + 1
         made = ", ".join(f"{count} by {producer}" for producer, count in sorted(by.items())) or "none"
         print(f"{show(tree.path)}: {made}")
-    print(f"{show(records.site.root / DECLARED)}: {len(records._declared)} declared by hand")
+        print(f"{show(tree.root / DECLARED)}: {len(tree.declared)} declared by hand")
     return 0
+
+
+def _tool(filename: str):
+    """A tool beside this one, as a module (their names have hyphens)."""
+    name = Path(filename).stem.replace("-", "_")
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).resolve().parent / filename)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def adopt(dry_run: bool) -> int:
+    """Record the files from before the record that the tools would make
+    the same, byte for byte: the photographs' variants first, then the
+    companions, which are not made of a file the first stage found to be a
+    variant. One reading of the records serves both, so a preview shows
+    what the adoption would do, and writes nothing at all."""
+    thumbnails, converter = _tool("generate-thumbnails.py"), _tool("convert_images.py")
+    with Records.held(save=not dry_run) as records:
+        records.forget_missing()
+        adopted = 0
+        failed = False
+        count, bad = thumbnails.adopt_all(records, dry_run=dry_run)
+        adopted, failed = adopted + count, failed or bad
+        count, bad = converter.adopt_all(records, dry_run=dry_run)
+        adopted, failed = adopted + count, failed or bad
+    if adopted and not dry_run:
+        request_full_rebuild()
+    return 1 if failed else 0
 
 
 def main(argv: list[str]) -> int:
     try:
         if argv[:1] == ["declare"] and len(argv) in (2, 3):
             return declare(Path(argv[1]), Path(argv[2]) if len(argv) == 3 else None)
+        if argv[:1] == ["adopt"] and argv[1:] in ([], ["--dry-run"]):
+            return adopt(dry_run=bool(argv[1:]))
         if argv == ["status"]:
             return status()
     except RecordError as error:
         print(f"derived-images: {error}", file=sys.stderr)
         return 1
-    print("usage: derived_images.py declare WEBP [IMAGE] | derived_images.py status", file=sys.stderr)
+    print("usage: derived_images.py declare WEBP [IMAGE] | derived_images.py adopt [--dry-run] | "
+          "derived_images.py status", file=sys.stderr)
     return 2
 
 

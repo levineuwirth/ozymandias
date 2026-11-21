@@ -16,10 +16,12 @@ import contextlib
 import io
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from tests._helpers import load_tool
+from tests._helpers import engine_path, load_tool, script_env, stub_bin
 
 
 generate_thumbnails = load_tool("generate-thumbnails.py", register=True)
@@ -444,31 +446,19 @@ class OwnershipTests(unittest.TestCase):
         # What it pruned it no longer records; what it kept it never owned.
         self.assertEqual(set(self.record()), {"trip/view.w480.webp", "trip/view.w960.jpg"})
 
-    def test_adoption_records_what_a_fresh_rendering_reproduces(self) -> None:
-        # Variants from before there was a record, and one an author made.
-        self.photo("view.jpg")
+    def test_a_variant_is_made_again_when_its_photograph_is_another_file(self) -> None:
+        # Replaced by an older file of the same name: by the dates the
+        # variants are current, and they hold another picture.
+        source = self.photo("view.jpg")
         run(str(self.root))
-        (self.root / "data/derived-images.json").unlink()
-        (self.photos / "view.w960.webp").write_bytes(self.AUTHORED)
-        before = self.files()
-        # Until adopted they are no one's: nothing is rewritten or pruned.
-        code, out = run(str(self.root), "--force", "--prune")
-        self.assertEqual((code, self.files(), self.record()), (0, before, {}))
-
-        code, out = run(str(self.root), "--adopt", "--dry-run")
-        self.assertIn("3 variant file(s) would be recorded as this script's; 1 differ", out)
-        self.assertEqual(self.record(), {})
-        code, out = run(str(self.root), "--adopt")
-        self.assertEqual(code, 0, out)
-        self.assertIn("3 variant file(s) recorded as this script's; 1 differ and are left unrecorded", out)
-        self.assertIn("differs  ", out)
-        self.assertIn("view.w960.webp", out)
-        self.assertEqual(set(self.record()), {"trip/view.w480.jpg", "trip/view.w480.webp", "trip/view.w960.jpg"})
-        self.assertEqual(self.files(), before)
-        # Adopted, they are its own again.
-        code, out = run(str(self.root), "--force")
-        self.assertEqual((self.photos / "view.w960.webp").read_bytes(), self.AUTHORED)
-        self.assertIn("1 not this script's", out)
+        Image.new("RGB", (1000, 10), (200, 30, 30)).save(source, format="JPEG")
+        os.utime(source, (OLD, OLD))
+        code, out = run(str(self.root))
+        self.assertIn("2 written", out)
+        with Image.open(self.photos / "view.w480.jpg") as variant:
+            self.assertGreater(variant.getpixel((0, 0))[0], 150)
+        code, out = run(str(self.root))
+        self.assertIn("0 written, 2 current", out)
 
     def test_a_record_that_cannot_be_read_stops_the_script(self) -> None:
         self.photo("view.jpg")
@@ -480,6 +470,75 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("nothing was written", err.getvalue())
         self.assertEqual(set(self.files()), {"view.jpg"})
+
+
+
+# cwebp -quiet -q 85 <image> -o <companion>: a stand-in that writes what a
+# conversion depends on, the image's name and bytes.
+CWEBP = """#!/bin/sh
+image=$4
+while [ "$1" != "-o" ]; do shift; done
+{ printf '%s:' "$(basename "$image")"; cat "$image"; } > "$2"
+"""
+
+
+@unittest.skipUnless(HAVE_PILLOW, "Pillow not installed")
+class AdoptionTests(unittest.TestCase):
+    """`make adopt-images` (tools/derived_images.py adopt): the files from
+    before the record, each entered if making it again gives the same
+    bytes. The variants first, then the companions, over one reading of
+    the record, so a preview says what the adoption would do."""
+
+    AUTHORED = b"made by its author"
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(prefix="adopt-images-")
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name).resolve()
+        self.photos = self.root / "content/photography/trip"
+        self.photos.mkdir(parents=True)
+        self.stubs = stub_bin(self.root / "bin", ["cwebp"], CWEBP)
+        Image.new("RGB", (1000, 10), (10, 120, 200)).save(self.photos / "view.jpg", format="JPEG")
+        # A site from before the record: variants and companions, no entries.
+        for tool in (["generate-thumbnails.py"], ["convert_images.py"]):
+            self.tool(*tool)
+        (self.root / "data/derived-images.json").unlink()
+        (self.photos / "view.w960.webp").write_bytes(self.AUTHORED)
+
+    def tool(self, *argv: str) -> subprocess.CompletedProcess[str]:
+        done = subprocess.run([sys.executable, str(engine_path("tools")) + "/" + argv[0], *argv[1:]], cwd=self.root,
+                              capture_output=True, text=True, timeout=120,
+                              env=script_env(self.stubs, SITE_ROOT=str(self.root)))
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done
+
+    def state(self) -> tuple[dict[str, bytes], bytes | None]:
+        record = self.root / "data/derived-images.json"
+        return ({p.name: p.read_bytes() for p in self.photos.iterdir()},
+                record.read_bytes() if record.is_file() else None)
+
+    def test_a_preview_says_what_the_adoption_does_and_writes_nothing(self) -> None:
+        before = self.state()
+        preview = self.tool("derived_images.py", "adopt", "--dry-run").stdout
+        self.assertEqual(self.state(), before)
+        real = self.tool("derived_images.py", "adopt").stdout
+        self.assertEqual(preview.replace("would be recorded", "recorded"), real)
+        # The variants are the first stage's, so the second does not take
+        # view.w480.jpg for an image and its WebP for a failed conversion.
+        self.assertIn("generate-thumbnails: 3 variant file(s) recorded as this script's; 1 differ", real)
+        self.assertIn("convert-images: 1 companion(s) recorded as this script's; 0 differ", real)
+        self.assertEqual(real.count("differs  "), 1)
+        self.assertIn("view.w960.webp", real)
+        record = json.loads((self.root / "data/derived-images.json").read_text(encoding="utf-8"))["outputs"]
+        at = "content/photography/trip/"
+        self.assertEqual({k: v["producer"] for k, v in record.items()}, {
+            at + "view.w480.jpg": "generate-thumbnails", at + "view.w480.webp": "generate-thumbnails",
+            at + "view.w960.jpg": "generate-thumbnails", at + "view.webp": "convert-images"})
+        # Nothing but the record was written, and the author's file is no one else's.
+        self.assertEqual(self.state()[0], before[0])
+        said = self.tool("generate-thumbnails.py", "--force").stdout
+        self.assertEqual((self.photos / "view.w960.webp").read_bytes(), self.AUTHORED)
+        self.assertIn("1 not this script's", said)
 
 
 if __name__ == "__main__":

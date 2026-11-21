@@ -35,6 +35,7 @@ import           Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import           Utils                      (wordCount, readingTime, escapeHtml, inlinesText, parseBool)
 import           PandocOptions              (poetryReaderOpts, readerOpts, withMath, writerOpts)
 import           Filters                    (applyAll, preprocessSource)
+import           DerivedImages              (tellPairings)
 import           Filters.Dropcaps           (Initials (..), initialsDir)
 import qualified Citations
 import qualified Filters.Headings           as Headings
@@ -198,6 +199,9 @@ essayCompilerWith rOpts = do
 
     (pandocFiltered, bibHtml, furtherHtml) <- unsafeCompiler $
         transformDocument cfg frKeys bibPath numberFigures srcDir initials (itemBody pandocItem)
+    -- The image filter asked which WebPs are their images': the page is
+    -- built again when that may have changed ("DerivedImages").
+    tellPairings srcDir
     let pandocItem'    = itemSetBody pandocFiltered pandocItem
 
     -- Build TOC from the filtered AST.
@@ -359,4 +363,5 @@ filteredPage = do
     trackInitials initials
     filtered   <- unsafeCompiler $
         applyAll cfg False srcDir initials (itemBody pandocItem)
+    tellPairings srcDir
     return (src, writePandocWith writerOpts (itemSetBody filtered pandocItem))

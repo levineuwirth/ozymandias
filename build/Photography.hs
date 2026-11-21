@@ -42,6 +42,7 @@ import qualified Data.Text.Lazy.Encoding    as TLE
 import qualified Data.Vector            as V
 import qualified Data.Scientific        as Sci
 import           Hakyll
+import           DerivedImages (pairedWithC)
 import           Config                (SiteConfig (..), FeedSpec (..), loadConfig, loadFeed, renderSiteFeed, photoFeed)
 import           Compilers              (pageCompiler, photographyCompiler)
 import           Contexts               (feedTitleField, photographyCtx, pageCtx, siteCtx,
@@ -528,14 +529,16 @@ buildPin item = do
                 -- A flat single's photo: is a URL already (root-relative,
                 -- its file under content/), or another site's.
                 Just p | "://" `isInfixOf` p -> return p
+                -- A file of the variant's name is the photograph's only
+                -- by the tools' record ("DerivedImages"), here as on its
+                -- page.
                 Just p | "/" `isPrefixOf` p -> do
                     let variant = photoVariantName p 480
-                    hasVariant <- unsafeCompiler $ doesFileExist ("content" ++ variant)
+                    hasVariant <- pairedWithC ("content" ++ p) ("content" ++ variant)
                     return (if hasVariant then variant else p)
                 Just p | not (null p) -> do
                     let variant = photoVariantName p 480
-                    hasVariant <- unsafeCompiler $
-                        doesFileExist (assetDir </> variant)
+                    hasVariant <- pairedWithC (assetDir </> p) (assetDir </> variant)
                     return $ assetUrl ++ "/"
                              ++ (if hasVariant then variant else p)
                 _ -> return ""

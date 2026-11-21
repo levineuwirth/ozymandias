@@ -12,6 +12,7 @@ import Data.Ord      (Down (..), comparing)
 import Data.Set      (Set)
 import qualified Data.Set as Set
 import BlogImages (imageInputs, referencedFiles)
+import DerivedImages (pairingStates)
 import Hakyll.Core.Compiler.Internal (compilerTellDependencies)
 import qualified Data.Text as T
 import System.Directory (listDirectory)
@@ -725,6 +726,11 @@ rules = do
         route   fileRoute
         compile copyFileCompiler
     match P.blogImageDimensions $ compile getResourceLBS
+
+    -- What holds between the images and the files the tools made of them,
+    -- written before each build ("DerivedImages"): claimed without a route
+    -- so that a page's dependency on what it asked about can fire.
+    match pairingStates $ compile getResourceLBS
 
     match P.blogPattern $ do
         route   pageRoute

@@ -23,6 +23,7 @@ import BibExtras             (BibExtra (..), parseBibExtras)
 import ArchiveIndex          (normalizeUrl, trackingParams)
 import Marks                 (epistemicVocabulary)
 import PageScan              (pageLinks, publishedPages)
+import DerivedImages         (refreshPairingStates)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as TIO
 import Sections              (reservedSectionDirs, sectionOwnedTopLevelTags, directoryRouteSlugs)
@@ -149,6 +150,9 @@ main = do
             writeFooterData (switchOn cfg "similar-links") (outputDirFor False)
         _ -> do
             when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) checkSources
+            -- What the tools' records pair now, where the pages' dependencies
+            -- look for it, before Hakyll reads the site.
+            when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) refreshPairingStates
             siteThreads >>= setNumCapabilities
             writeBuildStamp
             dev <- isDevBuild

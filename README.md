@@ -427,10 +427,18 @@ lacks, for a site that doesn't push the engine itself.
   (`view.w480.jpg`, `view.w480.webp`). Those are names an author may give
   a file too, so the tools keep a record of what they wrote
   (`data/derived-images.json`: the tool, the image it was made from, the
-  path, and the bytes last written; local state, to be kept out of Git
-  with the files it describes) and go by it:
+  path, and the bytes last written) and go by it. The record is local
+  state: a site keeps it out of Git with the files it describes, and
+  `data/pairings/` with it, where each build notes what the record pairs
+  so that a page is built again when that changes. The engine's images
+  have a record of their own in the engine, which its sites share; a tool
+  holds a record's lock while it works, so two sites building at once
+  wait for each other there.
   - a tool writes where there is no file, and writes over or prunes only
-    a file the record says it made and that is unchanged since. Any other
+    a file the record says it made and that is unchanged since. Its own
+    file is made again when its image is not the file it was made from
+    (another size or time, older or newer, or another file altogether).
+    Any other
     file of that name (made by hand, shown by a page as an image of its
     own, edited after the tool wrote it) is left exactly as it is, by a
     plain run, `--force` and `--prune` alike, and is counted in the
@@ -439,18 +447,22 @@ lacks, for a site that doesn't push the engine itself.
     offers a variant, and the blog publishes an image's companion, only
     when the record pairs them and the bytes are still the recorded ones.
     A `lake.jpg` beside a `lake.webp` the record does not know is shown
-    alone;
+    alone, and a page built while the two were paired is built again, on
+    the next build, once they are not (the WebP changed by hand, say);
   - a WebP made by hand is paired by declaring it, in
     `data/companions.json` (`{"content/blog/moving.webp":
     "content/blog/moving.gif"}`; `python3 engine/tools/derived_images.py
     declare FILE.webp` writes the line). No tool writes to a declared
-    file;
+    file. A site declares its own files; one for an engine image goes in
+    the engine's `data/companions.json`, where `declare` puts it and
+    every site that links the engine reads it;
   - `make adopt-images` is for the files that were there before the
     record, which is every companion of a site that upgrades: it makes
     each again in a scratch place and records those that come out byte
     for byte the same, lists the rest, and writes nothing else
-    (`ADOPT_FLAGS=--dry-run` only says). Until then the site is correct
-    and heavier: the images are shown without them.
+    (`ADOPT_FLAGS=--dry-run` says what it would do, and changes nothing).
+    Until then the site is correct and heavier: the images are shown
+    without them.
 
   One name is still one image, and the converter stops the build, naming
   the files and deleting nothing, where two images would be shown with

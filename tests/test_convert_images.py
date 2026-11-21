@@ -17,8 +17,14 @@ this must write nothing into the real one) with a stand-in for cwebp:
     that takes the name gets a new one;
   · a declared companion (data/companions.json) is the author's: not
     written, not counted as left;
-  · --adopt records the companions already there that a fresh conversion
-    reproduces, lists the others, and with --dry-run records nothing;
+  · its own companion is made again when its image is another file than
+    it was made from, whichever is newer;
+  · an engine image's companion is declared in the engine, for every site
+    that links it, and two sites converting the engine's images at once
+    both keep their entries;
+  · `make adopt-images` records the companions already there that a fresh
+    conversion reproduces and lists the others, and a preview of it
+    changes nothing at all;
   · two images that would be shown with one companion (map.png, map.JPG,
     map.gif; the site's static image and the engine's) are refused, each
     named, before anything is converted, with or without cwebp, and
@@ -52,7 +58,8 @@ image=$4
 while [ "$1" != "-o" ]; do shift; done
 { printf '%s:' "$(basename "$image")"; cat "$image"; } > "$2"
 """
-TOOLS = ("convert-images.sh", "convert_images.py", "derived_images.py", "sitelib.py")
+TOOLS = ("convert-images.sh", "convert_images.py", "derived_images.py", "sitelib.py",
+         "generate-thumbnails.py", "photo_naming.py")
 
 
 def made(name: str, holds: str = "x") -> str:
@@ -87,6 +94,12 @@ class ConvertImages(unittest.TestCase):
         done = self.run_script(*argv)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout + done.stderr
+
+    def adopt(self, *argv: str, **env: str) -> subprocess.CompletedProcess[str]:
+        """`make adopt-images`: both tools' stages, in one run."""
+        return subprocess.run([shutil.which("python3"), str(self.root / "engine/tools/derived_images.py"), "adopt",
+                               *argv], cwd=self.root, capture_output=True, text=True, timeout=60,
+                              env={**script_env(self.stubs, SITE_ROOT=str(self.root)), **env})
 
     def refused(self, **env: str) -> str:
         done = self.run_script(**env)
@@ -206,6 +219,24 @@ class ConvertImages(unittest.TestCase):
         self.assertIn("0 converted, 0 already present", self.convert())
         self.assertEqual(self.companions(), {"content/blog/map.webp": "retouched"})
 
+    def test_an_image_that_is_another_file_gets_its_companion_again_whatever_the_dates(self):
+        # map.png is replaced by a map.JPG that is older than the companion
+        # made from the PNG: by the dates the companion is current, and it
+        # holds another image's pixels.
+        self.write("content/blog/map.png", "the old map")
+        self.convert()
+        (self.root / "content/blog/map.png").unlink()
+        os.utime(self.write("content/blog/map.JPG", "another map"), (1_000_000_000,) * 2)
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.JPG", "another map")})
+        self.assertEqual(self.record()["content/blog/map.webp"]["source"], "content/blog/map.JPG")
+        self.assertIn("0 converted, 1 already present", self.convert())
+        # And a file of the same name put in its place, older too.
+        os.utime(self.write("content/blog/map.JPG", "a third map."), (900_000_000,) * 2)
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/map.webp": made("map.JPG", "a third map.")})
+        self.assertIn("0 converted, 1 already present", self.convert())
+
     def test_a_declared_companion_is_the_author_s_and_is_not_written(self):
         gif = self.write("content/blog/moving.gif")
         webp = self.write("content/blog/moving.webp", "by hand")
@@ -238,6 +269,84 @@ class ConvertImages(unittest.TestCase):
             done = subprocess.run(declare + argv, cwd=self.root, env=env, capture_output=True, text=True)
             self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
         self.assertEqual(gif.read_text(encoding="utf-8"), "x")
+
+    def shared_engine(self) -> tuple[Path, Path, Path]:
+        """Two sites that link one engine, as two sites on one machine do,
+        each with the tools as that engine has them."""
+        engine = self.root / "shared-engine"
+        (self.root / "engine").rename(engine)
+        sites = []
+        for name in ("site-a", "site-b"):
+            site = self.root / name
+            site.mkdir()
+            (site / "engine").symlink_to(engine)
+            sites.append(site)
+        return engine, sites[0], sites[1]
+
+    def run_in(self, site: Path, script: list[str], **env: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(script, cwd=site, capture_output=True, text=True, timeout=60,
+                              env={**script_env(self.stubs, SITE_ROOT=str(site)), **env})
+
+    def test_an_engine_image_s_companion_is_declared_in_the_engine_for_every_site(self):
+        engine, first, second = self.shared_engine()
+        image = engine / "static/images/probe.jpg"
+        image.parent.mkdir(parents=True)
+        image.write_text("x", encoding="utf-8")
+        webp = engine / "static/images/probe.webp"
+        webp.write_text("by hand", encoding="utf-8")
+        os.utime(webp, (1_000_000_000,) * 2)
+        # Declared from one site, by the path that site has it at.
+        done = self.run_in(first, [shutil.which("python3"), "engine/tools/derived_images.py", "declare",
+                                   "engine/static/images/probe.webp"])
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(json.loads((engine / "data/companions.json").read_text(encoding="utf-8")),
+                         {"static/images/probe.webp": "static/images/probe.jpg"})
+        self.assertFalse((first / "data/companions.json").exists())
+        # Neither site's converter writes to it, whatever happens to the image.
+        image.write_text("edited", encoding="utf-8")
+        for site in (first, second):
+            done = self.run_in(site, ["bash", "engine/tools/convert-images.sh"])
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertIn("0 converted, 1 already present", done.stdout)
+            self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+        # A site's own line for an engine file would bind that site alone:
+        # the tools stop at it.
+        (second / "data").mkdir(exist_ok=True)
+        (second / "data/companions.json").write_text(
+            '{"engine/static/images/probe.webp": "engine/static/images/probe.jpg"}', encoding="utf-8")
+        done = self.run_in(second, ["bash", "engine/tools/convert-images.sh"])
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("is not a file of this tree", done.stderr)
+        self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+
+    def test_two_sites_converting_the_engine_s_images_at_once_both_keep_their_entries(self):
+        engine, first, second = self.shared_engine()
+        for name in ("one.png", "two.png"):
+            path = engine / "static/images" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x", encoding="utf-8")
+        for site in (first, second):
+            (site / "content").mkdir()
+            (site / "content/own.jpg").write_text("x", encoding="utf-8")
+        # A converter that takes its time, so that the second site starts
+        # while the first is at work.
+        slow = stub_bin(self.root / "slow", ["cwebp"], CWEBP.replace("image=$4", "image=$4; sleep 0.4"))
+        runs = [subprocess.Popen(["bash", "engine/tools/convert-images.sh"], cwd=site, text=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 env=script_env(slow, SITE_ROOT=str(site)))
+                for site in (first, second)]
+        outputs = [run.communicate(timeout=60) + (run.returncode,) for run in runs]
+        for out, err, code in outputs:
+            self.assertEqual(code, 0, out + err)
+        self.assertEqual(sorted(out.splitlines()[-1] for out, _, _ in outputs),
+                         ["convert-images: 1 converted, 2 already present.",
+                          "convert-images: 3 converted, 0 already present."])
+        self.assertTrue(any("waiting for another tool" in err for _, err, _ in outputs))
+        record = json.loads((engine / "data/derived-images.json").read_text(encoding="utf-8"))["outputs"]
+        self.assertEqual(set(record), {"static/images/one.webp", "static/images/two.webp"})
+        for site in (first, second):
+            own = json.loads((site / "data/derived-images.json").read_text(encoding="utf-8"))["outputs"]
+            self.assertEqual(set(own), {"content/own.webp"})
 
     def test_another_tool_s_output_is_not_an_image_to_convert(self):
         # A photograph's variant and its WebP are generate-thumbnails'.
@@ -273,12 +382,15 @@ class ConvertImages(unittest.TestCase):
         self.assertIn("4 WebP file(s) beside an image are not recorded", said)
         self.assertIn("make adopt-images", said)
 
-        said = self.convert("--adopt", "--dry-run")
+        said = self.adopt("--dry-run").stdout
         self.assertIn("2 companion(s) would be recorded as this script's; 2 differ and are left unrecorded", said)
         self.assertEqual(self.record(), {})
+        self.assertFalse((self.root / "data/derived-images.json").exists())
         self.assertTrue((self.root / "data/rules-hash.txt").exists())
 
-        said = self.convert("--adopt")
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        said = done.stdout
         self.assertIn("2 companion(s) recorded as this script's; 2 differ and are left unrecorded", said)
         self.assertIn("differs  content/blog/edited.webp", said)
         self.assertIn("differs  content/blog/sea.webp", said)
@@ -292,9 +404,30 @@ class ConvertImages(unittest.TestCase):
         self.assertIn("2 WebP file(s) beside an image are not recorded", said)
         self.assertEqual(self.companions(), before)
         # Adoption needs the converter it compares with.
-        done = self.run_script("--adopt", PATH=self.bare_path())
+        done = self.adopt(PATH=self.bare_path())
         self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
         self.assertIn("no cwebp", done.stderr)
+
+    def test_a_preview_of_adoption_changes_nothing(self):
+        # A record with an entry whose file is gone, which a run tidies
+        # away, and a companion from before the record, which an adoption
+        # enters: a preview does neither.
+        for name in ("lake.jpg", "hill.png"):
+            self.write(f"content/blog/{name}")
+        self.convert()
+        (self.root / "content/blog/hill.webp").unlink()
+        record = self.root / "data/derived-images.json"
+        document = json.loads(record.read_text(encoding="utf-8"))
+        del document["outputs"]["content/blog/lake.webp"]
+        record.write_text(json.dumps(document), encoding="utf-8")
+        before = record.read_bytes()
+        done = self.adopt("--dry-run")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("1 companion(s) would be recorded", done.stdout)
+        self.assertEqual(record.read_bytes(), before)
+        self.assertEqual(set(p.name for p in (self.root / "data").iterdir()), {"derived-images.json"})
+        self.assertEqual(self.adopt().returncode, 0)
+        self.assertEqual(set(self.record()), {"content/blog/lake.webp"})
 
     # -- one companion, one image -----------------------------------------
 

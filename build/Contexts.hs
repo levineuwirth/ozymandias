@@ -89,7 +89,7 @@ import Themes       (themeContext)
 import Config       (SiteConfig (..), loadConfig, identityOver, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
-import           DerivedImages (pairedWith)
+import           DerivedImages (pairedWithC)
 import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
@@ -2090,8 +2090,7 @@ photoCandidatesOnDisk :: FilePath
                       -> [(FilePath, String, Int)]
                       -> Compiler [(FilePath, String, Int)]
 photoCandidatesOnDisk photo cands = do
-    marked <- unsafeCompiler $
-        mapM (\c@(disk, _, _) -> (,) c <$> pairedWith photo disk) cands
+    marked <- mapM (\c@(disk, _, _) -> (,) c <$> pairedWithC photo disk) cands
     return [ c | (c, True) <- marked ]
 
 -- | Render a candidate list as a @srcset@ attribute value.
@@ -2374,7 +2373,7 @@ photographyCtx =
             Nothing -> noResult "no co-located photo (flat single, or photo: key absent)"
             Just (dir, urlDir, photo) -> do
                 let webp = photoWebpName photo
-                exists <- unsafeCompiler (pairedWith (dir </> photo) (dir </> webp))
+                exists <- pairedWithC (dir </> photo) (dir </> webp)
                 if exists
                     then return (urlDir ++ "/" ++ webp)
                     else noResult "no webp companion on disk"

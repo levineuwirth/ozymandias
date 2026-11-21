@@ -86,10 +86,6 @@ def profile_site(profile: str) -> Path:
     build = next(b for b in fixture_variants.builds() if b.name == profile)
     site = Path(tmp.name) / "site"
     fixture_variants.copy_site(build, site, ENGINE)
-    # The golden plate's WebP is a file of the fixture's, made by hand: the
-    # site says whose it is, as an author would (build/DerivedImages.hs).
-    (site / "data/companions.json").write_text(
-        '{"engine/tests/golden/plate.webp": "engine/tests/golden/plate.png"}', encoding="utf-8")
     if build.switches["archive"]:
         subprocess.run([sys.executable, str(engine_path("tools/archive.py")), "fetch"], cwd=site,
                        env=script_env(SITE_ROOT=str(site)), check=True, capture_output=True, timeout=120)

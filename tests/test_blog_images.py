@@ -18,6 +18,9 @@ Whole builds of a small scratch site against this engine:
     record, or its author's by declaration (build/DerivedImages.hs); one
     that only has the name is another picture, withheld unless a page
     shows it itself;
+  · a page built with a companion is built again when the companion
+    stops being its image's (changed by hand) or starts to be (recorded,
+    declared), on the next build and without a clean;
   · through `make build`: an entry made a draft takes its page and its
     images out of the site, and so does a reference taken out of a page;
     a draft's image that would take the WebP companion of a published
@@ -275,6 +278,42 @@ class BlogImages(Site):
         self.assertEqual(self.files(), self.PUBLISHED | {"notebook/trip/route.webp"})
 
 
+    def test_a_page_is_rebuilt_when_a_webp_stops_or_starts_being_its_image_s(self):
+        # The second post shows an image of the site's static tree, by its
+        # path from the root, with a companion the converter made.
+        static = self.root / "static/images"
+        image(static / "brand.png")
+        image(static / "brand.webp")
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Brand](/images/brand.png)\n", encoding="utf-8")
+        self.site("rebuild")
+        self.assertIn('<source srcset="../images/brand.webp" type="image/webp">', self.read("notebook/second.html"))
+        self.assertIn('<source srcset="first.lake.webp" type="image/webp">', self.read("notebook/first.html"))
+        self.assertEqual(self.updated(self.site("build")), set())
+        # Both companions are changed by hand. They are no longer what the
+        # record says was written, and the pages built when they were are
+        # built again, without a clean.
+        (static / "brand.webp").write_bytes(DRAFTED)
+        (self.blog / "first.lake.webp").write_bytes(DRAFTED)
+        pages = {u for u in self.updated(self.site("build")) if u.endswith(".md")}
+        self.assertEqual(pages, {"content/blog/first.md", "content/blog/second.md"})
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        self.assertNotIn("first.lake.webp", self.read("notebook/first.html"))
+        self.assertEqual(self.updated(self.site("build")), set())
+        # The converter makes one again (here: its entry), and the author
+        # declares another image's: each page that asked follows.
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        (self.root / "data/companions.json").write_text(json.dumps({
+            "content/blog/hand.webp": "content/blog/hand.gif", "content/blog/alone.webp": "content/blog/alone.png"}),
+            encoding="utf-8")
+        pages = {u for u in self.updated(self.site("build")) if u.endswith(".md")}
+        self.assertEqual(pages, {"content/blog/first.md", "content/blog/second.md"})
+        self.assertIn('<source srcset="../images/brand.webp" type="image/webp">', self.read("notebook/second.html"))
+        self.assertIn('<source srcset="alone.webp" type="image/webp">', self.read("notebook/first.html"))
+        self.assertEqual(self.updated(self.site("build")), set())
+
+
 CABAL = """#!/bin/sh
 # The site's generator, as this test run built it: `make build` asks cabal for it.
 case "$1" in
@@ -400,6 +439,30 @@ class ThroughMake(Site):
         self.assertEqual(companion.exists(), shutil.which("cwebp") is not None)
         self.assertEqual("first.lake.webp" in self.read("notebook/first.html"), companion.exists())
         self.assertNotIn(DRAFTED, self.served())
+
+    def test_a_companion_changed_by_hand_leaves_the_page_on_the_next_build(self):
+        # A published post shows a static image by its path from the root,
+        # with the companion the converter made of it.
+        static = self.root / "static/images"
+        image(static / "brand.png")
+        image(static / "brand.webp")
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Brand](/images/brand.png)\n", encoding="utf-8")
+        for command in (["add", "-A"], ["-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                                        "commit", "-qm", "brand"]):
+            subprocess.run(["git", *command], cwd=self.root, check=True, capture_output=True)
+        self.make_build()
+        self.assertIn('<source srcset="../images/brand.webp" type="image/webp">', self.read("notebook/second.html"))
+        # The author replaces the companion with another picture. The
+        # converter leaves it; the build is an incremental one, and the
+        # page that was built with it is built again without it.
+        (static / "brand.webp").write_bytes(DRAFTED)
+        log = self.make_build()
+        self.assertIn("incremental build OK", log)
+        self.assertEqual((static / "brand.webp").read_bytes(), DRAFTED)
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        self.assertRegex(self.read("notebook/second.html"), r'<img[^>]*src="\.\./images/brand\.png"')
 
     def test_a_webp_made_by_hand_is_its_image_s_once_declared_and_is_never_written(self):
         # A published post shows moving.gif, and its author made a

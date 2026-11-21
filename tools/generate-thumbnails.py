@@ -82,8 +82,9 @@ and so are a pruned variant's sidecars, which other tools wrote. The
 generator offers a variant in a srcset only when the record pairs it with
 the photograph (build/DerivedImages.hs).
 
-    --adopt    record the variants already there that a fresh rendering
-               reproduces byte for byte (with --dry-run: only say which)
+`make adopt-images` (tools/derived_images.py adopt) records the variants
+that were there before the record and that a fresh rendering reproduces
+byte for byte.
 """
 
 from __future__ import annotations
@@ -177,13 +178,6 @@ def iter_variants(root: Path):
 def webp_path(variant: Path) -> Path:
     """`photo.w960.jpg` -> `photo.w960.webp` (Contexts.photoWebpName)."""
     return variant.with_suffix(".webp")
-
-
-def _is_current(source: Path, variant: Path) -> bool:
-    """Skip rule: the variant exists and is not older than its source."""
-    if not variant.exists():
-        return False
-    return variant.stat().st_mtime >= source.stat().st_mtime
 
 
 def _rel(path: Path) -> Path:
@@ -325,8 +319,11 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
              dry_run: bool, force: bool, counters: dict) -> None:
     for source, destination, width in ladder:
         webp = webp_path(destination)
-        want_jpeg = force or not _is_current(source, destination)
-        want_webp = want_jpeg or not _is_current(source, webp)
+        # Its own variant is current while the photograph is as it was
+        # when the variant was made (the record notes it); a file with no
+        # entry goes by the dates.
+        want_jpeg = force or not records.fresh(destination, PRODUCER, source)
+        want_webp = want_jpeg or not records.fresh(webp, PRODUCER, source)
         # A place is written when it is free or holds this script's own
         # file. Anything else there is someone's, and stays.
         need_jpeg = want_jpeg and records.may_write(destination, PRODUCER, source)
@@ -353,6 +350,9 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
                 records.wrote(destination, PRODUCER, source)
             if need_webp:
                 records.wrote(webp, PRODUCER, source)
+            # Saved with each: a variant on disk without its entry would
+            # no longer be the script's.
+            records.save_all()
         except Exception as exc:  # noqa: BLE001 — keep walking
             print(
                 f"generate-thumbnails: {destination}: {exc}",
@@ -365,13 +365,26 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
         counters["written"] += 1
 
 
-def adopt(ladder: list[tuple[Path, Path, int]], records: derived_images.Records, *,
-          dry_run: bool, counters: dict) -> None:
-    """Record the variants already there that this script would write the
-    same, byte for byte: only its own output is that. The rest are listed
-    and stay unrecorded."""
+def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, bool]:
+    """Enter the variants already there, under content/photography, that
+    this script would write the same, byte for byte: only its own output
+    is that. The rest are listed and stay unrecorded. Saves nothing itself
+    (tools/derived_images.py adopt does, unless it is a preview), and
+    returns how many it entered and whether it could not do its work."""
+    if not DEFAULT_ROOT.is_dir():
+        return 0, False
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        if any(True for _ in iter_variants(DEFAULT_ROOT)):
+            print("generate-thumbnails: adoption renders the variants again to compare them, and there is no "
+                  "Pillow to render with (run it with the site's environment: make adopt-images).", file=sys.stderr)
+            return 0, True
+        return 0, False
+    counters = {"failed": 0}
+    adopted = differ = 0
     with tempfile.TemporaryDirectory(prefix="adopt-variants-") as scratch:
-        for source, destination, width in ladder:
+        for source, destination, width in plan(DEFAULT_ROOT, counters=counters):
             there = [path for path in (destination, webp_path(destination))
                      if path.is_file() and not path.is_symlink() and records.entry(path) is None
                      and records.declared_for(path) is None]
@@ -387,13 +400,18 @@ def adopt(ladder: list[tuple[Path, Path, int]], records: derived_images.Records,
             for path in there:
                 made = fresh if path == destination else webp_path(fresh)
                 if made.read_bytes() == path.read_bytes():
-                    counters["adopted"] += 1
-                    if not dry_run:
-                        records.wrote(path, PRODUCER, source, save=False)
+                    adopted += 1
+                    records.wrote(path, PRODUCER, source)
                 else:
-                    counters["differ"] += 1
+                    differ += 1
                     print(f"  differs  {_rel(path)}  (not what this script makes of {_rel(source)} now)")
-    records.save_all()
+    verb = "would be recorded" if dry_run else "recorded"
+    print(f"generate-thumbnails: {adopted} variant file(s) {verb} as this script's; "
+          f"{differ} differ and are left unrecorded.")
+    if differ:
+        print("  One that differs is yours, or was made by another Pillow. Look at it, and delete it to "
+              "have it made again.")
+    return adopted, bool(counters["failed"])
 
 
 def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counters: dict) -> None:
@@ -446,6 +464,7 @@ def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counter
             if records.owns(path, PRODUCER, source):
                 path.unlink()
                 records.removed(path)
+                records.save_all()
                 pruned = True
             else:
                 print(f"  keep   {_rel(path)}  ({reason}; not recorded as made here)")
@@ -511,12 +530,6 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="delete variants whose source is gone or is no longer wider",
     )
-    parser.add_argument(
-        "--adopt",
-        action="store_true",
-        help="record the variants already there that a fresh rendering "
-        "reproduces byte for byte, and list the rest",
-    )
     args = parser.parse_args(argv)
 
     try:
@@ -547,29 +560,43 @@ def main(argv: list[str] | None = None) -> int:
         "pruned": 0,
         "would_prune": 0,
         "kept": 0,
-        "adopted": 0,
-        "differ": 0,
     }
 
     try:
         # A directory outside the site and the engine (a photograph being
-        # prepared elsewhere) keeps the record of its own variants.
-        records = derived_images.Records(elsewhere=root if root.is_dir() else root.parent)
+        # prepared elsewhere) keeps the record of its own variants. Each
+        # tree is held from here until the records are saved.
+        with derived_images.Records.held(elsewhere=root if root.is_dir() else root.parent,
+                                         save=not args.dry_run) as records:
+            # Prune first: a re-imported source that shrank should lose its
+            # stale wide variant before the generate pass decides what is
+            # current.
+            if args.prune:
+                prune(root, records, dry_run=args.dry_run, counters=counters)
+
+            ladder = plan(root, counters=counters)
+            generate(ladder, records, dry_run=args.dry_run, force=args.force, counters=counters)
     except derived_images.RecordError as error:
         print(f"generate-thumbnails: {error}; nothing was written.", file=sys.stderr)
         return 1
 
-    if args.adopt:
-        adopt(plan(root, counters=counters), records, dry_run=args.dry_run, counters=counters)
-        verb = "would be recorded" if args.dry_run else "recorded"
-        print(f"generate-thumbnails: {counters['adopted']} variant file(s) {verb} as this script's; "
-              f"{counters['differ']} differ and are left unrecorded.")
-        if counters["differ"]:
-            print("  One that differs is yours, or was made by another Pillow. Look at it, and delete it to "
-                  "have it made again.")
-        if counters["adopted"] and not args.dry_run:
-            derived_images.request_full_rebuild()
-        return 1 if counters["failed"] else 0
+    summary = (
+        f"generate-thumbnails: {counters['written']} written, "
+        f"{counters['skipped']} current"
+    )
+    if counters["would_write"]:
+        summary += f", {counters['would_write']} would be written"
+    if counters["pruned"]:
+        summary += f", {counters['pruned']} pruned"
+    if counters["would_prune"]:
+        summary += f", {counters['would_prune']} would be pruned"
+    if counters["kept"]:
+        summary += f", {counters['kept']} not this script's and left as they are"
+    if counters["failed"]:
+        summary += f", {counters['failed']} FAILED"
+    print(summary)
+
+    return 1 if counters["failed"] else 0
 
     # Prune first: a re-imported source that shrank should lose its stale
     # wide variant before the generate pass decides what is current.
