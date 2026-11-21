@@ -52,6 +52,7 @@ module Drafts
     , withoutUnpublished
     , unpublishedSummary
     , markdownUnder
+    , filesUnder
     ) where
 
 import           Control.Exception    (IOException, try)

@@ -352,6 +352,52 @@ class EngineFilesTests(unittest.TestCase):
         for page in pages:
             self.assertEqual(self.built(page).count('width="800"'), 2)
 
+    def test_a_companion_and_a_sidecar_are_those_of_the_image_that_is_served(self):
+        shutil.copy2(SITE_ROOT / "site.yaml", self.root / "site.yaml")
+        (self.root / "engine").mkdir(exist_ok=True)
+        (self.root / "engine/switches.yaml").symlink_to(engine_path("switches.yaml"))
+        self.write("content/essays/image.md", "\n\n".join(
+            f"![{name}](/images/{name})" for name in ("brand.png", "mark.jpg", "plain.png", "ours.png")))
+        engine, site = "engine/static/images/", "static/images/"
+        # The site's brand.png over the engine's, which alone has a
+        # companion and a sidecar: they are the engine's picture's.
+        self.write(engine + "brand.png", "engine image")
+        self.write(engine + "brand.webp", "engine companion")
+        self.write(engine + "brand.png.dims.yaml", "width: 16\nheight: 16\n")
+        self.write(site + "brand.png", "site image")
+        # The engine's mark.jpg with its companion, and a mark.webp the
+        # site serves at the companion's address (left by a mark.png since
+        # renamed, say).
+        self.write(engine + "mark.jpg", "engine image")
+        self.write(engine + "mark.webp", "engine companion")
+        self.write(site + "mark.webp", "another image's")
+        # An engine image alone, and a site image alone, each with both.
+        for tree, name in ((engine, "plain.png"), (site, "ours.png")):
+            self.write(tree + name, "image")
+            self.write(tree + name.replace(".png", ".webp"), "companion")
+            self.write(tree + name + ".dims.yaml", "width: 64\nheight: 48\n")
+        self.run_probe("build")
+        html = self.built("content/essays/image.html")
+
+        def shown(name):
+            return re.search(rf'(<picture>(?:(?!</picture>).)*)?<img[^>]*src="/images/{re.escape(name)}"[^>]*>',
+                             html, re.S).group(0)
+
+        self.assertNotIn("<picture>", shown("brand.png"))
+        self.assertNotIn("width=", shown("brand.png"))
+        self.assertNotIn("<picture>", shown("mark.jpg"))
+        for name in ("plain.png", "ours.png"):
+            self.assertIn(f'<source srcset="/images/{name.replace(".png", ".webp")}" type="image/webp">', shown(name))
+            self.assertIn('width="64"', shown(name))
+        # With a companion and a sidecar of its own, the site's image has both.
+        self.write(site + "brand.webp", "site companion")
+        self.write(site + "brand.png.dims.yaml", "width: 8\nheight: 8\n")
+        self.run_probe("clean")
+        self.run_probe("build")
+        html = self.built("content/essays/image.html")
+        self.assertIn('<source srcset="/images/brand.webp" type="image/webp">', shown("brand.png"))
+        self.assertIn('width="8"', shown("brand.png"))
+
     def test_raw_reads_take_the_site_file_then_the_engine_s(self):
         self.write("data/both.csl", "site")
         self.write("engine/data/both.csl", "engine")

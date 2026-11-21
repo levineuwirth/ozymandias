@@ -14,10 +14,15 @@
 # one. The same holds across static/ and the engine's static/, which are
 # served as one tree with the site's file over the engine's: the site's
 # images/color.png and the engine's images/color.JPG are both shown with
-# /images/color.webp. The script refuses such images, naming them, before it
-# converts anything, with or without cwebp, and removes the companion they
-# share: nothing says whose pixels it holds, and it would outlast a rename.
-# It also stops, and says so, when it cannot list the images at all.
+# /images/color.webp. And a WebP that a page shows by name
+# (![](color.webp)) is an image of its own, which a color.JPG beside it
+# would be converted over. The script refuses each of these, naming the
+# files, before it converts anything, with or without cwebp. It deletes
+# nothing: a companion that is already there may be the author's own, and
+# the message says which file to look at.
+#
+# It also stops, and says so, when it cannot list the images or cannot ask
+# the generator (`site list-named`, build/PageScan.hs) what the pages name.
 #
 # Photography's .w480/.w960/.w1440 variants arrive with WebP siblings that
 # tools/generate-thumbnails.py encoded from the source pixels (it runs first
@@ -52,9 +57,10 @@ show() {
 
 # Every image a page may show with a WebP companion, in one order on every
 # machine. The list is whole or the script stops: a walk that failed halfway
-# would pass the check below for want of the files it did not reach.
+# would pass the checks below for want of the files it did not reach.
 list="$(mktemp)"
-trap 'rm -f "$list"' EXIT
+named="$(mktemp)"
+trap 'rm -f "$list" "$named"' EXIT
 if [ "${#roots[@]}" -gt 0 ]; then
     find "${roots[@]}" \
          \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) \
@@ -67,65 +73,124 @@ fi
 # Which images would be shown with each companion. A companion is known by
 # where it is served: beside its image under content/, and at one address
 # for both static trees. A directory may be named as an image is
-# (album.JPG) and is not one; a link to an image is.
+# (album.JPG) and is not one; a link to an image is. A name may hold
+# anything but a NUL, a newline too, so nothing here is told apart by what
+# is in a name: each companion has a number, and its images are counted.
 images=()                # what cwebp reads: the JPEGs and PNGs
-declare -A shown_with    # companion -> its images, a newline between them
-shared=()                # the companions with more than one
+image_companions=()      # the companion of each, by its number; -1 for an image not served
+companions=()            # each companion once
+declare -A number_of     # companion -> its place in `companions`
+shown=()                 # how many images each is shown with
+claimants=()             # every image shown with a companion,
+claimant_companions=()   # and that companion's number
+refused=0
 while IFS= read -r -d '' img; do
     [[ -f "$img" ]] || continue
-    case "${img##*.}" in
-        [gG][iI][fF]) ;;     # shown with a companion, never given one here
-        *) images+=("$img") ;;
-    esac
+    served=1
     companion="${img%.*}.webp"
     case "$img" in
         "$engine_static"/*)
             rel="${img#"$engine_static"/}"
             # A site file of the same name is served in this one's place.
-            [[ "$engine_static" == "$site_static" || ! -f "$site_static/$rel" ]] || continue
+            [[ "$engine_static" == "$site_static" || ! -f "$site_static/$rel" ]] || served=0
             companion="static:${rel%.*}.webp" ;;
         "$site_static"/*)
             rel="${img#"$site_static"/}"
             companion="static:${rel%.*}.webp" ;;
     esac
-    if [[ -z "${shown_with[$companion]+set}" ]]; then
-        shown_with[$companion]=$img
-    else
-        [[ "${shown_with[$companion]}" == *$'\n'* ]] || shared+=("$companion")
-        shown_with[$companion]+=$'\n'$img
+    number=-1
+    if [ "$served" -eq 1 ]; then
+        if [[ -z "${number_of[$companion]+set}" ]]; then
+            number_of[$companion]=${#companions[@]}
+            companions+=("$companion")
+            shown+=(0)
+        fi
+        number=${number_of[$companion]}
+        shown[number]=$((shown[number] + 1))
+        claimants+=("$img")
+        claimant_companions+=("$number")
     fi
+    case "${img##*.}" in
+        [gG][iI][fF]) ;;     # shown with a companion, never given one here
+        *) images+=("$img"); image_companions+=("$number") ;;
+    esac
 done < "$list"
 
-for companion in ${shared[@]+"${shared[@]}"}; do
-    mapfile -t sharing <<< "${shown_with[$companion]}"
-    names="$(show "${sharing[0]}")"
-    for ((i = 1; i < ${#sharing[@]}; i++)); do
-        if ((i == ${#sharing[@]} - 1)); then names+=" and "; else names+=", "; fi
-        names+="$(show "${sharing[i]}")"
-    done
-    # The files that are, or would become, the companion they are shown with.
-    case "$companion" in
+# The files that are served as a companion, or would be once it is made.
+companion_files() {
+    case "$1" in
         static:*)
-            rel="${companion#static:}"
-            files=("$site_static/$rel")
-            [ "$engine_static" = "$site_static" ] || files+=("$engine_static/$rel")
-            what="the WebP companion served at /$rel" ;;
-        *)
-            files=("$companion")
-            what="one WebP companion, $(show "$companion")" ;;
+            files=("$site_static/${1#static:}")
+            [ "$engine_static" = "$site_static" ] || files+=("$engine_static/${1#static:}") ;;
+        *)  files=("$1") ;;
+    esac
+}
+
+# The companion as its address, or as the file it is.
+companion_name() {
+    case "$1" in
+        static:*) printf '%s' "/${1#static:}" ;;
+        *)        show "$1" ;;
+    esac
+}
+
+for number in ${companions[@]+"${!companions[@]}"}; do
+    [ "${shown[number]}" -gt 1 ] || continue
+    refused=1
+    companion="${companions[number]}"
+    names=""
+    left="${shown[number]}"
+    for i in "${!claimants[@]}"; do
+        [ "${claimant_companions[i]}" -eq "$number" ] || continue
+        left=$((left - 1))
+        names+="$(show "${claimants[i]}")"
+        case "$left" in 0) ;; 1) names+=" and " ;; *) names+=", " ;; esac
+    done
+    case "$companion" in
+        static:*) what="the WebP companion served at $(companion_name "$companion")" ;;
+        *)        what="one WebP companion, $(companion_name "$companion")" ;;
     esac
     echo "convert-images: $names share $what: a page showing one would be served another's pixels." >&2
-    for file in "${files[@]}"; do
-        [ -e "$file" ] || [ -L "$file" ] || continue
-        if rm -f -- "$file"; then
-            echo "  Removed $(show "$file"), which may hold any of theirs; the next build makes it again." >&2
-        else
-            echo "  Could not remove $(show "$file"), which may hold any of theirs: delete it." >&2
-        fi
-    done
     echo "  Rename all but one of the images." >&2
+    companion_files "$companion"
+    for file in "${files[@]}"; do
+        [ -e "$file" ] || continue
+        echo "  $(show "$file") is there already, and may hold the pixels of an image that is renamed." \
+             "Move it aside before the next build, or delete it if this script made it:" \
+             "the build converts it again from a JPEG or PNG that keeps the name." >&2
+    done
 done
-[ "${#shared[@]}" -eq 0 ] || exit 1
+
+# The WebP files the pages show by name: images of their own, which are
+# not to be written over, or served, as another image's companion. Only
+# the generator reads a page as the build does.
+declare -A named_by      # companion -> a page that names it
+if [ "${#images[@]}" -gt 0 ]; then
+    unasked() {
+        echo "convert-images: could not ask the generator which WebP files the pages show by name (site list-named); nothing was converted." >&2
+        exit 1
+    }
+    generator="$(python3 "$(dirname "$0")/sitelib.py" binary)" || unasked
+    (cd "$SITE_ROOT" && "$generator" list-named .webp "$SITE_ROOT/content") > "$named" || unasked
+    while IFS= read -r -d '' file && IFS= read -r -d '' page; do
+        case "$file" in
+            "$site_static"/*)   file="static:${file#"$site_static"/}" ;;
+            "$engine_static"/*) file="static:${file#"$engine_static"/}" ;;
+        esac
+        [[ -n "${named_by[$file]+set}" ]] || named_by[$file]=$page
+    done < "$named"
+fi
+for i in ${images[@]+"${!images[@]}"}; do
+    number="${image_companions[i]}"
+    [ "$number" -ge 0 ] || continue
+    companion="${companions[number]}"
+    [[ -n "${named_by[$companion]+set}" ]] || continue
+    refused=1
+    echo "convert-images: $(show "${named_by[$companion]}") shows $(companion_name "$companion") by name," \
+         "as an image of its own, and $(show "${images[i]}") would be converted over it and shown with it." >&2
+    echo "  Rename one of the two." >&2
+done
+[ "$refused" -eq 0 ] || exit 1
 
 if ! command -v cwebp >/dev/null 2>&1; then
     # Exit 0 deliberately: build/Filters/Images.hs only emits a

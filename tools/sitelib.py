@@ -224,8 +224,14 @@ if __name__ == "__main__":
             print(f"sitelib: switch {sys.argv[2]}: {error!r}", file=sys.stderr)
             sys.exit(2)
         sys.exit(0 if on else 1)
+    # `sitelib.py binary` prints the generator's path, built first if a
+    # source changed, for a shell tool that asks it something itself
+    # (convert-images.sh).
+    if sys.argv[1:] == ["binary"]:
+        print(site_binary())
+        sys.exit(0)
     if len(sys.argv) != 3 or sys.argv[1] != "config":
-        sys.exit("usage: sitelib.py config KEY | sitelib.py switch NAME")
+        sys.exit("usage: sitelib.py config KEY | sitelib.py switch NAME | sitelib.py binary")
     value = site_config().get(sys.argv[2])
     if not isinstance(value, str):
         sys.exit(f"site config: no {sys.argv[2]}")

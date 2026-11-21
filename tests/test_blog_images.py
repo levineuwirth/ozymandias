@@ -16,8 +16,9 @@ Whole builds of a small scratch site against this engine:
   · through `make build`: an entry made a draft takes its page and its
     images out of the site, and so does a reference taken out of a page;
     a draft's image that would take, or has taken, the WebP companion of
-    a published image (a JPEG, a PNG or a GIF) stops the build, and the
-    companion does not outlast the rename.
+    a published image (a JPEG, a PNG or a GIF) stops the build, which
+    names the companion and deletes nothing; so does one that would be
+    converted over a WebP a published page shows by name.
 
     python -m unittest tests.test_blog_images -v
 """
@@ -41,8 +42,10 @@ FEED = {"path": "feed.xml", "title": "Notes", "description": "Notes.", "sections
         "advertise": True, "limit": 30}
 # A one-pixel PNG; the others need only be files.
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
-# What stands for a draft's pixels: bytes no build of the fixture writes.
+# What stands for a draft's pixels, and for a WebP its author made: bytes
+# no build of the fixture writes.
 DRAFTED = b"RIFF\x1a\x00\x00\x00WEBPVP8 the draft's lake"
+AUTHORED = b"RIFF\x1a\x00\x00\x00WEBPVP8 made by its author"
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"><path d="M0 0h4v4z"/></svg>\n'
 
 
@@ -322,6 +325,14 @@ class ThroughMake(Site):
         self.assertIn("full rebuild required", self.make_build())
         self.assertEqual(self.files(), self.expected(self.PUBLISHED - {"notebook/trip/day-one.map.svg"}))
 
+    def refused(self) -> str:
+        done = self.make()
+        self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
+        return done.stderr
+
+    def served(self) -> bytes:
+        return b"".join(p.read_bytes() for p in sorted((self.root / "_site").rglob("*")) if p.is_file())
+
     def test_a_draft_s_image_cannot_take_a_published_image_s_companion(self):
         self.make_build()
         companion = self.blog / "first.lake.webp"
@@ -333,43 +344,71 @@ class ThroughMake(Site):
                           encoding="utf-8")
         image(self.blog / "first.lake.JPG")
         companion.write_bytes(DRAFTED)
-        # The build stops, says which two, and takes the companion away.
-        done = self.make()
-        self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
+        # The build stops, says which two, and which file to see to. It
+        # takes nothing away: the file might be the author's.
+        said = self.refused()
         self.assertIn("content/blog/first.lake.JPG and content/blog/first.lake.png share one WebP companion, "
-                      "content/blog/first.lake.webp", done.stderr)
-        self.assertFalse(companion.exists())
-        # Renamed, it is a draft's image like any other, and the published
-        # post is shown with a companion of its own image or with none.
+                      "content/blog/first.lake.webp", said)
+        self.assertIn("content/blog/first.lake.webp is there already", said)
+        self.assertEqual(companion.read_bytes(), DRAFTED)
+        # The author renames the draft's image and deletes the companion,
+        # as told. The published post is shown with a companion of its own
+        # image, or with none where there is no converter.
         (self.blog / "first.lake.JPG").rename(self.blog / "secret.lake.JPG")
         secret.write_text(secret.read_text(encoding="utf-8").replace("first.lake.JPG", "secret.lake.JPG"),
                           encoding="utf-8")
+        companion.unlink()
         self.make_build()
         self.assertEqual(self.files(), self.expected(self.PUBLISHED))
         self.assertEqual(companion.exists(), shutil.which("cwebp") is not None)
-        everything = b"".join(p.read_bytes() for p in (self.root / "_site").rglob("*") if p.is_file())
-        self.assertNotIn(DRAFTED, everything)
+        self.assertNotIn(DRAFTED, self.served())
 
     def test_a_draft_s_image_cannot_become_a_published_gif_s_companion(self):
-        # The image filter shows moving.gif with moving.webp when there is
-        # one, and the converter would make one from the draft's moving.JPG.
+        # The image filter shows moving.gif with moving.webp, which the
+        # author made, and the converter would make one from the draft's
+        # moving.JPG.
         second = self.blog / "second.md"
         second.write_text(second.read_text(encoding="utf-8") + "\n![Moving](moving.gif)\n", encoding="utf-8")
         image(self.blog / "moving.gif")
+        (self.blog / "moving.webp").write_bytes(AUTHORED)
         self.make_build()
         secret = self.blog / "secret.md"
         secret.write_text(secret.read_text(encoding="utf-8") + "\n![Still](moving.JPG)\n", encoding="utf-8")
         image(self.blog / "moving.JPG")
-        done = self.make()
-        self.assertNotEqual(done.returncode, 0, done.stdout[-4000:])
         self.assertIn("content/blog/moving.JPG and content/blog/moving.gif share one WebP companion, "
-                      "content/blog/moving.webp", done.stderr)
-        self.assertFalse((self.blog / "moving.webp").exists())
+                      "content/blog/moving.webp", self.refused())
+        self.assertEqual((self.blog / "moving.webp").read_bytes(), AUTHORED)
+        # Renamed, the draft's image is its own, and the GIF is shown with
+        # the companion its author made, which nothing here could remake.
         (self.blog / "moving.JPG").rename(self.blog / "still.JPG")
         secret.write_text(secret.read_text(encoding="utf-8").replace("moving.JPG", "still.JPG"), encoding="utf-8")
         self.make_build()
-        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/moving.gif"}))
-        self.assertNotIn("moving.webp", self.read("notebook/second.html"))
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/moving.gif", "notebook/moving.webp"}))
+        self.assertEqual((self.root / "_site/notebook/moving.webp").read_bytes(), AUTHORED)
+        self.assertIn('<source srcset="moving.webp" type="image/webp">', self.read("notebook/second.html"))
+
+    def test_a_draft_s_image_cannot_be_converted_over_a_webp_a_published_page_shows(self):
+        # A published post shows a WebP its author made, by name.
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Color](color.webp)\n", encoding="utf-8")
+        (self.blog / "color.webp").write_bytes(AUTHORED)
+        self.make_build()
+        self.assertEqual((self.root / "_site/notebook/color.webp").read_bytes(), AUTHORED)
+        # A draft shows a newer color.JPG, which the converter would write
+        # over it as its companion.
+        secret = self.blog / "secret.md"
+        secret.write_text(secret.read_text(encoding="utf-8") + "\n![Color, drafted](color.JPG)\n", encoding="utf-8")
+        image(self.blog / "color.JPG")
+        self.assertIn("content/blog/second.md shows content/blog/color.webp by name, as an image of its own, "
+                      "and content/blog/color.JPG would be converted over it", self.refused())
+        self.assertEqual((self.blog / "color.webp").read_bytes(), AUTHORED)
+        (self.blog / "color.JPG").rename(self.blog / "secret.color.JPG")
+        secret.write_text(secret.read_text(encoding="utf-8").replace("color.JPG", "secret.color.JPG"),
+                          encoding="utf-8")
+        self.make_build()
+        self.assertEqual(self.files(), self.expected(self.PUBLISHED | {"notebook/color.webp"}))
+        self.assertEqual((self.root / "_site/notebook/color.webp").read_bytes(), AUTHORED)
+        self.assertEqual((self.blog / "color.webp").read_bytes(), AUTHORED)
 
 
 if __name__ == "__main__":

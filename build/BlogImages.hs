@@ -22,6 +22,7 @@ module BlogImages
     , isImage
     , isMonogram
     , referencedFiles
+    , rootedFiles
     , imageInputs
     ) where
 
@@ -60,21 +61,39 @@ isMonogram p = takeFileName p == "mark.svg" || ".mark.svg" `isSuffixOf` p
 referencedFiles :: FilePath -> String -> [FilePath]
 referencedFiles dir body = nub
     [ resolveAgainst (dir ++ "/") path
-    | url <- written
+    | url <- written body
     , isRelative url
-    , let bare = takeWhile (`notElem` ("?#" :: String)) url
-    , path <- nub [bare, unescape bare]
-    , not (null path) ]
+    , path <- spellings url ]
+
+-- | The files a page's body names from the site's root (@\/images\/x.webp@),
+--   as paths under the root (@images\/x.webp@): what @static\/@ serves
+--   there, the site's tree or the engine's. Two slashes begin a host, and
+--   a path cannot climb above the root.
+rootedFiles :: String -> [FilePath]
+rootedFiles body = nub
+    [ resolveAgainst "" path
+    | '/' : url@(c : _) <- written body
+    , c /= '/'
+    , path <- spellings url ]
+
+-- | Every URL a body's Markdown names: an image's, a link's, and those in
+--   the URL attributes of raw HTML.
+written :: String -> [String]
+written body = case runPure (readMarkdown readerOpts (T.pack body)) of
+    Left _    -> []
+    Right doc -> query inline doc ++ query block doc
   where
-    written = case runPure (readMarkdown readerOpts (T.pack body)) of
-        Left _    -> []
-        Right doc -> query inline doc ++ query block doc
     inline (Image _ _ (url, _))            = [T.unpack url]
     inline (Link _ _ (url, _))             = [T.unpack url]
     inline (RawInline (Format "html") raw) = urlsIn (T.unpack raw)
     inline _                               = []
     block (RawBlock (Format "html") raw)   = urlsIn (T.unpack raw)
     block _                                = []
+
+-- | A URL's path, as written and with its percent-escapes read.
+spellings :: String -> [String]
+spellings url = filter (not . null) (nub [bare, unescape bare])
+  where bare = takeWhile (`notElem` ("?#" :: String)) url
 
 -- | What "Filters.Images" reads from disk for an image a page shows, and
 --   so what the page is built from besides its own source: the WebP

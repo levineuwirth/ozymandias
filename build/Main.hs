@@ -22,7 +22,7 @@ import Drafts                (currentUnpublished, scanUnpublished, unpublishedSu
 import BibExtras             (BibExtra (..), parseBibExtras)
 import ArchiveIndex          (normalizeUrl, trackingParams)
 import Marks                 (epistemicVocabulary)
-import PageScan              (pageLinks, publishedPages)
+import PageScan              (namedFiles, pageLinks, publishedPages)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as TIO
 import Sections              (reservedSectionDirs, sectionOwnedTopLevelTags, directoryRouteSlugs)
@@ -77,7 +77,9 @@ writeBuildStamp = do
 -- @site normalize-url@ prints each URL on stdin as the archive matches it
 -- ('ArchiveIndex.normalizeUrl'), for tools/archive.py's parity test;
 -- @site list-links ROOT@ prints each distinct link target on the published
--- pages under ROOT ("PageScan"), for tools/code-refs.py; @site list-routes@
+-- pages under ROOT ("PageScan"), for tools/code-refs.py; @site list-named
+-- SUFFIX ROOT@ each file of that suffix a page under ROOT names and the page,
+-- a NUL after each, for tools/convert-images.sh; @site list-routes@
 -- prints every output path and the item routed there, tab-separated, for
 -- tools/import-content.py (build/RouteCheck.hs); @site list-tags@ each tag
 -- that gets a page, and @site expand-tags@ the pages the tags on stdin would
@@ -120,6 +122,10 @@ main = do
             cfg <- readSiteConfig
             urls <- concat <$> (publishedPages root >>= mapM (pageLinks cfg))
             mapM_ TIO.putStrLn (Set.toAscList (Set.fromList urls))
+        ["list-named", suffix, root] -> do
+            named <- namedFiles suffix root
+            -- A NUL after each name: a path may hold anything else.
+            putStr (concat [ file ++ "\0" ++ page ++ "\0" | (file, page) <- named ])
         ["bib-extras", path] -> do
             extras <- parseBibExtras path
             mapM_ (\(k, e) -> putStrLn (intercalate "\t"

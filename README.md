@@ -423,10 +423,24 @@ lacks, for a site that doesn't push the engine itself.
   for `viz`), so neither search nor a figure asks another host for code.
 - **Images:** `tools/convert-images.sh` writes a `.webp` beside every JPEG
   and PNG, with `cwebp`; without it the build warns and images fall back.
-  Two images that would be shown with one companion (`map.png` beside
-  `map.JPG` or `map.gif`, or the same name in `static/` and the engine's)
-  stop the build: it names them and removes the companion, and one of
-  them needs another name.
+  A page shows `map.png`, `map.JPG` or `map.gif` with `map.webp`, so one
+  name is one image, and the script stops the build, naming the files,
+  where it is two:
+  - two images beside each other that differ only in the extension;
+  - the same under `static/` and the engine's `static/`, which are served
+    as one tree: the site's `images/color.png` and the engine's
+    `images/color.JPG` would both be shown with `/images/color.webp`. A
+    site file of the engine file's exact name (`images/color.JPG` in
+    both) is an override, not a second image: the site's is served, and
+    it is shown with the site's `color.webp` or, until there is one,
+    alone, never with the engine's;
+  - a JPEG or PNG beside a WebP that a page shows by name
+    (`![](color.webp)`), which is an image of its own and would be
+    converted over.
+
+  It deletes nothing. Where a companion is already there it says so: it
+  may hold the pixels of the image that gets the other name, and is to be
+  moved aside, or deleted if the script made it.
 - **PDF thumbnails:** `make pdf-thumbs`, with `pdftoppm`.
 
 ## This repository
