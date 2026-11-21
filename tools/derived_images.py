@@ -12,7 +12,9 @@ records what it writes, and writes over or deletes only what it recorded:
      "outputs": {"content/blog/lake.webp":
                    {"producer": "convert-images",
                     "source": "content/blog/lake.jpg",
-                    "digest": "sha256:…"}}}
+                    "digest": "sha256:…",
+                    "source-digest": "sha256:…",
+                    "source-stamp": [mtime in ns, size]}}}
 
 An output is bound to the tool that made it, the image it was made from,
 its own path, and the bytes last written there. A file with no entry, an
@@ -30,27 +32,38 @@ or when the author declared it:
     data/companions.json          (the author's, hand-written or `declare`)
     {"content/blog/moving.webp": "content/blog/moving.gif"}
 
-A declared companion is the author's file, shown with the image named, and
-no tool writes to it.
+A declared companion is the author's file, shown with the image named and
+with no other (whatever an entry of the record says of it), and no tool
+writes to it. `declare` drops the file's entry, if it had one.
 
 Each tree has its own record and its own declarations, under its root: the
 site's (content/, static/) and the engine's (its static/), whose images
 every site that links the engine shares. Paths in them are relative to the
 tree's root, and name files of that tree only: a site cannot declare an
 engine file, which the other sites would not know of (`declare` writes an
-engine file's line in the engine's own data/companions.json). The records
-are local state, like the files they describe (a site that keeps its
-companions out of Git keeps the record out too).
+engine file's line in the engine's own data/companions.json). A hand-written
+line is read as the file it leads to (`./static/lake.webp` is
+`static/lake.webp`), and one that leads to another tree's file, the engine's
+inside the site included, stops the tools. The records are local state,
+like the files they describe (a site that keeps its companions out of Git
+keeps the record out too).
 
 A tool holds a tree's lock (on its data/ directory) from before it reads
 the record until after it has saved it, so that two sites converting the
 engine's images at once do not each save a record without the other's
 entries: the second waits, and reads what the first wrote.
 
-An entry also notes its image's size and time when the output was made.
-The output is made again when they differ, in either direction, or when
-the image is another file than the entry names: a tool goes by what it
-last read, not by which file is newer.
+An entry also says which image the output was made from: the image's
+bytes (source-digest), and its size and time then (source-stamp), which
+spare reading the image while they are unchanged. The output is the
+image's only while the image is still that one. When it is not (other
+bytes, whichever file is newer; or another file than the entry names) the
+tool makes the output again, and until it has (a build without cwebp), the
+generator shows the image alone. An image whose time alone changed (a
+checkout) is read once, found the same, and its entry's time brought up.
+An image of the same size and the same time to the nanosecond is taken
+for the same image without being read, as make and Git take a file.
+An entry that says nothing of its image pairs nothing.
 
 Files that were there before the record (every companion of a site that
 upgrades) are unrecorded, and so are not used until they are adopted:
@@ -150,16 +163,21 @@ class Tree:
                                                 for key in ("producer", "source", "digest"))
                 for entry in outputs.values()):
             raise RecordError(f"{self.path}: outputs are not producer, source and digest each")
-        declared = _load(self.root / DECLARED)
-        for webp, image in declared.items():
+        declared: dict[str, str] = {}
+        for webp, image in _load(self.root / DECLARED).items():
             for path in (webp, image):
                 # A declaration names files of its own tree. One that leads
                 # out of it (a site's line for an engine file, through the
                 # site's engine link) would be honored by this site alone.
-                if (not isinstance(path, str) or os.path.isabs(path)
+                if (not isinstance(path, str) or not path or os.path.isabs(path)
                         or not self.within(self.root / path)):
                     raise RecordError(f"{self.root / DECLARED}: {path!r} is not a file of this tree "
                                       "(an engine image's companion is declared in the engine)")
+            # Kept as the path the tools ask by, however the line spells
+            # it: `./static/lake.webp` protects static/lake.webp.
+            webp, image = self.rel(self.root / webp), self.rel(self.root / image)
+            if declared.setdefault(webp, image) != image:
+                raise RecordError(f"{self.root / DECLARED}: {webp} is declared the companion of two images")
         self.outputs, self.declared, self.dirty = outputs, declared, False
 
     def within(self, path: Path) -> bool:
@@ -223,6 +241,14 @@ class Records:
         try:
             for root in roots:
                 self.trees.append(Tree(root, lock=lock))
+            # Each declared file is its own tree's: with the engine inside
+            # the site, an engine file is under the site's root too, and
+            # the site's line for it would be the site's alone.
+            for tree in self.trees:
+                for path in [p for pair in tree.declared.items() for p in pair]:
+                    if self._tree(tree.root / path) is not tree:
+                        raise RecordError(f"{tree.root / DECLARED}: {path!r} is not a file of this tree "
+                                          "(an engine image's companion is declared in the engine)")
         except BaseException:
             self.close()
             raise
@@ -288,19 +314,27 @@ class Records:
 
     def fresh(self, output: Path, producer: str, source: Path) -> bool:
         """Is the output there what `producer` would make of `source` now?
-        By its entry, when it has one for this image: the image is as it
-        was when the output was made. The dates say nothing of an image
-        replaced by an older file, or by another file of another name. A
-        file with no such entry (one from before the record) goes by the
-        dates, as it always did."""
+        By its entry, when it has one: the image is the one the output was
+        made from, by its size and time, or else by its bytes (a checkout
+        changes the time alone; the entry is then brought up to it). The
+        dates say nothing of an image replaced by an older file, or by
+        another file of another name. A file with no entry (not the
+        tool's to write over in any case) goes by the dates, as it always
+        did."""
         if not os.path.lexists(output):
             return False
         tree, entry = self._tree(output), self.entry(output)
         if entry is not None and entry["producer"] == producer:
             if not tree.within(source) or entry["source"] != tree.rel(source):
                 return False
-            if "source-stamp" in entry:
-                return entry["source-stamp"] == stamp(source)
+            now = stamp(source)
+            if entry.get("source-stamp") == now:
+                return True
+            if "source-digest" in entry and entry["source-digest"] == digest(source):
+                entry["source-stamp"] = now
+                tree.dirty = True
+                return True
+            return False
         return os.stat(output).st_mtime >= os.stat(source).st_mtime
 
     def wrote(self, output: Path, producer: str, source: Path) -> None:
@@ -308,13 +342,26 @@ class Records:
         what the tool would write)."""
         tree = self._tree(output)
         tree.outputs[tree.rel(output)] = {"producer": producer, "source": tree.rel(source),
-                                          "digest": digest(output), "source-stamp": stamp(source)}
+                                          "digest": digest(output), "source-digest": digest(source),
+                                          "source-stamp": stamp(source)}
         tree.dirty = True
 
     def removed(self, output: Path) -> None:
         tree = self._tree(output)
         if tree.outputs.pop(tree.rel(output), None) is not None:
             tree.dirty = True
+
+    def made_under(self, root: Path, producer: str) -> list[tuple[Path, Path]]:
+        """The outputs `producer` recorded at or under `root`, each with
+        the image its entry names (there or not)."""
+        real = os.path.realpath(root)
+        found = []
+        for tree in self.trees:
+            for rel, entry in tree.outputs.items():
+                output = os.path.join(tree.real, rel)
+                if entry["producer"] == producer and (output == real or output.startswith(real + os.sep)):
+                    found.append((Path(output), Path(tree.real) / entry["source"]))
+        return sorted(found)
 
     def forget_missing(self) -> None:
         """Drop the entries of outputs that are no longer there."""
@@ -381,6 +428,9 @@ def declare(webp: Path, image: Path | None) -> int:
         with sitelib.atomic_path(path) as tmp:
             tmp.write_text(json.dumps(dict(sorted(declared.items())), indent=1, ensure_ascii=False) + "\n",
                            encoding="utf-8")
+        # The author's now, and no longer what a tool made of another
+        # image: its entry goes (saved as the records are let go).
+        records.removed(webp)
     request_full_rebuild()
     print(f"declare: {show(webp)} is the companion of {show(image)}, by hand (in {show(path)}); "
           "no tool writes to it.")

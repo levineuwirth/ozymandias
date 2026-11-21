@@ -16,7 +16,11 @@ this must write nothing into the real one) with a stand-in for cwebp:
   · a companion whose image is gone is still the script's, and the image
     that takes the name gets a new one;
   · a declared companion (data/companions.json) is the author's: not
-    written, not counted as left;
+    written, not counted as left, however its line spells the path, and
+    out of the record once declared; a line that leads to another tree's
+    file (the engine's inside the site, too) stops the tools;
+  · a companion is its image's by the image's bytes: kept when the time
+    alone changed, made again when the bytes did;
   · its own companion is made again when its image is another file than
     it was made from, whichever is newer;
   · an engine image's companion is declared in the engine, for every site
@@ -269,6 +273,92 @@ class ConvertImages(unittest.TestCase):
             done = subprocess.run(declare + argv, cwd=self.root, env=env, capture_output=True, text=True)
             self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
         self.assertEqual(gif.read_text(encoding="utf-8"), "x")
+
+    def test_a_declaration_is_read_as_the_file_it_leads_to(self):
+        # The converter made lake.webp; its author then made it their own
+        # and wrote the line by hand, with a path as a shell would give it.
+        image = self.write("static/lake.jpg")
+        self.convert()
+        webp = self.root / "static/lake.webp"
+        webp.write_text("by hand", encoding="utf-8")
+        declared = self.root / "data/companions.json"
+        for line in ({"./static/lake.webp": "static/lake.jpg"},
+                     {"static/../static/lake.webp": "./static/./lake.jpg"},
+                     {"static//lake.webp": "static/lake.jpg"}):
+            with self.subTest(line=line):
+                declared.write_text(json.dumps(line), encoding="utf-8")
+                image.write_text("edited " + next(iter(line)), encoding="utf-8")
+                for argv in ((), ()):
+                    said = self.convert(*argv)
+                    self.assertIn("0 converted, 1 already present", said)
+                    self.assertNotIn("not recorded", said)
+                    self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+        # Two lines for one file, of two images: which is it?
+        self.write("static/other.jpg")
+        declared.write_text(json.dumps({"./static/lake.webp": "static/lake.jpg",
+                                        "static/lake.webp": "static/other.jpg"}), encoding="utf-8")
+        self.assertIn("declared the companion of two images", self.refused())
+        # A line that leads out of the tree is no line of this tree's.
+        for line in ({"../lake.webp": "static/lake.jpg"}, {"static/lake.webp": "/etc/hostname"},
+                     {"static/lake.webp": 3}, {"": "static/lake.jpg"}):
+            with self.subTest(line=line):
+                declared.write_text(json.dumps(line), encoding="utf-8")
+                self.assertIn("is not a file of this tree", self.refused())
+        self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+
+    def test_a_site_s_line_for_a_file_of_the_engine_inside_it_stops_the_tools(self):
+        # The engine as a directory of the site: its files are under the
+        # site's root, and are the engine's all the same.
+        image = self.write("engine/static/lake.jpg")
+        self.convert()
+        webp = self.root / "engine/static/lake.webp"
+        webp.write_text("by hand", encoding="utf-8")
+        (self.root / "data/companions.json").write_text(
+            '{"engine/static/lake.webp": "engine/static/lake.jpg"}', encoding="utf-8")
+        image.write_text("edited", encoding="utf-8")
+        self.assertIn("an engine image's companion is declared in the engine", self.refused())
+        self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+        # Declared where it belongs, it is kept.
+        (self.root / "data/companions.json").unlink()
+        (self.root / "engine/data/companions.json").write_text(
+            '{"static/lake.webp": "static/lake.jpg"}', encoding="utf-8")
+        self.assertIn("0 converted, 1 already present", self.convert())
+        self.assertEqual(webp.read_text(encoding="utf-8"), "by hand")
+
+    def test_declaring_a_file_the_tools_made_takes_it_out_of_the_record(self):
+        self.write("content/blog/lake.jpg")
+        self.convert()
+        self.assertIn("content/blog/lake.webp", self.record())
+        done = subprocess.run([shutil.which("python3"), str(self.root / "engine/tools/derived_images.py"),
+                               "declare", "content/blog/lake.webp"], cwd=self.root,
+                              env=script_env(SITE_ROOT=str(self.root)), capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.record(), {})
+        # Withdrawn again, it is no one's: not the converter's to write.
+        (self.root / "data/companions.json").write_text("{}", encoding="utf-8")
+        self.write("content/blog/lake.jpg", "edited")
+        said = self.convert()
+        self.assertIn("0 converted, 0 already present", said)
+        self.assertIn("1 WebP file(s) beside an image are not recorded", said)
+        self.assertEqual(self.companions(), {"content/blog/lake.webp": made("lake.jpg")})
+
+    def test_a_companion_is_its_image_s_by_the_image_s_bytes(self):
+        # Another time and the same bytes (a checkout): read once, kept,
+        # and the entry brought up to the time. Other bytes: made again.
+        image = self.write("content/blog/lake.jpg")
+        self.convert()
+        entry = self.record()["content/blog/lake.webp"]
+        self.assertRegex(entry["source-digest"], r"^sha256:[0-9a-f]{64}$")
+        os.utime(image, (1_000_000_000,) * 2)
+        self.assertIn("0 converted, 1 already present", self.convert())
+        self.assertEqual(self.record()["content/blog/lake.webp"]["source-stamp"],
+                         [image.stat().st_mtime_ns, image.stat().st_size])
+        self.assertNotEqual(self.record()["content/blog/lake.webp"]["source-stamp"], entry["source-stamp"])
+        # Older than the companion, and another picture.
+        image.write_text("y", encoding="utf-8")
+        os.utime(image, (900_000_000,) * 2)
+        self.assertIn("1 converted, 0 already present", self.convert())
+        self.assertEqual(self.companions(), {"content/blog/lake.webp": made("lake.jpg", "y")})
 
     def shared_engine(self) -> tuple[Path, Path, Path]:
         """Two sites that link one engine, as two sites on one machine do,

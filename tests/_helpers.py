@@ -159,17 +159,21 @@ def record_derived(root: Path, made: dict[str, str], producer: str = "convert-im
     """Enter fixture files in a tree's ownership record
     (tools/derived_images.py), as the tool that makes such files would
     have: each output (a WebP companion, a photograph's variant) with the
-    image it stands for, and its bytes as they are now. The generator
-    shows an image with a companion only on such an entry."""
+    image it stands for, and the bytes of both as they are now. The
+    generator shows an image with a companion only on such an entry, and
+    while the image is still the one the entry was made of."""
     import hashlib
     import json
+
+    def digest(rel: str) -> str:
+        return "sha256:" + hashlib.sha256((root / rel).read_bytes()).hexdigest()
 
     path = root / "data/derived-images.json"
     document = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {"version": 1, "outputs": {}}
     for output, source in made.items():
         document["outputs"][output] = {
             "producer": producer, "source": source,
-            "digest": "sha256:" + hashlib.sha256((root / output).read_bytes()).hexdigest()}
+            "digest": digest(output), "source-digest": digest(source)}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document), encoding="utf-8")
 

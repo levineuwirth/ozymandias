@@ -230,16 +230,32 @@ class ThumbnailContractTests(unittest.TestCase):
                 before[path], after[path], f"--force did not rewrite {path.name}"
             )
 
-    def test_a_touched_source_regenerates_its_variants(self) -> None:
+    def test_a_source_saved_again_regenerates_its_variants(self) -> None:
         source = self.write_jpeg("series/wide.jpg", (2400, 1600))
         run(str(self.root))
-        for variant in self.variants():
-            os.utime(variant, (OLD, OLD))
-        os.utime(source, (NEWER, NEWER))
+        with Image.open(source) as image:
+            image.transpose(Image.Transpose.FLIP_LEFT_RIGHT).save(source, format="JPEG", quality=90)
 
         _, out = run(str(self.root))
 
         self.assertIn("3 written", out)
+
+    def test_a_source_whose_time_alone_changed_keeps_its_variants(self) -> None:
+        # A checkout gives a file a new time and the same bytes: the
+        # variants are still that photograph's, and the record is brought
+        # up to the time, so the photograph is read once and not again.
+        source = self.write_jpeg("series/wide.jpg", (2400, 1600))
+        run(str(self.root))
+        before = {p: p.stat().st_mtime_ns for p in self.variants()}
+        os.utime(source, (NEWER, NEWER))
+
+        _, out = run(str(self.root))
+
+        self.assertIn("0 written, 3 current", out)
+        self.assertEqual(before, {p: p.stat().st_mtime_ns for p in self.variants()})
+        record = json.loads((self.root / "data/derived-images.json").read_text(encoding="utf-8"))["outputs"]
+        self.assertEqual({tuple(entry["source-stamp"]) for entry in record.values()},
+                         {(source.stat().st_mtime_ns, source.stat().st_size)})
 
     def test_dry_run_writes_nothing(self) -> None:
         self.write_jpeg("series/wide.jpg", (2400, 1600))
@@ -445,6 +461,35 @@ class OwnershipTests(unittest.TestCase):
         self.assertIn("a sidecar this script did not write", out)
         # What it pruned it no longer records; what it kept it never owned.
         self.assertEqual(set(self.record()), {"trip/view.w480.webp", "trip/view.w960.jpg"})
+
+    def test_prune_takes_a_webp_whose_variant_is_already_gone(self) -> None:
+        # The photograph and its variant are gone, and the variant's WebP
+        # is left: nothing of its name says which photograph it came of,
+        # and the record does.
+        source = self.photo("map.jpg")
+        other = self.photo("coast.jpg")
+        run(str(self.root))
+        for name in ("map.w480.jpg", "map.w960.jpg", "coast.w480.jpg"):
+            (self.photos / name).unlink()
+        (self.photos / "map.w960.webp").write_bytes(self.AUTHORED)
+        source.unlink()
+
+        code, out = run(str(self.root), "--prune", "--dry-run")
+        self.assertEqual(code, 0, out)
+        self.assertRegex(out, r"prune  \S*map\.w480\.jpg  \(source gone, dry run\)")
+        self.assertRegex(out, r"keep   \S*map\.w960\.webp  \(source gone; not recorded as made here, dry run\)")
+        self.assertIn("map.w480.webp", self.files())
+
+        code, out = run(str(self.root), "--prune")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("map.w480.webp", self.files())
+        self.assertNotIn("trip/map.w480.webp", self.record())
+        # Changed by its author: kept. And a WebP whose photograph is
+        # there is no orphan: its variant is made again beside it.
+        self.assertEqual(self.files()["map.w960.webp"], self.AUTHORED)
+        self.assertTrue(other.exists())
+        self.assertIn("coast.w480.webp", self.files())
+        self.assertIn("coast.w480.jpg", self.files())
 
     def test_a_variant_is_made_again_when_its_photograph_is_another_file(self) -> None:
         # Replaced by an older file of the same name: by the dates the

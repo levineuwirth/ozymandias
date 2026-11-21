@@ -52,8 +52,8 @@ import           Text.Pandoc.Walk     (walk, walkM)
 import           System.Directory     (doesFileExist)
 import           System.FilePath      (replaceExtension, takeExtension, (</>))
 import qualified Utils                as U
-import           EngineFiles          (existingFile, resolveFile)
-import           DerivedImages        (pairedFor)
+import           EngineFiles          (engineDir, existingFile, resolveFile)
+import           DerivedImages        (asksAbout, pairedFor, pairedWith)
 
 -- | Apply image attribute injection and WebP wrapping to the entire document.
 --
@@ -224,10 +224,15 @@ renderImg srcDir attr0 alt0 target@(src, _) lightbox = do
 hasWebpCompanion :: FilePath -> Text -> IO Bool
 hasWebpCompanion srcDir src
     | "/" `isPrefixOf` s = do
+        let companion = replaceExtension ("static" ++ s) ".webp"
         image  <- resolveFile ("static" ++ s)
-        served <- existingFile (replaceExtension ("static" ++ s) ".webp")
+        served <- existingFile companion
+        -- Asked of both trees, and whether a companion is there or not:
+        -- the first one to appear, in either, is a change the page is
+        -- built again for.
+        mapM_ (asksAbout srcDir) [companion, engineDir </> companion]
         if served == Just (replaceExtension image ".webp")
-            then pairedFor srcDir image (replaceExtension image ".webp")
+            then pairedWith image (replaceExtension image ".webp")
             else pure False
     | otherwise = pairedFor srcDir (srcDir </> s) (replaceExtension (srcDir </> s) ".webp")
   where

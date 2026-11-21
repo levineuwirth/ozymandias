@@ -4,22 +4,26 @@
   "content/essays/long/plate.webp": {
    "producer": "convert-images",
    "source": "content/essays/long/plate.png",
-   "digest": "sha256:5efde4c0bd2d020153fbe99c5be0094c8bf45678596b0e6eeacf76804cbb856f"
+   "digest": "sha256:5efde4c0bd2d020153fbe99c5be0094c8bf45678596b0e6eeacf76804cbb856f",
+   "source-digest": "sha256:9c6b4eeb5deaf0a6507f5b6dda2f90cfc71733da1b615244c7629b10e0ddc68b"
   },
   "content/photography/fixture-series/one.w480.jpg": {
    "producer": "generate-thumbnails",
    "source": "content/photography/fixture-series/one.jpg",
-   "digest": "sha256:9449be0b9f0723bbc7cf9713f34f0ba2b820878d7b0b7a1ad3dece99d6c16f03"
+   "digest": "sha256:9449be0b9f0723bbc7cf9713f34f0ba2b820878d7b0b7a1ad3dece99d6c16f03",
+   "source-digest": "sha256:9449be0b9f0723bbc7cf9713f34f0ba2b820878d7b0b7a1ad3dece99d6c16f03"
   },
   "content/photography/fixture-series/one.w480.webp": {
    "producer": "generate-thumbnails",
    "source": "content/photography/fixture-series/one.jpg",
-   "digest": "sha256:3f6ac15aadee1bf8d30050f134229ecb095effa150a19ad3edcb16d64d16fb7d"
+   "digest": "sha256:3f6ac15aadee1bf8d30050f134229ecb095effa150a19ad3edcb16d64d16fb7d",
+   "source-digest": "sha256:9449be0b9f0723bbc7cf9713f34f0ba2b820878d7b0b7a1ad3dece99d6c16f03"
   },
   "content/photography/fixture-series/one.webp": {
    "producer": "convert-images",
    "source": "content/photography/fixture-series/one.jpg",
-   "digest": "sha256:3f6ac15aadee1bf8d30050f134229ecb095effa150a19ad3edcb16d64d16fb7d"
+   "digest": "sha256:3f6ac15aadee1bf8d30050f134229ecb095effa150a19ad3edcb16d64d16fb7d",
+   "source-digest": "sha256:9449be0b9f0723bbc7cf9713f34f0ba2b820878d7b0b7a1ad3dece99d6c16f03"
   }
  }
 }

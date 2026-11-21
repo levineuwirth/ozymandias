@@ -7,6 +7,8 @@ The fixture site, with photographs on, built by the generator alone:
   · the page of a photograph offers the variants and WebPs the record
     says were made from it, and the map's pin shows its 480px variant;
   · a file that only has a variant's name is offered by neither;
+  · a file its author declared another image's companion is that image's
+    alone, whatever the record says it was made from;
   · a variant changed by hand since it was made is no longer offered, and
     one recorded since is, on the next build, without a clean: the pages
     that asked are rebuilt, and no others for that reason.
@@ -73,6 +75,7 @@ class PhotographPairings(unittest.TestCase):
 
         # The first frame's WebP variant is changed by hand: no longer what
         # the record says was written, and no longer offered.
+        original = (self.site / SERIES / "one.w480.webp").read_bytes()
         (self.site / SERIES / "one.w480.webp").write_bytes(b"retouched by hand")
         updated = self.updated(self.run_site("build"))
         self.assertIn(f"{SERIES}/one.md", updated)
@@ -81,6 +84,19 @@ class PhotographPairings(unittest.TestCase):
         # A page that shows no photograph of that directory is not rebuilt.
         self.assertFalse({u for u in updated if u.startswith("content/essays/")}, updated)
         self.assertEqual(self.updated(self.run_site("build")), set())
+
+        # The author declares the first frame's WebP variant the companion
+        # of its JPEG variant: it is then that image's and no other's, and
+        # the photograph, whose entry for it the record still has, is not
+        # offered it.
+        (self.site / SERIES / "one.w480.webp").write_bytes(original)
+        self.run_site("build")
+        self.assertIn("one.w480.webp 480w", self.page("one"))
+        (self.site / "data/companions.json").write_text(
+            json.dumps({f"{SERIES}/one.w480.webp": f"{SERIES}/one.w480.jpg"}), encoding="utf-8")
+        self.assertIn(f"{SERIES}/one.md", self.updated(self.run_site("build")))
+        self.assertNotIn("one.w480.webp", self.page("one"))
+        self.assertIn("one.w480.jpg 480w", self.page("one"))
 
         # The second frame's variant is recorded (as an adoption would):
         # its pin takes it on the next build.

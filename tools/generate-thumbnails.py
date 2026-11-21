@@ -78,7 +78,9 @@ over or prunes only what it made itself: the ownership record
 (tools/derived_images.py) says which those are, by the photograph they
 were made from and the bytes last written. Any other file of a variant's
 name is left exactly as it is, by a plain run, by --force and by --prune,
-and so are a pruned variant's sidecars, which other tools wrote. The
+and so are a pruned variant's sidecars, which other tools wrote. A
+variant's WebP whose variant is already gone is found, for --prune, by the
+record. The
 generator offers a variant in a srcset only when the record pairs it with
 the photograph (build/DerivedImages.hs).
 
@@ -319,9 +321,9 @@ def generate(ladder: list[tuple[Path, Path, int]], records: derived_images.Recor
              dry_run: bool, force: bool, counters: dict) -> None:
     for source, destination, width in ladder:
         webp = webp_path(destination)
-        # Its own variant is current while the photograph is as it was
-        # when the variant was made (the record notes it); a file with no
-        # entry goes by the dates.
+        # Its own variant is current while the photograph is the one it
+        # was made from (the record notes its bytes); a file with no entry
+        # goes by the dates.
         want_jpeg = force or not records.fresh(destination, PRODUCER, source)
         want_webp = want_jpeg or not records.fresh(webp, PRODUCER, source)
         # A place is written when it is free or holds this script's own
@@ -414,6 +416,24 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     return adopted, bool(counters["failed"])
 
 
+def _prune_reason(source: Path, width: int) -> str | None:
+    """Why the contract no longer gives `source` a variant of this width,
+    or None when it does. A source that is there and cannot be read is a
+    reason to look, not to delete: None as well."""
+    from PIL import Image
+
+    if not source.exists():
+        return "source gone"
+    try:
+        with Image.open(source) as probe:
+            src_width = probe.size[0]
+    except Exception:  # noqa: BLE001 — unreadable source: leave it
+        return None
+    if src_width <= width:
+        return f"source is {src_width}px, not wider than {width}px"
+    return None
+
+
 def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counters: dict) -> None:
     """Delete variants the contract no longer accounts for.
 
@@ -421,36 +441,38 @@ def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counter
     one), and the source was re-imported smaller so a wide variant is no
     longer permitted. A source that exists but cannot be read is left
     alone — an unreadable file is a reason to look, not to delete.
-    """
-    from PIL import Image
 
+    A variant is found by its name, and its WebP beside it. A WebP whose
+    variant is already gone has no name to be found by (photo.w480.webp
+    does not say whether it came of photo.jpg or photo.png), so those are
+    found by the record, which says which photograph each was made from.
+    """
+    doomed: list[tuple[Path, Path, str]] = []          # the variant, its source, and why
     for variant in iter_variants(root):
         source = source_for_variant(variant)
-        reason = None
-
-        if not source.exists():
-            reason = "source gone"
-        else:
-            width = photo_naming.variant_width(variant)
-            try:
-                with Image.open(source) as probe:
-                    src_width = probe.size[0]
-            except Exception:  # noqa: BLE001 — unreadable source: leave it
-                continue
-            if src_width <= width:
-                reason = f"source is {src_width}px, not wider than {width}px"
-
-        if reason is None:
+        reason = _prune_reason(source, photo_naming.variant_width(variant))
+        if reason is not None:
+            doomed.append((variant, source, reason))
+    for webp, source in records.made_under(root if root.is_dir() else root.parent, PRODUCER):
+        variant = webp.with_suffix(source.suffix)
+        if (webp.suffix != ".webp" or not webp.is_file() or variant.exists() or not is_variant(variant)
+                or (root.is_file() and source != root)):
             continue
+        reason = _prune_reason(source, photo_naming.variant_width(variant))
+        if reason is not None:
+            doomed.append((variant, source, reason))
 
+    for variant, source, reason in sorted(doomed):
         rel = _rel(variant)
+        there = [path for path in (variant, variant.with_suffix(".webp")) if path.exists()]
         if dry_run:
-            if records.owns(variant, PRODUCER, source):
+            if any(records.owns(path, PRODUCER, source) for path in there):
                 print(f"  prune  {rel}  ({reason}, dry run)")
                 counters["would_prune"] += 1
-            else:
-                print(f"  keep   {rel}  ({reason}; not recorded as made here, dry run)")
-                counters["kept"] += 1
+            for path in there:
+                if not records.owns(path, PRODUCER, source):
+                    print(f"  keep   {_rel(path)}  ({reason}; not recorded as made here, dry run)")
+                    counters["kept"] += 1
             continue
 
         # Only what this script recorded as its own goes: the variant and
@@ -458,9 +480,7 @@ def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counter
         # it did not write (or that was changed since) is someone's, and a
         # sidecar beside one is another tool's: both stay, and are named.
         pruned = False
-        for path in (variant, variant.with_suffix(".webp")):
-            if not path.exists():
-                continue
+        for path in there:
             if records.owns(path, PRODUCER, source):
                 path.unlink()
                 records.removed(path)

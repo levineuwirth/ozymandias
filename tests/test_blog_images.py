@@ -20,7 +20,13 @@ Whole builds of a small scratch site against this engine:
     shows it itself;
   · a page built with a companion is built again when the companion
     stops being its image's (changed by hand) or starts to be (recorded,
-    declared), on the next build and without a clean;
+    declared), on the next build and without a clean; so is one whose
+    image was replaced since the companion was made (it is shown alone
+    until the converter has run), and one that shows a rooted image whose
+    first companion has just appeared;
+  · a watch follows the pairings as they change, with no page edited;
+  · under data/pairings/ the build deletes only a state file it wrote,
+    and writes nothing through a link;
   · through `make build`: an entry made a draft takes its page and its
     images out of the site, and so does a reference taken out of a page;
     a draft's image that would take the WebP companion of a published
@@ -35,11 +41,15 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import pty
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -312,6 +322,196 @@ class BlogImages(Site):
         self.assertIn('<source srcset="../images/brand.webp" type="image/webp">', self.read("notebook/second.html"))
         self.assertIn('<source srcset="alone.webp" type="image/webp">', self.read("notebook/first.html"))
         self.assertEqual(self.updated(self.site("build")), set())
+
+
+    def brand(self) -> Path:
+        """The second post shows an image of the site's static tree, by
+        its path from the root, with a companion the converter made."""
+        static = self.root / "static/images"
+        image(static / "brand.png")
+        image(static / "brand.webp")
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Brand](/images/brand.png)\n", encoding="utf-8")
+        return static / "brand.png"
+
+    def pages(self, log: str) -> set[str]:
+        return {u for u in self.updated(log) if u.endswith(".md")}
+
+    BRAND = '<source srcset="../images/brand.webp" type="image/webp">'
+
+    def test_an_image_replaced_since_its_companion_was_made_is_shown_alone(self):
+        # A build with no converter (no cwebp on the machine) after the
+        # image was replaced: the companion holds the picture that was
+        # there before, and the record says which image it was made of.
+        brand = self.brand()
+        self.site("rebuild")
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        brand.write_bytes(PNG + b"another picture")
+        self.assertEqual(self.pages(self.site("build")), {"content/blog/second.md"})
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        self.site("rebuild")
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        # Converted again (here: its entry), it is the image's again.
+        record_derived(self.root, {"static/images/brand.webp": "static/images/brand.png"})
+        self.assertEqual(self.pages(self.site("build")), {"content/blog/second.md"})
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        # Another time and the same bytes (a checkout): the same image.
+        os.utime(brand, (1_000_000_000,) * 2)
+        self.assertEqual(self.pages(self.site("build")), set())
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        # An entry that notes the image's time and size alone holds while
+        # they do, and one that says nothing of its image pairs nothing.
+        record = self.root / "data/derived-images.json"
+        document = json.loads(record.read_text(encoding="utf-8"))
+        entry = document["outputs"]["static/images/brand.webp"]
+        del entry["source-digest"]
+        entry["source-stamp"] = [brand.stat().st_mtime_ns, brand.stat().st_size]
+        record.write_text(json.dumps(document), encoding="utf-8")
+        self.assertEqual(self.pages(self.site("build")), set())
+        self.assertIn(self.BRAND, self.read("notebook/second.html"))
+        os.utime(brand, (1_100_000_000,) * 2)
+        self.assertEqual(self.pages(self.site("build")), {"content/blog/second.md"})
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+        del entry["source-stamp"]
+        record.write_text(json.dumps(document), encoding="utf-8")
+        self.site("rebuild")
+        self.assertNotIn("brand.webp", self.read("notebook/second.html"))
+
+    def test_a_rooted_image_takes_its_first_companion_on_the_next_build(self):
+        # An image under static/, in a directory where nothing is paired
+        # yet, shown by its path from the root. Its author makes it a
+        # companion and declares it: the page that asked is built again.
+        image(self.root / "static/newdir/blue.gif")
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Blue](/newdir/blue.gif)\n", encoding="utf-8")
+        self.site("rebuild")
+        self.assertNotIn("blue.webp", self.read("notebook/second.html"))
+        self.assertEqual(self.updated(self.site("build")), set())
+        (self.root / "static/newdir/blue.webp").write_bytes(AUTHORED)
+        declared = json.loads((self.root / "data/companions.json").read_text(encoding="utf-8"))
+        (self.root / "data/companions.json").write_text(
+            json.dumps({**declared, "./static/newdir/blue.webp": "static/newdir/blue.gif"}), encoding="utf-8")
+        self.assertEqual(self.pages(self.site("build")), {"content/blog/second.md"})
+        self.assertIn('<source srcset="../newdir/blue.webp" type="image/webp">', self.read("notebook/second.html"))
+        self.assertEqual(self.updated(self.site("build")), set())
+
+    def test_only_a_state_file_the_build_wrote_is_ever_deleted(self):
+        # Files of the author's under data/pairings/, a state file from
+        # another layout, and a directory that is a link to elsewhere.
+        pairings = self.root / "data/pairings"
+        outside = self.root / "elsewhere"
+        for directory in (pairings / "states/content", pairings / "content", outside / "images"):
+            directory.mkdir(parents=True)
+        mine = {pairings / "notes.md": "notes", pairings / "states/notes.md": "more",
+                pairings / "states/content/mine.json": "[]", pairings / "content/blog.json": "[]",
+                outside / "kept.json": "[]", outside / "images/deep.json": "[]"}
+        for path, text in mine.items():
+            path.write_text(text, encoding="utf-8")
+        (pairings / "states/linked").symlink_to(outside)
+        # A manifest that names what is not a state file at all.
+        (pairings / "manifest.json").write_text(json.dumps({
+            "data/pairings/notes.md": "sha256:0", "data/pairings/states/../../companions.json": "sha256:0",
+            "data/pairings/states/linked/kept.json": "sha256:0", "data/companions.json": "sha256:0"}),
+            encoding="utf-8")
+
+        def manifest() -> set[str]:
+            # The site's own: the engine's images have their states too.
+            return {state for state in json.loads((pairings / "manifest.json").read_text(encoding="utf-8"))
+                    if not state.startswith("data/pairings/states/engine/")}
+
+        def intact() -> None:
+            for path, text in mine.items():
+                self.assertEqual(path.read_text(encoding="utf-8"), text, path)
+            self.assertTrue((self.root / "data/companions.json").is_file())
+
+        self.site("rebuild")
+        intact()
+        state = pairings / "states/content/blog.json"
+        self.assertEqual(manifest(), {"data/pairings/states/content/blog.json"})
+        self.assertIn("content/blog/first.lake.webp", state.read_text(encoding="utf-8"))
+        # Nothing is paired in the notebook any more: its state file goes,
+        # being one the manifest says was written here, and nothing else.
+        (self.root / "data/derived-images.json").unlink()
+        (self.root / "data/companions.json").write_text("{}", encoding="utf-8")
+        self.site("build")
+        self.assertFalse(state.exists())
+        self.assertEqual(manifest(), set())
+        intact()
+        # A state file's place that is reached through a link is not
+        # written: what is there is not the build's.
+        (pairings / "states/static").symlink_to(outside)
+        self.brand()
+        log = self.site("build")
+        self.assertIn("a link is in the way", log)
+        self.assertEqual(sorted(p.name for p in outside.rglob("*") if p.is_file()), ["deep.json", "kept.json"])
+        self.assertEqual((outside / "images/deep.json").read_text(encoding="utf-8"), "[]")
+        intact()
+
+    def test_a_watch_follows_the_pairings_as_they_change(self):
+        # second.md shows a rooted image with no companion yet; first.md
+        # shows hand.gif with the WebP its author declared.
+        image(self.root / "static/newdir/blue.gif")
+        second = self.blog / "second.md"
+        second.write_text(second.read_text(encoding="utf-8") + "\n![Blue](/newdir/blue.gif)\n", encoding="utf-8")
+        # On a terminal, where the generator says each line as it has it:
+        # into a file its "Success" would wait in a buffer.
+        master, slave = pty.openpty()
+        watch = subprocess.Popen([str(site_binary()), "watch", "--no-server"], cwd=self.root, stdout=slave,
+                                 stderr=slave, stdin=subprocess.DEVNULL,
+                                 env=script_env(SITE_ENV="build", SITE_THREADS="1"))
+        os.close(slave)
+        said: list[str] = []
+
+        def listen() -> None:
+            try:
+                while chunk := os.read(master, 65536):
+                    said.append(chunk.decode("utf-8", "replace"))
+            except OSError:
+                pass
+        listener = threading.Thread(target=listen, daemon=True)
+        listener.start()
+
+        def stop() -> None:
+            watch.terminate()
+            try:
+                watch.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                watch.kill()
+                watch.wait()
+            listener.join(timeout=5)
+            os.close(master)
+        self.addCleanup(stop)
+
+        def until(holds, what: str, seconds: float = 120) -> None:
+            deadline = time.monotonic() + seconds
+            while time.monotonic() < deadline:
+                self.assertIsNone(watch.poll(), "".join(said)[-3000:])
+                try:
+                    if holds():
+                        return
+                except FileNotFoundError:
+                    pass
+                time.sleep(0.2)
+            self.fail(f"the watch never showed {what}:\n" + "".join(said)[-3000:])
+
+        hand = '<source srcset="hand.webp" type="image/webp">'
+        until(lambda: "Success" in "".join(said), "a first build", 300)
+        self.assertIn(hand, self.read("notebook/first.html"))
+        time.sleep(1)       # the watch is set up when the first build is done
+        # The declaration is withdrawn, and no page is edited.
+        declared = self.root / "data/companions.json"
+        was = declared.read_text(encoding="utf-8")
+        declared.write_text("{}", encoding="utf-8")
+        until(lambda: hand not in self.read("notebook/first.html"), "first.html without the withdrawn WebP")
+        # Made again, and a first companion declared in a directory where
+        # nothing was paired (so no state file, and no directory for one).
+        (self.root / "static/newdir/blue.webp").write_bytes(AUTHORED)
+        declared.write_text(json.dumps({**json.loads(was), "static/newdir/blue.webp": "static/newdir/blue.gif"}),
+                            encoding="utf-8")
+        until(lambda: hand in self.read("notebook/first.html"), "first.html with the WebP declared again")
+        until(lambda: "../newdir/blue.webp" in self.read("notebook/second.html"),
+              "second.html with its first companion")
 
 
 CABAL = """#!/bin/sh

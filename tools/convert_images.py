@@ -8,14 +8,17 @@ either case (IMG_0042.JPG, as a camera writes it).
 Whose file a WebP is. The script writes a companion where there is none,
 and over one it made itself: the ownership record (tools/derived_images.py)
 says which those are, by the image they were made from and the bytes last
-written. Its own companion is made again when its image is not the file it
-was made from: another size or time than the record noted (older counts as
-much as newer), or another file altogether, the first being gone. Any other WebP of that name is the author's (made by hand, shown
-by a page as an image of its own, or simply older than the record) and is
-left exactly as it is, however old. The generator shows an image with a
+written. Its own companion is made again when its image is not the one it
+was made from: other bytes than the record noted (an older file counts as
+much as a newer one; a file whose time alone changed is the same image),
+or another file altogether, the first being gone. Any other WebP of that
+name is the author's (made by hand, shown by a page as an image of its
+own, or simply older than the record) and is left exactly as it is,
+however old. The generator shows an image with a
 companion only when the record or the author's declaration pairs them
 (build/DerivedImages.hs), so an unrecorded one is not shown in the image's
-place either. What was left alone is counted at the end, with what to do.
+place either, and neither is the script's own while it has yet to be made
+again (no cwebp here). What was left alone is counted at the end, with what to do.
 
 One companion, one image. A page shows map.png, map.JPG or map.gif with
 map.webp, so two of them beside each other would have one companion

@@ -1,8 +1,8 @@
 module Main where
 
-import Control.Concurrent    (setNumCapabilities)
+import Control.Concurrent    (forkIO, setNumCapabilities)
 import Control.Exception     (IOException, try)
-import Control.Monad         (when)
+import Control.Monad         (void, when)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Directory      (createDirectoryIfMissing, doesFileExist)
 import System.Environment    (getArgs)
@@ -23,7 +23,7 @@ import BibExtras             (BibExtra (..), parseBibExtras)
 import ArchiveIndex          (normalizeUrl, trackingParams)
 import Marks                 (epistemicVocabulary)
 import PageScan              (pageLinks, publishedPages)
-import DerivedImages         (refreshPairingStates)
+import DerivedImages         (refreshPairingStates, watchPairingStates)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as TIO
 import Sections              (reservedSectionDirs, sectionOwnedTopLevelTags, directoryRouteSlugs)
@@ -153,6 +153,9 @@ main = do
             -- What the tools' records pair now, where the pages' dependencies
             -- look for it, before Hakyll reads the site.
             when (take 1 args `elem` map pure ["build", "rebuild", "watch"]) refreshPairingStates
+            -- And again as a watch runs: a pairing withdrawn while it does
+            -- is no longer shown.
+            when (take 1 args == ["watch"]) (void (forkIO watchPairingStates))
             siteThreads >>= setNumCapabilities
             writeBuildStamp
             dev <- isDevBuild
