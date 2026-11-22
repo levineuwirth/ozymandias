@@ -32,7 +32,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from tests._helpers import SITE_ROOT, engine_path, load_tool
-from tests.target import BASELINES, CSP_CONF, built, config, route, routes
+from tests.target import BASELINES, CSP_CONF, built, config, optional_route, route, routes
 
 HARNESS = engine_path("tools/browser/serve.py").parent
 SITE = SITE_ROOT / "_site"
@@ -85,17 +85,27 @@ def assert_complete(case: unittest.TestCase, report: dict, expected, what: str) 
 
 
 def page_styles(path: str | None = None) -> str:
-    """The <link rel="stylesheet"> tags of a built page (by default the
-    site's essay, routes.yaml), as root-relative URLs, for a fixture page to
-    look as that page does."""
+    """The <link rel="stylesheet"> tags of a built page, as root-relative
+    URLs, for a fixture page to look as that page does. By default the
+    site's essay (routes.yaml); a site without one has its home page's
+    sheets and the notes' (sidenotes.css, which every build publishes and
+    an essay links after core.css), so a fixture of notes and sections is
+    set as an essay of the site would be."""
     from urllib.parse import urljoin
-    path = path or route("essay")
-    html = built(path).read_text(encoding="utf-8")
-    links = re.findall(r'<link rel="stylesheet" href="([^"]+)"( media="[^"]+")?>', html)
+    essay = path or optional_route("essay")
+    page = essay or "/"
+    html = built(page).read_text(encoding="utf-8")
+    links = [(urljoin(page, href), media)
+             for href, media in re.findall(r'<link rel="stylesheet" href="([^"]+)"( media="[^"]+")?>', html)]
     if not links:
-        raise AssertionError(f"no stylesheets on {path}")
-    return "\n".join(f'<link rel="stylesheet" href="{urljoin(path, href)}"{media}>'
-                     for href, media in links)
+        raise AssertionError(f"no stylesheets on {page}")
+    if essay is None:
+        notes = f"{asset_root()}/css/sidenotes.css"
+        if not (SITE / notes.lstrip("/")).is_file():
+            raise AssertionError(f"{notes} is not in _site")
+        core = next((i for i, (href, _) in enumerate(links) if href.endswith("/css/core.css")), -1)
+        links.insert(core + 1, (notes, ""))
+    return "\n".join(f'<link rel="stylesheet" href="{href}"{media}>' for href, media in links)
 
 
 def site_themes() -> tuple[list[str], str]:

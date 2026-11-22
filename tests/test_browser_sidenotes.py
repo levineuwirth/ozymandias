@@ -64,7 +64,8 @@ def item(label: str, blocks: str) -> str:
             f'<span class="footnote-label" aria-hidden="true">{label}</span>{blocks}</li>')
 
 
-LONG = " ".join(["A long note runs on beside the text, and on, and further on still."] * 18)
+# Long enough to run past a phone's sheet in any site's type, small or large.
+LONG = " ".join(["A long note runs on beside the text, and on, and further on still."] * 40)
 
 PAGE = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Sidenotes fixture</title>
@@ -154,6 +155,12 @@ GEOMETRY = """() => {
         };
     });
 }"""
+
+
+def footnotes_page() -> str:
+    """The site's essay with footnotes the layout sets as notes: asked for
+    in the test that needs it, which is skipped where the site has none."""
+    return route("essay-footnotes")
 
 
 @requires_browser
@@ -505,7 +512,7 @@ class Sidenotes(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 held = []
-                page = self.open(browser, path=route("essay-footnotes"), wait="domcontentloaded",
+                page = self.open(browser, path=footnotes_page(), wait="domcontentloaded",
                                  context_setup=lambda c: c.route("**/*.woff2", lambda route: held.append(route)))
                 self.expect(page.locator("#markdownBody .footnote-item").first).to_be_visible()
                 self.settled(page)

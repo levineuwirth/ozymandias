@@ -114,10 +114,12 @@ class Hardening(unittest.TestCase):
                     "data-field", "importance")
 
     def test_a_malformed_fragment_is_no_target(self) -> None:
+        # An essay long enough to have collapsible sections, asked for before
+        # the subtests: the second goes on with the first's page.
+        essay = route("essay")
         for browser in BROWSERS:
             with self.subTest(browser=browser, at="load"):
-                # An essay long enough to have collapsible sections.
-                page, errors = self.page(browser, route("essay") + "#100%")
+                page, errors = self.page(browser, essay + "#100%")
                 self.assertGreater(page.locator(".section-body").count(), 0)
                 self.assertEqual(errors, [])
             with self.subTest(browser=browser, at="hashchange"):

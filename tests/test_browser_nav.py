@@ -31,7 +31,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import any_page, requires_switch, switch_on
+from tests.target import any_page, requires_switch, route, switch_on
 
 PAGE = any_page()
 HEADER = "body > header:not(.essay-frontmatter)"
@@ -169,14 +169,15 @@ class SiteHeader(unittest.TestCase):
         self.assertLessEqual(top, bottom + 1.25 * rem + 4, "well below the header")
 
     def test_anchors_land_below_the_header(self) -> None:
+        essay = route("essay")      # long, with headings well down it
         for browser in BROWSERS:
-            target = self.heading(self.open(browser))
+            target = self.heading(self.open(browser, essay))
             for label, args in self.LAYOUTS:
                 with self.subTest(browser=browser, layout=label, how="a deep link"):
-                    page = self.open(browser, f"{PAGE}#{target}", **args)
+                    page = self.open(browser, f"{essay}#{target}", **args)
                     self.assert_below_the_header(*self.landing(page, target))
                 with self.subTest(browser=browser, layout=label, how="an in-page link"):
-                    page = self.open(browser, **args)
+                    page = self.open(browser, essay, **args)
                     page.evaluate(f"location.hash = {('#' + target)!r}")
                     self.assert_below_the_header(*self.landing(page, target))
 

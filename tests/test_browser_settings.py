@@ -26,6 +26,7 @@ without leaving the reader.
 
 from __future__ import annotations
 
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -170,6 +171,11 @@ class SettingsPanel(unittest.TestCase):
 
     # -- what the buttons do ---------------------------------------------------
 
+    def themes_offered(self, page) -> bool:
+        """Whether the open panel offers a choice of theme: a site with one
+        look may take the row away (its stylesheets, not the engine's)."""
+        return page.locator(f'{PANEL} [data-action^="theme-"]').first.is_visible()
+
     def test_themes(self) -> None:
         background = "getComputedStyle(document.body).backgroundColor"
         # A replaced transition rejects `finished` (AbortError); settled all the same.
@@ -177,6 +183,10 @@ class SettingsPanel(unittest.TestCase):
         themes, light = site_themes()
         for browser in BROWSERS:
             page = self.open_page(browser)
+            self.open_panel(page)
+            if not self.themes_offered(page):
+                self.skipTest("the site's settings panel offers no choice of theme")
+            page.keyboard.press("Escape")
             colours = {}
             # Each a change from the last: the one worn with none chosen last.
             for theme in [t for t in themes if t != light] + [light]:
@@ -197,6 +207,21 @@ class SettingsPanel(unittest.TestCase):
                 self.assertEqual(len(set(colours.values())), len(themes), colours)
 
     SIZE = "getComputedStyle(document.documentElement).fontSize"
+    # The panel's sizes (utils.js TEXT_SIZE): 17 to 29px in steps of 2,
+    # around the skin's default (--text-size-default), which is 100%.
+    SIZES = range(17, 30, 2)
+
+    def default_size(self, page) -> float:
+        return page.evaluate("parseFloat(getComputedStyle(document.documentElement)"
+                             ".getPropertyValue('--text-size-default'))")
+
+    @staticmethod
+    def px(size: float) -> str:
+        return f"{size:g}px"
+
+    @staticmethod
+    def pct(size: float, base: float) -> str:
+        return f"{math.floor(size / base * 100 + 0.5)}%"     # settings.js's Math.round
 
     def size_state(self, page) -> tuple:
         """The root's font size, what is stored, and what the panel shows
@@ -209,36 +234,43 @@ class SettingsPanel(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open_page(browser)
-                # The page starts at the middle size, as the panel takes it
-                # to (base.css had 20px, the old scale's smallest: A- did
-                # nothing at first, and A+ went to 26).
-                self.assertEqual(self.size_state(page), ("23px", None, "100%", ""))
+                # The page starts at the skin's default, as the panel takes
+                # it to (base.css had 20px, the old scale's smallest: A- did
+                # nothing at first, and A+ went to 26). The engine's is 23px,
+                # a site's theme.css may set another.
+                base = self.default_size(page)
+                up = [s for s in self.SIZES if s > base]
+                down = [s for s in reversed(self.SIZES) if s < base]
+                self.assertTrue(up and down, f"a default of {base}px leaves the panel no step one way")
+                self.assertEqual(self.size_state(page), (self.px(base), None, "100%", ""))
                 self.open_panel(page)
                 larger, smaller = self.button(page, "text-larger"), self.button(page, "text-smaller")
                 reset = self.button(page, "text-reset")
                 self.expect(reset).to_have_accessible_name("100% text size; reset")
                 larger.focus()
-                for px, pct in ((25, "109%"), (27, "117%"), (29, "126%")):
+                for px in up:
                     page.keyboard.press("Enter")
+                    pct = self.pct(px, base)
                     self.assertEqual(self.size_state(page),
-                                     (f"{px}px", str(px), pct, f"Text size {pct}"))
+                                     (self.px(px), str(px), pct, f"Text size {pct}"))
                 # At an end of the range the button says so, and keeps focus
                 # (a disabled button dropped it, out of the panel).
                 self.expect(larger).to_have_attribute("aria-disabled", "true")
                 self.expect(larger).to_be_focused()
                 page.keyboard.press("Enter")
-                self.assertEqual(self.size_state(page)[0], "29px")
+                self.assertEqual(self.size_state(page)[0], self.px(up[-1]))
                 reset.click()
-                self.assertEqual(self.size_state(page)[:3], ("23px", None, "100%"))
+                self.assertEqual(self.size_state(page)[:3], (self.px(base), None, "100%"))
                 smaller.focus()
-                for _ in range(3):
+                for _ in down:
                     page.keyboard.press("Enter")
-                self.assertEqual(self.size_state(page)[:3], ("17px", "17", "74%"))
+                least = (self.px(down[-1]), str(down[-1]), self.pct(down[-1], base))
+                self.assertEqual(self.size_state(page)[:3], least)
                 self.expect(smaller).to_have_attribute("aria-disabled", "true")
                 self.expect(smaller).to_be_focused()
                 self.expect(larger).to_have_attribute("aria-disabled", "false")
                 page.reload(wait_until="load")
-                self.assertEqual(self.size_state(page), ("17px", "17", "74%", ""))
+                self.assertEqual(self.size_state(page), (*least, ""))
 
     def test_a_skin_default_with_fresh_and_saved_settings(self) -> None:
         def skin(context):
@@ -277,7 +309,9 @@ class SettingsPanel(unittest.TestCase):
                     self.open_panel(page)
                     self.button(page, step).click()
                     self.assertEqual(page.evaluate(self.SIZE), f"{after}px")
-                    self.assertEqual(self.stored(page, "text-size"), str(after))
+                    # The default is not stored: a step onto it forgets the choice.
+                    self.assertEqual(self.stored(page, "text-size"),
+                                     None if after == self.default_size(page) else str(after))
 
     def test_focus_mode_and_reduce_motion(self) -> None:
         smooth = "getComputedStyle(document.documentElement).scrollBehavior"
@@ -340,13 +374,14 @@ class SettingsPanel(unittest.TestCase):
 
     def test_the_gear_s_wrap_says_where_the_reader_is(self) -> None:
         wrap = ".settings-wrap"
+        essay = route("essay")      # long enough to scroll well past the first screen
 
         def away(page) -> bool:
             return page.evaluate(f"document.querySelector('{wrap}').hasAttribute('data-away')")
 
         for browser in BROWSERS:
             with self.subTest(browser=browser, what="scrolling"):
-                page = self.open_page(browser)
+                page = self.open_page(browser, essay)
                 page.wait_for_timeout(self.ARMED)
                 self.assertFalse(away(page))
                 page.evaluate(self.SCROLL, 3000)
@@ -365,7 +400,7 @@ class SettingsPanel(unittest.TestCase):
                     "[...document.documentElement.attributes].map(a => a.name)"
                     ".filter(n => /away|near/.test(n))"), [])
             with self.subTest(browser=browser, what="a pointer"):
-                page = self.open_page(browser)
+                page = self.open_page(browser, essay)
                 box = page.locator(wrap).bounding_box()
                 x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
                 page.mouse.move(x, y)
@@ -374,7 +409,6 @@ class SettingsPanel(unittest.TestCase):
                 page.mouse.move(10 if x > 640 else 1270, 10 if y > 450 else 890)
                 self.expect(page.locator(f"{wrap}[data-near]")).to_have_count(0)
             with self.subTest(browser=browser, what="a page opened part-way down"):
-                essay = route("essay")      # long, with headings below the first screen
                 page = self.open_page(browser, essay)
                 # A heading with page below it to scroll into.
                 middle = page.evaluate("(h => h[h.length >> 1].id)"
@@ -476,7 +510,7 @@ class SettingsPanel(unittest.TestCase):
                     self.assertIsNone(self.html(page, "data-theme"))
                     self.assertEqual(page.evaluate(
                         "document.documentElement.style.getPropertyValue('--text-size')"), "")
-                    self.assertEqual(page.evaluate(self.SIZE), "23px")
+                    self.assertEqual(page.evaluate(self.SIZE), self.px(self.default_size(page)))
                     self.open_panel(page)
                     self.expect(page.locator("[data-text-size]")).to_have_text("100%")
                     # The default size: neither end, so both steps open.
@@ -488,13 +522,16 @@ class SettingsPanel(unittest.TestCase):
             with self.subTest(browser=browser):
                 page = self.open_page(browser, init=NO_STORAGE)
                 self.open_panel(page)
-                self.button(page, "theme-dark").click()
-                self.assertEqual(self.html(page, "data-theme"), "dark")
+                if self.themes_offered(page):
+                    self.button(page, "theme-dark").click()
+                    self.assertEqual(self.html(page, "data-theme"), "dark")
+                base = self.default_size(page)
+                second = [s for s in self.SIZES if s > base][1]
                 self.button(page, "text-larger").click()
                 self.button(page, "text-larger").click()
                 self.assertEqual(page.evaluate(
-                    "document.documentElement.style.getPropertyValue('--text-size')"), "27px")
-                self.expect(page.locator("[data-text-size]")).to_have_text("117%")
+                    "document.documentElement.style.getPropertyValue('--text-size')"), self.px(second))
+                self.expect(page.locator("[data-text-size]")).to_have_text(self.pct(second, base))
                 self.button(page, "reduce-motion").click()
                 self.assertEqual(self.html(page, "data-reduce-motion"), "")
 
