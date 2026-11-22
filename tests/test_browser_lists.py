@@ -25,8 +25,9 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwri
                             requires_browser, site_server)
 from tests.target import route
 
-LIST = route("list")                   # more cards than the first choice
-OTHER = route("list-other")            # another list page, sharing the choice
+# The pages, asked for in the tests: a list of more cards than the first
+# choice shows (route("list")), and another list page sharing the choice
+# (route("list-other")).
 KEY = "list-page-count"
 
 STATE = """() => ({
@@ -70,7 +71,7 @@ class ListCounts(unittest.TestCase):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         self.addCleanup(lambda: self.assertEqual(errors, [], "page errors"))
-        page.goto(self.base + LIST, wait_until="load")
+        page.goto(self.base + route("list"), wait_until="load")
         return page
 
     def state(self, page) -> dict:
@@ -95,7 +96,7 @@ class ListCounts(unittest.TestCase):
                 page.click('.list-count-btn[data-count="50"]')
                 page.reload(wait_until="load")
                 self.assertEqual(self.state(page)["pressed"], ["50"])
-                page.goto(self.base + OTHER, wait_until="load")
+                page.goto(self.base + route("list-other"), wait_until="load")
                 other = self.state(page)
                 self.assertEqual(other["pressed"], ["50"])
                 self.assertEqual(other["shown"], min(50, other["total"]))

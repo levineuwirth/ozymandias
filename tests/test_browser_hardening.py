@@ -25,7 +25,6 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwri
 from tests.target import requires_switch, route
 
 FILTER_KEY = "search-filter-state-v2"
-ESSAY = route("essay")   # long enough to have collapsible sections
 
 SELECTION_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Selection fixture</title>
@@ -117,7 +116,8 @@ class Hardening(unittest.TestCase):
     def test_a_malformed_fragment_is_no_target(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser, at="load"):
-                page, errors = self.page(browser, ESSAY + "#100%")
+                # An essay long enough to have collapsible sections.
+                page, errors = self.page(browser, route("essay") + "#100%")
                 self.assertGreater(page.locator(".section-body").count(), 0)
                 self.assertEqual(errors, [])
             with self.subTest(browser=browser, at="hashchange"):

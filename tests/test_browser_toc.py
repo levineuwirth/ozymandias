@@ -27,7 +27,6 @@ from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwri
                             requires_browser, site_server)
 from tests.target import requires_switch, route
 
-ESSAY = route("essay")
 
 STATE = """() => {
     const toc = document.getElementById('toc');
@@ -61,7 +60,7 @@ class TableOfContents(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def open(self, browser: str, path: str = ESSAY, width: int = 1440):
+    def open(self, browser: str, path: str | None = None, width: int = 1440):
         context = self.browsers[browser].new_context(
             viewport={"width": width, "height": 900 if width > 500 else 812}, reduced_motion="reduce")
         self.addCleanup(context.close)
@@ -69,7 +68,7 @@ class TableOfContents(unittest.TestCase):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         self.addCleanup(lambda: self.assertEqual(errors, [], "page errors"))
-        page.goto(self.base + path, wait_until="load")
+        page.goto(self.base + (path or route("essay")), wait_until="load")
         page.evaluate(FRAMES)
         return page
 
@@ -114,7 +113,7 @@ class TableOfContents(unittest.TestCase):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 target, label = self.entries(self.open(browser))[4]
-                page = self.open(browser, f"{ESSAY}#{target}")
+                page = self.open(browser, f"{route('essay')}#{target}")
                 state = self.state(page)
                 self.assertEqual(state["active"], [target])
                 self.assertEqual(state["label"], label)

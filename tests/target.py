@@ -122,10 +122,31 @@ def routes():
     return load_tool("browser/routes.py", "site_routes").Routes(SITE_ROOT)
 
 
+def optional_route(role: str) -> str | None:
+    """The path of the site's page for `role`, or None where routes.yaml
+    says the site has none (the role is null). A role it does not name is
+    a mistake: KeyError."""
+    try:
+        return routes().role(role)
+    except LookupError as error:
+        if type(error).__name__ == "NoSuchPage":
+            return None
+        raise
+
+
+def any_page(role: str = "essay") -> str:
+    """A page to try what every page has (the menu, the settings panel, a
+    season's dressing) on: the site's page for `role` where it has one, so a
+    site with essays keeps what it was tried on, and its home page
+    otherwise."""
+    return optional_route(role) or "/"
+
+
 def route(role: str) -> str:
     """The path of the site's page for `role` (routes.yaml's roles). Where
-    routes.yaml says the site has none (the role is null), what asks is
-    skipped: a test, or a whole module that asks as it is loaded."""
+    routes.yaml says the site has none (the role is null), the test that
+    asks is skipped: ask in the test that needs the page, not as a module
+    loads, or every test of the module goes with it."""
     try:
         return routes().role(role)
     except LookupError as error:

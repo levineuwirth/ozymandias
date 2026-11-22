@@ -11,8 +11,11 @@ give a path ("/..."). A score role's page is a directory: the work's score
 reader is at <page>score/.
 
 A role may be null and a probe an empty list: the site has no such page (a
-site without essays has no page for `essay`), and what needs one is skipped.
-One left out is a mistake, and fails: a site says what it lacks.
+site without essays has no page for `essay`), and the test that needs one is
+skipped. A site names every role the engine asks for (ROLES), so one left
+out is a mistake, and fails (`role_problems`): a site says what it lacks.
+The 404 page it always has. A probe whose feature shows on a kind of page
+(PROBE_KINDS) names a page wherever the site has that kind.
 
 `kinds` names, from `pages`, one page of each kind the engine builds (KINDS), so
 that axe's and the other sweeps' coverage cannot shrink unnoticed on a small
@@ -39,6 +42,15 @@ PROBES = ("popups", "search", "map", "slideshow", "lightbox", "score", "pdf-view
           "archive-snapshot", "archive-pdf", "pdf-links", "composition", "transclusion",
           "commonplace", "math")
 DIRECTORIES = ("score", "score-other", "score-silent")
+# The pages the engine's browser tests and scripts each need for one thing
+# (roles), and those no site is without.
+ROLES = ("not-found", "essay", "essay-peer-reviewed", "essay-gallery", "essay-figure", "essay-sidenotes",
+         "essay-footnotes", "photo", "photo-series", "photo-series-slideshow", "list", "list-other",
+         "score", "score-other", "score-silent", "now")
+REQUIRED_ROLES = ("not-found",)
+# A probe whose feature every site has, and the kind of page it shows on: a
+# site with pages of that kind names one for it, and [] only without.
+PROBE_KINDS = {"search": "search"}
 
 
 class NoSuchPage(LookupError):
@@ -360,6 +372,22 @@ class Routes:
     def names(self, key: str) -> list[str]:
         """A run's pages, as listed (names or paths)."""
         return self.lists[key]
+
+    def role_problems(self) -> list[str]:
+        """What is wrong with `roles` as a whole: a role the engine asks for
+        that is not named (a page, or null), one it does not know, and a
+        role every site has that is null."""
+        return ([f"role {role}: not named (its page, or null if the site has none)" for role in ROLES
+                 if role not in self.roles]
+                + [f"role {role}: no test asks for it" for role in self.roles if role not in ROLES]
+                + [f"role {role}: every site has this page" for role in REQUIRED_ROLES
+                   if role in self.roles and self.roles[role] is None])
+
+    def probe_problems(self, switches: dict[str, bool]) -> list[str]:
+        """A probe left empty where the site has the kind of page its feature
+        shows on (search, on a site with a search page)."""
+        return [f"probe {probe}: the site has {kind} pages, and names none"
+                for probe, kind in PROBE_KINDS.items() if self.has(kind, switches) and not self.probe(probe)]
 
     def probe(self, kind: str) -> list[str]:
         """The pages a CSP-sweep interaction runs on, by name."""

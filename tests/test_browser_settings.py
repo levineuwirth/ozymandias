@@ -32,10 +32,12 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server, site_themes)
-from tests.target import requires_switch, route
+from tests.target import any_page, requires_switch, route
 
-PAGE = route("essay")
-READER = route("score") + "score/"
+# Where the controls every page has are tried: the essay, where the site
+# has one, or the home page. A test that needs a long page with headings,
+# or the score reader, asks for that page itself.
+PAGE = any_page()
 TOGGLE = ".settings-toggle"
 PANEL = ".settings-panel"
 
@@ -321,7 +323,7 @@ class SettingsPanel(unittest.TestCase):
         for browser in BROWSERS:
             for init in ("", reduce):
                 with self.subTest(browser=browser, reduce_motion=bool(init)):
-                    page = self.open_page(browser, init=init)
+                    page = self.open_page(browser, route("essay"), init=init)   # long enough to scroll
                     self.assertGreater(page.evaluate(self.SCROLL, 2000), 1000)
                     self.open_panel(page)
                     self.button(page, "top").click()
@@ -372,11 +374,12 @@ class SettingsPanel(unittest.TestCase):
                 page.mouse.move(10 if x > 640 else 1270, 10 if y > 450 else 890)
                 self.expect(page.locator(f"{wrap}[data-near]")).to_have_count(0)
             with self.subTest(browser=browser, what="a page opened part-way down"):
-                page = self.open_page(browser)
+                essay = route("essay")      # long, with headings below the first screen
+                page = self.open_page(browser, essay)
                 # A heading with page below it to scroll into.
                 middle = page.evaluate("(h => h[h.length >> 1].id)"
                                        "([...document.querySelectorAll('#markdownBody :is(h2, h3)[id]')])")
-                page = self.open_page(browser, f"{PAGE}#{middle}")
+                page = self.open_page(browser, f"{essay}#{middle}")
                 page.wait_for_timeout(self.ARMED)
                 y = page.evaluate("window.scrollY")
                 self.assertGreater(y, 900)
@@ -500,7 +503,8 @@ class SettingsPanel(unittest.TestCase):
     def test_escape_in_the_reader_closes_only_the_panel(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page = self.open_page(browser, READER)
+                reader = route("score") + "score/"
+                page = self.open_page(browser, reader)
                 self.expect(page.locator("#score-page > svg")).to_have_count(1)
                 folio = page.inner_text("#score-folio")
                 self.open_panel(page)
@@ -508,7 +512,7 @@ class SettingsPanel(unittest.TestCase):
                 page.keyboard.press("Escape")
                 self.expect(page.locator(PANEL)).to_be_hidden()
                 page.wait_for_timeout(500)
-                self.assertEqual(page.url, self.base + READER)
+                self.assertEqual(page.url, self.base + reader)
                 self.assertEqual(page.inner_text("#score-folio"), folio)
 
 

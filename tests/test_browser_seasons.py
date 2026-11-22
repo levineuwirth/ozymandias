@@ -30,10 +30,9 @@ from pathlib import Path
 from tests import target
 from tests._browser import (BROWSERS, asset_root, check_site, enforcing_csp, off_season, require_playwright,
                             requires_browser, site_server, site_themes)
-from tests.target import route
+from tests.target import any_page, route
 
-PAGE = route("essay")
-READER = route("score") + "score/"
+PAGE = any_page()
 PANEL = ".settings-panel"
 LAYER = ".stage-layer"
 SPRITE = ".stage-layer .stage-sprite"
@@ -378,7 +377,7 @@ class Seasons(unittest.TestCase):
     def test_the_score_reader_wears_only_the_base_theme(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page = self.open_page(browser, self.inside, path=READER)
+                page = self.open_page(browser, self.inside, path=route("score") + "score/")
                 self.assert_worn(page)
                 page.wait_for_timeout(500)
                 self.assertFalse(self.loaded(page, asset_root() + "/js/stage.js"))

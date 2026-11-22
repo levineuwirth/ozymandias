@@ -18,10 +18,13 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, SITE, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import requires_switch, route, switch_on
+from tests.target import optional_route, requires_switch, route, switch_on
 
 # Three templates, and the 404 page, which nginx serves for any missing path.
-PAGES = ("/", route("essay"), *([route("photo-series")] if switch_on("photography") else []), route("not-found"))
+# A site without essays or photographs has the home page and the 404 page.
+PAGES = ("/", *(p for p in (optional_route("essay"),
+                            optional_route("photo-series") if switch_on("photography") else None) if p),
+         route("not-found"))
 TIME_TXT = "**/build/time.txt"
 
 

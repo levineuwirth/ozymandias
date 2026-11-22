@@ -38,8 +38,6 @@ from tests._browser import (BROWSERS, FakeNetwork, check_site, enforcing_csp, re
 from tests._browser import fake_answer as answer
 from tests.target import requires_switch, route, site_yaml
 
-ESSAY = route("essay")
-LIST = route("list")
 
 POPUP = ".link-popup.is-visible"
 # A term where the page shows it: the strip under the abstract, or, where a
@@ -107,7 +105,7 @@ class PopupKinds(unittest.TestCase):
         about, label = site_yaml().get("epistemic-about"), site_yaml().get("epistemic-about-label", "About")
         for browser in BROWSERS:
             # The second carries a peer-status.
-            for path in (ESSAY, route("essay-peer-reviewed")):
+            for path in (route("essay"), route("essay-peer-reviewed")):
                 page = self.open(browser, path)
                 terms = page.eval_on_selector_all(
                     ".meta-epistemic-strip [data-ep-term]", "es => es.map(e => e.dataset.epTerm)")
@@ -130,7 +128,7 @@ class PopupKinds(unittest.TestCase):
     def test_the_figure_previews_the_epistemic_block(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page = self.open(browser, ESSAY)
+                page = self.open(browser, route("essay"))
                 popup = self.show(page, page.locator('.frontmatter-mark-slot a[href="#epistemic"]'))
                 self.expect(popup.locator(".popup-epistemic .meta-epistemic-strip")).to_have_count(1)
                 self.expect(popup.locator(".popup-epistemic .ep-expanded")).to_have_count(1)
@@ -143,7 +141,7 @@ class PopupKinds(unittest.TestCase):
         head = ':is(.essay-frontmatter, .essay-tailmatter) a[href="#epistemic"]:visible'
         words = ".meta-pagelinks a.meta-pagelink--standing"
         for browser in BROWSERS:
-            page = self.open(browser, ESSAY)
+            page = self.open(browser, route("essay"))
             standing = page.locator(words).count()
             for focus in (False, True):
                 with self.subTest(browser=browser, focus_mode=focus):
@@ -163,7 +161,7 @@ class PopupKinds(unittest.TestCase):
         for browser in BROWSERS:
             for how in ("pointer", "keyboard"):
                 with self.subTest(browser=browser, how=how):
-                    page = self.open(browser, LIST)
+                    page = self.open(browser, route("list"))
                     link = page.locator("a.footer-sig-link")
                     if how == "pointer":
                         link.scroll_into_view_if_needed()
@@ -213,7 +211,7 @@ class PopupKinds(unittest.TestCase):
     def test_the_keyboard_and_popups(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser, part="hidden, inert; Tab never lands in one"):
-                page = self.open(browser, LIST)
+                page = self.open(browser, route("list"))
                 self.assertTrue(page.evaluate(self.STATE)["inert"])
                 self.keyboard_to_signature(page)
                 page.keyboard.press("Tab")
@@ -221,13 +219,13 @@ class PopupKinds(unittest.TestCase):
                 now = page.evaluate(self.STATE)
                 self.assertEqual(now["shown"], now["inside"], f"focus and popup disagree: {now}")
             with self.subTest(browser=browser, part="the keyboard on the link, the pointer passing"):
-                page = self.open(browser, LIST)
+                page = self.open(browser, route("list"))
                 self.keyboard_to_signature(page)
                 self.pass_pointer(page, page.locator("a.footer-sig-link").bounding_box())
                 now = page.evaluate(self.STATE)
                 self.assertEqual((now["shown"], now["onLink"]), (True, True), "hidden while focused")
             with self.subTest(browser=browser, part="focus inside, the pointer passing, Escape"):
-                page = self.open(browser, LIST)
+                page = self.open(browser, route("list"))
                 popup = self.keyboard_to_signature(page)
                 # Into the popup, as Tab takes Firefox (its scrollable <pre> is a stop).
                 page.evaluate("() => { const pre = document.querySelector('.link-popup pre');"
@@ -246,7 +244,7 @@ class PopupKinds(unittest.TestCase):
     def test_the_revision_note(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page = self.open(browser, LIST)
+                page = self.open(browser, route("list"))
                 # A revision's note is optional: the first card that has one.
                 marker = page.locator("li.item-card:has(.item-card-revision-note) .item-card-revised").first
                 card = marker.locator("xpath=ancestor::li[contains(@class, 'item-card')]")
@@ -262,7 +260,7 @@ class PopupKinds(unittest.TestCase):
         # WCAG 1.4.13: content shown on hover can itself be hovered.
         for browser in BROWSERS:
             with self.subTest(browser=browser):
-                page = self.open(browser, ESSAY)
+                page = self.open(browser, route("essay"))
                 trigger = page.locator(SHOWN_TERM.format(term="confidence")).first
                 popup = self.show(page, trigger)
                 t, p = trigger.bounding_box(), popup.bounding_box()

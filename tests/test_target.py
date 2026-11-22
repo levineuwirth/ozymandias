@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import yaml
+
 from tests import target
 from tests._helpers import engine_path, load_tool
 
@@ -119,6 +121,8 @@ class Routes(unittest.TestCase):
     def test_the_site_s_routes_hold(self):
         routes = target.routes()
         self.assertTrue(routes.pages)
+        self.assertEqual(routes.role_problems(), [])
+        self.assertEqual(routes.probe_problems(target.switches()), [])
         for role, entry in routes.roles.items():
             if entry is not None:           # null: the site has no such page
                 self.assertTrue(target.route(role).startswith("/"), role)
@@ -265,6 +269,44 @@ class Routes(unittest.TestCase):
                     target.route("essay")
                 with self.assertRaises(KeyError):
                     target.route("list")
+                self.assertEqual((target.optional_route("essay"), target.any_page()), (None, "/"))
+                with self.assertRaises(KeyError):
+                    target.optional_route("list")
+
+    def test_every_role_is_named_and_a_search_page_is_probed(self):
+        # A null role skips what needs the page, so a role dropped beside a
+        # null one would go unnoticed by the tests: the routes name every
+        # role the engine asks for. And a site with a search page probes it.
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            (site / "tests").mkdir()
+            routes_yaml = site / "tests/routes.yaml"
+            Routes = load_tool("browser/routes.py", "site_routes_roles").Routes
+            roles = load_tool("browser/routes.py", "site_routes_roles").ROLES
+            named = {role: None for role in roles} | {"not-found": "/gone"}
+
+            def problems(**changes):
+                document = {"pages": {"home": "/"}, "roles": {**named, **changes}}
+                routes_yaml.write_text(yaml.safe_dump(document))
+                return Routes(site).role_problems()
+
+            self.assertEqual(problems(), [])
+            listed = {**named}
+            del listed["list-other"]
+            routes_yaml.write_text(yaml.safe_dump({"pages": {"home": "/"}, "roles": listed}))
+            self.assertEqual(Routes(site).role_problems(),
+                             ["role list-other: not named (its page, or null if the site has none)"])
+            self.assertEqual(problems(**{"essay-long": None}), ["role essay-long: no test asks for it"])
+            self.assertEqual(problems(**{"not-found": None}), ["role not-found: every site has this page"])
+
+            (site / "content").mkdir()
+            (site / "content/search.md").write_text("---\ntitle: Search\nsearch: true\n---\n")
+            routes_yaml.write_text("pages: {home: /, search: /search.html}\nprobes: {search: []}\n")
+            routes = Routes(site)
+            self.assertEqual(routes.probe_problems(target.switches()),
+                             ["probe search: the site has search pages, and names none"])
+            routes_yaml.write_text("pages: {home: /, search: /search.html}\nprobes: {search: [search]}\n")
+            self.assertEqual(Routes(site).probe_problems(target.switches()), [])
             for stray, message in (
                     ("pages: {home: /}\nfooter: [essay]\n", "no such page"),
                     ("pages: {home: /}\nkeyboard: [/x/]\n", "no such page"),     # a sweep names pages

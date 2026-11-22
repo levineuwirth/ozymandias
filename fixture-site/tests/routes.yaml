@@ -90,3 +90,9 @@ roles:
   photo-series-slideshow: photo-series
   list: new
   list-other: notes
+  essay-peer-reviewed: null       # the fixture's essays name no peer status
+  essay-gallery: null             # nor display maths for the gallery
+  score: /music/a-piece/
+  score-other: null               # it has one work
+  score-silent: null
+  now: now

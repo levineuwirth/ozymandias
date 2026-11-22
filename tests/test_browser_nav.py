@@ -31,9 +31,9 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import requires_switch, route, switch_on
+from tests.target import any_page, requires_switch, switch_on
 
-ESSAY = route("essay")
+PAGE = any_page()
 HEADER = "body > header:not(.essay-frontmatter)"
 
 MEASURE = f"""() => {{
@@ -73,7 +73,7 @@ class SiteHeader(unittest.TestCase):
             cls.browsers[name] = getattr(playwright, name).launch()
             cls.addClassCleanup(cls.browsers[name].close)
 
-    def open(self, browser: str, path: str = ESSAY, width: int = 1440, *, text_size: int | None = None,
+    def open(self, browser: str, path: str = PAGE, width: int = 1440, *, text_size: int | None = None,
              portals: bool = False, focus: bool = False, reduce: bool = True, init: str = ""):
         """`path` loaded; reduced motion by default, so jumps are not animated."""
         context = self.browsers[browser].new_context(
@@ -173,7 +173,7 @@ class SiteHeader(unittest.TestCase):
             target = self.heading(self.open(browser))
             for label, args in self.LAYOUTS:
                 with self.subTest(browser=browser, layout=label, how="a deep link"):
-                    page = self.open(browser, f"{ESSAY}#{target}", **args)
+                    page = self.open(browser, f"{PAGE}#{target}", **args)
                     self.assert_below_the_header(*self.landing(page, target))
                 with self.subTest(browser=browser, layout=label, how="an in-page link"):
                     page = self.open(browser, **args)
