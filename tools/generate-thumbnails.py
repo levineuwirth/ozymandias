@@ -159,7 +159,9 @@ def iter_sources(root: Path):
             yield root
         return
     for path in sorted(root.rglob("*")):
-        if _qualifies(path):
+        # Nothing in a directory reserved to take a file aside into is a
+        # photograph of the site's (derived_images.set_aside).
+        if _qualifies(path) and not derived_images.set_aside(path.relative_to(root)):
             yield path
 
 
@@ -175,7 +177,7 @@ def iter_variants(root: Path):
                 yield candidate
         return
     for path in sorted(root.rglob("*")):
-        if path.is_file() and is_variant(path):
+        if path.is_file() and is_variant(path) and not derived_images.set_aside(path.relative_to(root)):
             yield path
 
 

@@ -893,28 +893,52 @@ fi
         # A reserved directory that is not as a run leaves one (a file
         # beside the file aside, here) is left whole by a conversion. An
         # adoption that waits for it says so, and not to run a conversion,
-        # which would change nothing. One outside the directories a
-        # conversion looks into is the thumbnail script's to put back.
+        # which would change nothing; and what it says to do loses
+        # nothing: not the file aside, not a newer save under its name,
+        # not what else is in the directory.
         self.write("content/lake.jpg")
+        self.write("content/pier.jpg")
         self.convert()
         (self.root / "content/lake.webp").unlink()
         crowded = self.aside("content/lake.webp", "saved by its author")
         (crowded / "sketch.txt").write_text("put here by hand", encoding="utf-8")
+        newer = self.write("content/pier.webp", "a newer save")
+        beside = self.aside("content/pier.webp", "an earlier save", tail="efgh5678")
+        (beside / "notes.txt").write_text("and these", encoding="utf-8")
 
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("looks like a file set aside by a run that was stopped", done.stderr)
+        self.assertEqual(done.stderr.count("looks like a file set aside by a run that was stopped"), 2)
         for run in (self.adopt, lambda: self.run_declare("content/lake.webp")):
             done = run()
             self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
             self.assertIn("These no tool moves", done.stderr)
-            self.assertIn(f"    content/{crowded.name}/displaced.tmp\n", done.stderr)
+            for reserved in (crowded, beside):
+                self.assertIn(f"    content/{reserved.name}/displaced.tmp\n", done.stderr)
             self.assertNotIn("The next conversion puts these back", done.stderr)
+            said = " ".join(done.stderr.split())
+            self.assertIn("delete none before you have looked at it", said)
+            self.assertIn("to the name it had, if no file has that name now, and otherwise to a new name beside "
+                          "that file, so that both are kept (not over it)", said)
+            self.assertIn("remove the directory only once it is empty", said)
             self.assertEqual((crowded / "displaced.tmp").read_text(encoding="utf-8"), "saved by its author")
-        # Resolved by hand, as it says: the file to its name, the directory gone.
+
+        # Done as it says: the one to its name, which is free; the other
+        # to a new name, beside the newer save. The directories still hold
+        # what somebody put in them, and stay.
         os.replace(crowded / "displaced.tmp", self.root / "content/lake.webp")
-        shutil.rmtree(crowded)
-        self.assertEqual(self.adopt().returncode, 0)
+        os.replace(beside / "displaced.tmp", self.root / "content/pier.earlier.webp")
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertNotIn("set aside", done.stderr)
+        self.assertEqual((crowded / "sketch.txt").read_text(encoding="utf-8"), "put here by hand")
+        self.assertEqual((beside / "notes.txt").read_text(encoding="utf-8"), "and these")
+        self.assertEqual(newer.read_text(encoding="utf-8"), "a newer save")
+        self.assertEqual(self.companions(), {"content/lake.webp": "saved by its author",
+                                             "content/pier.webp": "a newer save",
+                                             "content/pier.earlier.webp": "an earlier save"})
 
         self.write("prepared/view.w480.webp", "made elsewhere")
         self.aside("prepared/other.w480.webp", "aside elsewhere")
@@ -922,7 +946,28 @@ fi
         self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
         self.assertIn("These are outside the directories a conversion looks into. The thumbnail script puts them back",
                       done.stderr)
+        # The directory to name is the photographs', not the one the file is in now.
+        self.assertIn("\n    python3 engine/tools/generate-thumbnails.py prepared\n", done.stderr)
         self.assertNotIn("The next conversion puts these back", done.stderr)
+
+    def test_no_image_is_looked_for_in_a_directory_reserved_to_take_a_file_aside(self):
+        # One left for its author to look at may hold anything: a drawing
+        # is not an image of the site's there, to convert, or to refuse
+        # the site for when another of its name is beside it.
+        self.write("content/lake.jpg")
+        self.convert()
+        left = self.aside("content/lake.webp", None)
+        for name in ("sketch.jpg", "sketch.png", "drawing.png"):
+            (left / name).write_text("put here by hand", encoding="utf-8")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("0 converted, 1 already present", done.stdout)
+        self.assertEqual(sorted(p.name for p in left.iterdir()),
+                         ["drawing.png", "name.tmp", "sketch.jpg", "sketch.png"])
+        self.assertEqual(list(self.record()), ["content/lake.webp"])
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("0 companion(s) recorded", done.stdout)
 
     def test_a_directory_or_a_device_aside_is_nobody_s_image(self):
         # Only a file (or a link) is ever taken aside. A directory of

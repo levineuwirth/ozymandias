@@ -113,6 +113,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import sys
 import tempfile
 from collections.abc import Iterable
@@ -292,6 +293,15 @@ def can_place(reserved: Path) -> None:
         first.unlink(missing_ok=True)
         second.unlink(missing_ok=True)
     _PLACEABLE.add(device)
+
+
+def set_aside(path: Path) -> bool:
+    """Is the path in a directory named as one a tool reserves to take a
+    file aside into? Nothing in one is an image of the site's, whatever
+    its name: what a stopped run took aside, or what somebody put there
+    since, in a directory left for them to look at. No tool looks there
+    for images, and none writes there."""
+    return any(RESERVED.fullmatch(part) for part in path.parts[:-1])
 
 
 def _one_file(first: Path, second: Path) -> bool:
@@ -565,17 +575,20 @@ class Records:
     @staticmethod
     def _keep(reserved: Path) -> Path:
         """Give the file aside in `reserved` a name its author sees (the
-        directory's, less `.tmp`), and never one another file has. A run
-        stopped between giving it that name and taking the other away
-        left one file under both: the other name goes."""
-        aside, kept = reserved / DISPLACED, reserved.with_suffix("")
-        try:
-            place(aside, kept)
-        except FileExistsError:
-            if not _one_file(aside, kept):
-                return aside
-            aside.unlink()
-        return kept
+        directory's, less `.tmp`), and never one another file has: with
+        `-2` and so on, where that name is taken. A run stopped between
+        giving it such a name and taking the other away left one file
+        under both: the other name goes."""
+        aside, first = reserved / DISPLACED, reserved.with_suffix("")
+        for kept in (first, *(first.with_name(f"{first.name}-{n}") for n in range(2, 100))):
+            try:
+                place(aside, kept)
+            except FileExistsError:
+                if not _one_file(aside, kept):
+                    continue
+                aside.unlink()
+            return kept
+        return aside
 
     @staticmethod
     def _holds(reserved: Path) -> tuple[str, str | None]:
@@ -736,7 +749,9 @@ class Records:
             raise RecordError("\n  ".join(
                 ["an earlier form of this tool took a file aside when it was stopped, and nothing has put it back:",
                  *(f"{show(path)}  (from {was}, in that directory)" for path, was in earlier),
-                 "It may be the only copy of what you saved there. Move it to that name if it is, or delete it"]))
+                 "It may be the only copy of what you saved there, so look at it before you delete it. To keep it, "
+                 "move it to that name if no\n  file has the name now, and to a new name beside that file "
+                 "otherwise (not over it)"]))
 
     def _restore(self, reserved: Path, output: Path, own: bool) -> None:
         aside = reserved / DISPLACED
@@ -910,15 +925,21 @@ def waiting(records: Records, roots: list[Path], tool: str, nothing: str, *, dee
     elsewhere = [path for path, restored in aside if restored and not by_conversion(path)]
     if elsewhere:
         print("  These are outside the directories a conversion looks into. The thumbnail script puts them back, "
-              "run over the\n  directory each is in (python3 engine/tools/generate-thumbnails.py DIRECTORY):",
-              file=sys.stderr)
+              "run over the\n  directory of the photographs they were taken from:", file=sys.stderr)
+        # The file is in the directory reserved for it, and that one in
+        # the photographs' directory, which is the one to name.
+        for directory in sorted({path.parent.parent for path in elsewhere}):
+            print(f"    python3 engine/tools/generate-thumbnails.py {shlex.quote(show(directory))}", file=sys.stderr)
+        print("  for:", file=sys.stderr)
         listed(elsewhere)
     by_hand = [path for path, restored in aside if not restored]
     if by_hand:
         print("  These no tool moves: each is in a directory that is not as a run leaves one, or was left by an "
-              "earlier form\n  of the tools. Look at each. If it is a file you saved, move it to the name it "
-              "had; if not, delete it. Then\n  delete the `.previous-image-….tmp` directory it was in, if it "
-              "was in one:", file=sys.stderr)
+              "earlier form\n  of the tools. Each may be the only copy of a file you saved, so delete none "
+              "before you have looked at it.\n  Move it out: to the name it had, if no file has that name "
+              "now, and otherwise to a new name beside that\n  file, so that both are kept (not over it). "
+              "Whatever else is in its `.previous-image-….tmp` directory was put\n  there by someone: look at "
+              "that too, and remove the directory only once it is empty.", file=sys.stderr)
         listed(by_hand)
     print("  Then run this again.", file=sys.stderr)
     return True

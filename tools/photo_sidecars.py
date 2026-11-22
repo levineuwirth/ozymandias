@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import derived_images  # noqa: E402
 import front_matter  # noqa: E402
 import photo_naming  # noqa: E402
 import sitelib  # noqa: E402
@@ -54,7 +55,10 @@ def candidates(tool: str, argv: list[str], roots: Iterable[Path]) -> list[Path]:
     importers name the files they just wrote, which keeps a bulk import
     linear instead of quadratic."""
     if not argv:
-        return [p for root in roots if root.exists() for p in sorted(root.rglob("*"))]
+        # Not what is in a directory an image tool reserved to take a file
+        # aside into: no photograph of the site's is there.
+        return [p for root in roots if root.exists() for p in sorted(root.rglob("*"))
+                if not derived_images.set_aside(p.relative_to(root))]
     out = []
     for a in argv:
         p = Path(a)

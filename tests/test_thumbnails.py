@@ -778,6 +778,43 @@ class OwnershipTests(unittest.TestCase):
         code, out, errors = self.run_with_errors()
         self.assertEqual((code, errors, self.files()), (0, "", {**made, kept.name: self.AUTHORED}), out)
 
+    def test_a_kept_file_takes_another_name_where_the_first_is_taken(self) -> None:
+        # The name a kept file would get has another file: it gets the
+        # next, and is not left in the reserved directory, where every
+        # run would find it waiting.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        made = self.files()
+        saved = self.aside("view.w480.webp", self.AUTHORED)
+        first = saved.with_suffix("")
+        first.write_bytes(b"kept before")
+        (self.photos / f"{first.name}-2").mkdir()
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        kept = self.photos / f"{first.name}-3"
+        self.assertIn(f"The one set aside is at {kept}", errors)
+        self.assertEqual(self.files(), {**made, first.name: b"kept before", kept.name: self.AUTHORED})
+        self.assertEqual(self.reserved(), [f"{first.name}-2"])
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors), (0, ""), out)
+
+    def test_no_photograph_is_looked_for_in_a_directory_reserved_to_take_a_file_aside(self) -> None:
+        # One left for its author to look at may hold a picture of any
+        # width: none of it is the site's, to make variants of or to prune.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        left = self.aside("view.w480.jpg", None)
+        Image.new("RGB", (2000, 10), (10, 120, 200)).save(left / "sketch.jpg", format="JPEG")
+        (left / "gone.w480.jpg").write_bytes(self.AUTHORED)
+        before = (self.files(), self.record())
+        for argv in ((), ("--force",), ("--prune",)):
+            code, out, errors = self.run_with_errors(*argv)
+            self.assertEqual((code, errors), (0, ""), out)
+            self.assertNotIn("sketch", out)
+            self.assertNotIn("gone.w480", out)
+            self.assertEqual(sorted(p.name for p in left.iterdir()), ["gone.w480.jpg", "name.tmp", "sketch.jpg"])
+        self.assertEqual(self.record().keys(), before[1].keys())
+
     def test_a_reserved_directory_that_is_not_as_a_run_leaves_one_is_left_whole(self) -> None:
         # A run leaves, in the directory it reserved: nothing; empty files
         # it asked the filesystem with; the name of the file it was about
@@ -1217,7 +1254,16 @@ class AdoptionTests(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"], entry)
             self.assertTrue((reserved / "displaced.tmp").is_file())
 
-        done = self.tool("generate-thumbnails.py", "prepared/photo.jpg")
+        # A declaration there waits too, and says which command puts the
+        # variant back: the script over the photograph's directory, which
+        # is run here exactly as it is printed.
+        waits = subprocess.run([sys.executable, str(engine_path("tools/derived_images.py")), "declare",
+                                "prepared/photo.w480.webp"], cwd=self.root, capture_output=True, text=True,
+                               timeout=120, env=script_env(self.stubs, SITE_ROOT=str(self.root)))
+        self.assertEqual(waits.returncode, 1, waits.stdout + waits.stderr)
+        [command] = [line.split() for line in waits.stderr.splitlines() if "generate-thumbnails.py" in line]
+        self.assertEqual(command, ["python3", "engine/tools/generate-thumbnails.py", "prepared"])
+        done = self.tool("generate-thumbnails.py", *command[2:])
         self.assertEqual(done.stderr, "")
         self.assertFalse(reserved.exists())
         with Image.open(variant) as made:

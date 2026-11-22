@@ -135,6 +135,24 @@ class PaletteTests(unittest.TestCase):
                              image_exts={".jpg", ".png"}, argv=[])
         self.assertEqual(again["skipped"], 1)
 
+    def test_no_sidecar_is_written_in_a_directory_an_image_tool_reserved(self):
+        # What a stopped run of an image tool left (tools/derived_images.py)
+        # may hold a picture somebody put there: not a photograph of the
+        # site's, and nothing is written beside it.
+        sidecars = palette.photo_sidecars
+        left = self.tmp / ".previous-image-0123456789abcdef-abcd1234.tmp"
+        left.mkdir()
+        for path in (self.tmp / "a.jpg", left / "sketch.jpg"):
+            Image.new("RGB", (8, 8)).save(path, format="JPEG")
+        calls = []
+
+        def read(image):
+            calls.append(image.name)
+            return {"a": 1}
+        counts = sidecars.run("test", ".t.yaml", read, roots=[self.tmp], image_exts={".jpg"}, argv=[])
+        self.assertEqual((calls, counts["written"]), (["a.jpg"], 1))
+        self.assertEqual(sorted(p.name for p in left.iterdir()), ["sketch.jpg"])
+
 
 if __name__ == "__main__":
     unittest.main()
