@@ -146,7 +146,10 @@ main = hakyll $ do
                     self.assertIn(f'title="{html.escape(title)}"', head)
                 self.assertIn("mailto:a&amp;b@example.org", read("404.html"))
                 self.assertIn("contact&amp;us@example.org", read("partials/archive-removal-notice.html"))
-                self.assertIn("Ed25519 signing subkey ABC DEF", read("partials/footer.html"))
+                # The site's footer, where it overrides the engine's, words
+                # the link its own way; each names the key in the link's title.
+                self.assertRegex(read("partials/footer.html"),
+                                 r'class="footer-sig-link" title="[^"]*\bABC DEF\b')
                 self.assertIn(f'Piece — Score — {html.escape(config["title"])}', read("score-reader-default.html"))
                 # Seasons: a meta each ahead of theme.js, which reads them; a
                 # stylesheet each, for the screen; a hidden button each. The

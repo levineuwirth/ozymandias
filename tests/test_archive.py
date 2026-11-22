@@ -13,6 +13,7 @@ from unittest import mock
 from tests._helpers import load_tool, requires_cabal, site_binary
 
 archive = load_tool("archive.py", "archive_tool")
+sitelib = load_tool("sitelib.py")
 
 try:
     import bs4  # noqa: F401
@@ -246,6 +247,8 @@ class ManifestPreScanTests(unittest.TestCase):
     def test_a_slug_override_that_leaves_archive(self):
         self.refused([{"url": "https://example.com/x", "slug": "../x"}])
 
+    # The site's own manifest, which a site keeps only with link archiving on.
+    @unittest.skipUnless(sitelib.switch_on("archive"), "the site's archive switch is off")
     def test_the_live_manifest_passes(self):
         import yaml
         entries = yaml.safe_load((archive.MANIFEST).read_text()) or []
