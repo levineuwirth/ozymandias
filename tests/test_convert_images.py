@@ -713,24 +713,36 @@ fi
         self.convert()
         self.assertEqual(self.companions()["content/blog/map.webp"], made("map.png"))
 
+    def aside(self, rel: str, holds: str | None, *, named: bool = True) -> Path:
+        """What a stopped run leaves beside the companion at `rel`: the
+        directory it reserved, the companion's name in it, and (unless
+        `holds` is None) the file it took aside."""
+        companion = self.root / rel
+        key = hashlib.sha256(companion.name.encode()).hexdigest()[:16]
+        reserved = companion.with_name(f".previous-image-{key}-abcd1234.tmp")
+        reserved.mkdir()
+        if named:
+            (reserved / "name.tmp").write_text(companion.name, encoding="utf-8")
+        if holds is not None:
+            (reserved / "displaced.tmp").write_text(holds, encoding="utf-8")
+        return reserved
+
+    def asides(self) -> list[str]:
+        return sorted(p.relative_to(self.root).as_posix() for p in self.root.rglob(".previous-image-*"))
+
     def test_what_a_stopped_run_took_aside_is_put_back_before_anything_is_converted(self):
         # A run stopped while it replaced a companion leaves the file it
-        # took aside under a name that says which it was. The script's own
-        # goes back and is its own as before; a save of the author's, made
-        # in the moment before it was taken, goes back, is named, and is
-        # not converted over. In the engine's tree as in the site's.
+        # took aside in a directory that says which it was. The script's
+        # own goes back and is its own as before; a save of the author's,
+        # made in the moment before it was taken, goes back, is named, and
+        # is not converted over. In the engine's tree as in the site's.
         self.write("content/lake.jpg")
         self.write("engine/static/mark.png")
         self.convert()
-
-        def aside(rel: str) -> Path:
-            companion = self.root / rel
-            key = hashlib.sha256(companion.name.encode()).hexdigest()[:16]
-            return companion.with_name(f".previous-image-{key}-abcd1234.tmp")
-
         (self.root / "content/lake.webp").unlink()
-        aside("content/lake.webp").write_text("saved by its author", encoding="utf-8")
-        os.replace(self.root / "engine/static/mark.webp", aside("engine/static/mark.webp"))
+        self.aside("content/lake.webp", "saved by its author")
+        (self.root / "engine/static/mark.webp").unlink()
+        self.aside("engine/static/mark.webp", made("mark.png"))
 
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
@@ -741,7 +753,136 @@ fi
                       done.stderr)
         self.assertNotIn("mark.webp", done.stderr)
         self.assertIn("1 WebP file(s) beside an image are not recorded as made from it", done.stderr)
-        self.assertEqual([p.name for p in self.root.rglob(".previous-image-*")], [])
+        self.assertEqual(self.asides(), [])
+
+    def test_a_run_stopped_before_it_took_a_file_aside_leaves_nothing_to_put_back(self):
+        # The directory is reserved first. A run stopped then took nothing
+        # aside: the next run clears it and says nothing, in the engine's
+        # tree too, where a file Git shows would stop the next build. A
+        # file taken aside that happens to be empty is still a file.
+        self.write("content/lake.jpg")
+        self.write("content/empty.jpg")
+        self.write("engine/static/mark.png")
+        self.convert()
+        self.aside("content/lake.webp", None)
+        self.aside("engine/static/mark.webp", None, named=False)
+        (self.root / "content/empty.webp").unlink()
+        self.aside("content/empty.webp", "")
+        before = {**self.companions(), "content/empty.webp": ""}
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.companions(), before)
+        self.assertEqual(self.asides(), [])
+        self.assertEqual(done.stderr.count("was set aside by a run that was stopped"), 1, done.stderr)
+        self.assertIn("content/empty.webp was set aside by a run that was stopped, and is back in its place",
+                      done.stderr)
+
+    def test_only_what_a_run_reserved_is_ever_put_back_or_cleared(self):
+        # Names that begin as a reserved directory's does and are not one:
+        # the author's, and left exactly as they are. So is a directory
+        # named as one that is a link, or holds what no run puts there.
+        self.write("content/lake.jpg")
+        self.convert()
+        notes = self.write("content/.previous-image-notes.tmp", "mine")
+        named = self.write("content/.previous-image-0123456789abcdef-abcd1234.tmp", "a file, not a directory")
+        folder = self.write("content/.previous-image-notes-2.tmp/displaced.tmp", "mine too")
+        other = self.write("elsewhere/kept.txt", "another place").parent
+        link = self.root / "content/.previous-image-0123456789abcdef-zzzz9999.tmp"
+        link.symlink_to(other, target_is_directory=True)
+        holds = self.aside("content/lake.webp", None)
+        (holds / "sketch.txt").write_text("put here by hand", encoding="utf-8")
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(done.stderr, "")
+        self.assertEqual((notes.read_text(), named.read_text(), folder.read_text()),
+                         ("mine", "a file, not a directory", "mine too"))
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(sorted(p.name for p in other.iterdir()), ["kept.txt"])
+        self.assertEqual((holds / "sketch.txt").read_text(encoding="utf-8"), "put here by hand")
+
+    def test_a_directory_that_is_another_tree_s_now_is_not_looked_into(self):
+        # content/ was the site's own directory when a run was stopped in
+        # it, and is a link into another site now. What is aside there is
+        # that site's, to be put back by its record and under its lock.
+        elsewhere = tempfile.TemporaryDirectory(prefix="convert-images-other-")
+        self.addCleanup(elsewhere.cleanup)
+        other = Path(elsewhere.name).resolve()
+        (other / "content").mkdir()
+        (other / "content/lake.jpg").write_text("x", encoding="utf-8")
+        (other / "content/lake.webp").write_text("the other site's", encoding="utf-8")
+        self.write("content/lake.jpg")
+        self.convert()
+        shutil.rmtree(self.root / "content")
+        (self.root / "content").symlink_to(other / "content", target_is_directory=True)
+        key = hashlib.sha256(b"lake.webp").hexdigest()[:16]
+        taken = [other / f"content/.previous-image-{key}-abcd1234.tmp",
+                 other / f"content/.previous-image-{key}-efgh5678.tmp"]
+        for reserved, holds in zip(taken, (made("lake.jpg"), "saved by the other site's author")):
+            reserved.mkdir()
+            (reserved / "name.tmp").write_text("lake.webp", encoding="utf-8")
+            (reserved / "displaced.tmp").write_text(holds, encoding="utf-8")
+
+        done = self.run_script()
+        self.assertNotIn("was set aside", done.stdout + done.stderr)
+        self.assertEqual([(reserved / "displaced.tmp").read_text(encoding="utf-8") for reserved in taken],
+                         [made("lake.jpg"), "saved by the other site's author"])
+        self.assertEqual((other / "content/lake.webp").read_text(encoding="utf-8"), "the other site's")
+
+    def test_adoption_brings_a_stale_entry_up_to_a_file_the_script_would_make_now(self):
+        # A run stopped after it put the new companion in place and before
+        # it saved the record: the entry has the bytes of the companion
+        # before. No conversion writes over such a file, which may be one
+        # its author changed. An adoption makes it again, and brings the
+        # entry up to it if that gives the same bytes. Not one its author
+        # changed; not one whose entry is of another image; not a declared one.
+        for name in ("lake", "edited", "other", "mine"):
+            self.write(f"content/blog/{name}.jpg")
+        self.convert()
+        path = self.root / "data/derived-images.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        for name in ("lake", "other", "mine"):
+            self.write(f"content/blog/{name}.jpg", "saved again")
+            self.write(f"content/blog/{name}.webp", made(f"{name}.jpg", "saved again"))
+        self.write("content/blog/edited.webp", "changed by its author")
+        document["outputs"]["content/blog/other.webp"]["source"] = "content/blog/lake.jpg"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        self.write("data/companions.json", json.dumps({"content/blog/mine.webp": "content/blog/mine.jpg"}))
+        before = (self.companions(), path.read_bytes())
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("0 converted", done.stdout)
+        self.assertIn("content/blog/lake.webp", done.stderr)
+        self.assertEqual((self.companions(), self.record()), (before[0], document["outputs"]))
+
+        preview = self.adopt("--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stdout + preview.stderr)
+        self.assertEqual((self.companions(), path.read_bytes()), before)
+        self.assertEqual(preview.stdout.count("  repair   "), 1)
+        self.assertIn("  repair   content/blog/lake.webp  (what cwebp makes of content/blog/lake.jpg now",
+                      preview.stdout)
+        self.assertIn("their entries would be brought up to them", preview.stdout)
+        self.assertIn("1 more have an entry of this script's and other bytes than it says", preview.stdout)
+
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(done.stdout, preview.stdout.replace("would be recorded", "recorded")
+                         .replace("would be", "were"))
+        self.assertEqual(self.companions(), before[0])
+        record = self.record()
+        self.assertEqual((record["content/blog/lake.webp"]["digest"], record["content/blog/lake.webp"]["source-digest"]),
+                         (self.sha(made("lake.jpg", "saved again")), self.sha("saved again")))
+        for name in ("edited", "other", "mine"):
+            self.assertEqual(record[f"content/blog/{name}.webp"], document["outputs"][f"content/blog/{name}.webp"])
+        # It is the script's own again: shown with its image, and made
+        # again when the image is.
+        done = self.run_script()
+        self.assertNotIn("content/blog/lake.webp", done.stderr)
+        self.write("content/blog/lake.jpg", "and again")
+        self.convert()
+        self.assertEqual(self.companions()["content/blog/lake.webp"], made("lake.jpg", "and again"))
 
     def test_a_gif_is_shown_with_a_companion_too(self):
         # The image filter gives color.gif the companion color.webp, here

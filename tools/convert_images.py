@@ -206,12 +206,19 @@ def cwebp_of(taken: derived_images.Consumed, image: Path, scratch: Path, destina
 TRIES = 3
 
 
-def plan(records: derived_images.Records) -> tuple[Slots, list[Path]]:
+def image_roots() -> tuple[Path, Path, list[Path]]:
+    """The site's static directory, the engine's, and every directory
+    whose images this script converts."""
     site_static = Path(sitelib.SITE_ROOT) / "static"
     engine_static = Path(sitelib.engine_path("static"))
     roots = [site_static, Path(sitelib.SITE_ROOT) / "content"]
     if engine_static != site_static:
         roots.append(engine_static)
+    return site_static, engine_static, roots
+
+
+def plan(records: derived_images.Records) -> tuple[Slots, list[Path]]:
+    site_static, engine_static, roots = image_roots()
     images = images_under(roots)
     slots = Slots(site_static, engine_static, images)
     # What cwebp reads: the JPEGs and PNGs, less the photographs' variants,
@@ -293,7 +300,10 @@ def report_left(left: list[Path]) -> None:
 def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, bool]:
     """Enter the companions already there that this script would make
     the same, byte for byte: only its own output is that. The rest are
-    listed, and stay unrecorded. Saves nothing itself
+    listed, and stay unrecorded. So is one whose entry is this script's,
+    of this image, and has other bytes than the file: what a run leaves
+    when it is stopped between putting the file there and saving the
+    record. Saves nothing itself
     (tools/derived_images.py adopt does, unless it is a preview), and
     returns how many it entered and whether it could not do its work."""
     if shutil.which("cwebp") is None:
@@ -301,16 +311,19 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
               file=sys.stderr)
         return 0, True
     slots, convertible = plan(records)
-    adopted = differ = partial = 0
+    adopted = repaired = edited = differ = partial = 0
     with tempfile.TemporaryDirectory(prefix="adopt-webp-") as scratch:
         fresh = Path(scratch) / "fresh.webp"
         for image in convertible:
             companion = companion_of(image)
             # One with no entry, or with an entry that does not say which
-            # bytes its image had (an earlier form of the record).
+            # bytes its image had (an earlier form of the record), or with
+            # an entry of this script's for this image that has other
+            # bytes than the file.
             known = records.entry(companion) is not None
+            stale = known and records.stale(companion, PRODUCER, image)
             if (not companion.is_file() or companion.is_symlink()
-                    or (known and not records.incomplete(companion, PRODUCER, image))
+                    or (known and not stale and not records.incomplete(companion, PRODUCER, image))
                     or records.declared_for(companion) is not None
                     or len(slots.shown_with.get(slots.slot_of.get(image, ""), [])) > 1):
                 continue
@@ -318,8 +331,15 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
             cwebp_of(taken, image, Path(scratch), fresh)
             there = companion.read_bytes()
             if fresh.read_bytes() == there:
-                adopted += 1
+                if stale:
+                    repaired += 1
+                    print(f"  repair   {show(companion)}  (what cwebp makes of {show(image)} now; its entry "
+                          "said other bytes)")
+                else:
+                    adopted += 1
                 records.wrote(companion, PRODUCER, image, taken, derived_images.digest_of(there))
+            elif stale:
+                edited += 1
             elif known:
                 partial += 1
             else:
@@ -328,6 +348,13 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     verb = "would be recorded" if dry_run else "recorded"
     print(f"convert-images: {adopted} companion(s) {verb} as this script's; {differ} differ and are left "
           "unrecorded.")
+    if repaired:
+        print(f"  {repaired} more, whose entries said other bytes, are what cwebp makes of their images now (a "
+              f"run was stopped before it\n  saved the record): their entries {'would be' if dry_run else 'were'} "
+              "brought up to them.")
+    if edited:
+        print(f"  {edited} more have an entry of this script's and other bytes than it says, and are not what "
+              "cwebp makes of their\n  images now: left as they are, as a file its author changed is.")
     if partial:
         print(f"  {partial} more are this script's by an entry that does not say which bytes their image had, and "
               "are not what cwebp\n  makes of it now: left as recorded, and converted again by the next build "
@@ -335,7 +362,7 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     if differ:
         print("  One that differs is yours, or was made by another cwebp. Look at it; delete it to have it made "
               "again,\n  or declare it yours: python3 engine/tools/derived_images.py declare FILE.webp")
-    return adopted, False
+    return adopted + repaired, False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -343,6 +370,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # Each tree is held from here until the records are saved.
         with derived_images.Records.held() as records:
+            # First of all: a file a stopped run took aside is back in
+            # its place before its entry is looked for, or its image
+            # converted.
+            records.restore_displaced(image_roots()[2])
             records.forget_missing()
             slots, convertible = plan(records)
             if refuse_shared(slots, records):

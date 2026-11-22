@@ -379,6 +379,9 @@ class OwnershipTests(unittest.TestCase):
         self.root = Path(tmp.name).resolve()
         self.photos = self.root / "trip"
         self.photos.mkdir()
+        # Each test asks the filesystem what it can do, as a run of the
+        # script does, and so passes or fails the same run alone.
+        generate_thumbnails.derived_images._PLACEABLE.clear()
 
     def photo(self, name: str, width: int = 1000) -> Path:
         path = self.photos / name
@@ -394,7 +397,14 @@ class OwnershipTests(unittest.TestCase):
         return path
 
     def files(self) -> dict[str, bytes]:
-        return {p.name: p.read_bytes() for p in self.photos.iterdir()}
+        """Every file beside the photographs, and in what a run reserved
+        there."""
+        return {p.relative_to(self.photos).as_posix(): p.read_bytes()
+                for p in sorted(self.photos.rglob("*")) if p.is_file()}
+
+    def reserved(self) -> list[str]:
+        """The directories a run made to take a file aside into."""
+        return sorted(p.name for p in self.photos.iterdir() if p.is_dir())
 
     def record(self) -> dict[str, dict[str, str]]:
         path = self.root / "data/derived-images.json"
@@ -553,12 +563,19 @@ class OwnershipTests(unittest.TestCase):
     def sha(self, name: str) -> str:
         return "sha256:" + hashlib.sha256((self.photos / name).read_bytes()).hexdigest()
 
-    def aside(self, name: str, held: bytes, tail: str = "abcd1234") -> Path:
-        """A file as a stopped run leaves it: taken aside from `name`."""
+    def aside(self, name: str, held: bytes | None, tail: str = "abcd1234", *, named: bool = True,
+              at: Path | None = None) -> Path:
+        """What a stopped run leaves beside `name`: the directory it
+        reserved, the name in it, and (unless `held` is None) the file it
+        took aside."""
         records = generate_thumbnails.derived_images
-        path = self.photos / f"{records.ASIDE}{records.aside_key(Path(name))}-{tail}.tmp"
-        path.write_bytes(held)
-        return path
+        reserved = (at or self.photos) / f"{records.ASIDE}{records.aside_key(Path(name))}-{tail}.tmp"
+        reserved.mkdir()
+        if named:
+            (reserved / records.NAMED).write_bytes(os.fsencode(name))
+        if held is not None:
+            (reserved / records.DISPLACED).write_bytes(held)
+        return reserved
 
     def run_with_errors(self, *argv: str) -> tuple[int, str, str]:
         errors = io.StringIO()
@@ -566,34 +583,88 @@ class OwnershipTests(unittest.TestCase):
             code, out = run(str(self.root), *argv)
         return code, out, errors.getvalue()
 
-    def test_a_run_stopped_while_a_variant_is_replaced_leaves_only_a_tmp_name(self) -> None:
-        # Stopped between taking its old variant aside and putting the new
-        # one in: the name is empty, the file taken aside has a name Git
-        # ignores and no build publishes, and the next run puts it back,
-        # finds it the script's own, and makes the variant again.
-        photo = self.photo("view.jpg", 600)
-        self.assertEqual(run(str(self.root))[0], 0)
-        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
-        link, calls = os.link, []
+    def stopped_at_the_displacement(self, variant: Path, *, before: bool = False, save: bytes | None = None):
+        """A run stopped as it takes `variant` aside: just after the file
+        has moved, or (`before`) just before. `save` is what its author
+        saves there in the moment before."""
+        replace = os.replace
 
-        def stopped(*args, **kwargs):
-            calls.append(args)
-            if len(calls) == 1:
-                return link(*args, **kwargs)        # the name is taken, and says so
+        def stopped(source, target, **kwargs):
+            if Path(source) != variant:
+                return replace(source, target, **kwargs)
+            if save is not None:
+                variant.write_bytes(save)
+            if not before:
+                replace(source, target, **kwargs)
             raise KeyboardInterrupt
 
-        with mock.patch.object(os, "link", stopped), self.assertRaises(KeyboardInterrupt):
+        return mock.patch.object(os, "replace", stopped)
+
+    def test_a_run_stopped_while_a_variant_is_replaced_leaves_only_a_tmp_name(self) -> None:
+        # Stopped between taking its old variant aside and putting the new
+        # one in: the name is empty, the file taken aside is in a directory
+        # Git ignores and no build publishes, and the next run puts it
+        # back, finds it the script's own, and makes the variant again.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        before = self.files()
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        variant = self.photos / "view.w480.jpg"
+        with self.stopped_at_the_displacement(variant), self.assertRaises(KeyboardInterrupt):
             run(str(self.root))
-        names = set(self.files())
-        self.assertNotIn("view.w480.jpg", names)
-        aside = names - {"view.jpg", "view.w480.webp"}
-        self.assertEqual(len(aside), 1, names)
-        self.assertRegex(aside.pop(), r"^\.previous-image-[0-9a-f]{16}-[^.]+\.tmp$")
+        self.assertFalse(variant.exists())
+        [reserved] = self.reserved()
+        self.assertRegex(reserved, r"^\.previous-image-[0-9a-f]{16}-[a-z0-9_]{8}\.tmp$")
+        self.assertEqual({name: held for name, held in self.files().items() if name.startswith(reserved)},
+                         {f"{reserved}/name.tmp": b"view.w480.jpg",
+                          f"{reserved}/displaced.tmp": before["view.w480.jpg"]})
         code, out, errors = self.run_with_errors()
         self.assertEqual((code, errors), (0, ""), out)
         self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
+        self.assertEqual(self.reserved(), [])
         self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"], self.sha("view.w480.jpg"))
         self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], self.sha("view.jpg"))
+
+    def test_a_run_stopped_before_it_took_a_variant_aside_leaves_nothing_to_put_back(self) -> None:
+        # The directory is reserved, and the name written in it, before
+        # the file moves. A run stopped then took nothing aside: the next
+        # clears what it left, and takes none of it for a file of anyone's.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        before = self.files()
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        variant = self.photos / "view.w480.jpg"
+        with self.stopped_at_the_displacement(variant, before=True), self.assertRaises(KeyboardInterrupt):
+            run(str(self.root))
+        [reserved] = self.reserved()
+        self.assertEqual(self.files()["view.w480.jpg"], before["view.w480.jpg"])
+        self.assertEqual([name for name in self.files() if name.startswith(reserved)], [f"{reserved}/name.tmp"])
+        # So does one stopped before the name was written, or while it
+        # asked what the filesystem can do.
+        self.aside("view.w480.webp", None, named=False)
+        probing = self.aside("view.w480.webp", None, "efgh5678")
+        (probing / "probe.tmp").write_bytes(b"")
+
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors), (0, ""), out)
+        self.assertEqual(self.reserved(), [])
+        self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], self.sha("view.jpg"))
+
+    def test_an_empty_file_taken_aside_is_a_file_all_the_same(self) -> None:
+        # Its author saved nothing into the name (a save cut short) in the
+        # moment before it was taken: it is theirs, and goes back.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        variant = self.photos / "view.w480.jpg"
+        with self.stopped_at_the_displacement(variant, save=b""), self.assertRaises(KeyboardInterrupt):
+            run(str(self.root))
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        self.assertEqual(variant.read_bytes(), b"")
+        self.assertRegex(errors, r"view\.w480\.jpg was set aside by a run that was stopped, and is back in its place")
+        self.assertEqual(self.reserved(), [])
 
     def test_a_save_taken_aside_by_a_run_that_was_stopped_is_put_back(self) -> None:
         # The author saves into a variant's name after the script found
@@ -605,23 +676,15 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(run(str(self.root))[0], 0)
         Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
         variant = self.photos / "view.w480.jpg"
-        replace = os.replace
-
-        def saved_then_stopped(source, target, **kwargs):
-            if Path(source) != variant:
-                return replace(source, target, **kwargs)
-            variant.write_bytes(self.AUTHORED)
-            replace(source, target, **kwargs)
-            raise KeyboardInterrupt
-
-        with mock.patch.object(os, "replace", saved_then_stopped), self.assertRaises(KeyboardInterrupt):
+        with self.stopped_at_the_displacement(variant, save=self.AUTHORED), self.assertRaises(KeyboardInterrupt):
             run(str(self.root))
         self.assertNotIn("view.w480.jpg", self.files())
         self.assertIn(self.AUTHORED, self.files().values())
 
         # A preview moves nothing.
+        taken = self.files()
         code, out, errors = self.run_with_errors("--dry-run")
-        self.assertNotIn("view.w480.jpg", self.files())
+        self.assertEqual(self.files(), taken)
 
         code, out, errors = self.run_with_errors()
         self.assertEqual(code, 0, out + errors)
@@ -629,10 +692,48 @@ class OwnershipTests(unittest.TestCase):
         self.assertRegex(errors, r"view\.w480\.jpg was set aside by a run that was stopped, and is back in its place")
         self.assertRegex(out, r"keep   \S*view\.w480\.jpg  \(not recorded as made here")
         self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
+        self.assertEqual(self.reserved(), [])
         # Its WebP, still the script's own, is of the new photograph.
         self.assertEqual(self.record()["trip/view.w480.webp"]["source-digest"], self.sha("view.jpg"))
         code, out, errors = self.run_with_errors()
         self.assertEqual((variant.read_bytes(), errors), (self.AUTHORED, ""))
+
+    def test_a_save_taken_aside_is_put_back_in_a_directory_renamed_since(self) -> None:
+        # The record says where the variants were. What a stopped run took
+        # aside is looked for where the photographs are now: the save goes
+        # back to its name there, and is named, though no entry is of
+        # that path.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        with self.stopped_at_the_displacement(self.photos / "view.w480.jpg", save=self.AUTHORED), \
+                self.assertRaises(KeyboardInterrupt):
+            run(str(self.root))
+        self.photos = self.photos.rename(self.root / "journey")
+
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        self.assertEqual((self.photos / "view.w480.jpg").read_bytes(), self.AUTHORED)
+        self.assertRegex(errors, r"journey/view\.w480\.jpg was set aside by a run that was stopped, and is back "
+                                 "in its place")
+        self.assertEqual(self.reserved(), [])
+        self.assertNotIn(".tmp", "".join(self.files()))
+
+    def test_a_single_named_photograph_looks_in_its_own_directory_alone(self) -> None:
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(photo))[0], 0)
+        made = self.files()
+        (self.photos / "view.w480.jpg").unlink()
+        self.aside("view.w480.jpg", made["view.w480.jpg"])
+        below = self.photos / "album"
+        below.mkdir()
+        deeper = self.aside("other.w480.jpg", self.AUTHORED, at=below)
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            code, out = run(str(photo))
+        self.assertEqual((code, errors.getvalue()), (0, ""), out)
+        self.assertEqual(self.files()["view.w480.jpg"], made["view.w480.jpg"])
+        self.assertTrue((deeper / "displaced.tmp").is_file())
 
     def test_what_a_stopped_run_left_aside_never_takes_a_name_that_has_a_file_again(self) -> None:
         self.photo("view.jpg", 600)
@@ -644,22 +745,66 @@ class OwnershipTests(unittest.TestCase):
         # A save of the author's, aside from a name that has a file again:
         # kept beside it, under a name that is seen.
         saved = self.aside("view.w480.webp", self.AUTHORED)
-        # And one whose name the record does not know (its entry is gone).
-        unknown = self.aside("gone.w480.jpg", b"from an earlier run")
+        # And one that does not say which file it was, or says another
+        # than its directory's name does.
+        unknown = self.aside("gone.w480.jpg", b"from an earlier run", named=False)
+        other = self.aside("gone.w480.jpg", b"and another", "efgh5678", named=False)
+        (other / "name.tmp").write_bytes(b"view.w480.jpg")
 
         code, out, errors = self.run_with_errors()
         self.assertEqual(code, 0, out + errors)
         files = self.files()
         self.assertEqual({name: files[name] for name in made}, made)
-        self.assertNotIn(own.name, files)
-        self.assertNotIn(saved.name, files)
+        self.assertEqual(self.reserved(), [])
         self.assertEqual(files[saved.name[:-len(".tmp")]], self.AUTHORED)
         self.assertRegex(errors, rf"view\.w480\.webp was set aside by a run that was stopped, and another file has "
                                  rf"its name since\. The one set aside is at \S*{saved.name[:-len('.tmp')]}\n")
-        self.assertEqual(files[unknown.name[:-len(".tmp")]], b"from an earlier run")
-        self.assertRegex(errors, rf"{unknown.name[:-len('.tmp')]} was set aside by a run that was stopped, and the "
-                                 "record no longer says which file it was")
-        self.assertFalse([name for name in files if name.endswith(".tmp")])
+        for reserved, held in ((unknown, b"from an earlier run"), (other, b"and another")):
+            self.assertEqual(files[reserved.name[:-len(".tmp")]], held)
+            self.assertRegex(errors, rf"{reserved.name[:-len('.tmp')]} was set aside by a run that was stopped, "
+                                     "and nothing says which file it was")
+        self.assertEqual(set(files), set(made) | {reserved.name[:-len(".tmp")] for reserved in (saved, unknown, other)})
+        self.assertNotIn(own.name[:-len(".tmp")], files)
+
+    def test_only_what_a_run_reserved_is_ever_put_back_or_cleared(self) -> None:
+        # Names that begin as a reserved directory's does, and are not
+        # one: the author's, whatever they hold.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        (self.photos / ".previous-image-notes.tmp").write_bytes(b"mine")
+        (self.photos / ".previous-image-0123456789abcdef-abcd1234.tmp").write_bytes(b"a file, not a directory")
+        (self.photos / ".previous-image-notes-2.tmp").mkdir()
+        (self.photos / ".previous-image-notes-2.tmp/displaced.tmp").write_bytes(b"mine too")
+        (self.photos / ".previous-image-0123456789ABCDEF-abcd1234.tmp").mkdir()
+        before = (self.files(), self.reserved())
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors), (0, ""), out)
+        self.assertEqual((self.files(), self.reserved()), before)
+
+    def test_a_directory_of_no_tree_this_run_holds_is_not_looked_into(self) -> None:
+        # What is aside in another tree is that tree's tool's to put back,
+        # by its record and under its lock, however this run comes to
+        # the directory: a link, here, where its own directory was.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        elsewhere = tempfile.TemporaryDirectory(prefix="thumbnails-other-")
+        self.addCleanup(elsewhere.cleanup)
+        other = Path(elsewhere.name).resolve() / "trip"
+        other.mkdir()
+        (other / "view.w480.jpg").write_bytes(b"the other tree's")
+        taken = [self.aside("view.w480.jpg", self.files()["view.w480.jpg"], at=other),
+                 self.aside("view.w480.jpg", self.AUTHORED, "efgh5678", at=other)]
+        before = {p.relative_to(other).as_posix(): p.read_bytes() for p in other.rglob("*") if p.is_file()}
+        records = generate_thumbnails.derived_images
+        link = self.root / "linked"
+        link.symlink_to(other, target_is_directory=True)
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors), records.Records.held(elsewhere=self.root) as held:
+            held.restore_displaced([link, other])
+        self.assertEqual(errors.getvalue(), "")
+        self.assertEqual({p.relative_to(other).as_posix(): p.read_bytes() for p in other.rglob("*") if p.is_file()},
+                         before)
+        self.assertTrue(all(reserved.is_dir() for reserved in taken))
 
     def test_a_file_put_back_and_not_yet_unnamed_is_one_file(self) -> None:
         # Stopped between giving the file its name back and taking the
@@ -668,13 +813,13 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(run(str(self.root))[0], 0)
         variant = self.photos / "view.w480.jpg"
         variant.write_bytes(self.AUTHORED)
-        records = generate_thumbnails.derived_images
-        twin = self.photos / f"{records.ASIDE}{records.aside_key(variant)}-abcd1234.tmp"
-        os.link(variant, twin)
+        reserved = self.aside("view.w480.jpg", None)
+        os.link(variant, reserved / "displaced.tmp")
         code, out, errors = self.run_with_errors()
         self.assertEqual((code, errors), (0, ""), out)
         self.assertEqual(variant.read_bytes(), self.AUTHORED)
         self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
+        self.assertEqual(self.reserved(), [])
 
     def test_a_save_displaced_and_then_shut_out_is_kept_where_its_author_sees_it(self) -> None:
         # Two saves by the author into a variant's name, one just before
@@ -705,6 +850,7 @@ class OwnershipTests(unittest.TestCase):
         self.assertRegex(kept[0], r"^\.previous-image-[^.]+$")
         self.assertIn(f"The displaced file is at {self.photos / kept[0]}", errors.getvalue())
         self.assertFalse([name for name in files if name.endswith(".tmp")])
+        self.assertEqual(self.reserved(), [])
 
     NO_LINKS = OSError(errno.EPERM, "Operation not permitted")
 
@@ -812,6 +958,7 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual({name: after[name] for name in made if name != "view.jpg"},
                          {name: made[name] for name in made if name != "view.jpg"})
         self.assertEqual(set(after), set(made))
+        self.assertEqual(self.reserved(), [])
 
     def test_a_photograph_saved_again_while_its_variants_are_made_is_recorded_as_it_was_read(self) -> None:
         # Another photograph is saved over this one after it was read and
@@ -952,6 +1099,54 @@ class AdoptionTests(unittest.TestCase):
         self.assertEqual(self.state()[0], before[0])
         # And nothing is made again for it.
         self.assertIn("0 written, 2 current", self.tool("generate-thumbnails.py").stdout)
+
+    def test_an_entry_with_other_bytes_than_the_file_is_brought_up_to_what_the_script_makes_now(self) -> None:
+        # A run stopped after it put a new variant in place and before it
+        # saved the record: the entry has the bytes of the variant before.
+        # No run writes over such a file, which may as well be one its
+        # author changed. An adoption renders it again and brings the
+        # entry up to it if that gives the same bytes; not one its author
+        # changed, and not one whose entry is of another photograph.
+        self.tool("derived_images.py", "adopt")
+        path = self.root / "data/derived-images.json"
+        at = "content/photography/trip/"
+        before = json.loads(path.read_text(encoding="utf-8"))
+        Image.new("RGB", (1000, 10), (200, 30, 30)).save(self.photos / "view.jpg", format="JPEG")
+        self.tool("generate-thumbnails.py")
+        after = json.loads(path.read_text(encoding="utf-8"))
+        self.assertNotEqual(after["outputs"][at + "view.w480.jpg"], before["outputs"][at + "view.w480.jpg"])
+        # The new files, and the entries of the ones before.
+        stale = json.loads(json.dumps(after))
+        for name in ("view.w480.jpg", "view.w480.webp", "view.w960.jpg"):
+            stale["outputs"][at + name] = dict(before["outputs"][at + name])
+        stale["outputs"][at + "view.w960.jpg"]["source"] = at + "other.jpg"
+        (self.photos / "view.w480.webp").write_bytes(self.AUTHORED)
+        path.write_text(json.dumps(stale), encoding="utf-8")
+        state = self.state()
+
+        said = self.tool("generate-thumbnails.py").stdout
+        self.assertRegex(said, r"keep   \S*view\.w480\.jpg  \(not recorded as made here")
+        self.assertEqual(self.state()[0], state[0])
+        path.write_text(json.dumps(stale), encoding="utf-8")
+
+        preview = self.tool("derived_images.py", "adopt", "--dry-run").stdout
+        self.assertEqual(self.state(), state)
+        self.assertEqual(preview.count("  repair   "), 1)
+        self.assertRegex(preview, r"  repair   \S*view\.w480\.jpg  \(what this script makes of \S*view\.jpg now")
+        self.assertIn("their entries would be brought up to them", preview)
+        self.assertIn("1 more have an entry of this script's and other bytes than it says", preview)
+
+        real = self.tool("derived_images.py", "adopt").stdout
+        self.assertEqual(real, preview.replace("would be recorded", "recorded").replace("would be", "were"))
+        self.assertEqual(self.state()[0], state[0])
+        record = json.loads(path.read_text(encoding="utf-8"))["outputs"]
+        self.assertEqual(record[at + "view.w480.jpg"], after["outputs"][at + "view.w480.jpg"])
+        for name in ("view.w480.webp", "view.w960.jpg"):
+            self.assertEqual(record[at + name], stale["outputs"][at + name])
+        # Its own again: nothing is made again for it, and it is not kept
+        # from the script as another's file is.
+        said = self.tool("generate-thumbnails.py").stdout
+        self.assertNotRegex(said, r"keep   \S*view\.w480\.jpg ")
 
 
 if __name__ == "__main__":

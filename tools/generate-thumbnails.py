@@ -393,15 +393,20 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
             return 0, True
         return 0, False
     counters = {"failed": 0}
-    adopted = differ = partial = 0
+    adopted = repaired = edited = differ = partial = 0
     with tempfile.TemporaryDirectory(prefix="adopt-variants-") as scratch:
         for source, taken, destination, width in plan(DEFAULT_ROOT, counters=counters):
             # A file with no entry, or with an entry that does not say
             # which bytes its photograph had (an earlier form of the
-            # record).
+            # record), or with an entry of this script's for this
+            # photograph that has other bytes than the file (a run stopped
+            # between putting the file there and saving the record).
+            stale = [path for path in (destination, webp_path(destination))
+                     if records.stale(path, PRODUCER, source)]
             there = [path for path in (destination, webp_path(destination))
                      if path.is_file() and not path.is_symlink() and records.declared_for(path) is None
-                     and (records.entry(path) is None or records.incomplete(path, PRODUCER, source))]
+                     and (records.entry(path) is None or path in stale
+                          or records.incomplete(path, PRODUCER, source))]
             if not there:
                 continue
             try:
@@ -409,8 +414,15 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
                                           jpeg=destination in there, webp=webp_path(destination) in there)
                 for path, encoded, digest in variants:
                     if encoded.read_bytes() == path.read_bytes():
-                        adopted += 1
+                        if path in stale:
+                            repaired += 1
+                            print(f"  repair   {_rel(path)}  (what this script makes of {_rel(source)} now; its "
+                                  "entry said other bytes)")
+                        else:
+                            adopted += 1
                         records.wrote(path, PRODUCER, source, taken, digest)
+                    elif path in stale:
+                        edited += 1
                     elif records.entry(path) is not None:
                         partial += 1
                     else:
@@ -422,6 +434,13 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     verb = "would be recorded" if dry_run else "recorded"
     print(f"generate-thumbnails: {adopted} variant file(s) {verb} as this script's; "
           f"{differ} differ and are left unrecorded.")
+    if repaired:
+        print(f"  {repaired} more, whose entries said other bytes, are what this script makes of their "
+              f"photographs now (a run was\n  stopped before it saved the record): their entries "
+              f"{'would be' if dry_run else 'were'} brought up to them.")
+    if edited:
+        print(f"  {edited} more have an entry of this script's and other bytes than it says, and are not what it "
+              "makes of their\n  photographs now: left as they are, as a file its author changed is.")
     if partial:
         print(f"  {partial} more are this script's by an entry that does not say which bytes their photograph "
               "had, and are not what it\n  makes of it now: left as recorded, and made again by the next "
@@ -429,7 +448,7 @@ def adopt_all(records: derived_images.Records, *, dry_run: bool) -> tuple[int, b
     if differ:
         print("  One that differs is yours, or was made by another Pillow. Look at it, and delete it to "
               "have it made again.")
-    return adopted, bool(counters["failed"])
+    return adopted + repaired, bool(counters["failed"])
 
 
 def _prune_reason(source: Path, width: int) -> str | None:
@@ -605,6 +624,11 @@ def main(argv: list[str] | None = None) -> int:
         # tree is held from here until the records are saved.
         with derived_images.Records.held(elsewhere=root if root.is_dir() else root.parent,
                                          save=not args.dry_run) as records:
+            # First of all, what a stopped run took aside goes back (a
+            # preview moves nothing): in the directories that are there
+            # now, or the one of the image named.
+            if not args.dry_run:
+                records.restore_displaced([root if root.is_dir() else root.parent], deep=root.is_dir())
             # Prune first: a re-imported source that shrank should lose its
             # stale wide variant before the generate pass decides what is
             # current.

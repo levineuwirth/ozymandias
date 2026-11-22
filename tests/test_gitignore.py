@@ -132,8 +132,9 @@ class TheEngineIgnoresWhatItWrites(unittest.TestCase):
                # a site's build refuses an engine with uncommitted files,
                # and would never reach the run that clears these.
                "static/images/.convert-k3v9x2ab/companion.tmp",
-               "static/images/.previous-image-0123456789abcdef-k3v9x2ab.tmp",
-               "static/images/.place-k3v9x2ab.tmp", "static/images/.place-k3v9x2ab-2.tmp",
+               "static/images/.previous-image-0123456789abcdef-k3v9x2ab.tmp/displaced.tmp",
+               "static/images/.previous-image-0123456789abcdef-k3v9x2ab.tmp/name.tmp",
+               "static/images/.previous-image-0123456789abcdef-k3v9x2ab.tmp/probe.tmp",
                "fixture-site/content/photography/.thumb-k3v9x2ab/jpeg.tmp",
                "data/.derived-images.json.4242.tmp"]
     # A file kept for its author, which Git must go on showing.

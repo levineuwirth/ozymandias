@@ -452,8 +452,10 @@ lacks, for a site that doesn't push the engine itself.
     is taken aside and checked before the new one goes in, so for that
     moment the name has no file (a site building just then shows the
     image alone). A run stopped in that moment leaves the file aside
-    (`.previous-image-….tmp`), and the next run puts it back before it
-    converts anything, saying so if it is not the tool's own. A file gets
+    (in a directory `.previous-image-….tmp` beside it), and the next run
+    puts it back before it converts anything, wherever its directory is
+    by then, saying so if the record does not say it is the tool's own.
+    A file gets
     its name by a hard link or, on a filesystem without them, by a rename
     that refuses an existing name; where there is neither, the tools stop
     and write no image there. Each finished
@@ -498,7 +500,12 @@ lacks, for a site that doesn't push the engine itself.
     for byte the same, lists the rest, and writes nothing else
     (`ADOPT_FLAGS=--dry-run` says what it would do, and changes nothing).
     An entry from an earlier form of the record, which does not say which
-    bytes its image had, is completed the same way.
+    bytes its image had, is completed the same way. So is an entry that
+    has other bytes than the file (a run stopped after it put its file in
+    place and before it saved the record): no build writes over such a
+    file, which may as well be one its author changed, and the adoption
+    brings the entry up to it only if it is what the tool makes of its
+    image now.
     Until then the site is correct and heavier: the images are shown
     without them.
 
