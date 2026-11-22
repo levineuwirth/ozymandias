@@ -25,7 +25,7 @@ import Compilers (essayCompiler, photographyCompiler)
 import Config (configRules)
 import Themes (Themes (..))
 import Hakyll
-import System.Environment (getArgs)
+import System.Environment (getArgs, lookupEnv)
 
 main :: IO ()
 main = getArgs >>= \\args -> case args of
@@ -33,9 +33,9 @@ main = getArgs >>= \\args -> case args of
     "existing" : paths -> mapM_ (existingFile >=> print) paths
     "files" : dirs -> mapM_ (filesIn >=> mapM_ putStrLn) dirs
     "imports" : sheets -> mapM_ (print . hasImport) sheets
-    _ -> hakyll $ do
+    _ -> lookupEnv "PROBE_OFF" >>= \\off -> hakyll $ do
         twins <- engineTwins
-        staticRules twins [] (const True) (Themes [] "" Nothing)
+        staticRules twins [] (`notElem` maybe [] words off) (Themes [] "" Nothing)
         templateRules twins
         configRules
         dims <- makePatternDependency (staticImageDimensions .&&. hasNoVersion)
@@ -93,8 +93,8 @@ class EngineFilesTests(unittest.TestCase):
             os.utime(path, (mtime, mtime))
         return path
 
-    def run_probe(self, *args):
-        done = subprocess.run([str(self.binary), *args], cwd=self.root, env=script_env(),
+    def run_probe(self, *args, **env):
+        done = subprocess.run([str(self.binary), *args], cwd=self.root, env=script_env(**env),
                               capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout
@@ -332,6 +332,34 @@ class EngineFilesTests(unittest.TestCase):
         self.assertEqual(self.version(), first)
         self.assertFalse((self.root / f"_site/assets/{first}/js/new-file.js").exists())
         self.assertNotIn("updated", self.run_probe("build"))
+
+    def test_a_version_moved_by_the_plan_alone_publishes_every_file_under_it(self):
+        # Hakyll writes an item only when it compiles it, and a new route does
+        # not make one out of date. The version also names the bundle plan,
+        # which follows the switches (and the engine's code): a version moved
+        # by the plan alone, no file changed, published only what happened to
+        # recompile under it, and every page named it.
+        self.write("engine/static/css/tokens.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        self.run_probe("build")
+        first = self.version()
+        self.assertIn("b{color:blue}", self.asset("css/score.css"))
+        self.run_probe("build", PROBE_OFF="music")
+        second = self.version()
+        self.assertNotEqual(second, first)
+        for rel in ("css/tokens.css", "css/site.css", "js/engine.js"):
+            self.assertTrue((self.root / f"_site/assets/{second}/{rel}").exists(), rel)
+        self.assertIn("a{color:red}", self.asset("css/core.css"))
+        self.assertIn("b{color:blue}", self.asset("css/core.css"))
+        self.assertFalse((self.root / f"_site/assets/{second}/css/score.css").exists())
+        self.assertNotIn("updated", self.run_probe("build", PROBE_OFF="music"))
+        # And back: the first version, its files written again.
+        shutil.rmtree(self.root / f"_site/assets/{first}")
+        self.run_probe("build")
+        self.assertEqual(self.version(), first)
+        self.assertIn("b{color:blue}", self.asset("css/score.css"))
+        self.assertEqual(self.asset("js/engine.js"), "engine();\n")
 
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.

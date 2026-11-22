@@ -268,30 +268,23 @@ staticRules twins withheld on themes = do
     assets  <- getMatches firstParty
     current <- preprocess (assetVersion (show (plan, modules)) assets)
     dingbats <- preprocess readDingbats
-    -- What the version depends on: the same files as 'firstParty', in a
-    -- pattern that still means them on a later build. Hakyll keeps the
-    -- pattern with what it matched here, among the files, and on every build
-    -- matches it again against every identifier the rules claim, versions
-    -- included. So
+    -- Every item named by the version depends on the version itself: an
+    -- item no rule routes, named after it, made on every build. Hakyll keeps
+    -- the pattern that names it with what it matched; when the version moves,
+    -- the item kept there is gone, and every holder is out of date.
     --
-    --   * 'hasNoVersion': the site's own files are also compiled in the
-    --     "source-preview" version (Site.hs), and counted, the two never
-    --     agreed: the version, and every page with it, was out of date on
-    --     every build;
-    --   * the engine's half is a glob less the files the site shadows now,
-    --     not 'twins', the list of the engine's files as they are now: a
-    --     file the engine gains could never match that, and the pages kept
-    --     the version from before it.
-    --
-    -- A site file that comes to shadow an engine file, or stops, changes
-    -- what the kept pattern matches too: the site's file comes or goes.
-    let scripts glob = fromGlob ("static/js/" ++ glob) .||. fromGlob ("static/css/" ++ glob)
-        inEngine     = fromGlob (engineDir ++ "/static/js/**") .||. fromGlob (engineDir ++ "/static/css/**")
-    own     <- Set.fromList <$> getMatches (scripts "**")
-    engine  <- getMatches inEngine
-    let shadowed = fromList [i | i <- engine, Set.member (fromFilePath (siteRelative (toFilePath i))) own]
-    changed <- makePatternDependency $ hasNoVersion .&&. complement unused
-                   .&&. (scripts "**" .||. (inEngine .&&. complement shadowed))
+    -- Hakyll writes an item only when it compiles it, and a route that
+    -- changes does not make an item out of date. Any dependency standing in
+    -- for the version must therefore fire whenever the version moves, or the
+    -- items it did not catch are never written under the new one, while every
+    -- page names it. A pattern over the files did not: it missed what the
+    -- version also names (the bundle and module plans, which follow the
+    -- engine's code and the switches), and a cache kept from an older engine
+    -- holds that engine's pattern. The version names everything, so the
+    -- dependency is on it.
+    let versionTag = fromFilePath ("asset-version/" ++ current)
+        changed    = PatternDependency (fromList [versionTag]) (Set.singleton versionTag)
+    create [versionTag] $ compile (makeItem ("" :: String))
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
 
