@@ -26,6 +26,9 @@ my-site/
 A site uses the engine's latest commit: there are no pins, and the tests
 are what keep an engine change from breaking a site. `fixture-site/` is a
 small site of this shape that the engine's own tests build.
+`docs/starting-a-site.md` is the path through the rest for a new site: the
+order to build it in, the files the engine's tests read of it, and what
+earlier sites had to find out.
 
 ## Building
 
