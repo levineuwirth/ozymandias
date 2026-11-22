@@ -536,13 +536,14 @@ class SettingsPanel(unittest.TestCase):
                 # with none chosen, the one worn by default is): chosen, it
                 # is worn. A site with one theme offers none other, and the
                 # checks after this go on without a switch.
-                ids = [a.removeprefix("theme-") for a in page.eval_on_selector_all(
-                    f'{PANEL} [data-action^="theme-"][aria-pressed="false"]',
-                    "bs => bs.filter(b => b.offsetParent).map(b => b.dataset.action)")]
-                if ids:
-                    self.button(page, f"theme-{ids[0]}").click()
-                    self.assertEqual(self.html(page, "data-theme"), ids[0])
-                    self.expect(self.button(page, f"theme-{ids[0]}")).to_have_attribute("aria-pressed", "true")
+                # Shown as Playwright takes it (`:visible`): a row hidden by
+                # visibility, which keeps an offsetParent, is not.
+                choices = page.locator(f'{PANEL} [data-action^="theme-"][aria-pressed="false"]:visible')
+                if choices.count():
+                    chosen = choices.first.get_attribute("data-action").removeprefix("theme-")
+                    self.button(page, f"theme-{chosen}").click()
+                    self.assertEqual(self.html(page, "data-theme"), chosen)
+                    self.expect(self.button(page, f"theme-{chosen}")).to_have_attribute("aria-pressed", "true")
                 # Two steps, or as many as there are, whichever way the
                 # default leaves room for.
                 base = self.default_size(page)
