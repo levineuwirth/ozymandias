@@ -373,8 +373,10 @@ def main(argv: list[str] | None = None) -> int:
             # First of all: a file a stopped run took aside is back in
             # its place before its entry is looked for, or its image
             # converted.
+            # And an entry is dropped for a file that is gone only where
+            # that was looked into.
             records.restore_displaced(image_roots()[2])
-            records.forget_missing()
+            records.forget_missing(image_roots()[2])
             slots, convertible = plan(records)
             if refuse_shared(slots, records):
                 return 1

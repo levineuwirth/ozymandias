@@ -507,8 +507,10 @@ lacks, for a site that doesn't push the engine itself.
     brings the entry up to it only if it is what the tool makes of its
     image now. While a file that a stopped run took aside is not back in
     its place, an adoption (and `declare`, in that directory) changes
-    nothing and says so: `make convert-images`, or a build, puts it back
-    first.
+    nothing, names the file, and says what puts it back: the next
+    conversion (`make convert-images`, or a build), the thumbnail script
+    for a photograph prepared outside `content/`, or the author, where
+    what was left is not as a run leaves it.
     Until then the site is correct and heavier: the images are shown
     without them.
 

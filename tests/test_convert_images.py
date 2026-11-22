@@ -718,14 +718,14 @@ fi
         self.convert()
         self.assertEqual(self.companions()["content/blog/map.webp"], made("map.png"))
 
-    def aside(self, rel: str, holds: str | None, *, named: bool = True) -> Path:
+    def aside(self, rel: str, holds: str | None, *, named: bool = True, tail: str = "abcd1234") -> Path:
         """What a stopped run leaves beside the companion at `rel`: the
         directory it reserved, the companion's name in it, and (unless
         `holds` is None) the file it took aside."""
         companion = self.root / rel
         key = hashlib.sha256(companion.name.encode()).hexdigest()[:16]
-        reserved = companion.with_name(f".previous-image-{key}-abcd1234.tmp")
-        reserved.mkdir()
+        reserved = companion.with_name(f".previous-image-{key}-{tail}.tmp")
+        reserved.mkdir(parents=True)
         if named:
             (reserved / "name.tmp").write_text(companion.name, encoding="utf-8")
         if holds is not None:
@@ -860,13 +860,19 @@ fi
             self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
             self.assertIn("a run that was stopped took 2 file(s) aside, and they are not back in their places",
                           done.stderr)
-            self.assertIn("Nothing was adopted. The next conversion puts them back (make convert-images",
-                          done.stderr)
+            self.assertIn("Nothing was adopted.", done.stderr)
+            self.assertIn("The next conversion puts these back (make convert-images, or a build):", done.stderr)
+            self.assertNotIn("These no tool moves", done.stderr)
             self.assertNotIn("recorded as this script's", done.stdout)
             self.assertEqual((self.companions(), path.read_bytes(), self.asides()), before)
-        declared = self.run_declare("content/after.webp")
-        self.assertEqual(declared.returncode, 1, declared.stdout + declared.stderr)
-        self.assertIn("Nothing was declared", declared.stderr)
+        # So does a declaration, of the file that is there and of the one
+        # that is aside itself, which it names.
+        for name in ("after", "before"):
+            declared = self.run_declare(f"content/{name}.webp")
+            self.assertEqual(declared.returncode, 1, declared.stdout + declared.stderr)
+            self.assertIn("Nothing was declared", declared.stderr)
+            self.assertRegex(declared.stderr, r"The next conversion puts these back .*:\n(    \S+\n)*    content/"
+                                              r"\.previous-image-[0-9a-f]{16}-abcd1234\.tmp/displaced\.tmp\n")
         self.assertFalse((self.root / "data/companions.json").exists())
 
         # The conversion puts them back: the one is the script's own and
@@ -882,6 +888,84 @@ fi
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("  repair   content/after.webp", done.stdout)
         self.assertIn("0 converted, 2 already present", self.convert())
+
+    def test_what_no_tool_puts_back_is_not_said_to_be_put_back_by_a_conversion(self):
+        # A reserved directory that is not as a run leaves one (a file
+        # beside the file aside, here) is left whole by a conversion. An
+        # adoption that waits for it says so, and not to run a conversion,
+        # which would change nothing. One outside the directories a
+        # conversion looks into is the thumbnail script's to put back.
+        self.write("content/lake.jpg")
+        self.convert()
+        (self.root / "content/lake.webp").unlink()
+        crowded = self.aside("content/lake.webp", "saved by its author")
+        (crowded / "sketch.txt").write_text("put here by hand", encoding="utf-8")
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("looks like a file set aside by a run that was stopped", done.stderr)
+        for run in (self.adopt, lambda: self.run_declare("content/lake.webp")):
+            done = run()
+            self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+            self.assertIn("These no tool moves", done.stderr)
+            self.assertIn(f"    content/{crowded.name}/displaced.tmp\n", done.stderr)
+            self.assertNotIn("The next conversion puts these back", done.stderr)
+            self.assertEqual((crowded / "displaced.tmp").read_text(encoding="utf-8"), "saved by its author")
+        # Resolved by hand, as it says: the file to its name, the directory gone.
+        os.replace(crowded / "displaced.tmp", self.root / "content/lake.webp")
+        shutil.rmtree(crowded)
+        self.assertEqual(self.adopt().returncode, 0)
+
+        self.write("prepared/view.w480.webp", "made elsewhere")
+        self.aside("prepared/other.w480.webp", "aside elsewhere")
+        done = self.run_declare("prepared/view.w480.webp", "content/lake.jpg")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("These are outside the directories a conversion looks into. The thumbnail script puts them back",
+                      done.stderr)
+        self.assertNotIn("The next conversion puts these back", done.stderr)
+
+    def test_a_directory_or_a_device_aside_is_nobody_s_image(self):
+        # Only a file (or a link) is ever taken aside. A directory of
+        # that name in a reserved directory is put nowhere a page looks
+        # for an image, whatever is in it.
+        self.write("content/lake.jpg")
+        self.write("content/pier.jpg")
+        self.convert()
+        for name in ("lake", "pier"):
+            (self.root / f"content/{name}.webp").unlink()
+        folder = self.aside("content/lake.webp", None)
+        self.write(f"content/{folder.name}/displaced.tmp/sketch.txt", "put here by hand")
+        pipe = self.aside("content/pier.webp", None, tail="efgh5678")
+        os.mkfifo(pipe / "displaced.tmp")
+        for name in ("lake", "pier"):
+            (self.root / f"content/{name}.jpg").unlink()
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(done.stderr.count("looks like a file set aside by a run that was stopped"), 2, done.stderr)
+        self.assertFalse(os.path.lexists(self.root / "content/lake.webp"))
+        self.assertFalse(os.path.lexists(self.root / "content/pier.webp"))
+        self.assertEqual((folder / "displaced.tmp/sketch.txt").read_text(encoding="utf-8"), "put here by hand")
+        self.assertTrue((pipe / "displaced.tmp").is_fifo())
+
+    def test_a_directory_reached_by_two_roots_is_looked_into_once(self):
+        # static/ is a link to a directory under content/: what a stopped
+        # run took aside there is put back once, and not looked for again
+        # where it no longer is.
+        self.write("content/images/lake.jpg")
+        (self.root / "static").symlink_to(self.root / "content/images", target_is_directory=True)
+        done = self.run_script()
+        first = (done.returncode, done.stderr)
+        (self.root / "content/images/lake.webp").unlink(missing_ok=True)
+        self.aside("content/images/lake.webp", "saved by its author")
+
+        done = self.run_script()
+        self.assertEqual(done.stderr.count("was set aside by a run that was stopped, and is back in its place"), 1,
+                         done.stderr)
+        self.assertEqual(done.returncode, first[0], done.stdout + done.stderr)
+        self.assertEqual((self.root / "content/images/lake.webp").read_text(encoding="utf-8"),
+                         "saved by its author")
+        self.assertEqual(self.asides(), [])
 
     def test_a_file_an_earlier_form_of_the_tools_took_aside_is_named_and_not_moved(self):
         # One commit of the tools kept the file it took aside as a file of

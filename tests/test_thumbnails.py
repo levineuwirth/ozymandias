@@ -1191,6 +1191,42 @@ class AdoptionTests(unittest.TestCase):
         said = self.tool("generate-thumbnails.py").stdout
         self.assertNotRegex(said, r"keep   \S*view\.w480\.jpg ")
 
+    def test_an_entry_is_dropped_only_where_a_run_looked_for_what_was_taken_aside(self) -> None:
+        # A photograph prepared outside content/, by the script run over
+        # that one file, and a replacement of its variant stopped with the
+        # old one aside. A conversion and an adoption look into content/
+        # and static/: the variant is missing for them, and its entry is
+        # not theirs to drop, or it comes back as nobody's and is never
+        # made again.
+        prepared = self.root / "prepared"
+        prepared.mkdir()
+        photo = prepared / "photo.jpg"
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        self.tool("generate-thumbnails.py", "prepared/photo.jpg")
+        path = self.root / "data/derived-images.json"
+        entry = json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"]
+        variant = prepared / "photo.w480.jpg"
+        reserved = prepared / f".previous-image-{hashlib.sha256(variant.name.encode()).hexdigest()[:16]}-abcd1234.tmp"
+        reserved.mkdir()
+        (reserved / "name.tmp").write_bytes(variant.name.encode())
+        os.replace(variant, reserved / "displaced.tmp")
+        Image.new("RGB", (600, 10), (30, 30, 200)).save(photo, format="JPEG")
+
+        for tool in (["derived_images.py", "adopt"], ["convert_images.py"]):
+            self.tool(*tool)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"], entry)
+            self.assertTrue((reserved / "displaced.tmp").is_file())
+
+        done = self.tool("generate-thumbnails.py", "prepared/photo.jpg")
+        self.assertEqual(done.stderr, "")
+        self.assertFalse(reserved.exists())
+        with Image.open(variant) as made:
+            red, _, blue = made.getpixel((0, 0))
+        self.assertGreater(blue, red)
+        record = json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"]
+        self.assertEqual(record["digest"], "sha256:" + hashlib.sha256(variant.read_bytes()).hexdigest())
+        self.assertEqual(record["source-digest"], "sha256:" + hashlib.sha256(photo.read_bytes()).hexdigest())
+
 
 if __name__ == "__main__":
     unittest.main()

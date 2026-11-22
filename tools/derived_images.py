@@ -582,7 +582,7 @@ class Records:
         """What is in a reserved directory, if it is as a run leaves one:
         ("reserved", None) with no file aside (nothing, or the empty
         files a run asks the filesystem with, or the name it was about to
-        take a file from); ("aside", name) with a file aside and the name
+        take a file from); ("aside", name) with a file (or a link) aside and the name
         it had. ("other", None) for anything else: something there is
         not the tools', and nothing in it is theirs to move or delete."""
         key = RESERVED.fullmatch(reserved.name).group(1)
@@ -604,8 +604,13 @@ class Records:
         if DISPLACED not in entries:
             return "reserved", None
         # A file is moved there only once the name is written, and after
-        # the filesystem was asked.
-        if not name or any(probe in entries for probe in PROBES):
+        # the filesystem was asked. And a file: what a tool takes aside is
+        # its own output, or what was saved over it in that moment (a
+        # link, perhaps). A directory there, or a device, is nobody's
+        # image, and is not put where a page would look for one.
+        aside = entries[DISPLACED]
+        if (not name or any(probe in entries for probe in PROBES)
+                or not (aside.is_symlink() or aside.is_file(follow_symlinks=False))):
             return "other", None
         return "aside", name
 
@@ -641,6 +646,7 @@ class Records:
 
         found: list[tuple[Path, str | None]] = []
         recorded: dict[int, dict[str, str]] = {}
+        looked: set[Path] = set()           # one root may be a link into another
         for root in roots:
             if not os.path.isdir(root):
                 continue
@@ -651,6 +657,9 @@ class Records:
                 if not reserved and not earlier:
                     continue
                 real = Path(os.path.realpath(directory))
+                if real in looked:
+                    continue
+                looked.add(real)
                 try:
                     tree = self._tree(real / "any")
                 except RecordError:
@@ -664,16 +673,19 @@ class Records:
                         found.append((real / name, was))
         return found
 
-    def pending(self, roots: Iterable[Path], *, deep: bool = True) -> list[Path]:
+    def pending(self, roots: Iterable[Path], *, deep: bool = True) -> list[tuple[Path, bool]]:
         """The files stopped runs took aside and nothing has put back, at
-        or under `roots`. While there are any, the record is of files
-        that are not in their places: `restore_displaced` first."""
+        or under `roots`, each with whether `restore_displaced` puts it
+        back (it does not move one whose directory is not as a run
+        leaves it, nor one an earlier form of the tools left). While
+        there are any, the record is of files that are not in their
+        places."""
         waiting = []
         for path, was in self._left_aside(roots, deep):
             if was is not None:
-                waiting.append(path)
+                waiting.append((path, False))
             elif os.path.lexists(path / DISPLACED):
-                waiting.append(path / DISPLACED)
+                waiting.append((path / DISPLACED, self._holds(path)[0] == "aside"))
         return waiting
 
     def restore_displaced(self, roots: Iterable[Path], *, deep: bool = True) -> None:
@@ -826,10 +838,24 @@ class Records:
                     found.append((Path(output), Path(tree.real) / entry["source"]))
         return sorted(found)
 
-    def forget_missing(self) -> None:
-        """Drop the entries of outputs that are no longer there."""
+    def forget_missing(self, roots: Iterable[Path]) -> None:
+        """Drop the entries of outputs that are no longer there, at or
+        under `roots`: the directories this run looked into for what a
+        stopped run took aside (`restore_displaced`, first). An output
+        elsewhere may be aside and coming back, by the run of the tool
+        that looks there, and its entry is what makes it the tool's own
+        then."""
+        under = [os.path.realpath(root) for root in roots]
+        real: dict[str, str] = {}
         for tree in self.trees:
-            gone = [rel for rel in tree.outputs if not os.path.lexists(tree.root / rel)]
+            gone = []
+            for rel in tree.outputs:
+                directory = os.path.dirname(os.path.join(tree.real, rel))
+                if directory not in real:
+                    real[directory] = os.path.realpath(directory)
+                if (any(real[directory] == root or real[directory].startswith(root + os.sep) for root in under)
+                        and not os.path.lexists(os.path.join(real[directory], os.path.basename(rel)))):
+                    gone.append(rel)
             for rel in gone:
                 del tree.outputs[rel]
             if gone:
@@ -860,40 +886,66 @@ IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".gif")
 
 def waiting(records: Records, roots: list[Path], tool: str, nothing: str, *, deep: bool = True) -> bool:
     """Say which files a stopped run took aside and nothing has put back,
-    if any: what the record says of their names is then of files that are
-    not there, and a tool that only reads and corrects the record would
-    correct it wrongly."""
+    if any, and what puts each back: what the record says of their names
+    is then of files that are not there, and a tool that only reads and
+    corrects the record would correct it wrongly."""
     aside = records.pending(roots, deep=deep)
-    if aside:
-        print(f"{tool}: a run that was stopped took {len(aside)} file(s) aside, and they are not back in their "
-              "places:", file=sys.stderr)
-        for path in aside[:5]:
-            print(f"  {show(path)}", file=sys.stderr)
-        if len(aside) > 5:
-            print(f"  … and {len(aside) - 5} more", file=sys.stderr)
-        print(f"  {nothing}. The next conversion puts them back (make convert-images, or a build); "
-              "then run this again.", file=sys.stderr)
-    return bool(aside)
+    if not aside:
+        return False
+    converted = [os.path.realpath(root) for root in _tool("convert_images.py").image_roots()[2]]
+
+    def by_conversion(path: Path) -> bool:
+        return any(str(path).startswith(root + os.sep) for root in converted)
+
+    def listed(paths: list[Path]) -> None:
+        for path in paths:
+            print(f"    {show(path)}", file=sys.stderr)
+
+    print(f"{tool}: a run that was stopped took {len(aside)} file(s) aside, and they are not back in their "
+          f"places. {nothing}.", file=sys.stderr)
+    back = [path for path, restored in aside if restored and by_conversion(path)]
+    if back:
+        print("  The next conversion puts these back (make convert-images, or a build):", file=sys.stderr)
+        listed(back)
+    elsewhere = [path for path, restored in aside if restored and not by_conversion(path)]
+    if elsewhere:
+        print("  These are outside the directories a conversion looks into. The thumbnail script puts them back, "
+              "run over the\n  directory each is in (python3 engine/tools/generate-thumbnails.py DIRECTORY):",
+              file=sys.stderr)
+        listed(elsewhere)
+    by_hand = [path for path, restored in aside if not restored]
+    if by_hand:
+        print("  These no tool moves: each is in a directory that is not as a run leaves one, or was left by an "
+              "earlier form\n  of the tools. Look at each. If it is a file you saved, move it to the name it "
+              "had; if not, delete it. Then\n  delete the `.previous-image-….tmp` directory it was in, if it "
+              "was in one:", file=sys.stderr)
+        listed(by_hand)
+    print("  Then run this again.", file=sys.stderr)
+    return True
 
 
 def declare(webp: Path, image: Path | None) -> int:
     webp = Path(os.path.abspath(webp))
-    if not webp.is_file() or webp.suffix != ".webp":
-        print(f"declare: {show(webp)} is not a .webp file", file=sys.stderr)
-        return 1
-    if image is None:
-        beside = sorted(p for p in webp.parent.iterdir()
-                        if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES and p.name[:-len(p.suffix)] == webp.stem)
-        if len(beside) != 1:
-            print(f"declare: {show(webp)} has {len(beside)} images of its name beside it; name the one it is for",
-                  file=sys.stderr)
-            return 1
-        image = beside[0]
-    image = Path(os.path.abspath(image))
-    if not image.is_file():
-        print(f"declare: {show(image)} is not a file", file=sys.stderr)
-        return 1
     with Records.held() as records:
+        # First of all: the file named may itself be aside, and then it
+        # is not there to declare.
+        if waiting(records, [webp.parent], "declare", "Nothing was declared", deep=False):
+            return 1
+        if not webp.is_file() or webp.suffix != ".webp":
+            print(f"declare: {show(webp)} is not a .webp file", file=sys.stderr)
+            return 1
+        if image is None:
+            beside = sorted(p for p in webp.parent.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
+                            and p.name[:-len(p.suffix)] == webp.stem)
+            if len(beside) != 1:
+                print(f"declare: {show(webp)} has {len(beside)} images of its name beside it; name the one it is "
+                      "for", file=sys.stderr)
+                return 1
+            image = beside[0]
+        image = Path(os.path.abspath(image))
+        if not image.is_file():
+            print(f"declare: {show(image)} is not a file", file=sys.stderr)
+            return 1
         # The line goes in the declarations of the tree the file is in: the
         # site's, or the engine's, which every site that links it reads.
         try:
@@ -909,8 +961,6 @@ def declare(webp: Path, image: Path | None) -> int:
         if not same:
             print(f"declare: {show(webp)} and {show(image)} are not files of one tree (the site, or the engine)",
                   file=sys.stderr)
-            return 1
-        if waiting(records, [webp.parent], "declare", "Nothing was declared", deep=False):
             return 1
         path = tree.root / DECLARED
         declared = {**tree.declared, tree.rel(webp): tree.rel(image)}
@@ -964,7 +1014,7 @@ def adopt(dry_run: bool) -> int:
         # replaced by the one aside.
         if waiting(records, converter.image_roots()[2], "derived-images", "Nothing was adopted"):
             return 1
-        records.forget_missing()
+        records.forget_missing(converter.image_roots()[2])
         adopted = 0
         failed = False
         count, bad = thumbnails.adopt_all(records, dry_run=dry_run)
