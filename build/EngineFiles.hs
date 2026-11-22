@@ -268,7 +268,30 @@ staticRules twins withheld on themes = do
     assets  <- getMatches firstParty
     current <- preprocess (assetVersion (show (plan, modules)) assets)
     dingbats <- preprocess readDingbats
-    changed <- makePatternDependency firstParty
+    -- What the version depends on: the same files as 'firstParty', in a
+    -- pattern that still means them on a later build. Hakyll keeps the
+    -- pattern with what it matched here, among the files, and on every build
+    -- matches it again against every identifier the rules claim, versions
+    -- included. So
+    --
+    --   * 'hasNoVersion': the site's own files are also compiled in the
+    --     "source-preview" version (Site.hs), and counted, the two never
+    --     agreed: the version, and every page with it, was out of date on
+    --     every build;
+    --   * the engine's half is a glob less the files the site shadows now,
+    --     not 'twins', the list of the engine's files as they are now: a
+    --     file the engine gains could never match that, and the pages kept
+    --     the version from before it.
+    --
+    -- A site file that comes to shadow an engine file, or stops, changes
+    -- what the kept pattern matches too: the site's file comes or goes.
+    let scripts glob = fromGlob ("static/js/" ++ glob) .||. fromGlob ("static/css/" ++ glob)
+        inEngine     = fromGlob (engineDir ++ "/static/js/**") .||. fromGlob (engineDir ++ "/static/css/**")
+    own     <- Set.fromList <$> getMatches (scripts "**")
+    engine  <- getMatches inEngine
+    let shadowed = fromList [i | i <- engine, Set.member (fromFilePath (siteRelative (toFilePath i))) own]
+    changed <- makePatternDependency $ hasNoVersion .&&. complement unused
+                   .&&. (scripts "**" .||. (inEngine .&&. complement shadowed))
     let versioned = fromEngine (stripPrefixRoute "static/")
             `composeRoutes` customRoute (\i -> "assets/" ++ current ++ "/" ++ toFilePath i)
 

@@ -53,6 +53,11 @@ main = getArgs >>= \\args -> case args of
         create ["stamped.html"] $ do
             route idRoute
             compile $ makeItem ("$assets$" :: String) >>= applyAsTemplate assetsField
+        -- A second, versioned rule over the site's static files, as Site.hs
+        -- has for the source-preview corpus.
+        match "static/**" $ version "source-preview" $ do
+            route $ customRoute (("source/" ++) . toFilePath)
+            compile copyFileCompiler
 '''
 
 
@@ -271,6 +276,62 @@ class EngineFilesTests(unittest.TestCase):
         self.write("static/css/site.css", "c{}", mtime=6000)
         self.run_probe("build")
         self.assertEqual(self.version(), fourth)
+
+    def test_a_build_with_nothing_changed_recompiles_nothing(self):
+        # The version's pattern dependency is matched again, on every build,
+        # against every identifier the rules claim, versions included: a site
+        # file also compiled in a version (the source-preview corpus) put it
+        # out of date on every build, and every page with it.
+        self.write("engine/static/css/base.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        self.write("static/js/site.js", "site();\n")
+        self.run_probe("build")
+        self.assertEqual(self.built("source/static/css/site.css"), "b { color: blue; }\n")
+        first = self.version()
+        log = self.run_probe("build")
+        self.assertNotIn("updated", log)
+        # A change still reaches the version, and the pages with it.
+        self.write("static/css/site.css", "b { color: green; }\n",
+                   (self.root / "static/css/site.css").stat().st_mtime + 2)
+        log = self.run_probe("build")
+        self.assertIn("updated stamped.html", log)
+        self.assertNotEqual(self.version(), first)
+
+    def test_an_engine_file_s_coming_and_going_moves_the_version(self):
+        # The engine's half of the version's dependency must match files the
+        # engine gains after the build that recorded it: once nothing changed
+        # recompiled nothing, a new engine script was published under a new
+        # version that no page named, and the prune could remove it.
+        self.write("engine/static/css/base.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        self.run_probe("build")
+        first = self.version()
+        self.write("engine/static/js/new-file.js", "fresh();\n")
+        self.run_probe("build")
+        second = self.version()
+        self.assertNotEqual(second, first)
+        self.assertEqual(self.asset("js/new-file.js"), "fresh();\n")
+        self.assertEqual(self.asset("css/base.css"), "a{color:red}")
+        self.assertNotIn("updated", self.run_probe("build"))
+        # A site file that comes to shadow an engine file, and its going.
+        self.write("static/js/new-file.js", "shadow();\n")
+        self.run_probe("build")
+        third = self.version()
+        self.assertNotIn(third, (first, second))
+        self.assertEqual(self.asset("js/new-file.js"), "shadow();\n")
+        self.assertNotIn("updated", self.run_probe("build"))
+        (self.root / "static/js/new-file.js").unlink()
+        self.run_probe("build")
+        self.assertEqual(self.version(), second)
+        self.assertEqual(self.asset("js/new-file.js"), "fresh();\n")
+        # And the engine file's going.
+        (self.root / "engine/static/js/new-file.js").unlink()
+        self.run_probe("build")
+        self.assertEqual(self.version(), first)
+        self.assertFalse((self.root / f"_site/assets/{first}/js/new-file.js").exists())
+        self.assertNotIn("updated", self.run_probe("build"))
 
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.

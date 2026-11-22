@@ -201,7 +201,8 @@ standaloneScoreRules pages =
 --   why a page with scores lives in a directory of its own.
 standaloneRules :: Standalone -> Rules ()
 standaloneRules page = do
-    scoreDeps <- mapM (makePatternDependency . standaloneScoreFragments) (standaloneScoreDir page)
+    scoreDeps <- mapM (makePatternDependency . (hasNoVersion .&&.) . standaloneScoreFragments)
+                      (standaloneScoreDir page)
     rulesExtraDependencies scoreDeps $ match (fromList [fromFilePath (standaloneSource page)]) $ do
         route   $ constRoute (standaloneRoute page)
         compile $ compiler
@@ -806,9 +807,9 @@ rules = do
         -- removing a realization would otherwise leave the reader stale. It is
         -- also the only dependency on the score pages that 'scorePageList'
         -- lists, which records none of its own (audit H06).
-        musicScoreDep <- makePatternDependency $
+        musicScoreDep <- makePatternDependency $ hasNoVersion .&&. (
                              "content/music/**/*.svg" .||. "content/music/**/*.json"
-                             .||. "content/music/**/*.webp"
+                             .||. "content/music/**/*.webp")
 
         rulesExtraDependencies [musicScoreDep] $ match "content/music/index.md" $ do
             route   $ constRoute "music/index.html"
