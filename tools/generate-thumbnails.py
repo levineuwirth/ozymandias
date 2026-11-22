@@ -152,32 +152,28 @@ def iter_sources(root: Path):
     one file it just wrote, which keeps a bulk import linear instead of
     quadratic (the same convenience extract-exif.py offers).
     """
-    if not root.exists():
-        return
     if root.is_file():
-        if _qualifies(root):
+        if not derived_images.set_aside(root) and _qualifies(root):
             yield root
         return
-    for path in sorted(root.rglob("*")):
-        # Nothing in a directory reserved to take a file aside into is a
-        # photograph of the site's (derived_images.set_aside).
-        if _qualifies(path) and not derived_images.set_aside(path.relative_to(root)):
+    for path in sorted(derived_images.image_files(root)):
+        if _qualifies(path):
             yield path
 
 
 def iter_variants(root: Path):
     """Every file under `root` that this script's contract would own."""
-    if not root.exists():
-        return
     if root.is_file():
+        if derived_images.set_aside(root):
+            return
         # A named source: its own ladder, not the whole directory's.
         for width in WIDTHS:
             candidate = variant_path(root, width)
             if candidate.exists():
                 yield candidate
         return
-    for path in sorted(root.rglob("*")):
-        if path.is_file() and is_variant(path) and not derived_images.set_aside(path.relative_to(root)):
+    for path in sorted(derived_images.image_files(root)):
+        if path.is_file() and is_variant(path):
             yield path
 
 
@@ -493,6 +489,7 @@ def prune(root: Path, records: derived_images.Records, *, dry_run: bool, counter
     for webp, source in records.made_under(root if root.is_dir() else root.parent, PRODUCER):
         variant = webp.with_suffix(source.suffix)
         if (webp.suffix != ".webp" or not webp.is_file() or variant.exists() or not is_variant(variant)
+                or derived_images.set_aside(webp)
                 or (root.is_file() and source != root)):
             continue
         reason = _prune_reason(source, photo_naming.variant_width(variant))
@@ -599,6 +596,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = Path(args.root)
+    if derived_images.set_aside(root):
+        return 0
     if not root.is_absolute():
         root = (Path.cwd() / root).resolve()
 

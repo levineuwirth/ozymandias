@@ -108,16 +108,9 @@ def images_under(roots: list[Path]) -> list[Path]:
         raise error
 
     for root in roots:
-        if not root.is_dir():
-            continue
-        for directory, subdirectories, names in os.walk(root, onerror=failed):
-            # Not into a directory reserved to take a file aside into:
-            # nothing there is an image of the site's.
-            subdirectories[:] = [name for name in subdirectories if not derived_images.RESERVED.fullmatch(name)]
-            for name in names:
-                path = Path(directory) / name
-                if path.suffix.lower() in SHOWN_WITH_ONE and path.is_file():
-                    found.append(path)
+        for path in derived_images.image_files(root, onerror=failed):
+            if path.suffix.lower() in SHOWN_WITH_ONE and path.is_file():
+                found.append(path)
     return sorted(found, key=os.fsencode)
 
 

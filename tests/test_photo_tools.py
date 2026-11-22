@@ -151,7 +151,14 @@ class PaletteTests(unittest.TestCase):
             return {"a": 1}
         counts = sidecars.run("test", ".t.yaml", read, roots=[self.tmp], image_exts={".jpg"}, argv=[])
         self.assertEqual((calls, counts["written"]), (["a.jpg"], 1))
-        self.assertEqual(sorted(p.name for p in left.iterdir()), ["sketch.jpg"])
+        alias = self.tmp / "linked"
+        alias.symlink_to(left, target_is_directory=True)
+        (left / "linked.jpg").symlink_to(self.tmp / "a.jpg")
+        for path in (left, alias):
+            for argv in ([], [str(path / "sketch.jpg")], [str(path / "linked.jpg")]):
+                counts = sidecars.run("test", ".t.yaml", read, roots=[path], image_exts={".jpg"}, argv=argv)
+                self.assertEqual((calls, counts["written"]), (["a.jpg"], 0))
+        self.assertEqual(sorted(p.name for p in left.iterdir()), ["linked.jpg", "sketch.jpg"])
 
 
 if __name__ == "__main__":

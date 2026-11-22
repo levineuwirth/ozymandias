@@ -18,6 +18,7 @@ import hashlib
 import io
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -798,6 +799,37 @@ class OwnershipTests(unittest.TestCase):
         code, out, errors = self.run_with_errors()
         self.assertEqual((code, errors), (0, ""), out)
 
+    def test_many_occupied_backup_names_do_not_block_recovery(self):
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        saved = self.aside("view.w480.webp", self.AUTHORED)
+        first = saved.with_suffix("")
+        occupied = [first, *(first.with_name(f"{first.name}-{n}") for n in range(2, 100))]
+        for path in occupied:
+            path.write_bytes(b"occupied")
+        self.assertEqual(self.run_with_errors()[0], 0)
+        self.assertTrue(all(p.read_bytes() == b"occupied" for p in occupied))
+        self.assertEqual(first.with_name(f"{first.name}-100").read_bytes(), self.AUTHORED)
+        self.assertFalse(saved.exists())
+        self.assertEqual(self.run_with_errors()[2], "")
+
+    def test_prune_preserves_an_old_recorded_orphan_in_a_reservation(self):
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        left = self.aside("view.w480.jpg", None)
+        orphan = left / "sketch.w480.webp"
+        orphan.write_bytes((self.photos / "view.w480.webp").read_bytes())
+        # Earlier versions generated thumbnails even inside reservations.
+        path = self.root / "data/derived-images.json"
+        record = json.loads(path.read_text())
+        key = orphan.relative_to(self.root).as_posix()
+        record["outputs"][key] = dict(record["outputs"]["trip/view.w480.webp"],
+                                      source=(left / "sketch.jpg").relative_to(self.root).as_posix())
+        path.write_text(json.dumps(record))
+        before = self.files(), self.record()
+        self.assertEqual(run(str(self.root), "--prune")[0], 0)
+        self.assertEqual((self.files(), self.record()), before)
+
     def test_no_photograph_is_looked_for_in_a_directory_reserved_to_take_a_file_aside(self) -> None:
         # One left for its author to look at may hold a picture of any
         # width: none of it is the site's, to make variants of or to prune.
@@ -807,6 +839,11 @@ class OwnershipTests(unittest.TestCase):
         Image.new("RGB", (2000, 10), (10, 120, 200)).save(left / "sketch.jpg", format="JPEG")
         (left / "gone.w480.jpg").write_bytes(self.AUTHORED)
         before = (self.files(), self.record())
+        alias = self.root / "linked"
+        alias.symlink_to(left, target_is_directory=True)
+        for root in (left / "sketch.jpg", left, alias / "sketch.jpg", alias):
+            self.assertEqual(run(str(root), "--force", "--prune")[0], 0)
+            self.assertEqual((self.files(), self.record()), before)
         for argv in ((), ("--force",), ("--prune",)):
             code, out, errors = self.run_with_errors(*argv)
             self.assertEqual((code, errors), (0, ""), out)
@@ -1235,13 +1272,14 @@ class AdoptionTests(unittest.TestCase):
         # and static/: the variant is missing for them, and its entry is
         # not theirs to drop, or it comes back as nobody's and is never
         # made again.
-        prepared = self.root / "prepared"
+        prepared = self.root / "-prepared photos"
         prepared.mkdir()
         photo = prepared / "photo.jpg"
         Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
-        self.tool("generate-thumbnails.py", "prepared/photo.jpg")
+        self.tool("generate-thumbnails.py", "--", str(photo))
         path = self.root / "data/derived-images.json"
-        entry = json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"]
+        variant_key = f"{prepared.name}/photo.w480.jpg"
+        entry = json.loads(path.read_text(encoding="utf-8"))["outputs"][variant_key]
         variant = prepared / "photo.w480.jpg"
         reserved = prepared / f".previous-image-{hashlib.sha256(variant.name.encode()).hexdigest()[:16]}-abcd1234.tmp"
         reserved.mkdir()
@@ -1251,25 +1289,28 @@ class AdoptionTests(unittest.TestCase):
 
         for tool in (["derived_images.py", "adopt"], ["convert_images.py"]):
             self.tool(*tool)
-            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"], entry)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["outputs"][variant_key], entry)
             self.assertTrue((reserved / "displaced.tmp").is_file())
 
         # A declaration there waits too, and says which command puts the
         # variant back: the script over the photograph's directory, which
         # is run here exactly as it is printed.
+        (self.root / "engine").symlink_to(engine_path(""))
+        (self.root / ".venv").symlink_to(sys.prefix)
         waits = subprocess.run([sys.executable, str(engine_path("tools/derived_images.py")), "declare",
-                                "prepared/photo.w480.webp"], cwd=self.root, capture_output=True, text=True,
+                                str(prepared / "photo.w480.webp")], cwd=self.root, capture_output=True, text=True,
                                timeout=120, env=script_env(self.stubs, SITE_ROOT=str(self.root)))
         self.assertEqual(waits.returncode, 1, waits.stdout + waits.stderr)
-        [command] = [line.split() for line in waits.stderr.splitlines() if "generate-thumbnails.py" in line]
-        self.assertEqual(command, ["python3", "engine/tools/generate-thumbnails.py", "prepared"])
-        done = self.tool("generate-thumbnails.py", *command[2:])
+        [command] = [shlex.split(line) for line in waits.stderr.splitlines() if "generate-thumbnails.py" in line]
+        self.assertEqual(command, [".venv/bin/python3", "engine/tools/generate-thumbnails.py", "--", prepared.name])
+        done = subprocess.run(command, cwd=self.root, env=script_env(self.stubs, SITE_ROOT=str(self.root)),
+                              capture_output=True, text=True, check=True, timeout=120)
         self.assertEqual(done.stderr, "")
         self.assertFalse(reserved.exists())
         with Image.open(variant) as made:
             red, _, blue = made.getpixel((0, 0))
         self.assertGreater(blue, red)
-        record = json.loads(path.read_text(encoding="utf-8"))["outputs"]["prepared/photo.w480.jpg"]
+        record = json.loads(path.read_text(encoding="utf-8"))["outputs"][variant_key]
         self.assertEqual(record["digest"], "sha256:" + hashlib.sha256(variant.read_bytes()).hexdigest())
         self.assertEqual(record["source-digest"], "sha256:" + hashlib.sha256(photo.read_bytes()).hexdigest())
 

@@ -116,9 +116,10 @@ import re
 import shlex
 import sys
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from itertools import count
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -301,7 +302,22 @@ def set_aside(path: Path) -> bool:
     its name: what a stopped run took aside, or what somebody put there
     since, in a directory left for them to look at. No tool looks there
     for images, and none writes there."""
-    return any(RESERVED.fullmatch(part) for part in path.parts[:-1])
+    # Sidecars are written beside a named symlink. Both that directory and
+    # the destination of the link must be outside reservations.
+    locations = (path, Path(os.path.realpath(path.parent)), Path(os.path.realpath(path)))
+    return any(RESERVED.fullmatch(part) for location in locations for part in location.parts)
+
+
+def image_files(root: Path, onerror: Callable[[OSError], None] | None = None) -> Iterator[Path]:
+    """Walk an image directory without entering recovery reservations."""
+    if set_aside(root) or not root.is_dir():
+        return
+    for directory, subdirectories, names in os.walk(root, onerror=onerror):
+        subdirectories[:] = [name for name in subdirectories if not RESERVED.fullmatch(name)]
+        for name in names:
+            path = Path(directory) / name
+            if not path.is_symlink() or not set_aside(path):
+                yield path
 
 
 def _one_file(first: Path, second: Path) -> bool:
@@ -580,7 +596,8 @@ class Records:
         giving it such a name and taking the other away left one file
         under both: the other name goes."""
         aside, first = reserved / DISPLACED, reserved.with_suffix("")
-        for kept in (first, *(first.with_name(f"{first.name}-{n}") for n in range(2, 100))):
+        for number in count(1):
+            kept = first if number == 1 else first.with_name(f"{first.name}-{number}")
             try:
                 place(aside, kept)
             except FileExistsError:
@@ -588,7 +605,6 @@ class Records:
                     continue
                 aside.unlink()
             return kept
-        return aside
 
     @staticmethod
     def _holds(reserved: Path) -> tuple[str, str | None]:
@@ -661,7 +677,7 @@ class Records:
         recorded: dict[int, dict[str, str]] = {}
         looked: set[Path] = set()           # one root may be a link into another
         for root in roots:
-            if not os.path.isdir(root):
+            if set_aside(root) or not os.path.isdir(root):
                 continue
             for directory, subdirectories, files in os.walk(root, onerror=failed):
                 reserved = sorted(name for name in subdirectories if RESERVED.fullmatch(name))
@@ -928,8 +944,11 @@ def waiting(records: Records, roots: list[Path], tool: str, nothing: str, *, dee
               "run over the\n  directory of the photographs they were taken from:", file=sys.stderr)
         # The file is in the directory reserved for it, and that one in
         # the photographs' directory, which is the one to name.
+        site_python = sitelib.SITE_ROOT / ".venv/bin/python3"
+        python = show(site_python) if os.access(site_python, os.X_OK) else sys.executable
         for directory in sorted({path.parent.parent for path in elsewhere}):
-            print(f"    python3 engine/tools/generate-thumbnails.py {shlex.quote(show(directory))}", file=sys.stderr)
+            command = [python, "engine/tools/generate-thumbnails.py", "--", show(directory)]
+            print(f"    {shlex.join(command)}", file=sys.stderr)
         print("  for:", file=sys.stderr)
         listed(elsewhere)
     by_hand = [path for path, restored in aside if not restored]

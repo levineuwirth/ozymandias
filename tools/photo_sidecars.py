@@ -55,15 +55,14 @@ def candidates(tool: str, argv: list[str], roots: Iterable[Path]) -> list[Path]:
     importers name the files they just wrote, which keeps a bulk import
     linear instead of quadratic."""
     if not argv:
-        # Not what is in a directory an image tool reserved to take a file
-        # aside into: no photograph of the site's is there.
-        return [p for root in roots if root.exists() for p in sorted(root.rglob("*"))
-                if not derived_images.set_aside(p.relative_to(root))]
+        return [p for root in roots for p in sorted(derived_images.image_files(root))]
     out = []
     for a in argv:
         p = Path(a)
         if not p.is_absolute():
             p = SITE_ROOT / p
+        if derived_images.set_aside(p):
+            continue
         if p.exists():
             out.append(p)
         else:

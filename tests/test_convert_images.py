@@ -947,7 +947,7 @@ fi
         self.assertIn("These are outside the directories a conversion looks into. The thumbnail script puts them back",
                       done.stderr)
         # The directory to name is the photographs', not the one the file is in now.
-        self.assertIn("\n    python3 engine/tools/generate-thumbnails.py prepared\n", done.stderr)
+        self.assertIn(" engine/tools/generate-thumbnails.py -- prepared\n", done.stderr)
         self.assertNotIn("The next conversion puts these back", done.stderr)
 
     def test_no_image_is_looked_for_in_a_directory_reserved_to_take_a_file_aside(self):
