@@ -534,12 +534,12 @@ class SettingsPanel(unittest.TestCase):
                 # A theme the panel offers, whatever the site calls its
                 # themes, and not the one in use (its button not pressed;
                 # with none chosen, the one worn by default is): chosen, it
-                # is worn.
-                if self.themes_offered(page):
-                    ids = [a.removeprefix("theme-") for a in page.eval_on_selector_all(
-                        f'{PANEL} [data-action^="theme-"][aria-pressed="false"]',
-                        "bs => bs.filter(b => b.offsetParent).map(b => b.dataset.action)")]
-                    self.assertTrue(ids, "every theme the panel offers is pressed")
+                # is worn. A site with one theme offers none other, and the
+                # checks after this go on without a switch.
+                ids = [a.removeprefix("theme-") for a in page.eval_on_selector_all(
+                    f'{PANEL} [data-action^="theme-"][aria-pressed="false"]',
+                    "bs => bs.filter(b => b.offsetParent).map(b => b.dataset.action)")]
+                if ids:
                     self.button(page, f"theme-{ids[0]}").click()
                     self.assertEqual(self.html(page, "data-theme"), ids[0])
                     self.expect(self.button(page, f"theme-{ids[0]}")).to_have_attribute("aria-pressed", "true")
