@@ -506,6 +506,11 @@ clean:
 #   tests/                the site's own, if it has them
 #   <dir>/tests/          for each of the site's SITE_TEST_DIRS
 #
+# A suite runs where its directory has a test module (test*.py). Every
+# site's tests/ holds what the engine's tests read of it (routes.yaml, the
+# identity policy), and a site with no tests of its own has nothing to run
+# there: unittest calls a run of none a failure.
+#
 # The last are named because `discover -s tests` only looks at the
 # top-level directory: a suite elsewhere once went unrun (B10, 20 tests).
 # engine/ is on PYTHONPATH for the first two: tests/ has no __init__.py, so
@@ -553,18 +558,18 @@ test:
 	export PYTHONPATH="$(CURDIR)/engine$${PYTHONPATH:+:$$PYTHONPATH}"; \
 	echo "== engine/tests/ =="; \
 	"$$PY" -m unittest discover -s engine/tests -v || exit 1; \
-	if [ -d tests ]; then \
+	if [ -n "$$(find tests -maxdepth 1 -name 'test*.py' -print -quit 2>/dev/null)" ]; then \
 	  echo "== tests/ =="; \
 	  "$$PY" -m unittest discover -s tests -v || exit 1; \
 	else \
-	  echo "tests/ not present — skipping"; \
+	  echo "tests/ has no test modules — skipping"; \
 	fi; \
 	for dir in $(SITE_TEST_DIRS); do \
-	  if [ -d "$$dir/tests" ]; then \
+	  if [ -n "$$(find "$$dir/tests" -maxdepth 1 -name 'test*.py' -print -quit 2>/dev/null)" ]; then \
 	    echo "== $$dir/tests/ =="; \
 	    ( cd "$$dir" && "$$PY" -m unittest discover -s tests -v ) || exit 1; \
 	  else \
-	    echo "$$dir/tests/ not present — skipping"; \
+	    echo "$$dir/tests/ has no test modules — skipping"; \
 	  fi; \
 	done
 
