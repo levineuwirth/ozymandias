@@ -247,21 +247,21 @@ class SettingsPanel(unittest.TestCase):
                 up, down = self.steps(base)
                 self.assertTrue(up or down, f"a default of {base}px leaves the panel no step either way")
                 self.assertEqual(self.size_state(page), (self.px(base), None, "100%", ""))
-                self.open_panel(page)
-                larger, smaller = self.button(page, "text-larger"), self.button(page, "text-smaller")
-                reset = self.button(page, "text-reset")
-                self.expect(reset).to_have_accessible_name("100% text size; reset")
-                kept = (self.px(base), None, "100%")
                 # Each way the default leaves room for: every step, then the
                 # end, which the button says, keeping focus (a disabled
-                # button dropped it, out of the panel). A default at an end
-                # has that way's button disabled from the start.
-                for button, other, sizes in ((larger, smaller, up), (smaller, larger, down)):
+                # button dropped it, out of the panel), and which a reload
+                # keeps. A default at an end has that way's button disabled
+                # from the start.
+                for action, other, sizes in (("text-larger", "text-smaller", up),
+                                             ("text-smaller", "text-larger", down)):
+                    self.open_panel(page)
+                    button, reset = self.button(page, action), self.button(page, "text-reset")
                     reset.click()
                     self.assertEqual(self.size_state(page)[:3], (self.px(base), None, "100%"))
-                    kept = (self.px(base), None, "100%")
+                    self.expect(reset).to_have_accessible_name("100% text size; reset")
                     if not sizes:
                         self.expect(button).to_have_attribute("aria-disabled", "true")
+                        page.keyboard.press("Escape")
                         continue
                     button.focus()
                     for px in sizes:
@@ -271,13 +271,12 @@ class SettingsPanel(unittest.TestCase):
                                          (self.px(px), str(px), pct, f"Text size {pct}"))
                     self.expect(button).to_have_attribute("aria-disabled", "true")
                     self.expect(button).to_be_focused()
-                    self.expect(other).to_have_attribute("aria-disabled", "false")
+                    self.expect(self.button(page, other)).to_have_attribute("aria-disabled", "false")
                     page.keyboard.press("Enter")
                     self.assertEqual(self.size_state(page)[0], self.px(sizes[-1]))
-                    kept = (self.px(sizes[-1]), str(sizes[-1]), self.pct(sizes[-1], base))
-                # The size last chosen is kept across a reload.
-                page.reload(wait_until="load")
-                self.assertEqual(self.size_state(page), (*kept, ""))
+                    page.reload(wait_until="load")
+                    self.assertEqual(self.size_state(page), (self.px(sizes[-1]), str(sizes[-1]),
+                                                             self.pct(sizes[-1], base), ""))
 
     def test_a_skin_default_with_fresh_and_saved_settings(self) -> None:
         def skin(context):
@@ -533,15 +532,17 @@ class SettingsPanel(unittest.TestCase):
                 page = self.open_page(browser, init=NO_STORAGE)
                 self.open_panel(page)
                 # A theme the panel offers, whatever the site calls its
-                # themes, and not the one worn: chosen, it is worn.
+                # themes, and not the one in use (its button not pressed;
+                # with none chosen, the one worn by default is): chosen, it
+                # is worn.
                 if self.themes_offered(page):
-                    worn = self.html(page, "data-theme")
                     ids = [a.removeprefix("theme-") for a in page.eval_on_selector_all(
-                        f'{PANEL} [data-action^="theme-"]',
+                        f'{PANEL} [data-action^="theme-"][aria-pressed="false"]',
                         "bs => bs.filter(b => b.offsetParent).map(b => b.dataset.action)")]
-                    chosen = next(i for i in ids if i != worn)
-                    self.button(page, f"theme-{chosen}").click()
-                    self.assertEqual(self.html(page, "data-theme"), chosen)
+                    self.assertTrue(ids, "every theme the panel offers is pressed")
+                    self.button(page, f"theme-{ids[0]}").click()
+                    self.assertEqual(self.html(page, "data-theme"), ids[0])
+                    self.expect(self.button(page, f"theme-{ids[0]}")).to_have_attribute("aria-pressed", "true")
                 # Two steps, or as many as there are, whichever way the
                 # default leaves room for.
                 base = self.default_size(page)
