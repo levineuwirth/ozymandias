@@ -80,10 +80,17 @@ class Probes(unittest.TestCase):
         self.assertEqual(set(PROBE_SWITCHES), set(kinds))
 
     def test_a_feature_on_is_probed_and_one_off_is_not(self):
-        probe = routes().probe
+        named = routes()
+        probe = named.probe
         for kind, switch in PROBE_SWITCHES.items():
             with self.subTest(kind=kind, switch=switch):
-                if switch is None or switch_on(switch):
+                if switch is None:
+                    # Every site has the feature, and not every site a page
+                    # it shows on: routes.yaml names them, or says there are
+                    # none ([]).
+                    self.assertIn(kind, named.probes,
+                                  f"routes.yaml's probes name no page for {kind} ([] if the site has none)")
+                elif switch_on(switch):
                     self.assertTrue(probe(kind), f"routes.yaml's probes name no page for {kind}")
                 else:
                     self.assertEqual(probe(kind), [], f"routes.yaml probes {kind}, but {switch} is off")

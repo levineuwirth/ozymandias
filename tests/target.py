@@ -123,8 +123,15 @@ def routes():
 
 
 def route(role: str) -> str:
-    """The path of the site's page for `role` (routes.yaml's roles)."""
-    return routes().role(role)
+    """The path of the site's page for `role` (routes.yaml's roles). Where
+    routes.yaml says the site has none (the role is null), what asks is
+    skipped: a test, or a whole module that asks as it is loaded."""
+    try:
+        return routes().role(role)
+    except LookupError as error:
+        if type(error).__name__ == "NoSuchPage":
+            raise unittest.SkipTest(str(error)) from None
+        raise
 
 
 def built(path: str) -> Path:

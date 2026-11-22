@@ -36,7 +36,7 @@ else:
                      "import Data.Time.Clock (addUTCTime)",
                      "import System.Directory", f"setCurrentDirectory {json.dumps(directory)}"]
             done = subprocess.run(
-                ["cabal", "exec", "--", "ghc", "--interactive", "-ignore-dot-ghci", "-v0",
+                ["cabal", "exec", "-v0", "--", "ghc", "--interactive", "-ignore-dot-ghci", "-v0",
                  f"-i{engine_path('build')}", str(engine_path("build/Stability.hs"))],
                 cwd=CABAL_PROJECT, env=env,
                 input="\n".join(setup + commands + [":quit"]) + "\n",

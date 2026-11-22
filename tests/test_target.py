@@ -119,8 +119,9 @@ class Routes(unittest.TestCase):
     def test_the_site_s_routes_hold(self):
         routes = target.routes()
         self.assertTrue(routes.pages)
-        for role in routes.roles:
-            self.assertTrue(target.route(role).startswith("/"), role)
+        for role, entry in routes.roles.items():
+            if entry is not None:           # null: the site has no such page
+                self.assertTrue(target.route(role).startswith("/"), role)
 
     def test_the_sweeps_cover_every_kind_of_page_the_site_has(self):
         # Plan 7.3.3: so axe's and overflow's coverage cannot shrink quietly.
@@ -249,11 +250,27 @@ class Routes(unittest.TestCase):
             self.assertEqual([routes.path(e) for e in routes.names("footer")], ["/", "/other.html"])
             self.assertEqual((routes.role("not-found"), routes.role("essay")), ("/gone", "/e.html"))
             self.assertEqual((routes.probe("math"), routes.probe("map")), (["home"], []))
+            # A site says which pages it does not have: a null role, an
+            # empty probe. What needs the role is skipped; one not named
+            # at all is a mistake.
+            routes_yaml.write_text("pages: {home: /}\nprobes: {search: []}\nroles: {essay: null}\n")
+            routes = type(routes)(site)
+            self.assertEqual((routes.probe("search"), "search" in routes.probes), ([], True))
+            with self.assertRaisesRegex(LookupError, "no page for essay"):
+                routes.role("essay")
+            with self.assertRaises(KeyError):
+                routes.role("list")
+            with mock.patch.object(target, "routes", return_value=routes):
+                with self.assertRaises(unittest.SkipTest):
+                    target.route("essay")
+                with self.assertRaises(KeyError):
+                    target.route("list")
             for stray, message in (
                     ("pages: {home: /}\nfooter: [essay]\n", "no such page"),
                     ("pages: {home: /}\nkeyboard: [/x/]\n", "no such page"),     # a sweep names pages
                     ("pages: {home: /}\nprobes: {math: [/]}\n", "no such page"), # so does a probe
                     ("pages: {home: /}\nprobes: {popup: [home]}\n", "no such probe"),
+                    ("pages: {home: /}\nprobes: {search: null}\n", "not a list"),
                     ("pages: {home: /}\nroles: {score: /music/w}\n", "must end in /"),
                     ("pages: {home: index.html}\n", "not a path"),
                     ("pages: {home: /}\nextra: []\n", "unknown")):

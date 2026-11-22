@@ -175,7 +175,12 @@ def main() -> int:
                 low_since = None
                 m = todo.pop(0)
                 log = tempfile.TemporaryFile(mode="w+")
-                proc = subprocess.Popen([sys.executable, "-m", "unittest", "-v", *durations, f"tests.{m}"],
+                # Discovered, as `make test` finds modules, and not named:
+                # a module that asks for a page the site says it lacks
+                # (routes.yaml, a null role) is skipped as it is loaded,
+                # which loading by name reports as an error.
+                proc = subprocess.Popen([sys.executable, "-m", "unittest", "discover", "-v", *durations,
+                                         "-s", "tests", "-p", f"{m}.py"],
                                         cwd=TESTS_ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
                                         text=True, start_new_session=True)
                 running[m] = (proc, time.monotonic(), log)

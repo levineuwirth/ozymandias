@@ -10,6 +10,10 @@ the probes name pages; the manual scripts' lists and the roles may also
 give a path ("/..."). A score role's page is a directory: the work's score
 reader is at <page>score/.
 
+A role may be null and a probe an empty list: the site has no such page (a
+site without essays has no page for `essay`), and what needs one is skipped.
+One left out is a mistake, and fails: a site says what it lacks.
+
 `kinds` names, from `pages`, one page of each kind the engine builds (KINDS), so
 that axe's and the other sweeps' coverage cannot shrink unnoticed on a small
 site: `uncovered` says which kinds a site has and does not name, or names and
@@ -35,6 +39,10 @@ PROBES = ("popups", "search", "map", "slideshow", "lightbox", "score", "pdf-view
           "archive-snapshot", "archive-pdf", "pdf-links", "composition", "transclusion",
           "commonplace", "math")
 DIRECTORIES = ("score", "score-other", "score-silent")
+
+
+class NoSuchPage(LookupError):
+    """The site's routes.yaml says it has no page for this role (null)."""
 
 
 class Kind(NamedTuple):
@@ -164,7 +172,7 @@ class Routes:
         self.pages: dict[str, str] = dict(document.get("pages") or {})
         self.lists = {key: list(document.get(key) or []) for key in LISTS}
         self.probes: dict[str, list[str]] = dict(document.get("probes") or {})
-        self.roles: dict[str, str] = dict(document.get("roles") or {})
+        self.roles: dict[str, str | None] = dict(document.get("roles") or {})
         self.kinds: dict[str, str] = dict(document.get("kinds") or {})
         problems = [f"page {name!r} is not a path: {path!r}" for name, path in self.pages.items()
                     if not (isinstance(name, str) and isinstance(path, str) and path.startswith("/"))]
@@ -176,8 +184,13 @@ class Routes:
             problems += [f"{key}: no such page {e!r}" for e in self.lists[key]
                          if not (e in self.pages if key in NAMED else self.known(e))]
         for kind, names in self.probes.items():
+            if not isinstance(names, list):
+                problems.append(f"probe {kind}: not a list of pages ([] if the site has none)")
+                continue
             problems += [f"probe {kind}: no such page {n!r}" for n in names if n not in self.pages]
         for role, entry in self.roles.items():
+            if entry is None:
+                continue                    # the site has no such page
             if not self.known(entry):
                 problems.append(f"role {role}: no such page {entry!r}")
             elif role in DIRECTORIES and not self.path(entry).endswith("/"):
@@ -353,5 +366,10 @@ class Routes:
         return self.probes.get(kind, [])
 
     def role(self, role: str) -> str:
-        """The path of the page a module needs for `role`."""
-        return self.path(self.roles[role])
+        """The path of the page a module needs for `role`. KeyError if
+        routes.yaml does not name the role, NoSuchPage if it says the site
+        has no such page."""
+        entry = self.roles[role]
+        if entry is None:
+            raise NoSuchPage(f"{ROUTES_FILE}: the site has no page for {role}")
+        return self.path(entry)
