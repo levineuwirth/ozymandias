@@ -230,6 +230,11 @@ class SettingsPanel(unittest.TestCase):
                 page.inner_text("[data-text-size]"),
                 page.locator("[data-text-size-status]").text_content())
 
+    def steps(self, base: float) -> tuple[list[int], list[int]]:
+        """The sizes A+ and A- step through from the default, in order. A
+        default at an end of the scale leaves none one way."""
+        return [s for s in self.SIZES if s > base], [s for s in reversed(self.SIZES) if s < base]
+
     def test_text_size(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -239,38 +244,40 @@ class SettingsPanel(unittest.TestCase):
                 # nothing at first, and A+ went to 26). The engine's is 23px,
                 # a site's theme.css may set another.
                 base = self.default_size(page)
-                up = [s for s in self.SIZES if s > base]
-                down = [s for s in reversed(self.SIZES) if s < base]
-                self.assertTrue(up and down, f"a default of {base}px leaves the panel no step one way")
+                up, down = self.steps(base)
+                self.assertTrue(up or down, f"a default of {base}px leaves the panel no step either way")
                 self.assertEqual(self.size_state(page), (self.px(base), None, "100%", ""))
                 self.open_panel(page)
                 larger, smaller = self.button(page, "text-larger"), self.button(page, "text-smaller")
                 reset = self.button(page, "text-reset")
                 self.expect(reset).to_have_accessible_name("100% text size; reset")
-                larger.focus()
-                for px in up:
+                kept = (self.px(base), None, "100%")
+                # Each way the default leaves room for: every step, then the
+                # end, which the button says, keeping focus (a disabled
+                # button dropped it, out of the panel). A default at an end
+                # has that way's button disabled from the start.
+                for button, other, sizes in ((larger, smaller, up), (smaller, larger, down)):
+                    reset.click()
+                    self.assertEqual(self.size_state(page)[:3], (self.px(base), None, "100%"))
+                    kept = (self.px(base), None, "100%")
+                    if not sizes:
+                        self.expect(button).to_have_attribute("aria-disabled", "true")
+                        continue
+                    button.focus()
+                    for px in sizes:
+                        page.keyboard.press("Enter")
+                        pct = self.pct(px, base)
+                        self.assertEqual(self.size_state(page),
+                                         (self.px(px), str(px), pct, f"Text size {pct}"))
+                    self.expect(button).to_have_attribute("aria-disabled", "true")
+                    self.expect(button).to_be_focused()
+                    self.expect(other).to_have_attribute("aria-disabled", "false")
                     page.keyboard.press("Enter")
-                    pct = self.pct(px, base)
-                    self.assertEqual(self.size_state(page),
-                                     (self.px(px), str(px), pct, f"Text size {pct}"))
-                # At an end of the range the button says so, and keeps focus
-                # (a disabled button dropped it, out of the panel).
-                self.expect(larger).to_have_attribute("aria-disabled", "true")
-                self.expect(larger).to_be_focused()
-                page.keyboard.press("Enter")
-                self.assertEqual(self.size_state(page)[0], self.px(up[-1]))
-                reset.click()
-                self.assertEqual(self.size_state(page)[:3], (self.px(base), None, "100%"))
-                smaller.focus()
-                for _ in down:
-                    page.keyboard.press("Enter")
-                least = (self.px(down[-1]), str(down[-1]), self.pct(down[-1], base))
-                self.assertEqual(self.size_state(page)[:3], least)
-                self.expect(smaller).to_have_attribute("aria-disabled", "true")
-                self.expect(smaller).to_be_focused()
-                self.expect(larger).to_have_attribute("aria-disabled", "false")
+                    self.assertEqual(self.size_state(page)[0], self.px(sizes[-1]))
+                    kept = (self.px(sizes[-1]), str(sizes[-1]), self.pct(sizes[-1], base))
+                # The size last chosen is kept across a reload.
                 page.reload(wait_until="load")
-                self.assertEqual(self.size_state(page), (*least, ""))
+                self.assertEqual(self.size_state(page), (*kept, ""))
 
     def test_a_skin_default_with_fresh_and_saved_settings(self) -> None:
         def skin(context):
@@ -513,25 +520,38 @@ class SettingsPanel(unittest.TestCase):
                     self.assertEqual(page.evaluate(self.SIZE), self.px(self.default_size(page)))
                     self.open_panel(page)
                     self.expect(page.locator("[data-text-size]")).to_have_text("100%")
-                    # The default size: neither end, so both steps open.
-                    for action in ("text-smaller", "text-larger"):
-                        self.expect(self.button(page, action)).to_have_attribute("aria-disabled", "false")
+                    # The default size: a step open each way the scale goes
+                    # on from it, and closed where the default is its end.
+                    up, down = self.steps(self.default_size(page))
+                    for action, sizes in (("text-larger", up), ("text-smaller", down)):
+                        self.expect(self.button(page, action)).to_have_attribute(
+                            "aria-disabled", "false" if sizes else "true")
 
     def test_storage_that_throws(self) -> None:
         for browser in BROWSERS:
             with self.subTest(browser=browser):
                 page = self.open_page(browser, init=NO_STORAGE)
                 self.open_panel(page)
+                # A theme the panel offers, whatever the site calls its
+                # themes, and not the one worn: chosen, it is worn.
                 if self.themes_offered(page):
-                    self.button(page, "theme-dark").click()
-                    self.assertEqual(self.html(page, "data-theme"), "dark")
+                    worn = self.html(page, "data-theme")
+                    ids = [a.removeprefix("theme-") for a in page.eval_on_selector_all(
+                        f'{PANEL} [data-action^="theme-"]',
+                        "bs => bs.filter(b => b.offsetParent).map(b => b.dataset.action)")]
+                    chosen = next(i for i in ids if i != worn)
+                    self.button(page, f"theme-{chosen}").click()
+                    self.assertEqual(self.html(page, "data-theme"), chosen)
+                # Two steps, or as many as there are, whichever way the
+                # default leaves room for.
                 base = self.default_size(page)
-                second = [s for s in self.SIZES if s > base][1]
-                self.button(page, "text-larger").click()
-                self.button(page, "text-larger").click()
+                up, down = self.steps(base)
+                action, sizes = ("text-larger", up[:2]) if up else ("text-smaller", down[:2])
+                for _ in sizes:
+                    self.button(page, action).click()
                 self.assertEqual(page.evaluate(
-                    "document.documentElement.style.getPropertyValue('--text-size')"), self.px(second))
-                self.expect(page.locator("[data-text-size]")).to_have_text(self.pct(second, base))
+                    "document.documentElement.style.getPropertyValue('--text-size')"), self.px(sizes[-1]))
+                self.expect(page.locator("[data-text-size]")).to_have_text(self.pct(sizes[-1], base))
                 self.button(page, "reduce-motion").click()
                 self.assertEqual(self.html(page, "data-reduce-motion"), "")
 
