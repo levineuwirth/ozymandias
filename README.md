@@ -505,7 +505,10 @@ lacks, for a site that doesn't push the engine itself.
     place and before it saved the record): no build writes over such a
     file, which may as well be one its author changed, and the adoption
     brings the entry up to it only if it is what the tool makes of its
-    image now.
+    image now. While a file that a stopped run took aside is not back in
+    its place, an adoption (and `declare`, in that directory) changes
+    nothing and says so: `make convert-images`, or a build, puts it back
+    first.
     Until then the site is correct and heavier: the images are shown
     without them.
 

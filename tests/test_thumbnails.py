@@ -745,11 +745,6 @@ class OwnershipTests(unittest.TestCase):
         # A save of the author's, aside from a name that has a file again:
         # kept beside it, under a name that is seen.
         saved = self.aside("view.w480.webp", self.AUTHORED)
-        # And one that does not say which file it was, or says another
-        # than its directory's name does.
-        unknown = self.aside("gone.w480.jpg", b"from an earlier run", named=False)
-        other = self.aside("gone.w480.jpg", b"and another", "efgh5678", named=False)
-        (other / "name.tmp").write_bytes(b"view.w480.jpg")
 
         code, out, errors = self.run_with_errors()
         self.assertEqual(code, 0, out + errors)
@@ -759,12 +754,60 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(files[saved.name[:-len(".tmp")]], self.AUTHORED)
         self.assertRegex(errors, rf"view\.w480\.webp was set aside by a run that was stopped, and another file has "
                                  rf"its name since\. The one set aside is at \S*{saved.name[:-len('.tmp')]}\n")
-        for reserved, held in ((unknown, b"from an earlier run"), (other, b"and another")):
-            self.assertEqual(files[reserved.name[:-len(".tmp")]], held)
-            self.assertRegex(errors, rf"{reserved.name[:-len('.tmp')]} was set aside by a run that was stopped, "
-                                     "and nothing says which file it was")
-        self.assertEqual(set(files), set(made) | {reserved.name[:-len(".tmp")] for reserved in (saved, unknown, other)})
+        self.assertEqual(set(files), set(made) | {saved.name[:-len(".tmp")]})
         self.assertNotIn(own.name[:-len(".tmp")], files)
+        # And said once: nothing is left to say it of.
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors, self.files()), (0, "", files), out)
+
+    def test_a_kept_file_named_and_not_yet_unnamed_is_one_file(self) -> None:
+        # Stopped between giving a file kept for its author the name the
+        # author sees and taking the other name away: one file under both.
+        # The next run finishes that, and the one after has nothing to say.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        made = self.files()
+        saved = self.aside("view.w480.webp", self.AUTHORED)
+        kept = saved.with_suffix("")
+        os.link(saved / "displaced.tmp", kept)
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        self.assertIn(f"The one set aside is at {kept}", errors)
+        self.assertEqual(self.files(), {**made, kept.name: self.AUTHORED})
+        self.assertEqual((self.reserved(), kept.stat().st_nlink), ([], 1))
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors, self.files()), (0, "", {**made, kept.name: self.AUTHORED}), out)
+
+    def test_a_reserved_directory_that_is_not_as_a_run_leaves_one_is_left_whole(self) -> None:
+        # A run leaves, in the directory it reserved: nothing; empty files
+        # it asked the filesystem with; the name of the file it was about
+        # to take; and then that file, with its name. Anything else there
+        # is somebody's, and none of it is moved or deleted: not a file
+        # of a probe's name that holds something, not a file beside the
+        # tools' own, not a file aside with no name or another's.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        written = self.aside("view.w480.jpg", None, "aaaa1111")
+        (written / "probe.tmp").write_bytes(b"written by hand")
+        beside = self.aside("view.w480.jpg", None, "bbbb2222")
+        (beside / "probe.tmp").write_bytes(b"")
+        (beside / "sketch.txt").write_bytes(b"put here by hand")
+        unnamed = self.aside("view.w480.webp", self.AUTHORED, "cccc3333", named=False)
+        misnamed = self.aside("view.w480.webp", self.AUTHORED, "dddd4444", named=False)
+        (misnamed / "name.tmp").write_bytes(b"view.w480.jpg")
+        crowded = self.aside("view.w480.webp", self.AUTHORED, "eeee5555")
+        (crowded / "sketch.txt").write_bytes(b"put here by hand")
+        before = (self.files(), self.reserved())
+
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        self.assertEqual((self.files(), self.reserved()), before)
+        # The ones with a file aside are named, each run: a save may be in them.
+        for reserved in (unnamed, misnamed, crowded):
+            self.assertIn(f"{reserved / 'displaced.tmp'} looks like a file set aside by a run that was stopped, and "
+                          "its directory is not as a run leaves one", errors)
+        self.assertEqual(errors.count("looks like a file set aside"), 3, errors)
+        self.assertNotIn("was set aside by", errors)
 
     def test_only_what_a_run_reserved_is_ever_put_back_or_cleared(self) -> None:
         # Names that begin as a reserved directory's does, and are not

@@ -79,7 +79,10 @@ that says which file it was, and checks that it is the one it wrote. A run
 stopped there leaves it aside, and the next run of a tool puts it back
 before it judges anything (`Records.restore_displaced`): it looks in the
 directories where the images are now, whatever the record says of where
-they were.
+they were, and touches there only a directory that is exactly as a run
+leaves one. `adopt` and `declare` correct the record and move no file, so
+they wait: with a file aside, the record is of files that are not in
+their places.
 
 A run stopped after it put its file in place and before it saved the
 record leaves a file whose entry has other bytes. No run writes over that,
@@ -289,6 +292,15 @@ def can_place(reserved: Path) -> None:
         first.unlink(missing_ok=True)
         second.unlink(missing_ok=True)
     _PLACEABLE.add(device)
+
+
+def _one_file(first: Path, second: Path) -> bool:
+    """Are the two names there, and names of one file?"""
+    try:
+        one, other = os.lstat(first), os.lstat(second)
+    except OSError:
+        return False
+    return (one.st_dev, one.st_ino) == (other.st_dev, other.st_ino)
 
 
 def aside_key(output: Path) -> str:
@@ -553,39 +565,121 @@ class Records:
     @staticmethod
     def _keep(reserved: Path) -> Path:
         """Give the file aside in `reserved` a name its author sees (the
-        directory's, less `.tmp`), and never one another file has."""
+        directory's, less `.tmp`), and never one another file has. A run
+        stopped between giving it that name and taking the other away
+        left one file under both: the other name goes."""
         aside, kept = reserved / DISPLACED, reserved.with_suffix("")
         try:
             place(aside, kept)
         except FileExistsError:
-            return aside
+            if not _one_file(aside, kept):
+                return aside
+            aside.unlink()
         return kept
 
     @staticmethod
-    def _clear(reserved: Path) -> None:
-        """Take a reserved directory away, unless a file is still aside in
-        it, or something that is not the tools' is."""
-        if os.path.lexists(reserved / DISPLACED):
-            return
+    def _holds(reserved: Path) -> tuple[str, str | None]:
+        """What is in a reserved directory, if it is as a run leaves one:
+        ("reserved", None) with no file aside (nothing, or the empty
+        files a run asks the filesystem with, or the name it was about to
+        take a file from); ("aside", name) with a file aside and the name
+        it had. ("other", None) for anything else: something there is
+        not the tools', and nothing in it is theirs to move or delete."""
+        key = RESERVED.fullmatch(reserved.name).group(1)
+        name = None
+        with os.scandir(reserved) as found:
+            entries = {entry.name: entry for entry in found}
+        if not set(entries) <= {DISPLACED, NAMED, *PROBES}:
+            return "other", None
+        for probe in PROBES:
+            if probe in entries and not (entries[probe].is_file(follow_symlinks=False)
+                                         and entries[probe].stat(follow_symlinks=False).st_size == 0):
+                return "other", None
+        if NAMED in entries:
+            if not entries[NAMED].is_file(follow_symlinks=False):
+                return "other", None
+            name = os.fsdecode((reserved / NAMED).read_bytes())
+            if name and (name in (".", "..") or os.sep in name or "\0" in name or aside_key(Path(name)) != key):
+                return "other", None
+        if DISPLACED not in entries:
+            return "reserved", None
+        # A file is moved there only once the name is written, and after
+        # the filesystem was asked.
+        if not name or any(probe in entries for probe in PROBES):
+            return "other", None
+        return "aside", name
+
+    @classmethod
+    def _clear(cls, reserved: Path) -> None:
+        """Take a reserved directory away, if no file is aside in it and
+        nothing is there but what a run leaves."""
         try:
+            if cls._holds(reserved)[0] != "reserved":
+                return
             for name in (NAMED, *PROBES):
                 (reserved / name).unlink(missing_ok=True)
             os.rmdir(reserved)
         except OSError:
             pass
 
+    def _left_aside(self, roots: Iterable[Path], deep: bool) -> list[tuple[Path, str | None]]:
+        """What stopped runs left, at or under `roots` (the directories
+        themselves alone, if not `deep`): each reserved directory, and
+        each file an earlier form of the tools took aside (a file of a
+        reserved directory's name, with the name it was taken from).
+
+        Looked for where the images are, and not where the record says
+        outputs were: a directory may have been renamed since, or be a
+        link to another place now. A directory is looked into only if it
+        is, where it really is, in a tree this tool holds: another
+        tree's is another tool's to put back, under that tree's lock and
+        by that tree's record. Only a name `publish` gives is taken for
+        one; a file of such a name only if it says, as that earlier form
+        did, that it was taken from an output the record has."""
+        def failed(error: OSError) -> None:
+            raise error
+
+        found: list[tuple[Path, str | None]] = []
+        recorded: dict[int, dict[str, str]] = {}
+        for root in roots:
+            if not os.path.isdir(root):
+                continue
+            for directory, subdirectories, files in os.walk(root, onerror=failed):
+                reserved = sorted(name for name in subdirectories if RESERVED.fullmatch(name))
+                earlier = sorted(name for name in files if RESERVED.fullmatch(name))
+                subdirectories[:] = [name for name in subdirectories if name not in reserved] if deep else []
+                if not reserved and not earlier:
+                    continue
+                real = Path(os.path.realpath(directory))
+                try:
+                    tree = self._tree(real / "any")
+                except RecordError:
+                    continue
+                found += [(real / name, None) for name in reserved if not os.path.islink(real / name)]
+                if earlier and id(tree) not in recorded:
+                    recorded[id(tree)] = {aside_key(Path(rel)): os.path.basename(rel) for rel in tree.outputs}
+                for name in earlier:
+                    was = recorded[id(tree)].get(RESERVED.fullmatch(name).group(1))
+                    if was is not None and not os.path.islink(real / name):
+                        found.append((real / name, was))
+        return found
+
+    def pending(self, roots: Iterable[Path], *, deep: bool = True) -> list[Path]:
+        """The files stopped runs took aside and nothing has put back, at
+        or under `roots`. While there are any, the record is of files
+        that are not in their places: `restore_displaced` first."""
+        waiting = []
+        for path, was in self._left_aside(roots, deep):
+            if was is not None:
+                waiting.append(path)
+            elif os.path.lexists(path / DISPLACED):
+                waiting.append(path / DISPLACED)
+        return waiting
+
     def restore_displaced(self, roots: Iterable[Path], *, deep: bool = True) -> None:
         """Put back what a stopped run left aside (`publish`), before any
-        output is judged or made again.
-
-        Looked for where the images are: every directory at or under
-        `roots` (the directories themselves alone, if not `deep`), and
-        not where the record says outputs were, since a directory may
-        have been renamed since, or be a link to another place now. A
-        directory is looked into only if it is, where it really is, in a
-        tree this tool holds: another tree's is another tool's to put
-        back, under that tree's lock and by that tree's record. And only
-        a directory named as `publish` names one is touched.
+        output is judged or made again. `_left_aside` says where it is
+        looked for.
 
         A file aside whose name is free goes back to it: the tool's own
         (the bytes the entry of that path has) is then its own as before,
@@ -593,67 +687,51 @@ class Records:
         the moment before it was taken, or the tool's in a directory the
         record does not know by that name. Where the name has a file
         again, the tool's own is deleted and any other is kept beside it
-        under a name the author sees. So is one that does not say which
-        file it was."""
-        def failed(error: OSError) -> None:
-            raise error
+        under a name the author sees. A reserved directory with no file
+        aside is cleared. One that is not as a run leaves it is left
+        whole, and named if a file is aside in it.
 
-        for root in roots:
-            if not os.path.isdir(root):
+        A file an earlier form of the tools took aside (one commit of
+        them, which kept it as a file of the reserved name) is not moved:
+        RecordError names it, for the author to put back or delete, and
+        nothing is converted until then."""
+        by_directory: dict[Path, list[tuple[bool, Path, Path]]] = {}
+        earlier = []
+        for path, was in self._left_aside(roots, deep):
+            if was is not None:
+                earlier.append((path, was))
                 continue
-            for directory, subdirectories, _ in os.walk(root, onerror=failed):
-                reserved = sorted(name for name in subdirectories if RESERVED.fullmatch(name))
-                subdirectories[:] = [name for name in subdirectories if name not in reserved] if deep else []
-                if not reserved:
-                    continue
-                real = Path(os.path.realpath(directory))
-                try:
-                    self._tree(real / "any")
-                except RecordError:
-                    continue
-                found = [self._displaced(real / name) for name in reserved if not os.path.islink(real / name)]
-                # An author's file before the tool's own, where both are
-                # aside from one name: the name is the author's then.
-                for own, place_in, output in sorted(found, key=lambda one: one[0]):
-                    self._restore(place_in, output, own)
+            state, name = self._holds(path)
+            if state == "reserved":
+                self._clear(path)       # a run stopped before it took the file aside
+            elif state == "other":
+                if os.path.lexists(path / DISPLACED):
+                    print(f"derived-images: {show(path / DISPLACED)} looks like a file set aside by a run that "
+                          "was stopped, and its directory is not as a run leaves one. It is left there for you "
+                          "to look at.", file=sys.stderr)
+            else:
+                output, aside = path.parent / name, path / DISPLACED
+                entry = self.entry(output)
+                own = (entry is not None and not aside.is_symlink() and aside.is_file()
+                       and digest(aside) == entry["digest"])
+                by_directory.setdefault(path.parent, []).append((own, path, output))
+        for found in by_directory.values():
+            # An author's file before the tool's own, where both are
+            # aside from one name: the name is the author's then.
+            for own, reserved, output in sorted(found, key=lambda one: one[0]):
+                self._restore(reserved, output, own)
+        if earlier:
+            raise RecordError("\n  ".join(
+                ["an earlier form of this tool took a file aside when it was stopped, and nothing has put it back:",
+                 *(f"{show(path)}  (from {was}, in that directory)" for path, was in earlier),
+                 "It may be the only copy of what you saved there. Move it to that name if it is, or delete it"]))
 
-    def _displaced(self, reserved: Path) -> tuple[bool, Path, Path | None]:
-        """What a reserved directory holds: whether the file aside in it
-        is the tool's own, and the name it had (None if nothing there says
-        so, or what says so is not what the directory's name says)."""
+    def _restore(self, reserved: Path, output: Path, own: bool) -> None:
         aside = reserved / DISPLACED
-        try:
-            name = os.fsdecode((reserved / NAMED).read_bytes())
-        except OSError:
-            name = ""
-        if (not name or name in (".", "..") or os.sep in name or "\0" in name
-                or aside_key(Path(name)) != RESERVED.fullmatch(reserved.name).group(1)):
-            return False, reserved, None
-        output = reserved.parent / name
-        entry = self.entry(output)
-        own = (entry is not None and not aside.is_symlink() and aside.is_file()
-               and digest(aside) == entry["digest"])
-        return own, reserved, output
-
-    def _restore(self, reserved: Path, output: Path | None, own: bool) -> None:
-        aside = reserved / DISPLACED
-        if not os.path.lexists(aside):
-            self._clear(reserved)       # a run stopped before it took the file aside
-            return
-        if output is None:
-            print(f"derived-images: {show(self._keep(reserved))} was set aside by a run that was stopped, and "
-                  "nothing says which file it was. It is left there for you to look at.", file=sys.stderr)
+        if _one_file(aside, output):
+            aside.unlink()              # put back already, and stopped before this
             self._clear(reserved)
             return
-        try:
-            there, held = os.lstat(output), os.lstat(aside)
-        except FileNotFoundError:
-            pass
-        else:
-            if (there.st_dev, there.st_ino) == (held.st_dev, held.st_ino):
-                aside.unlink()          # put back already, and stopped before this
-                self._clear(reserved)
-                return
         try:
             place(aside, output)
         except FileExistsError:
@@ -780,6 +858,24 @@ def show(path: Path) -> str:
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".gif")
 
 
+def waiting(records: Records, roots: list[Path], tool: str, nothing: str, *, deep: bool = True) -> bool:
+    """Say which files a stopped run took aside and nothing has put back,
+    if any: what the record says of their names is then of files that are
+    not there, and a tool that only reads and corrects the record would
+    correct it wrongly."""
+    aside = records.pending(roots, deep=deep)
+    if aside:
+        print(f"{tool}: a run that was stopped took {len(aside)} file(s) aside, and they are not back in their "
+              "places:", file=sys.stderr)
+        for path in aside[:5]:
+            print(f"  {show(path)}", file=sys.stderr)
+        if len(aside) > 5:
+            print(f"  … and {len(aside) - 5} more", file=sys.stderr)
+        print(f"  {nothing}. The next conversion puts them back (make convert-images, or a build); "
+              "then run this again.", file=sys.stderr)
+    return bool(aside)
+
+
 def declare(webp: Path, image: Path | None) -> int:
     webp = Path(os.path.abspath(webp))
     if not webp.is_file() or webp.suffix != ".webp":
@@ -813,6 +909,8 @@ def declare(webp: Path, image: Path | None) -> int:
         if not same:
             print(f"declare: {show(webp)} and {show(image)} are not files of one tree (the site, or the engine)",
                   file=sys.stderr)
+            return 1
+        if waiting(records, [webp.parent], "declare", "Nothing was declared", deep=False):
             return 1
         path = tree.root / DECLARED
         declared = {**tree.declared, tree.rel(webp): tree.rel(image)}
@@ -860,6 +958,12 @@ def adopt(dry_run: bool) -> int:
     what the adoption would do, and writes nothing at all."""
     thumbnails, converter = _tool("generate-thumbnails.py"), _tool("convert_images.py")
     with Records.held(save=not dry_run) as records:
+        # Before an entry is dropped or corrected: one whose file a
+        # stopped run took aside would be dropped for a file that is
+        # coming back, or corrected for a file that is about to be
+        # replaced by the one aside.
+        if waiting(records, converter.image_roots()[2], "derived-images", "Nothing was adopted"):
+            return 1
         records.forget_missing()
         adopted = 0
         failed = False

@@ -106,6 +106,11 @@ class ConvertImages(unittest.TestCase):
                                *argv], cwd=self.root, capture_output=True, text=True, timeout=60,
                               env={**script_env(self.stubs, SITE_ROOT=str(self.root)), **env})
 
+    def run_declare(self, *argv: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([shutil.which("python3"), str(self.root / "engine/tools/derived_images.py"), "declare",
+                               *argv], cwd=self.root, capture_output=True, text=True, timeout=60,
+                              env=script_env(self.stubs, SITE_ROOT=str(self.root)))
+
     def refused(self, **env: str) -> str:
         done = self.run_script(**env)
         self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
@@ -792,6 +797,7 @@ fi
         link.symlink_to(other, target_is_directory=True)
         holds = self.aside("content/lake.webp", None)
         (holds / "sketch.txt").write_text("put here by hand", encoding="utf-8")
+        (holds / "probe.tmp").write_text("and this", encoding="utf-8")
 
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
@@ -800,7 +806,8 @@ fi
                          ("mine", "a file, not a directory", "mine too"))
         self.assertTrue(link.is_symlink())
         self.assertEqual(sorted(p.name for p in other.iterdir()), ["kept.txt"])
-        self.assertEqual((holds / "sketch.txt").read_text(encoding="utf-8"), "put here by hand")
+        self.assertEqual(sorted((p.name, p.read_text(encoding="utf-8")) for p in holds.iterdir()),
+                         [("name.tmp", "lake.webp"), ("probe.tmp", "and this"), ("sketch.txt", "put here by hand")])
 
     def test_a_directory_that_is_another_tree_s_now_is_not_looked_into(self):
         # content/ was the site's own directory when a run was stopped in
@@ -829,6 +836,87 @@ fi
         self.assertEqual([(reserved / "displaced.tmp").read_text(encoding="utf-8") for reserved in taken],
                          [made("lake.jpg"), "saved by the other site's author"])
         self.assertEqual((other / "content/lake.webp").read_text(encoding="utf-8"), "the other site's")
+
+    def test_an_adoption_waits_for_what_a_stopped_run_took_aside(self):
+        # A replacement stopped with the script's old companion aside and
+        # the name empty: an adoption would drop the entry of a file that
+        # is coming back, and the companion would come back as nobody's.
+        # Stopped after the new one was put in: it would bring the entry
+        # up to the new one, and the old one would come back as a save of
+        # the author's. So it changes nothing, and says what puts them back.
+        for name in ("before", "after"):
+            self.write(f"content/{name}.jpg")
+        self.convert()
+        for name in ("before", "after"):
+            self.write(f"content/{name}.jpg", "saved again")
+            (self.root / f"content/{name}.webp").unlink()
+            self.aside(f"content/{name}.webp", made(f"{name}.jpg"))
+        self.write("content/after.webp", made("after.jpg", "saved again"))
+        path = self.root / "data/derived-images.json"
+        before = (self.companions(), path.read_bytes(), self.asides())
+
+        for argv in (("--dry-run",), ()):
+            done = self.adopt(*argv)
+            self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+            self.assertIn("a run that was stopped took 2 file(s) aside, and they are not back in their places",
+                          done.stderr)
+            self.assertIn("Nothing was adopted. The next conversion puts them back (make convert-images",
+                          done.stderr)
+            self.assertNotIn("recorded as this script's", done.stdout)
+            self.assertEqual((self.companions(), path.read_bytes(), self.asides()), before)
+        declared = self.run_declare("content/after.webp")
+        self.assertEqual(declared.returncode, 1, declared.stdout + declared.stderr)
+        self.assertIn("Nothing was declared", declared.stderr)
+        self.assertFalse((self.root / "data/companions.json").exists())
+
+        # The conversion puts them back: the one is the script's own and
+        # is made again, the other is aside from a name that has a file.
+        done = self.run_script()
+        self.assertEqual((done.returncode, self.asides()), (0, []), done.stdout + done.stderr)
+        self.assertNotIn("was set aside", done.stderr)
+        self.assertEqual(self.companions(), {"content/before.webp": made("before.jpg", "saved again"),
+                                             "content/after.webp": made("after.jpg", "saved again")})
+        self.assertIn("content/after.webp", done.stderr)
+        # And the adoption then finds the one whose entry the run never saved.
+        done = self.adopt()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("  repair   content/after.webp", done.stdout)
+        self.assertIn("0 converted, 2 already present", self.convert())
+
+    def test_a_file_an_earlier_form_of_the_tools_took_aside_is_named_and_not_moved(self):
+        # One commit of the tools kept the file it took aside as a file of
+        # the reserved name. One left by a run of that form may be the
+        # only copy of a save: nothing is converted until its author has
+        # put it back or deleted it. A file of such a name that says
+        # nothing of an output the record has is not that.
+        self.write("content/lake.jpg")
+        self.write("content/pier.jpg")
+        self.convert()
+        self.write("content/lake.jpg", "saved again")
+        self.write("content/pier.jpg", "saved again")
+        lake = self.root / "content/lake.webp"
+        lake.unlink()
+        key = hashlib.sha256(b"lake.webp").hexdigest()[:16]
+        earlier = self.write(f"content/.previous-image-{key}-abcd1234.tmp", "saved by its author")
+        unrelated = self.write("content/.previous-image-0123456789abcdef-abcd1234.tmp", "mine")
+
+        for run in (self.run_script, self.adopt):
+            done = run()
+            self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+            self.assertIn(f"content/{earlier.name}", done.stderr)
+            self.assertEqual(earlier.read_text(encoding="utf-8"), "saved by its author")
+            self.assertEqual(self.companions(), {"content/pier.webp": made("pier.jpg")})
+        done = self.run_script()
+        self.assertIn("an earlier form of this tool took a file aside when it was stopped", done.stderr)
+        self.assertIn("(from lake.webp, in that directory)", done.stderr)
+        self.assertIn("nothing was checked or converted", done.stderr)
+
+        os.replace(earlier, lake)
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.companions(), {"content/lake.webp": "saved by its author",
+                                             "content/pier.webp": made("pier.jpg", "saved again")})
+        self.assertEqual(unrelated.read_text(encoding="utf-8"), "mine")
 
     def test_adoption_brings_a_stale_entry_up_to_a_file_the_script_would_make_now(self):
         # A run stopped after it put the new companion in place and before
