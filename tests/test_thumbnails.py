@@ -553,11 +553,24 @@ class OwnershipTests(unittest.TestCase):
     def sha(self, name: str) -> str:
         return "sha256:" + hashlib.sha256((self.photos / name).read_bytes()).hexdigest()
 
+    def aside(self, name: str, held: bytes, tail: str = "abcd1234") -> Path:
+        """A file as a stopped run leaves it: taken aside from `name`."""
+        records = generate_thumbnails.derived_images
+        path = self.photos / f"{records.ASIDE}{records.aside_key(Path(name))}-{tail}.tmp"
+        path.write_bytes(held)
+        return path
+
+    def run_with_errors(self, *argv: str) -> tuple[int, str, str]:
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            code, out = run(str(self.root), *argv)
+        return code, out, errors.getvalue()
+
     def test_a_run_stopped_while_a_variant_is_replaced_leaves_only_a_tmp_name(self) -> None:
         # Stopped between taking its old variant aside and putting the new
-        # one in: the name is empty, the file taken aside has a name a
-        # site's Git ignores and no build publishes, and the next run
-        # makes the variant again.
+        # one in: the name is empty, the file taken aside has a name Git
+        # ignores and no build publishes, and the next run puts it back,
+        # finds it the script's own, and makes the variant again.
         photo = self.photo("view.jpg", 600)
         self.assertEqual(run(str(self.root))[0], 0)
         Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
@@ -575,10 +588,93 @@ class OwnershipTests(unittest.TestCase):
         self.assertNotIn("view.w480.jpg", names)
         aside = names - {"view.jpg", "view.w480.webp"}
         self.assertEqual(len(aside), 1, names)
-        self.assertRegex(aside.pop(), r"^\.previous-image-.*\.tmp$")
-        self.assertEqual(run(str(self.root))[0], 0)
+        self.assertRegex(aside.pop(), r"^\.previous-image-[0-9a-f]{16}-[^.]+\.tmp$")
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors), (0, ""), out)
+        self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
         self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"], self.sha("view.w480.jpg"))
         self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], self.sha("view.jpg"))
+
+    def test_a_save_taken_aside_by_a_run_that_was_stopped_is_put_back(self) -> None:
+        # The author saves into a variant's name after the script found
+        # the file there its own, and the run is stopped just after it
+        # took the file aside. The only copy of the save is then under a
+        # name nobody looks at; the next run puts it back, says so, and
+        # leaves it.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        variant = self.photos / "view.w480.jpg"
+        replace = os.replace
+
+        def saved_then_stopped(source, target, **kwargs):
+            if Path(source) != variant:
+                return replace(source, target, **kwargs)
+            variant.write_bytes(self.AUTHORED)
+            replace(source, target, **kwargs)
+            raise KeyboardInterrupt
+
+        with mock.patch.object(os, "replace", saved_then_stopped), self.assertRaises(KeyboardInterrupt):
+            run(str(self.root))
+        self.assertNotIn("view.w480.jpg", self.files())
+        self.assertIn(self.AUTHORED, self.files().values())
+
+        # A preview moves nothing.
+        code, out, errors = self.run_with_errors("--dry-run")
+        self.assertNotIn("view.w480.jpg", self.files())
+
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        self.assertEqual(variant.read_bytes(), self.AUTHORED)
+        self.assertRegex(errors, r"view\.w480\.jpg was set aside by a run that was stopped, and is back in its place")
+        self.assertRegex(out, r"keep   \S*view\.w480\.jpg  \(not recorded as made here")
+        self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
+        # Its WebP, still the script's own, is of the new photograph.
+        self.assertEqual(self.record()["trip/view.w480.webp"]["source-digest"], self.sha("view.jpg"))
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((variant.read_bytes(), errors), (self.AUTHORED, ""))
+
+    def test_what_a_stopped_run_left_aside_never_takes_a_name_that_has_a_file_again(self) -> None:
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        made = self.files()
+        # Its own old file, aside from a name that has the variant again:
+        # nothing anyone needs.
+        own = self.aside("view.w480.jpg", made["view.w480.jpg"])
+        # A save of the author's, aside from a name that has a file again:
+        # kept beside it, under a name that is seen.
+        saved = self.aside("view.w480.webp", self.AUTHORED)
+        # And one whose name the record does not know (its entry is gone).
+        unknown = self.aside("gone.w480.jpg", b"from an earlier run")
+
+        code, out, errors = self.run_with_errors()
+        self.assertEqual(code, 0, out + errors)
+        files = self.files()
+        self.assertEqual({name: files[name] for name in made}, made)
+        self.assertNotIn(own.name, files)
+        self.assertNotIn(saved.name, files)
+        self.assertEqual(files[saved.name[:-len(".tmp")]], self.AUTHORED)
+        self.assertRegex(errors, rf"view\.w480\.webp was set aside by a run that was stopped, and another file has "
+                                 rf"its name since\. The one set aside is at \S*{saved.name[:-len('.tmp')]}\n")
+        self.assertEqual(files[unknown.name[:-len(".tmp")]], b"from an earlier run")
+        self.assertRegex(errors, rf"{unknown.name[:-len('.tmp')]} was set aside by a run that was stopped, and the "
+                                 "record no longer says which file it was")
+        self.assertFalse([name for name in files if name.endswith(".tmp")])
+
+    def test_a_file_put_back_and_not_yet_unnamed_is_one_file(self) -> None:
+        # Stopped between giving the file its name back and taking the
+        # other name away: both names are one file, and one goes.
+        self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        variant = self.photos / "view.w480.jpg"
+        variant.write_bytes(self.AUTHORED)
+        records = generate_thumbnails.derived_images
+        twin = self.photos / f"{records.ASIDE}{records.aside_key(variant)}-abcd1234.tmp"
+        os.link(variant, twin)
+        code, out, errors = self.run_with_errors()
+        self.assertEqual((code, errors), (0, ""), out)
+        self.assertEqual(variant.read_bytes(), self.AUTHORED)
+        self.assertEqual(set(self.files()), {"view.jpg", "view.w480.jpg", "view.w480.webp"})
 
     def test_a_save_displaced_and_then_shut_out_is_kept_where_its_author_sees_it(self) -> None:
         # Two saves by the author into a variant's name, one just before
@@ -610,12 +706,16 @@ class OwnershipTests(unittest.TestCase):
         self.assertIn(f"The displaced file is at {self.photos / kept[0]}", errors.getvalue())
         self.assertFalse([name for name in files if name.endswith(".tmp")])
 
-    def test_a_filesystem_without_hard_links_is_written_to_all_the_same(self) -> None:
+    NO_LINKS = OSError(errno.EPERM, "Operation not permitted")
+
+    def test_a_filesystem_without_hard_links_is_written_to_by_a_rename_that_replaces_nothing(self) -> None:
         # link(2) refused, as exFAT refuses it. A variant is still put only
-        # where no file is, or over the script's own.
+        # where no file is, or over the script's own, and in one step: no
+        # file is opened under the public name, where a save into it
+        # meanwhile would be of the same file.
         photo = self.photo("view.jpg")
         kept = self.authored("view.w960.webp")
-        no_links = mock.patch.object(os, "link", side_effect=OSError(errno.EPERM, "Operation not permitted"))
+        no_links = mock.patch.object(os, "link", side_effect=self.NO_LINKS)
         ours = ("view.w480.jpg", "view.w480.webp", "view.w960.jpg")
 
         def recorded_as_written() -> None:
@@ -626,15 +726,24 @@ class OwnershipTests(unittest.TestCase):
             self.assertEqual(kept.read_bytes(), self.AUTHORED)
             self.assertEqual(set(self.files()), {"view.jpg", "view.w960.webp", *ours})
 
-        with no_links:
+        opened = []
+        opener = os.open
+
+        def watched(path, flags, *args, **kwargs):
+            if flags & (os.O_WRONLY | os.O_RDWR) and Path(os.fsdecode(path)).name in (*ours, kept.name):
+                opened.append(path)
+            return opener(path, flags, *args, **kwargs)
+
+        with no_links, mock.patch.object(os, "open", watched):
             self.assertEqual(run(str(self.root))[0], 0)
         recorded_as_written()
         first = self.files()
         # Another photograph: its own variants are replaced.
         Image.new("RGB", (1000, 10), (200, 30, 30)).save(photo, format="JPEG")
-        with no_links:
+        with no_links, mock.patch.object(os, "open", watched):
             self.assertEqual(run(str(self.root))[0], 0)
         recorded_as_written()
+        self.assertEqual(opened, [])
         for name in ours:
             self.assertNotEqual(self.files()[name], first[name], name)
         # And a save by the author while one is encoded keeps its place.
@@ -651,6 +760,58 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual((self.photos / "view.w480.webp").read_bytes(), self.AUTHORED)
         self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"], self.sha("view.w480.jpg"))
         self.assertNotEqual(self.record()["trip/view.w480.webp"]["digest"], self.sha("view.w480.webp"))
+
+    def test_a_file_is_given_a_name_only_if_no_file_has_it(self) -> None:
+        records = generate_thumbnails.derived_images
+        for links in (True, False):
+            with self.subTest(links=links), contextlib.ExitStack() as stack:
+                if not links:
+                    stack.enter_context(mock.patch.object(os, "link", side_effect=self.NO_LINKS))
+                held, name = self.photos / "held.tmp", self.photos / f"name-{links}.jpg"
+                held.write_bytes(b"encoded")
+                records.place(held, name)
+                self.assertEqual((name.read_bytes(), held.exists()), (b"encoded", False))
+                held.write_bytes(b"encoded again")
+                name.write_bytes(self.AUTHORED)
+                with self.assertRaises(FileExistsError):
+                    records.place(held, name)
+                self.assertEqual((name.read_bytes(), held.read_bytes()), (self.AUTHORED, b"encoded again"))
+                held.unlink()
+
+    def test_where_no_step_spares_a_file_already_there_nothing_is_written(self) -> None:
+        # Neither hard links nor a rename that refuses an existing name:
+        # a copy into the name would share the file with a save made
+        # meanwhile. The script says so and writes no variant, and takes
+        # none of its own aside, which it could not put back.
+        records = generate_thumbnails.derived_images
+        photo = self.photo("view.jpg", 600)
+
+        @contextlib.contextmanager
+        def neither():
+            records._PLACEABLE.clear()
+            with mock.patch.object(os, "link", side_effect=self.NO_LINKS), \
+                    mock.patch.object(records.ctypes, "CDLL", side_effect=OSError("no such library")):
+                yield
+
+        self.addCleanup(records._PLACEABLE.clear)
+        with neither():
+            code, out, errors = self.run_with_errors()
+            self.assertEqual(code, 1, out)
+            self.assertIn("neither hard links nor a rename that leaves an existing file alone", errors)
+            self.assertEqual(set(self.files()), {"view.jpg"})
+            self.assertFalse(self.record())
+
+        self.assertEqual(run(str(self.root))[0], 0)
+        made = self.files()
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        with neither():
+            code, out, errors = self.run_with_errors()
+            self.assertEqual(code, 1, out)
+            self.assertIn("neither hard links nor a rename that leaves an existing file alone", errors)
+        after = self.files()
+        self.assertEqual({name: after[name] for name in made if name != "view.jpg"},
+                         {name: made[name] for name in made if name != "view.jpg"})
+        self.assertEqual(set(after), set(made))
 
     def test_a_photograph_saved_again_while_its_variants_are_made_is_recorded_as_it_was_read(self) -> None:
         # Another photograph is saved over this one after it was read and

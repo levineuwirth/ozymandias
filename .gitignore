@@ -32,6 +32,16 @@ dist-newstyle/
 # with what a build makes of it for its pages (build/DerivedImages.hs).
 /data/derived-images.json
 /data/pairings/
+# What those tools leave when a run is stopped: a file being encoded, a
+# file taken aside while its name is given to the new one, a record being
+# saved. The next run clears them or puts them back, and a site's build
+# asks for a committed engine first (engine.mk engine-committed). A file
+# kept for its author (`.previous-image-…`, no `.tmp`) is not ignored.
+.convert-*/
+.thumb-*/
+.previous-image-*.tmp
+.place-*.tmp
+/data/.derived-images.json.*.tmp
 **/*.dims.yaml
 !/tests/golden/*.dims.yaml
 # The fixture site's are its content, as a site's own would be.

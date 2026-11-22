@@ -713,6 +713,36 @@ fi
         self.convert()
         self.assertEqual(self.companions()["content/blog/map.webp"], made("map.png"))
 
+    def test_what_a_stopped_run_took_aside_is_put_back_before_anything_is_converted(self):
+        # A run stopped while it replaced a companion leaves the file it
+        # took aside under a name that says which it was. The script's own
+        # goes back and is its own as before; a save of the author's, made
+        # in the moment before it was taken, goes back, is named, and is
+        # not converted over. In the engine's tree as in the site's.
+        self.write("content/lake.jpg")
+        self.write("engine/static/mark.png")
+        self.convert()
+
+        def aside(rel: str) -> Path:
+            companion = self.root / rel
+            key = hashlib.sha256(companion.name.encode()).hexdigest()[:16]
+            return companion.with_name(f".previous-image-{key}-abcd1234.tmp")
+
+        (self.root / "content/lake.webp").unlink()
+        aside("content/lake.webp").write_text("saved by its author", encoding="utf-8")
+        os.replace(self.root / "engine/static/mark.webp", aside("engine/static/mark.webp"))
+
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.companions(), {"content/lake.webp": "saved by its author",
+                                             "engine/static/mark.webp": made("mark.png")})
+        self.assertIn("convert-images: 0 converted, 1 already present.", done.stdout)
+        self.assertIn("content/lake.webp was set aside by a run that was stopped, and is back in its place",
+                      done.stderr)
+        self.assertNotIn("mark.webp", done.stderr)
+        self.assertIn("1 WebP file(s) beside an image are not recorded as made from it", done.stderr)
+        self.assertEqual([p.name for p in self.root.rglob(".previous-image-*")], [])
+
     def test_a_gif_is_shown_with_a_companion_too(self):
         # The image filter gives color.gif the companion color.webp, here
         # one the author made, which this script would make from color.JPG.

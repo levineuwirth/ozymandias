@@ -615,6 +615,11 @@ def main(argv: list[str] | None = None) -> int:
     except derived_images.RecordError as error:
         print(f"generate-thumbnails: {error}; nothing was written.", file=sys.stderr)
         return 1
+    except OSError as error:
+        # Outside any one variant: what a stopped run left could not be
+        # put back, or the record not saved.
+        print(f"generate-thumbnails: {error}", file=sys.stderr)
+        return 1
 
     summary = (
         f"generate-thumbnails: {counters['written']} written, "

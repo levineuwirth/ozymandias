@@ -70,6 +70,15 @@ the file as it is when the entry is written: an image saved again while it
 was being converted has an output of the image before, and an entry that
 says so (`consume`, `still`). The tool then makes the output again.
 
+A file is given its name by a step that fails where a file already is (a
+hard link, or a rename that refuses an existing name: `place`), so that a
+file the author saves while an encoder runs is never written over; where
+the filesystem has no such step, the tools write no image. To replace its
+own file a tool takes it aside first, under a `.tmp` name that says which
+file it was, and checks that it is the one it wrote. A run stopped there
+leaves it aside, and the next run that writes puts it back before it
+judges anything (`Records.restore_displaced`).
+
 Files that were there before the record (every companion of a site that
 upgrades) are unrecorded, and so are not used until they are adopted:
 `make adopt-images` makes each one again in a scratch place and records
@@ -85,14 +94,13 @@ its image had, is completed the same way.
 
 from __future__ import annotations
 
+import ctypes
 import errno
 import fcntl
 import hashlib
 import importlib.util
 import json
 import os
-import shutil
-import stat as stat_module
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -183,47 +191,96 @@ def digest_of(data: bytes) -> str:
 
 
 # What link(2) says on a filesystem that has no hard links (exFAT, some
-# network mounts).
+# network mounts), and what renameat2(2) says where it cannot be told to
+# leave an existing file alone.
 NO_HARD_LINKS = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP, errno.ENOSYS}
+NO_SUCH_RENAME = {errno.EINVAL, errno.ENOTSUP, errno.EOPNOTSUPP, errno.ENOSYS}
+
+# A file taken aside while its name is given to a new one (Records.publish):
+# `.previous-image-KEY-XXXXXXXX.tmp`, KEY saying which name it had.
+ASIDE = ".previous-image-"
+
+
+class NoSafePlace(OSError):
+    """The filesystem can give a file a name only by a step that would
+    replace a file already there. No image is put in such a place."""
+
+
+def _rename_unless_there(held: Path, output: Path) -> None:
+    """rename(2) that fails where `output` exists (Linux renameat2 with
+    RENAME_NOREPLACE): one step, as a hard link is."""
+    renameat2 = None
+    if sys.platform.startswith("linux"):
+        try:
+            renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+        except (OSError, AttributeError):
+            pass
+    if renameat2 is not None:
+        renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+        renameat2.restype = ctypes.c_int
+        at_cwd, noreplace = -100, 1
+        if renameat2(at_cwd, os.fsencode(os.path.abspath(held)),
+                     at_cwd, os.fsencode(os.path.abspath(output)), noreplace) == 0:
+            return
+        error = ctypes.get_errno()
+        if error == errno.EEXIST:
+            raise FileExistsError(error, os.strerror(error), str(output))
+        if error not in NO_SUCH_RENAME:
+            raise OSError(error, os.strerror(error), str(output))
+    raise NoSafePlace(errno.ENOTSUP, "this filesystem has neither hard links nor a rename that leaves an existing "
+                      "file alone, so a file saved here meanwhile could be written over; no image is written "
+                      "in this directory", str(output.parent))
 
 
 def place(held: Path, output: Path) -> None:
-    """Give the file at `held` the name `output` too, if nothing has that
-    name: FileExistsError otherwise, and what is there is not touched.
+    """Give the file at `held` the name `output` instead, if nothing has
+    that name: FileExistsError otherwise, and what is there is not
+    touched, nor `held`.
 
-    A hard link, which puts the whole file there in one step. Where the
-    filesystem has none, a copy into a file created for it, and created
-    only if the name is free: the rule holds, but a reader may see the
-    file while it is being written, and a run killed then leaves part of
-    one (no entry says it is the tool's, so nothing shows it, and the tool
-    lists it as a file that is not its own)."""
+    Each way puts the whole file there in one step, or fails: a hard link
+    (and `held` is then unlinked), or, where the filesystem has none, a
+    rename that refuses an existing name. Where it has neither,
+    NoSafePlace: a copy into the name would share a file with whoever
+    saves there meanwhile, and nothing the tools write is worth that."""
     try:
         os.link(held, output, follow_symlinks=False)
-        return
     except FileExistsError:
         raise
     except OSError as error:
         if error.errno not in NO_HARD_LINKS:
             raise
-    if os.path.islink(held):
-        os.symlink(os.readlink(held), output)
+        _rename_unless_there(held, output)
         return
-    fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    made = os.fstat(fd)
+    os.unlink(held)
+
+
+_PLACEABLE: set[int] = set()
+
+
+def can_place(directory: Path) -> None:
+    """NoSafePlace unless `place` works in this directory: asked before a
+    file is taken aside, which could not be put back otherwise. (Where a
+    name is taken, link(2) says so before it says the filesystem has no
+    links.)"""
+    device = os.stat(directory).st_dev
+    if device in _PLACEABLE:
+        return
+    fd, name = tempfile.mkstemp(dir=directory, prefix=".place-", suffix=".tmp")
+    os.close(fd)
+    first, second = Path(name), Path(name[:-len(".tmp")] + "-2.tmp")
     try:
-        with os.fdopen(fd, "wb") as target, open(held, "rb") as origin:
-            shutil.copyfileobj(origin, target)
-            os.fchmod(target.fileno(), stat_module.S_IMODE(os.fstat(origin.fileno()).st_mode))
+        place(first, second)
     except BaseException:
-        # Part of a file, under a name this call made: taken away again,
-        # unless another file has the name by now.
-        try:
-            there = os.lstat(output)
-            if (there.st_dev, there.st_ino) == (made.st_dev, made.st_ino):
-                os.unlink(output)
-        except OSError:
-            pass
+        first.unlink(missing_ok=True)
         raise
+    second.unlink(missing_ok=True)
+    _PLACEABLE.add(device)
+
+
+def aside_key(output: Path) -> str:
+    """What a file taken aside from `output` has in its name: enough to
+    say which file of the directory it was, at any length of name."""
+    return hashlib.sha256(os.fsencode(output.name)).hexdigest()[:16]
 
 
 class Tree:
@@ -318,8 +375,9 @@ class Records:
     prepared elsewhere), which keeps its own.
 
     A tool that writes opens them with `Records.held`, which locks each
-    tree, the engine's first, reads the records under the locks, and saves
-    them before letting go (or, for a preview, does not)."""
+    tree, the engine's first, reads the records under the locks, puts back
+    what a stopped run left aside (`restore_displaced`), and saves the
+    records before letting go (or, for a preview, does neither)."""
 
     def __init__(self, *, site: Path | None = None, engine: Path | None = None,
                  elsewhere: Path | None = None, lock: bool = False) -> None:
@@ -353,6 +411,8 @@ class Records:
     def held(cls, *, save: bool = True, **trees):
         records = cls(lock=True, **trees)
         try:
+            if save:
+                records.restore_displaced()
             yield records
             if save:
                 records.save_all()
@@ -420,16 +480,19 @@ class Records:
         images) finds no companion and shows the image alone, where a
         replacement in one step would either write over a save made a
         moment before or put the new file, for that moment, where the
-        author's is. A run killed there leaves the name empty, and the
-        next run makes the file again.
+        author's is.
 
         The file taken aside has a `.tmp` name, as every temporary file of
-        the tools has: ignored by a site's Git, and never published. If it
+        the tools has (ignored by Git, and never published), and the name
+        says which file it was (`aside_key`): a run stopped there leaves
+        it, and the next run that writes puts it back before it decides
+        anything (`restore_displaced`), so a file the author saved a
+        moment before it was taken is not left where nobody looks. If it
         has to be kept (it may be the author's, and its name was taken by
         another save), it is given a name without `.tmp`, which the author
         sees.
 
-        `place` says what is done where the filesystem has no hard links.
+        `place` says how a file is given its name, and where none is.
         """
         if self.declared_for(output) is not None:
             return False
@@ -438,7 +501,9 @@ class Records:
         except FileExistsError:
             if not self.owns(output, producer, source):
                 return False
-            fd, backup_name = tempfile.mkstemp(dir=output.parent, prefix=".previous-image-", suffix=".tmp")
+            can_place(output.parent)
+            fd, backup_name = tempfile.mkstemp(dir=output.parent, prefix=f"{ASIDE}{aside_key(output)}-",
+                                               suffix=".tmp")
             os.close(fd)
             backup = Path(backup_name)
             try:
@@ -466,20 +531,85 @@ class Records:
                     except FileExistsError:
                         # Both names may now hold an author's save. Keep both,
                         # the displaced one where its author will see it.
-                        kept = backup.with_suffix("")
-                        try:
-                            place(backup, kept)
-                        except FileExistsError:
-                            kept = backup
-                        else:
-                            backup.unlink()
                         print(f"{show(output)} changed during publication. The displaced file is at "
-                              f"{show(kept)}", file=sys.stderr)
-                    else:
-                        backup.unlink()
+                              f"{show(self._keep(backup))}", file=sys.stderr)
         self.wrote(output, producer, source, taken, written)
         self.save_all()
         return True
+
+    @staticmethod
+    def _keep(aside: Path) -> Path:
+        """Give a file taken aside a name its author sees (no `.tmp`), and
+        never one another file has."""
+        kept = aside.with_suffix("")
+        try:
+            place(aside, kept)
+        except FileExistsError:
+            return aside
+        return kept
+
+    def restore_displaced(self) -> None:
+        """Put back what a stopped run left aside (`publish`), before any
+        output is judged or made again.
+
+        A file aside whose name is free goes back to it: the tool's own
+        (the bytes its entry has) is then its own as before, and any other
+        is the author's, saved in the moment before it was taken, which
+        the tools leave as it is and say so. Where the name has a file
+        again, the tool's own is deleted and any other is kept beside it
+        under a name the author sees. So is one whose output has no entry
+        any more."""
+        for tree in self.trees:
+            wanted: dict[str, dict[str, str]] = {}
+            for rel in tree.outputs:
+                directory, name = os.path.split(rel)
+                wanted.setdefault(directory, {})[aside_key(Path(name))] = rel
+            for directory, keys in sorted(wanted.items()):
+                there = Path(tree.real) / directory
+                try:
+                    names = sorted(found.name for found in os.scandir(there)
+                                   if found.name.startswith(ASIDE) and found.name.endswith(".tmp"))
+                except (FileNotFoundError, NotADirectoryError):
+                    continue
+                asides = []
+                for name in names:
+                    rel = keys.get(name[len(ASIDE):].split("-", 1)[0])
+                    output = None if rel is None else Path(tree.real) / rel
+                    aside = there / name
+                    own = (output is not None and not aside.is_symlink() and aside.is_file()
+                           and digest(aside) == tree.outputs[rel]["digest"])
+                    asides.append((own, aside, output))
+                # An author's file before the tool's own, where both are
+                # aside from one name: the name is the author's then.
+                for own, aside, output in sorted(asides, key=lambda found: found[0]):
+                    self._restore(aside, output, own)
+
+    def _restore(self, aside: Path, output: Path | None, own: bool) -> None:
+        if output is None:
+            print(f"derived-images: {show(self._keep(aside))} was set aside by a run that was stopped, and the "
+                  "record no longer says which file it was. It is left there for you to look at.", file=sys.stderr)
+            return
+        try:
+            there, held = os.lstat(output), os.lstat(aside)
+        except FileNotFoundError:
+            pass
+        else:
+            if (there.st_dev, there.st_ino) == (held.st_dev, held.st_ino):
+                aside.unlink()          # put back already, and stopped before this
+                return
+        try:
+            place(aside, output)
+        except FileExistsError:
+            if own:
+                aside.unlink()
+            else:
+                print(f"derived-images: {show(output)} was set aside by a run that was stopped, and another file "
+                      f"has its name since. The one set aside is at {show(self._keep(aside))}", file=sys.stderr)
+        else:
+            if not own:
+                print(f"derived-images: {show(output)} was set aside by a run that was stopped, and is back in "
+                      "its place. It is not what this tool wrote there (it was saved in the moment before), so "
+                      "it is left as it is.", file=sys.stderr)
 
     def fresh(self, output: Path, producer: str, source: Path) -> bool:
         """Is the output there what `producer` would make of `source` now?
@@ -679,7 +809,7 @@ def main(argv: list[str]) -> int:
             return adopt(dry_run=bool(argv[1:]))
         if argv == ["status"]:
             return status()
-    except RecordError as error:
+    except (RecordError, OSError) as error:
         print(f"derived-images: {error}", file=sys.stderr)
         return 1
     print("usage: derived_images.py declare WEBP [IMAGE] | derived_images.py adopt [--dry-run] | "

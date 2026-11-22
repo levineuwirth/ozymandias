@@ -127,7 +127,17 @@ class TheEngineIgnoresWhatItWrites(unittest.TestCase):
                ".venv/bin/python", "dist-newstyle/cache/plan.json", ".ruff_cache/0.1/x",
                "static/pdfjs/web/viewer.html", "static/leaflet/leaflet.js",
                "static/models/all-MiniLM-L6-v2/config.json", "tools/browser/axe.min.js",
-               "static/favicon-96x96.webp", "static/images/photo.jpg.dims.yaml"]
+               "static/favicon-96x96.webp", "static/images/photo.jpg.dims.yaml",
+               # What a stopped image tool leaves (tools/derived_images.py):
+               # a site's build refuses an engine with uncommitted files,
+               # and would never reach the run that clears these.
+               "static/images/.convert-k3v9x2ab/companion.tmp",
+               "static/images/.previous-image-0123456789abcdef-k3v9x2ab.tmp",
+               "static/images/.place-k3v9x2ab.tmp", "static/images/.place-k3v9x2ab-2.tmp",
+               "fixture-site/content/photography/.thumb-k3v9x2ab/jpeg.tmp",
+               "data/.derived-images.json.4242.tmp"]
+    # A file kept for its author, which Git must go on showing.
+    SEEN = ["static/images/.previous-image-0123456789abcdef-k3v9x2ab"]
 
     def test_in_a_repository_of_its_own(self):
         # The engine's files (what Git sees in engine/), then what it writes,
@@ -139,7 +149,7 @@ class TheEngineIgnoresWhatItWrites(unittest.TestCase):
             .decode().split("\0") if p and (ENGINE / p).is_file()]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for rel in tracked + self.WRITTEN:
+            for rel in tracked + self.WRITTEN + self.SEEN:
                 (root / rel).parent.mkdir(parents=True, exist_ok=True)
                 source = ENGINE / rel
                 (root / rel).write_bytes(source.read_bytes() if Path(rel).name == ".gitignore" else b"")
@@ -150,7 +160,7 @@ class TheEngineIgnoresWhatItWrites(unittest.TestCase):
                                               cwd=root, env=env)
                 return sorted(p for p in out.decode().split("\0") if p)
 
-            self.assertEqual(listed(), sorted(tracked))
+            self.assertEqual(listed(), sorted(tracked + self.SEEN))
             self.assertEqual(listed("--ignored"), sorted(self.WRITTEN))
 
 

@@ -451,8 +451,12 @@ lacks, for a site that doesn't push the engine itself.
     by the author while an encoder runs keeps its place: a tool's own file
     is taken aside and checked before the new one goes in, so for that
     moment the name has no file (a site building just then shows the
-    image alone), and on a filesystem without hard links the new file is
-    copied into a name created for it. Each finished
+    image alone). A run stopped in that moment leaves the file aside
+    (`.previous-image-….tmp`), and the next run puts it back before it
+    converts anything, saying so if it is not the tool's own. A file gets
+    its name by a hard link or, on a filesystem without them, by a rename
+    that refuses an existing name; where there is neither, the tools stop
+    and write no image there. Each finished
     thumbnail is recorded even if encoding its sibling fails. Its own
     file is made again when its image is not the one it was made from
     (other bytes, whichever file is older, or another file altogether;
