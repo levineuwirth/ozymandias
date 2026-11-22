@@ -448,7 +448,11 @@ lacks, for a site that doesn't push the engine itself.
   wait for each other there.
   - a tool writes where there is no file, and writes over or prunes only
     a file the record says it made and that is unchanged since. A file saved
-    by the author while an encoder runs keeps its place. Each finished
+    by the author while an encoder runs keeps its place: a tool's own file
+    is taken aside and checked before the new one goes in, so for that
+    moment the name has no file (a site building just then shows the
+    image alone), and on a filesystem without hard links the new file is
+    copied into a name created for it. Each finished
     thumbnail is recorded even if encoding its sibling fails. Its own
     file is made again when its image is not the one it was made from
     (other bytes, whichever file is older, or another file altogether;

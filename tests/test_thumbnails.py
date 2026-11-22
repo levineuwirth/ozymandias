@@ -13,6 +13,7 @@ there is nothing to assert.
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import io
 import json
@@ -548,6 +549,108 @@ class OwnershipTests(unittest.TestCase):
             self.assertEqual(run(str(self.root))[0], 0)
         self.assertFalse(self.record())
         self.assertEqual(set(self.files()), {"view.jpg"})
+
+    def sha(self, name: str) -> str:
+        return "sha256:" + hashlib.sha256((self.photos / name).read_bytes()).hexdigest()
+
+    def test_a_run_stopped_while_a_variant_is_replaced_leaves_only_a_tmp_name(self) -> None:
+        # Stopped between taking its old variant aside and putting the new
+        # one in: the name is empty, the file taken aside has a name a
+        # site's Git ignores and no build publishes, and the next run
+        # makes the variant again.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        link, calls = os.link, []
+
+        def stopped(*args, **kwargs):
+            calls.append(args)
+            if len(calls) == 1:
+                return link(*args, **kwargs)        # the name is taken, and says so
+            raise KeyboardInterrupt
+
+        with mock.patch.object(os, "link", stopped), self.assertRaises(KeyboardInterrupt):
+            run(str(self.root))
+        names = set(self.files())
+        self.assertNotIn("view.w480.jpg", names)
+        aside = names - {"view.jpg", "view.w480.webp"}
+        self.assertEqual(len(aside), 1, names)
+        self.assertRegex(aside.pop(), r"^\.previous-image-.*\.tmp$")
+        self.assertEqual(run(str(self.root))[0], 0)
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"], self.sha("view.w480.jpg"))
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["source-digest"], self.sha("view.jpg"))
+
+    def test_a_save_displaced_and_then_shut_out_is_kept_where_its_author_sees_it(self) -> None:
+        # Two saves by the author into a variant's name, one just before
+        # the script takes its own file aside and one just after: the
+        # second keeps the name, and the first is kept beside it under a
+        # name that is not a temporary file's.
+        photo = self.photo("view.jpg", 600)
+        self.assertEqual(run(str(self.root))[0], 0)
+        Image.new("RGB", (600, 10), (200, 30, 30)).save(photo, format="JPEG")
+        variant = self.photos / "view.w480.jpg"
+        replace = os.replace
+
+        def replace_between_two_saves(source, target, **kwargs):
+            if Path(source) != variant:
+                return replace(source, target, **kwargs)
+            variant.unlink()
+            variant.write_bytes(b"the first save")
+            replace(source, target, **kwargs)
+            variant.write_bytes(b"the second save")
+
+        errors = io.StringIO()
+        with mock.patch.object(os, "replace", replace_between_two_saves), contextlib.redirect_stderr(errors):
+            self.assertEqual(run(str(self.root))[0], 0)
+        files = self.files()
+        self.assertEqual(files["view.w480.jpg"], b"the second save")
+        kept = [name for name, held in files.items() if held == b"the first save"]
+        self.assertEqual(len(kept), 1, sorted(files))
+        self.assertRegex(kept[0], r"^\.previous-image-[^.]+$")
+        self.assertIn(f"The displaced file is at {self.photos / kept[0]}", errors.getvalue())
+        self.assertFalse([name for name in files if name.endswith(".tmp")])
+
+    def test_a_filesystem_without_hard_links_is_written_to_all_the_same(self) -> None:
+        # link(2) refused, as exFAT refuses it. A variant is still put only
+        # where no file is, or over the script's own.
+        photo = self.photo("view.jpg")
+        kept = self.authored("view.w960.webp")
+        no_links = mock.patch.object(os, "link", side_effect=OSError(errno.EPERM, "Operation not permitted"))
+        ours = ("view.w480.jpg", "view.w480.webp", "view.w960.jpg")
+
+        def recorded_as_written() -> None:
+            self.assertEqual(set(self.record()), {f"trip/{name}" for name in ours})
+            for name in ours:
+                self.assertEqual(self.record()[f"trip/{name}"]["digest"], self.sha(name), name)
+                self.assertEqual((self.photos / name).stat().st_mode & 0o777, 0o644, name)
+            self.assertEqual(kept.read_bytes(), self.AUTHORED)
+            self.assertEqual(set(self.files()), {"view.jpg", "view.w960.webp", *ours})
+
+        with no_links:
+            self.assertEqual(run(str(self.root))[0], 0)
+        recorded_as_written()
+        first = self.files()
+        # Another photograph: its own variants are replaced.
+        Image.new("RGB", (1000, 10), (200, 30, 30)).save(photo, format="JPEG")
+        with no_links:
+            self.assertEqual(run(str(self.root))[0], 0)
+        recorded_as_written()
+        for name in ours:
+            self.assertNotEqual(self.files()[name], first[name], name)
+        # And a save by the author while one is encoded keeps its place.
+        Image.new("RGB", (1000, 10), (30, 200, 30)).save(photo, format="JPEG")
+        save = Image.Image.save
+
+        def save_with_author_edit(image, output, **kwargs):
+            if kwargs["format"] == "WEBP":
+                (self.photos / "view.w480.webp").write_bytes(self.AUTHORED)
+            return save(image, output, **kwargs)
+
+        with no_links, mock.patch.object(Image.Image, "save", save_with_author_edit):
+            self.assertEqual(run(str(self.root))[0], 0)
+        self.assertEqual((self.photos / "view.w480.webp").read_bytes(), self.AUTHORED)
+        self.assertEqual(self.record()["trip/view.w480.jpg"]["digest"], self.sha("view.w480.jpg"))
+        self.assertNotEqual(self.record()["trip/view.w480.webp"]["digest"], self.sha("view.w480.webp"))
 
     def test_a_photograph_saved_again_while_its_variants_are_made_is_recorded_as_it_was_read(self) -> None:
         # Another photograph is saved over this one after it was read and

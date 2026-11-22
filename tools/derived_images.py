@@ -85,11 +85,14 @@ its image had, is completed the same way.
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import hashlib
 import importlib.util
 import json
 import os
+import shutil
+import stat as stat_module
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -177,6 +180,50 @@ def still(source: Path, taken: Consumed) -> bool:
 
 def digest_of(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+# What link(2) says on a filesystem that has no hard links (exFAT, some
+# network mounts).
+NO_HARD_LINKS = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP, errno.ENOSYS}
+
+
+def place(held: Path, output: Path) -> None:
+    """Give the file at `held` the name `output` too, if nothing has that
+    name: FileExistsError otherwise, and what is there is not touched.
+
+    A hard link, which puts the whole file there in one step. Where the
+    filesystem has none, a copy into a file created for it, and created
+    only if the name is free: the rule holds, but a reader may see the
+    file while it is being written, and a run killed then leaves part of
+    one (no entry says it is the tool's, so nothing shows it, and the tool
+    lists it as a file that is not its own)."""
+    try:
+        os.link(held, output, follow_symlinks=False)
+        return
+    except FileExistsError:
+        raise
+    except OSError as error:
+        if error.errno not in NO_HARD_LINKS:
+            raise
+    if os.path.islink(held):
+        os.symlink(os.readlink(held), output)
+        return
+    fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    made = os.fstat(fd)
+    try:
+        with os.fdopen(fd, "wb") as target, open(held, "rb") as origin:
+            shutil.copyfileobj(origin, target)
+            os.fchmod(target.fileno(), stat_module.S_IMODE(os.fstat(origin.fileno()).st_mode))
+    except BaseException:
+        # Part of a file, under a name this call made: taken away again,
+        # unless another file has the name by now.
+        try:
+            there = os.lstat(output)
+            if (there.st_dev, there.st_ino) == (made.st_dev, made.st_ino):
+                os.unlink(output)
+        except OSError:
+            pass
+        raise
 
 
 class Tree:
@@ -367,15 +414,31 @@ class Records:
         Link into an empty slot atomically. For a replacement, take the old
         file aside and verify the bytes actually displaced before installing
         the new one. Another save into the slot always wins.
+
+        While the old file is aside, the name has no file. That is on
+        purpose: a reader then (another site building with the engine's
+        images) finds no companion and shows the image alone, where a
+        replacement in one step would either write over a save made a
+        moment before or put the new file, for that moment, where the
+        author's is. A run killed there leaves the name empty, and the
+        next run makes the file again.
+
+        The file taken aside has a `.tmp` name, as every temporary file of
+        the tools has: ignored by a site's Git, and never published. If it
+        has to be kept (it may be the author's, and its name was taken by
+        another save), it is given a name without `.tmp`, which the author
+        sees.
+
+        `place` says what is done where the filesystem has no hard links.
         """
         if self.declared_for(output) is not None:
             return False
         try:
-            os.link(staged, output)
+            place(staged, output)
         except FileExistsError:
             if not self.owns(output, producer, source):
                 return False
-            fd, backup_name = tempfile.mkstemp(dir=output.parent, prefix=".previous-image-")
+            fd, backup_name = tempfile.mkstemp(dir=output.parent, prefix=".previous-image-", suffix=".tmp")
             os.close(fd)
             backup = Path(backup_name)
             try:
@@ -392,18 +455,26 @@ class Records:
                 if backup.is_symlink() or not backup.is_file() or digest(backup) != entry["digest"]:
                     return False
                 try:
-                    os.link(staged, output)
+                    place(staged, output)
                 except FileExistsError:
                     return False
                 backup.unlink()
             finally:
                 if os.path.lexists(backup):
                     try:
-                        os.link(backup, output, follow_symlinks=False)
+                        place(backup, output)
                     except FileExistsError:
-                        # Both names may now hold an author's save. Keep both.
+                        # Both names may now hold an author's save. Keep both,
+                        # the displaced one where its author will see it.
+                        kept = backup.with_suffix("")
+                        try:
+                            place(backup, kept)
+                        except FileExistsError:
+                            kept = backup
+                        else:
+                            backup.unlink()
                         print(f"{show(output)} changed during publication. The displaced file is at "
-                              f"{show(backup)}", file=sys.stderr)
+                              f"{show(kept)}", file=sys.stderr)
                     else:
                         backup.unlink()
         self.wrote(output, producer, source, taken, written)
