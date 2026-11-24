@@ -36,6 +36,7 @@ module Citations
     ) where
 
 import           Control.Monad.State.Strict (State, gets, modify', runState)
+import           Data.Data           (Data, cast, gmapM)
 import           Data.List           (intercalate, intersperse, nub, partition, sortBy)
 import           Data.Map.Strict     (Map)
 import qualified Data.Map.Strict     as Map
@@ -76,7 +77,7 @@ plainCitations = walk (concatMap plain)
 -- | Process citations in a Pandoc document.
 --   @frKeys@: further-reading citation keys (read from Hakyll metadata by
 --   the caller, since Hakyll strips YAML frontmatter before parsing).
---   Returns @(body, citedHtml, furtherHtml)@ where @body@ has Cite nodes
+--   Returns @(body, citedHtml, furtherHtml, visibleKeys)@ where @body@ has Cite nodes
 --   replaced with numbered superscripts and no bibliography div,
 --   @citedHtml@ is the inline-cited references HTML, and @furtherHtml@ is
 --   the further-reading-only references HTML (each empty when absent).
@@ -85,24 +86,28 @@ applyCitations :: SiteConfig -> [Text] -> Text -> Pandoc -> IO (Pandoc, Text, Te
 applyCitations cfg frKeys bibPath doc
     | not (hasCitations frKeys doc) = return (doc, "", "", frKeys)
     | otherwise = do
-        -- Read custom fields (@file:@, @keywords:@) from the .bib file
-        -- in parallel with citeproc. These don't affect citation
-        -- resolution — they enhance the rendered bibliography entries.
-        extras       <- parseBibExtras (T.unpack bibPath)
-        csl          <- cslStyle
-        -- A BibLaTeX alias (@ids@) is cited as its entry's key: citeproc
-        -- loads the entries the citations name, and a page citing an entry
-        -- by its alias alone had none.
-        let aliases   = Map.fromList [ (T.pack a, T.pack k) | (k, e) <- Map.toList extras, a <- bibIds e ]
-            alias c   = c { citationId = Map.findWithDefault (citationId c) (citationId c) aliases }
-            canonical = walk (\i -> case i of Cite cs ils -> Cite (map alias cs) ils; _ -> i)
-            doc1      = injectMeta csl frKeys bibPath (canonical doc)
-        processed    <- runIOorExplode $ processCitations doc1
+        extras <- parseBibExtras (T.unpack bibPath)
+        csl <- cslStyle
+        -- Citeproc selects entries before formatting them. Resolve aliases
+        -- for both citations and nocite at that boundary. A primary key
+        -- always denotes its own entry, even if another entry claims it.
+        let aliases = Map.fromList
+                [ (T.pack a, T.pack k) | (k, e) <- Map.toList extras, a <- bibIds e
+                                       , Map.notMember a extras ]
+            canonical "*" = "*"
+            canonical k   = Map.findWithDefault k k aliases
+            rename (Cite cs ils) = Cite [c { citationId = canonical (citationId c) } | c <- cs] ils
+            rename i = i
+            further = map canonical frKeys
+            -- Move the author's fragment target with their bibliography.
+            -- If citeproc creates its own Div, another element in the
+            -- source may already own the name (e.g. a References heading).
+            refsAnchor = if null (query (\b -> [() | isRefsDiv b]) doc) then "" else "refs"
+        processed <- runIOorExplode $ processCitations (injectMeta csl further bibPath (walk rename doc))
         let enhance = annotateArchive . enhanceEntry cfg extras
-            (body, citedHtml, furtherHtml, shown) = transformAndExtract enhance aliases frKeys processed
-        -- The keys the page shows, and those it lists by name, for the
-        -- site's bibliography, which lists every work cited across the site.
-        return (body, citedHtml, furtherHtml, shown ++ filter (/= "*") frKeys)
+            (body, citedHtml, furtherHtml, shown) = transformAndExtract enhance refsAnchor further processed
+        return (body, citedHtml, furtherHtml, shown ++ filter (/= "*") further)
+
 
 -- | Render a standalone bibliography section from a list of citekeys and
 --   a set of @.bib@ file paths. Used by the synthetic @\/bibliography\/@
@@ -133,7 +138,7 @@ renderBibliographyHtml cfg bibPaths extras keys = do
     let refsDivs = concatMap unwrapRefs (pandocBlocks processed)
         ordered  = reorderByKeys keys refsDivs
         enhanced = map (annotateArchive . enhanceEntry cfg extras) ordered
-    return (renderEntries "csl-bib-body" enhanced)
+    return (renderEntries "" "csl-bib-body" enhanced)
   where
     pandocBlocks (Pandoc _ bs) = bs
     unwrapRefs (Div ("refs", _, _) children) = children
@@ -235,98 +240,41 @@ insertMeta k v (Meta m) = Meta (Map.insert k v m)
 -- ---------------------------------------------------------------------------
 
 -- | Number citation Cite nodes and extract the bibliography div.
-transformAndExtract :: (Block -> Block) -> Map Text Text -> [Text] -> Pandoc -> (Pandoc, Text, Text, [Text])
-transformAndExtract enhance aliases frKeys doc@(Pandoc meta _) =
-    let -- The keys with an entry: the bibliography's entries, wherever its
-        -- @refs@ Div sits (a wrapper Div too), and a BibLaTeX alias (@ids@)
-        -- of one, as the entry's own key, which is the one citeproc lists.
-        found     = Set.fromList (query refIds (pandocBlocks doc))
-        resolve k | k `Set.member` found = Just k
-                  | Just c <- Map.lookup k aliases, c `Set.member` found = Just c
-                  | otherwise = Nothing
-        -- Each citation as the page will show it ('settle'), before any is
-        -- numbered: what the page does not show (a missing key's locator,
-        -- citeproc's rendering) can hold no number and spend no id.
-        settled   = walk (settle resolve) (walk unrendered (pandocBlocks doc))
-        -- Keys in first-appearance order, those with an entry only: the
-        -- bibliography numbers the entries it has, and a key citeproc did
-        -- not find took a number no entry carries, so every marker after it
-        -- named the entry after its own ([3] on the entry numbered [2]).
-        citeOrder = filter (`Set.member` found) (nub (query settledKeys settled))
-        keyNums   = Map.fromList (zip citeOrder [1 :: Int ..])
-        -- Replace Cite nodes with numbered superscript markers. The walk
-        -- is stateful because each *occurrence* needs its own id (see
-        -- 'MarkerState'); it also records where each key was first cited
-        -- so the bibliography can link back to that occurrence.
-        --
-        -- Blocks only. The further-reading keys sit in the metadata as
-        -- nocite Cite nodes, and a walk over the whole document visits them
-        -- first: a key both cited and listed spent its cite-back-<n> id on a
-        -- node that is never rendered, so the bibliography's back-link led
-        -- nowhere.
-        (blocks', st) = runState (walkM (transformInline keyNums) settled) emptyMarkerState
-        backMap    = msFirstOccurrence st
-        -- Pull bibliography div out of body and render to HTML
-        (bodyBlocks, citedHtml, furtherHtml) =
-            extractBibliography enhance backMap citeOrder frKeys (walk unsettle blocks')
-    in (Pandoc meta bodyBlocks, citedHtml, furtherHtml, citeOrder)
+transformAndExtract :: (Block -> Block) -> Text -> [Text] -> Pandoc -> (Pandoc, Text, Text, [Text])
+transformAndExtract enhance refsAnchor frKeys (Pandoc meta blocks) =
+    let found = Set.fromList (query refIds blocks)
+        -- Work only on the body. The metadata's nocite nodes never appear
+        -- on the page. Nor does citeproc's formatted copy of a locator.
+        settled = walk (concatMap (settle found)) (walk unrendered blocks)
+        citeOrder = filter (`Set.member` found) (nub (query citationKeys settled))
+        keyNums = Map.fromList (zip citeOrder [1 :: Int ..])
+        (marked, st) = runState (markCitations keyNums settled) emptyMarkerState
+        (body, citedHtml, furtherHtml) =
+            extractBibliography enhance (msFirstOccurrence st) citeOrder refsAnchor frKeys marked
+    in (Pandoc meta body, citedHtml, furtherHtml, citeOrder)
   where
-    pandocBlocks (Pandoc _ bs) = bs
-    -- Citeproc's rendering of a citation is discarded for the marker, and
-    -- is emptied first: walked, a citation in a locator's footnote was
-    -- numbered in that copy too.
-    unrendered :: Inline -> Inline
     unrendered (Cite cs _) = Cite cs []
     unrendered i           = i
-    refIds :: Block -> [Text]
     refIds (Div ("refs", _, _) entries) = [ stripRefPrefix i | Div (i, _, _) _ <- entries ]
     refIds _                            = []
-    -- A settled citation's keys, then those of the citations shown in its
-    -- locators, then its notes': the order the page shows them in.
-    settledKeys :: Inline -> [Text]
-    settledKeys (Cite cs _) = map citationId cs
-    settledKeys (Span (_, cls, attrs) _)
-        | "cite-in-label" `elem` cls = maybe [] T.words (lookup "data-keys" attrs)
-    settledKeys _ = []
-    -- The wrapper 'settle' puts around a citation and its lifted notes.
-    unsettle :: [Inline] -> [Inline]
-    unsettle = concatMap $ \i -> case i of
-        Span (_, ["cite-settled"], _) xs -> xs
-        _                                -> [i]
 
--- | A citation as the page will show it: a Cite of the citations whose keys
---   have an entry (by the entry's key), with their prefixes and locators,
---   followed by every footnote its citations carried, resolved or not, in
---   source order, wrapped in a @cite-settled@ Span. The footnotes leave the
---   label, which is inside the marker's link; there they were a second
---   document. A citation written in a locator is shown there as text
---   ('cite-in-label', numbered by 'markerLabel'): a marker in a marker is
---   a link in a link. When no key has an entry, the Cite keeps every key
---   and no locator ('missingHtml').
---
---   Pandoc's walk is bottom-up: a citation in a locator or a note is
---   settled before the one it is in.
-settle :: (Text -> Maybe Text) -> Inline -> Inline
-settle resolve (Cite cs _) =
-    Span ("", ["cite-settled"], []) (Cite kept [] : notes)
+citationKeys :: Inline -> [Text]
+citationKeys (Cite cs _) = map citationId cs
+citationKeys _           = []
+
+-- | Keep the citations that have entries, or the keys of an entirely
+--   missing cluster. Splice every locator note into the surrounding inline
+--   list, where it is numbered in source order alongside ordinary notes.
+settle :: Set.Set Text -> Inline -> [Inline]
+settle found (Cite cs _) = Cite kept [] : notes
   where
     notes = concatMap (\c -> outerNotes (citationPrefix c <> citationSuffix c)) cs
-    resolved = [ c { citationId = k } | c <- cs, Just k <- [resolve (citationId c)] ]
-    kept | null resolved = [ c { citationPrefix = [], citationSuffix = [] } | c <- cs ]
-         | otherwise     = [ c { citationPrefix = label (citationPrefix c)
-                               , citationSuffix = label (citationSuffix c) } | c <- resolved ]
-    label = walk inLabel . walk (filter (not . isNote))
-    isNote i = case i of Note _ -> True; _ -> False
-    -- A citation in a shown locator, as its own label: its numbers (filled
-    -- in by 'fillLabel') and its locator, as text. Its keys, and those of
-    -- any citation in its locators, are carried for the numbering and for
-    -- the enclosing marker's back-links.
-    inLabel :: Inline -> Inline
-    inLabel (Span (_, ["cite-settled"], _) (Cite inner _ : _)) =
-        Span ("", ["cite-in-label"], [("data-keys", T.unwords (labelKeys inner))])
-             [RawInline (Format "html") (labelTemplate inner)]
-    inLabel i = i
-settle _ i = i
+    resolved = filter ((`Set.member` found) . citationId) cs
+    kept | null resolved = [c { citationPrefix = [], citationSuffix = [] } | c <- cs]
+         | otherwise = [c { citationPrefix = withoutNotes (citationPrefix c)
+                          , citationSuffix = withoutNotes (citationSuffix c) } | c <- resolved]
+    withoutNotes = walk (filter (\case Note _ -> False; _ -> True))
+settle _ i = [i]
 
 -- | State threaded through the marker-rewriting walk.
 --
@@ -351,16 +299,22 @@ emptyMarkerState = MarkerState Map.empty Map.empty
 --   (@ref-\<key\>@, emitted by citeproc on the bibliography entries) are
 --   untouched — the two id spaces are disjoint because a first-occurrence
 --   id never contains a hyphen after the number.
-transformInline :: Map Text Int -> Inline -> State MarkerState Inline
-transformInline keyNums (Cite citations _) = do
-    -- The cluster's citations with an entry: a key with none has no number
-    -- and no entry to link to, so the marker links to the first that has.
+--   Stop descending at the outer Cite. Citations in its prefix or suffix
+--   are part of that same label and share its backlink. Notes have already
+--   moved outside it. Text is a leaf in the document.
+markCitations :: Data a => Map Text Int -> a -> State MarkerState a
+markCitations keyNums node
+    | Just (Cite cs _) <- cast node = do
+        marker <- citationMarker keyNums cs
+        return (fromMaybe node (cast marker))
+    | Just (_ :: Text) <- cast node = return node
+    | otherwise = gmapM (markCitations keyNums) node
+
+citationMarker :: Map Text Int -> [Citation] -> State MarkerState Inline
+citationMarker keyNums citations = do
     let numbered = [ (c, n) | c <- citations, Just n <- [Map.lookup (citationId c) keyNums] ]
-        keys     = map (citationId . fst) numbered
-        -- A citation shown in a locator has no marker of its own: its
-        -- back-link is this marker.
-        inLabel  = filter (`Map.member` keyNums)
-                          (query inLabelKeys (concatMap (\c -> citationPrefix c <> citationSuffix c) (map fst numbered)))
+        keys = map (citationId . fst) numbered
+        inLabel = query citationKeys (concatMap (\c -> citationPrefix c <> citationSuffix c) citations)
     case numbered of
         ((firstCite, firstNum) : _) -> do
             let firstKey = citationId firstCite
@@ -375,13 +329,12 @@ transformInline keyNums (Cite citations _) = do
                     foldr (\k m -> Map.insertWith (\_ old -> old) k markerId m)
                           (msFirstOccurrence st) (keys ++ inLabel)
                 }
-            return $ RawInline "html" (markerHtml keys markerId firstKey (markerLabel keyNums numbered))
+            return $ RawInline "html" (markerHtml keys markerId firstKey (markerLabel keyNums citations))
         -- No key of the cluster has an entry: the citation is shown where
         -- it is made, as @[?key]@, unlinked (no entry to link to), so the
         -- missing source is seen at the claim, with the key to fix.
         -- Citeproc has already warned in the build's output.
         [] -> return $ RawInline "html" (missingHtml (map citationId citations))
-transformInline _ x = return x
 
 -- | The marker of a citation none of whose keys has an entry: its keys,
 --   each after a @?@, as text, with what is missing in its title.
@@ -425,66 +378,32 @@ markerHtml keys markerId firstKey label =
 --   (@[\@a, p. 3]@, @[\@a 23]@ as @[1 23]@, @[\@a(23)]@ as @[1(23)]@). A
 --   textual citation's has none (@\@a [23]@ is the key and @23@), and is
 --   given a comma: @[1, 23]@. The label is inside the marker's link, so
---   links in it are taken off, Markdown or HTML ('settle' has taken its
---   footnotes out); a citation in a locator is shown as its numbers, as
+--   links in it are taken off, Markdown or HTML, and 'settle' has taken its
+--   footnotes out; a citation in a locator is shown as its numbers, as
 --   text (@[2]@, or @[?key]@ without an entry).
-markerLabel :: Map Text Int -> [(Citation, Int)] -> Text
-markerLabel keyNums numbered = fillLabel keyNums (labelTemplate (map fst numbered))
-
--- | A label with a slot for each key's number ('fillLabel' fills them):
---   the slots alone, @[1,2]@, when no citation has a prefix or locator, or
---   each citation's prefix, slot and locator. A citation in a locator is
---   already its own template there ('settle').
-labelTemplate :: [Citation] -> Text
-labelTemplate cs
-    | all bare cleaned = "[" <> T.intercalate "," (map (slot . citationId) cleaned) <> "]"
-    | otherwise        = "[" <> T.intercalate "; " (map one cleaned) <> "]"
+markerLabel :: Map Text Int -> [Citation] -> Text
+markerLabel keyNums cs = inlineHtml (walk unlink (walk (concatMap label) [Cite cs []]))
   where
-    cleaned = [ c { citationPrefix = clean (citationPrefix c)
-                  , citationSuffix = clean (citationSuffix c) } | c <- cs ]
+    -- A bottom-up inline walk has already labelled any citations in these
+    -- prefixes and suffixes. Keep everything as inlines until the one HTML
+    -- write, so brackets, markup and significant spaces travel together.
+    label (Cite cluster _) = [Str "["] ++ intercalate sep (map one cluster) ++ [Str "]"]
+      where
+        sep | all bare cluster && any ((`Map.member` keyNums) . citationId) cluster = [Str ","]
+            | otherwise = [Str ";", Space]
+    label i = [i]
     bare c = null (citationPrefix c) && null (citationSuffix c)
     one c =
-           (if null (citationPrefix c) then "" else inlineHtml (citationPrefix c) <> " ")
-        <> slot (citationId c)
-        <> suffixHtml (citationMode c) (citationSuffix c)
-    suffixHtml _ [] = ""
-    suffixHtml AuthorInText ils@(i : _)
-        | Str t <- i, Just (ch, _) <- T.uncons t, ch `elem` (",;" :: String)
-                                  = inlineHtml ils
-        | otherwise               = ", " <> inlineHtml (dropWhile spacey ils)
-    suffixHtml _ ils@(i : rest)
-        | spacey i                = " " <> inlineHtml (dropWhile spacey rest)
-        | otherwise               = inlineHtml ils
-    spacey i = case i of Space -> True; SoftBreak -> True; LineBreak -> True; _ -> False
-    -- Links off; a citation in the locator is its template, unwrapped.
-    clean = walk unlink . walk unwrapInLabel
-    unwrapInLabel :: [Inline] -> [Inline]
-    unwrapInLabel = concatMap $ \i -> case i of
-        Span (_, ["cite-in-label"], _) xs -> xs
-        _                                 -> [i]
-    slot k = "\x1E" <> k <> "\x1F"
-
--- | The keys a label names: its citations', then those of any citation in
---   their locators.
-labelKeys :: [Citation] -> [Text]
-labelKeys cs = map citationId cs ++ query inLabelKeys (concatMap (\c -> citationPrefix c <> citationSuffix c) cs)
-
--- | The keys a @cite-in-label@ Span carries.
-inLabelKeys :: Inline -> [Text]
-inLabelKeys (Span (_, ["cite-in-label"], attrs) _) = maybe [] T.words (lookup "data-keys" attrs)
-inLabelKeys _ = []
-
--- | A label template's slots filled: a key's number, or @?key@ for a key
---   with no entry.
-fillLabel :: Map Text Int -> Text -> Text
-fillLabel keyNums t = case T.splitOn "\x1E" t of
-    []           -> t
-    (first : rest) -> first <> T.concat (map fill rest)
-  where
-    fill part = let (k, after) = T.breakOn "\x1F" part
-                in maybe ("?" <> escapeKey k) (T.pack . show) (Map.lookup k keyNums) <> T.drop 1 after
-    escapeKey = T.concatMap $ \c -> case c of
-        '&' -> "&amp;"; '<' -> "&lt;"; '>' -> "&gt;"; '"' -> "&quot;"; _ -> T.singleton c
+        let prefix = citationPrefix c
+            key = citationId c
+            number = maybe ("?" <> key) (T.pack . show) (Map.lookup key keyNums)
+        in prefix ++ [Space | not (null prefix)] ++ [Str number] ++ suffix c
+    suffix c = case (citationMode c, citationSuffix c) of
+        (_, []) -> []
+        (AuthorInText, xs@(Str t : _))
+            | Just (ch, _) <- T.uncons t, ch `elem` (",;" :: String) -> xs
+        (AuthorInText, xs) -> Str "," : Space : xs
+        (_, xs) -> xs
 
 -- | The footnotes in some inlines that are in no other footnote there, in
 --   source order: a note written inside a note goes out with the one it is
@@ -538,8 +457,7 @@ stripAnchorTags t
     -- Written back as it came: text as text, no tag made self-closing.
     opts = TS.renderOptions { TS.optMinimize = const False }
 
--- | Inlines as HTML, for inside the marker's link ('markerLabel' has taken
---   links and notes off), math as MathML, as the bibliography's is.
+-- | Write the marker label with the bibliography's math settings.
 inlineHtml :: [Inline] -> Text
 inlineHtml ils =
     case runPure (writeHtml5String wOpts (Pandoc nullMeta [Plain ils])) of
@@ -558,20 +476,21 @@ inlineHtml ils =
 
 -- | Separate the @refs@ div from body blocks and render it to HTML.
 --   Returns @(bodyBlocks, citedHtml, furtherHtml)@.
-extractBibliography :: (Block -> Block) -> Map Text Text -> [Text] -> [Text] -> [Block]
+extractBibliography :: (Block -> Block) -> Map Text Text -> [Text] -> Text -> [Text] -> [Block]
                     -> ([Block], Text, Text)
-extractBibliography enhance backMap citeOrder frKeys blocks =
+extractBibliography enhance backMap citeOrder refsAnchor frKeys blocks =
     -- Wherever it sits: a @#refs@ in a wrapper Div was left in the body,
     -- entries the page does not cite and all.
     let refDivs   = query (\b -> [ b | isRefsDiv b ]) blocks
         bodyBlocks = walk (filter (not . isRefsDiv)) blocks
         (citedHtml, furtherHtml) = case refDivs of
             []    -> ("", "")
-            (d:_) -> renderBibDiv enhance backMap citeOrder frKeys d
+            (d:_) -> renderBibDiv enhance backMap citeOrder refsAnchor frKeys d
     in (bodyBlocks, citedHtml, furtherHtml)
-  where
-    isRefsDiv (Div ("refs", _, _) _) = True
-    isRefsDiv _                       = False
+
+isRefsDiv :: Block -> Bool
+isRefsDiv (Div ("refs", _, _) _) = True
+isRefsDiv _                     = False
 
 -- | Render the citeproc @refs@ Div into two HTML strings:
 --   @(citedHtml, furtherHtml)@ — each is empty when there are no entries
@@ -581,8 +500,8 @@ extractBibliography enhance backMap citeOrder frKeys blocks =
 --   @.pdf-link[data-pdf-src]@ when the .bib @file:@ field is set (so
 --   popups.js's PDF hover preview fires), and a trailing
 --   @\<div class="bib-keywords"\>@ appended when @keywords:@ is set.
-renderBibDiv :: (Block -> Block) -> Map Text Text -> [Text] -> [Text] -> Block -> (Text, Text)
-renderBibDiv enhance backMap citeOrder frKeys (Div _ children) =
+renderBibDiv :: (Block -> Block) -> Map Text Text -> [Text] -> Text -> [Text] -> Block -> (Text, Text)
+renderBibDiv enhance backMap citeOrder refsAnchor frKeys (Div _ children) =
     let enhanced = map enhance children
         keyIndex = Map.fromList (zip citeOrder [0 :: Int ..])
         -- Further reading is what the page lists: an entry citeproc made
@@ -595,12 +514,15 @@ renderBibDiv enhance backMap citeOrder frKeys (Div _ children) =
         listed _                 = False
         sorted   = sortBy (comparing (entryOrder keyIndex)) citedEntries
         numbered = zipWith (addNumber backMap) [1..] sorted
-        citedHtml  = renderEntries "csl-bib-body cite-refs" numbered
+        onlyFurther = null numbered && not (null furtherEntries)
+        citedHtml
+            | onlyFurther = ""
+            | otherwise   = renderEntries refsAnchor "csl-bib-body cite-refs" numbered
         furtherHtml
             | null furtherEntries = ""
-            | otherwise           = renderEntries "csl-bib-body further-reading-refs" furtherEntries
+            | otherwise           = renderEntries (if onlyFurther then refsAnchor else "") "csl-bib-body further-reading-refs" furtherEntries
     in (citedHtml, furtherHtml)
-renderBibDiv _ _ _ _ _ = ("", "")
+renderBibDiv _ _ _ _ _ _ = ("", "")
 
 
 -- ---------------------------------------------------------------------------
@@ -742,13 +664,14 @@ stripRefPrefix t = fromMaybe t (T.stripPrefix "ref-" t)
 --   'unclaimMathSpans' renames a wrapper Pandoc's writer leaves only where
 --   it falls back to TeX, so the page's @math@ flag (which loads
 --   @math.js@, for display formulas) is not set by a bibliography entry.
-renderEntries :: Text -> [Block] -> Text
-renderEntries cls entries =
+renderEntries :: Text -> Text -> [Block] -> Text
+renderEntries ident cls entries =
     case runPure (writeHtml5String wOpts (Pandoc nullMeta entries)) of
         Left  _    -> ""
-        Right html -> "<div class=\"" <> cls <> "\" role=\"list\">\n"
+        Right html -> "<div" <> idAttr <> " class=\"" <> cls <> "\" role=\"list\">\n"
                         <> unclaimMathSpans html <> "</div>\n"
   where
+    idAttr = if T.null ident then "" else " id=\"" <> ident <> "\""
     wOpts = def { writerWrapText       = WrapNone
                 , writerHTMLMathMethod = MathML
                 }

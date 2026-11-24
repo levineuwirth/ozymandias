@@ -18,7 +18,7 @@
 --   @
 --
 --   Field values enclosed in @{...}@ (balanced) or @"..."@ are both
---   recognized. Unknown fields are ignored.
+--   recognized, as are bare numbers. Unknown fields are ignored.
 module BibExtras
     ( BibExtra (..)
     , emptyBibExtra
@@ -26,7 +26,7 @@ module BibExtras
     , firstAuthorSurname
     ) where
 
-import Data.Char        (isAlphaNum, isSpace, toLower)
+import Data.Char        (isAlphaNum, isDigit, isSpace, toLower)
 import Data.List        (dropWhileEnd)
 import Data.Map.Strict  (Map)
 import qualified Data.Map.Strict as Map
@@ -151,6 +151,7 @@ parseField s =
 readFieldValue :: String -> Maybe (String, String)
 readFieldValue ('{':rest) = Just (readBraces 1 "" rest)
 readFieldValue ('"':rest) = Just (readQuote  ""    rest)
+readFieldValue s@(c:_) | isDigit c = Just (span isDigit s)
 readFieldValue _          = Nothing
 
 -- | Read characters up to the matching @}@ that closes the outermost

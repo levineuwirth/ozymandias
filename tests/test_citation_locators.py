@@ -5,16 +5,10 @@ Pandoc keeps a locator in the citation's suffix: `[@PralatWormald,
 Theorem 4.1]` is the key and ", Theorem 4.1". The marker's label was the
 cluster's numbers alone, so a page cited "[8]" and lost which theorem.
 
-`MarkerLabels` reads each case's Markdown as pandoc does and labels its
-citations, through GHCi as tests/test_pdf_urls.py does (the label is
-private to the module). `ThroughThePipeline` renders a page with
-`site render-fixture` in a copy of the fixture site, for what the label
-cannot show alone: a footnote in a locator becomes the page's footnote,
-and the marker stays one link. It also holds the numbering to the
-bibliography's when a cited key has no entry.
+The cases below render Markdown through the essay pipeline and exercise the
+site-wide bibliography through a fixture build.
 """
 
-import json
 import re
 import subprocess
 import sys
@@ -23,80 +17,40 @@ import unittest
 from pathlib import Path
 
 from tests import fixture_variants
-from tests._helpers import CABAL_PROJECT, ENGINE, engine_path, requires_cabal, script_env, site_binary
+from tests._helpers import ENGINE, engine_path, requires_cabal, script_env, site_binary
 
-# Markdown → (each citation cluster's label, how many footnotes it lifts out).
+# Markdown, rendered label, number of note references beside the label.
 # Pandoc's smart extension writes "p. 3" with a no-break space (\u00a0).
 CASES = [
-    ("[@a]", [("[1]", 0)]),
-    ("[@a; @b]", [("[1,2]", 0)]),
-    ("[@a, Theorem 4.1]", [("[1, Theorem 4.1]", 0)]),
-    ("[see @a, p. 3; @b]", [("[see 1, p.\u00a03; 2]", 0)]),
+    ("[@alpha2001]", "[1]", 0),
+    ("[@alpha2001; @beta2010]", "[1,2]", 0),
+    ("[@alpha2001, Theorem 4.1]", "[1, Theorem 4.1]", 0),
+    ("[see @alpha2001, p. 3; @beta2010]", "[see 1, p.\u00a03; 2]", 0),
     # A locator's own separator is kept, and a textual citation's, which
     # has none, is a comma: neither reads as reference 123.
-    ("[@a 23]", [("[1 23]", 0)]),
+    ("[@alpha2001 23]", "[1 23]", 0),
     # A no-break space is a separator too, escaped or as the character.
-    ("[@a\\ 23]", [("[1\u00a023]", 0)]),
-    ("[@a\u00a023]", [("[1\u00a023]", 0)]),
-    ("@a [23]", [("[1, 23]", 0)]),
+    ("[@alpha2001\\ 23]", "[1\u00a023]", 0),
+    ("[@alpha2001\u00a023]", "[1\u00a023]", 0),
+    ("@alpha2001 [23]", "[1, 23]", 0),
     # A bracketed citation's suffix is as written: no comma is guessed in.
-    ("[@a—passim]", [("[1—passim]", 0)]),
-    ("[@a(23)]", [("[1(23)]", 0)]),
-    ("@a [p. 3]", [("[1, p.\u00a03]", 0)]),
-    ("[@a, *Lemma* 2]", [("[1, <em>Lemma</em> 2]", 0)]),
-    ("[@a, [ch. 2](https://example.org)]", [("[1, ch.\u00a02]", 0)]),
-    ('[@a, <a href="#chapter">chapter</a>]', [("[1, chapter]", 0)]),
-    ('[@a, `<a href="#chapter">chapter</a>`{=html}]', [("[1, chapter]", 0)]),
-    ('[@a, `<em><a href="#chapter">chapter</a></em>`{=html}]', [("[1, <em>chapter</em>]", 0)]),
+    ("[@alpha2001—passim]", "[1—passim]", 0),
+    ("[@alpha2001(23)]", "[1(23)]", 0),
+    ("@alpha2001 [p. 3]", "[1, p.\u00a03]", 0),
+    ("[@alpha2001, *Lemma* 2]", "[1, <em>Lemma</em> 2]", 0),
+    ("[@alpha2001, [ch. 2](https://example.org)]", "[1, ch.\u00a02]", 0),
+    ('[@alpha2001, <a href="#chapter">chapter</a>]', "[1, chapter]", 0),
+    ('[@alpha2001, `<a href="#chapter">chapter</a>`{=html}]', "[1, chapter]", 0),
+    ('[@alpha2001, `<em><a href="#chapter">chapter</a></em>`{=html}]', "[1, <em>chapter</em>]", 0),
     # A > in a quoted attribute is the tag's, not its end.
-    ('[@a, <a title="n > 1" href="#chapter">chapter</a>]', [("[1, chapter]", 0)]),
-    ("[@a, chapter^[A detail.]]", [("[1, chapter]", 1)]),
+    ('[@alpha2001, <a title="n > 1" href="#chapter">chapter</a>]', "[1, chapter]", 0),
+    ("[@alpha2001, chapter^[A detail.]]", "[1, chapter]", 1),
     # A note in a note goes out with it: one note, not two.
-    ("[@a, chapter^[Outer^[Inner.].]]", [("[1, chapter]", 1)]),
+    ("[@alpha2001, chapter^[Outer^[Inner.].]]", "[1, chapter]", 1),
     # Two notes that read the same are two notes.
-    ("[@a, ch^[Outer^[Middle^[Same.].].] and again^[Same.]]", [("[1, ch and again]", 2)]),
-    ("[@a, p. <3 & up]", [("[1, p.\u00a0&lt;3 &amp; up]", 0)]),
+    ("[@alpha2001, ch^[Outer^[Middle^[Same.].].] and again^[Same.]]", "[1, ch and again]", 2),
+    ("[@alpha2001, p. <3 & up]", "[1, p.\u00a0&lt;3 &amp; up]", 0),
 ]
-
-# Each cluster settled as the page shows it ('settle', every key with an
-# entry), numbered in the order the page shows its keys, and labelled.
-GHCI_LABELS = r"""
-let labels s = case runPure (readMarkdown def { readerExtensions = pandocExtensions } (T.pack s)) of { Right (Pandoc _ bs) -> let { st = walk (settle Just) bs; spans = query (\i -> case i of { Span (_, ["cite-settled"], _) (Cite c _ : ns) -> [(c, ns)]; _ -> [] }) st; ks = nub (query (\i -> case i of { Cite c _ -> map citationId c; _ -> [] }) st); nums = Map.fromList (zip ks [1 :: Int ..]) } in [ (markerLabel nums [ (x, n) | x <- c, Just n <- [Map.lookup (citationId x) nums] ], ns) | (c, ns) <- spans ]; Left _ -> [] }
-"""
-
-
-@requires_cabal
-class MarkerLabels(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        commands = [
-            ":module *Citations",
-            ":set -XOverloadedStrings",
-            "import qualified Data.Text as T",
-            "import qualified Data.Text.IO as TIO",
-            "import Data.List (nub)",
-            GHCI_LABELS.strip(),
-            "mapM_ (\\s -> mapM_ (\\(l, ns) -> TIO.putStrLn (l <> T.pack (\"\\t\" ++ show (length ns)))) (labels s) >> putStrLn \"--\") "
-            + "[" + ", ".join(json.dumps(md, ensure_ascii=False) for md, _ in CASES) + "]",
-            ":quit",
-        ]
-        done = subprocess.run(
-            ["cabal", "exec", "--", "ghc", "--interactive", "-ignore-dot-ghci", "-v0",
-             f"-i{engine_path('build')}", str(engine_path("build/Citations.hs"))],
-            cwd=CABAL_PROJECT, input="\n".join(commands) + "\n", text=True,
-            capture_output=True, check=True, timeout=300,
-        )
-        if "error" in done.stderr.lower():
-            raise AssertionError(done.stderr)
-        groups = done.stdout.split("--\n")
-        cls.labels = [[tuple(line.rsplit("\t", 1)) for line in g.splitlines() if line] for g in groups[:-1]]
-
-    def test_labels(self):
-        self.assertEqual(len(self.labels), len(CASES), self.labels)
-        for (md, want), got in zip(CASES, self.labels):
-            with self.subTest(markdown=md):
-                self.assertEqual([(label, int(n)) for label, n in got], want)
-
 
 PAGE = """---
 title: Locators
@@ -164,16 +118,17 @@ class ThroughThePipeline(unittest.TestCase):
         if build.switches["archive"]:
             subprocess.run([sys.executable, str(engine_path("tools/archive.py")), "fetch"], cwd=cls.site,
                            env=script_env(SITE_ROOT=str(cls.site)), check=True, capture_output=True, timeout=120)
-        # An alias for the alias case: this copy's own bibliography.
+        # The numeric year precedes the aliases. beta2010 is already a real
+        # entry and takes precedence over Alpha's claim on that key.
         bib = cls.site / "data" / "bibliography.bib"
         text = bib.read_text(encoding="utf-8")
-        head = "@book{alpha2001,"
-        assert head in text, text[:300]
-        # And an entry cited only where a page does not show it, for the
-        # site's bibliography.
-        bib.write_text(text.replace(head, head + "\n  ids = {alphaAlias},", 1)
-                       + "\n@misc{epsilon2030,\n  author = {Epsilon, Eve},\n  title = {Cited Out of Sight},\n"
-                         "  year = {2030}\n}\n", encoding="utf-8")
+        year = "year      = {2001}"
+        assert text.count(year) == 1
+        bib.write_text(
+            text.replace(year, "year = 2001,\n  ids = {alphaAlias, beta2010}")
+            + "\n@misc{epsilon2030, author = {Epsilon, Eve}, title = {Cited Out of Sight}, year = 2030}\n"
+            + "@book{zeta1980, author = {Zeta, Zoe}, year = 1980, ids = {readingAlias}, "
+              "title = {Explicit Further Reading}}\n", encoding="utf-8")
 
     def render(self, text: str) -> tuple[str, str]:
         (self.site / "locators.md").write_text(text, encoding="utf-8")
@@ -184,6 +139,16 @@ class ThroughThePipeline(unittest.TestCase):
         bibliography, self.last_further = rest.split("<!-- render-fixture: bibliography -->")[1].split(
             "<!-- render-fixture: further-reading -->")
         return body, bibliography
+
+    def test_labels(self):
+        body, _ = self.page("\n\n".join(md for md, _, _ in CASES))
+        prose = body.split('<section class="footnotes"', 1)[0]
+        paragraphs = re.findall(r"<p>(.*?)</p>", prose, re.S)
+        self.assertEqual(len(paragraphs), len(CASES))
+        for (md, label, notes), paragraph in zip(CASES, paragraphs):
+            with self.subTest(markdown=md):
+                self.assertEqual(re.findall(r'class="cite-link"[^>]*>(.*?)</a>', paragraph, re.S), [label])
+                self.assertEqual(paragraph.count('class="sidenote-ref"'), notes)
 
     def test_a_marker_is_one_link_and_its_footnote_the_page_s(self):
         body, _ = self.render(PAGE)
@@ -269,6 +234,8 @@ class ThroughThePipeline(unittest.TestCase):
         body, bibliography = self.page(SETTLED["nested"])
         self.assertNotIn("cite-missing", body)
         self.assertEqual(self.markers(body), [("alpha2001", "[1]")], body)
+        self.assertIn('id="refs"', bibliography)
+        self.assertNotIn('id="refs"', body)
 
     def test_an_alias_is_its_entry(self):
         body, bibliography = self.page(SETTLED["alias"])
@@ -277,13 +244,38 @@ class ThroughThePipeline(unittest.TestCase):
         self.assertEqual(len(re.findall(r'class="csl-entry"', bibliography)), 1, bibliography)
         self.landed(body, bibliography)
 
-
     def test_an_alias_alone_is_its_entry(self):
         body, bibliography = self.page(SETTLED["alias-alone"])
         self.assertNotIn("cite-missing", body)
         self.assertEqual(self.markers(body), [("alpha2001", "[1]")], body)
         self.assertIn('id="ref-alpha2001"', bibliography)
         self.landed(body, bibliography)
+
+    def test_primary_key_wins_over_an_alias(self):
+        body, bibliography = self.page("First [@beta2010], then [@alpha2001].")
+        self.assertEqual(self.markers(body), [("beta2010", "[1]"), ("alpha2001", "[2]")])
+        self.assertIn('id="ref-beta2010"', bibliography)
+        self.assertIn('id="ref-alpha2001"', bibliography)
+        self.landed(body, bibliography)
+
+    def test_author_spans_survive_the_citation_pass(self):
+        body, _ = self.page("[Term]{#target .cite-settled} and [jump](#target). "
+                            "See [@alpha2001, [here]{#place .cite-in-label}].")
+        self.assertIn('<span id="target" class="cite-settled">Term</span>', body)
+        self.assertIn('href="#target"', body)
+        self.assertIn('<span id="place" class="cite-in-label">here</span>', body)
+
+    def test_further_reading_alone_keeps_the_refs_target(self):
+        body, bibliography = self.render('---\nfurther-reading: [readingAlias]\n---\n\n[Reading](#refs).\n\n::: {#refs}\n:::\n')
+        self.assertIn('href="#refs"', body)
+        self.assertFalse(bibliography.strip())
+        self.assertEqual(self.last_further.count('id="refs"'), 1)
+        self.assertIn('id="ref-zeta1980"', self.last_further)
+
+    def test_refs_heading_remains_the_only_target(self):
+        body, bibliography = self.page("## References {#refs}\n\n[See references](#refs) [@alpha2001].")
+        self.assertEqual(body.count('id="refs"'), 1)
+        self.assertNotIn('id="refs"', bibliography)
 
     def test_a_citation_in_a_locator_keeps_its_own(self):
         body, bibliography = self.page(SETTLED["inner"])
@@ -296,7 +288,7 @@ class ThroughThePipeline(unittest.TestCase):
         body, rest = self.render("---\ntitle: Star\nfurther-reading: [\"*\"]\n---\n\nA claim [@alpha2001].\n")
         further = self.last_further
         self.assertEqual(sorted(re.findall(r'id="ref-([^"]+)" class="csl-entry"', further)),
-                         ["beta2010", "delta2026", "epsilon2030", "gamma2020"], further)
+                         ["beta2010", "delta2026", "epsilon2030", "gamma2020", "zeta1980"], further)
 
     def test_a_wrapped_bibliography_lists_only_what_is_shown(self):
         body, bibliography = self.page(SETTLED["wrapped-discard"])
@@ -308,14 +300,23 @@ class ThroughThePipeline(unittest.TestCase):
         # A work cited only in a missing key's discarded locator is on no
         # page, and so not on /bibliography/.
         essay = self.site / "content" / "essays" / "out-of-sight.md"
-        essay.write_text("---\ntitle: Out of Sight\ndate: 2026-01-02\ntags: [notes]\n---\n\n"
-                         "A claim [@nosuch, see [@epsilon2030]] and one shown [@beta2010].\n", encoding="utf-8")
+        essay.write_text("---\ntitle: Out of Sight\ndate: 2026-01-02\ntags: [notes]\n"
+                         "further-reading: [readingAlias]\n---\n\n"
+                         "A claim [@nosuch, see [@epsilon2030]] and one shown [@beta2010]. "
+                         "See [the references](#refs) and [this term](#target): [term]{#target .cite-settled}.\n\n"
+                         ":::: {.wrapper}\n::: {#refs}\n:::\n::::\n", encoding="utf-8")
         self.addCleanup(essay.unlink)
         done = subprocess.run([str(site_binary()), "build"], cwd=self.site,
                               env=script_env(SITE_ROOT=str(self.site), SITE_ENV="build", SITE_THREADS="2"),
                               capture_output=True, text=True, timeout=900)
         self.assertEqual(done.returncode, 0, done.stdout[-3000:] + done.stderr[-3000:])
         index = (self.site / "_site" / "bibliography" / "index.html").read_text(encoding="utf-8")
+        page = (self.site / "_site/essays/out-of-sight.html").read_text(encoding="utf-8")
+        for fragment in ("refs", "target"):
+            self.assertIn(f'href="#{fragment}"', page)
+            self.assertEqual(page.count(f'id="{fragment}"'), 1)
+        self.assertIn('id="ref-zeta1980"', page)
+        self.assertIn('id="ref-zeta1980"', index)
         self.assertIn("ref-beta2010", index)
         self.assertNotIn("epsilon2030", index)
         self.assertNotIn("Cited Out of Sight", index)
