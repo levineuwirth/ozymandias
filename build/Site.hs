@@ -57,6 +57,7 @@ import Scholar    (scholarFields, scholarlyPapers, scholarPdfRules)
 import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, tagPageUrl)
 import Stats      (statsRules)
 import Utils      (applySiteFrame, cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
+                   relativizePage,
                    isDevBuild, metadataFlag, metadataKeywords, outputDirFor, stripPrefixRoute,
                    trustScore)
 
@@ -870,7 +871,7 @@ rules = do
                                                  compositionCtx
                         >>= loadAndApplyTemplate "templates/score-reader-default.html"
                                                  compositionCtx
-                        >>= relativizeUrls
+                        >>= relativizePage
 
     -- ---------------------------------------------------------------------------
     -- Photography — single-photo entries, asset copy, and section landing.

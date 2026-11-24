@@ -52,7 +52,6 @@ import tempfile
 import threading
 import time
 import unittest
-import urllib.parse
 from pathlib import Path
 
 from tests._helpers import (CABAL_PROJECT, engine_path, record_derived, requires_cabal, script_env, site_binary,
@@ -246,7 +245,9 @@ class BlogImages(Site):
             first.write('\nThe <a href="&#32;/index.html">home page</a>, spaced.\n')
             # A comma inside a srcset URL is the URL's.
             first.write('\n<img src="lake.svg" srcset="lake&#44;summer.svg 1x, lake.svg 2x" alt="Seasons">\n')
-        for name in ("lake,summer.svg", "lake.svg"):
+            # And a data: URL's comma is its own, beside a candidate made whole.
+            first.write('\n<img src="one.gif" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7 1x, two.gif 2x" alt="Embedded">\n')
+        for name in ("lake,summer.svg", "lake.svg", "one.gif", "two.gif"):
             image(self.blog / name)
         self.site("rebuild")
         feed = self.read("feed.xml")
@@ -272,12 +273,13 @@ class BlogImages(Site):
         # (wide.png&#32;2x&#44; wider.png 3x), and a comma in a URL.
         for srcset in re.findall(r'srcset="([^"]*)"', feed):
             for url in srcset_urls(srcset):
-                self.assertRegex(url, r"^(https?:|/)", srcset)
+                self.assertRegex(url, r"^(https?:|/|data:)", srcset)
         seasons = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="Seasons"', feed)
         self.assertIsNotNone(seasons)
-        # %2C names the same file, and survives Hakyll's srcset parser.
-        self.assertEqual([urllib.parse.unquote(u) for u in srcset_urls(seasons.group(1))],
-                         [at + "lake,summer.svg", at + "lake.svg"])
+        self.assertEqual(srcset_urls(seasons.group(1)), [at + "lake,summer.svg", at + "lake.svg"])
+        embedded = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="Embedded"', feed)
+        self.assertIsNotNone(embedded)
+        self.assertEqual(srcset_urls(embedded.group(1)), ["data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", at + "two.gif"])
         # The page itself still names them from where it is.
         self.assertRegex(self.read("notebook/first.html"), r'<img[^>]*src="charts/depth\.svg"')
 

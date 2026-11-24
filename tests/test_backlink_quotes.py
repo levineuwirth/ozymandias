@@ -15,7 +15,10 @@ URL is written with a character reference. The second added more of
 what a character reference can hide: a space in a value without quotes,
 a fragment, and a srcset's separators. The third: anchors the quote
 defines with their ids written in other spellings, a comma inside a srcset
-URL, and whitespace a reference writes before a rooted URL.
+URL, and whitespace a reference writes before a rooted URL. The fourth:
+a data: URL's comma beside a rebased candidate, a comma in a srcset whose
+candidates are already rooted (which only the page's own relativizing
+pass reads), and a percent-encoded fragment naming an anchor in the quote.
 
 Whole builds of a small scratch site, in make build's order: a build, the
 footer files, a build.
@@ -32,7 +35,6 @@ import re
 import subprocess
 import tempfile
 import unittest
-import urllib.parse
 from pathlib import Path
 
 from tests._helpers import engine_path, requires_cabal, script_env, site_binary, srcset_urls, write_site_config
@@ -48,12 +50,16 @@ A = ("The [script](tool.py), the [figure](fig/one.svg), "
      'and a [compact view](?view=compact) are beside this page, as are <a href="&#35;atlas">the atlas</a> '
      'and [a mark]{#mark} (<a href="&#35;mark">the mark</a>); '
      "with <bdi id='here'>an anchor</bdi> (<a href='&#35;here'>back here</a>) and "
-     '<span id="r&amp;d">another</span> (<a href="&#35;r&amp;d">to R&amp;D</a>); '
+     '<span id="r&amp;d">another</span> (<a href="&#35;r&amp;d">to R&amp;D</a>) and '
+     '<span id="café">a third</span> (<a href="#caf%C3%A9">to the café</a>); '
      'see [B](/essays/b/), [C](../c/), [E](../e/.), <a href="&#47;essays/c/">C again</a> '
      'and <a href="&#32;/essays/c/">C, spaced</a>. '
      'Here is the figure: ![figure](fig/one.svg){srcset="fig/one.svg 1x, fig/two.svg 2x"} '
      '<img src="small.svg" srcset="small.svg&#32;1x&#44; large.svg 2x" alt="sizes"> '
-     '<img src="lake.svg" srcset="lake&#44;summer.svg 1x, lake.svg 2x" alt="seasons">'
+     '<img src="lake.svg" srcset="lake&#44;summer.svg 1x, lake.svg 2x" alt="seasons"> '
+     '<img src="/essays/a/lake.svg" srcset="/essays/a/lake,summer.svg 1x, /essays/a/lake.svg 2x" '
+     'alt="rooted seasons"> '
+     '<img src="one.gif" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7 1x, two.gif 2x" alt="embedded">'
      "\n\n## Atlas {#atlas}\n\nThe atlas.")
 # A flat page: its relative links start from the section's directory.
 D = "The [script](a/tool.py) is A's; see [B](/essays/b/)."
@@ -76,7 +82,7 @@ class BacklinkQuotes(unittest.TestCase):
         page(root / "content/index.md", "Home", "Home.")
         page(essays / "a/index.md", "A", A)
         for name in ("tool.py", "fig/one.svg", "fig/two.svg", "notes.txt", "field notes.txt",
-                     "small.svg", "large.svg", "lake,summer.svg", "lake.svg"):
+                     "small.svg", "large.svg", "lake,summer.svg", "lake.svg", "one.gif", "two.gif"):
             (essays / "a" / name).parent.mkdir(parents=True, exist_ok=True)
             (essays / "a" / name).write_text("x\n", encoding="utf-8")
         page(essays / "b/index.md", "B", "B.")
@@ -108,14 +114,15 @@ class BacklinkQuotes(unittest.TestCase):
         urls = [q or b for q, b in re.findall(r'(?:href|src)=(?:"([^"]*)"|([^\s"\'>]+))', footer)]
         for srcset in re.findall(r'srcset="([^"]+)"', footer):
             urls += srcset_urls(srcset)
-        return {self.resolve(path, url) for url in map(html.unescape, urls) if url.split("#")[0]}
+        # A URL with a scheme (data:, https:) names no file of the site's.
+        return {self.resolve(path, url) for url in map(html.unescape, urls)
+                if url.split("#")[0] and not re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:", url)}
 
     @staticmethod
     def resolve(path: str, url: str) -> tuple[str, str]:
         """A URL read on the page at @path, as the file it names in _site
         and its query; trimmed first, as the URL parser trims it."""
         url = re.sub(r"[\t\n\r]", "", url.strip("".join(map(chr, range(33)))))
-        url = urllib.parse.unquote(url)  # as a static server reads the path
         address, _, query = url.split("#")[0].partition("?")
         target = posixpath.normpath(address.lstrip("/") if address.startswith("/")
                                     else posixpath.join(posixpath.dirname(path), address))
@@ -161,11 +168,27 @@ class BacklinkQuotes(unittest.TestCase):
         self.assertIsNotNone(srcset)
         self.assertEqual([self.resolve("essays/b/index.html", c)[0] for c in srcset_urls(srcset.group(1))],
                          ["essays/a/small.svg", "essays/a/large.svg"])
-        # A comma inside a URL is the URL's.
-        srcset = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="seasons"', popup.group(0))
+        # A comma inside a URL is the URL's, rebased here or rooted already.
+        for alt in ("seasons", "rooted seasons"):
+            self.assertEqual(self.candidates(popup.group(0), alt), ["essays/a/lake,summer.svg", "essays/a/lake.svg"])
+        # A data: URL keeps the comma it needs beside a candidate rebased.
+        srcset = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="embedded"', popup.group(0))
         self.assertIsNotNone(srcset)
-        self.assertEqual([self.resolve("essays/b/index.html", c)[0] for c in srcset_urls(srcset.group(1))],
-                         ["essays/a/lake,summer.svg", "essays/a/lake.svg"])
+        urls = srcset_urls(srcset.group(1))
+        self.assertEqual(urls[0], "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+        self.assertEqual(self.resolve("essays/b/index.html", urls[1])[0], "essays/a/two.gif")
+
+    def candidates(self, markup: str, alt: str, page: str = "essays/b/index.html") -> list[str]:
+        srcset = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="' + re.escape(alt) + '"', markup)
+        self.assertIsNotNone(srcset, alt)
+        return [self.resolve(page, c)[0] for c in srcset_urls(srcset.group(1))]
+
+    def test_the_page_itself_keeps_a_comma_in_a_srcset_url(self):
+        # Hakyll's relativizeUrls cut these at the comma on A's own page.
+        a = self.read("essays/a/index.html")
+        for alt in ("seasons", "rooted seasons"):
+            self.assertEqual(self.candidates(a, alt, "essays/a/index.html"),
+                             ["essays/a/lake,summer.svg", "essays/a/lake.svg"])
 
     def test_a_value_without_quotes_keeps_its_whole_url(self):
         for href in self.anchors(self.footer("essays/b/index.html"), "the field notes"):
@@ -181,6 +204,8 @@ class BacklinkQuotes(unittest.TestCase):
         self.assertEqual(set(self.anchors(footer, "the mark")), {"#mark"})
         self.assertEqual(set(self.anchors(footer, "back here")), {"#here"})
         self.assertEqual(set(self.anchors(footer, "to R&amp;D")), {"#r&d"})
+        # Percent-encoded, as a browser looks for the anchor: UTF-8, decoded.
+        self.assertEqual(set(self.anchors(footer, "to the café")), {"#caf%C3%A9"})
 
     def test_a_raw_html_link_written_with_a_character_reference_is_read_first(self):
         # &#47;essays/c/ is /essays/c/, rooted: no directory of A's goes before it.

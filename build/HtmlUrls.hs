@@ -16,6 +16,7 @@ module HtmlUrls
     , mapUrls
     , mapUrlsRead
     , attributeValues
+    , relativizeUrlsWith
     , isRelative
     , resolveAgainst
     ) where
@@ -27,7 +28,7 @@ import qualified Data.Text       as T
 import           Text.Pandoc.XML (fromEntities)
 
 -- | A stretch of the source kept as written, or a URL attribute's value.
-data Piece = Kept String | Value String Bool String   -- ^ attribute (lower case), quoted, value
+data Piece = Kept String | Value String (Maybe Char) String   -- ^ attribute (lower case), its quote, value
 
 -- | The attributes whose value is a URL, and the one whose value is a
 --   list of them (@srcset@: candidates, each a URL and then an optional
@@ -80,12 +81,10 @@ mapUrls f = concatMap piece . pieces
 --   into candidates ('srcsetCandidates'), since a reference may write its
 --   separators (@a.svg&#32;1x&#44; b.svg 2x@) or a comma inside a URL
 --   (@lake&#44;summer.svg@). If any candidate changes, the whole value is
---   written again, with a comma inside a URL as @%2C@, which names the
---   same file: Hakyll's own srcset parser (in @relativizeUrls@, which
---   every page goes through) cuts a value at every comma, and would split
---   @\/essays\/a\/lake,summer.svg@ in two. What is written is escaped for where it stands: in a
---   value without quotes, a space or a @>@ would end it
---   (@href=field&#32;notes.txt@).
+--   written again, each URL as it reads (a @data:@ URL keeps the comma it
+--   needs). What is written is escaped for where it stands: @&@ and the
+--   value's own quote, or, in a value without quotes, also a space or a
+--   @>@, which would end it (@href=field&#32;notes.txt@).
 mapUrlsRead :: (String -> Maybe String) -> String -> String
 mapUrlsRead f = concatMap piece . pieces
   where
@@ -95,7 +94,7 @@ mapUrlsRead f = concatMap piece . pieces
             changed               = [ f url | (_, url, _) <- candidates ]
         in  if all isNothing changed then v
             else escapeFor quoted (concat
-                    [ lead ++ concatMap comma (fromMaybe url new) ++ rest
+                    [ lead ++ fromMaybe url new ++ rest
                     | ((lead, url, rest), new) <- zip candidates changed ] ++ trailer)
     piece (Value _ quoted v) =
         let text          = readValue v
@@ -104,17 +103,25 @@ mapUrlsRead f = concatMap piece . pieces
             trail         = drop (length url) body
         in  maybe v (\new -> escapeFor quoted (lead ++ new ++ trail))
                     (f (filter (`notElem` "\t\n\r") url))
-    comma ',' = "%2C"
-    comma c   = [c]
     -- What the URL parser strips from either end: C0 controls and space.
     isUrlSpace c = c <= ' '
-    escapeFor quoted = concatMap escape
+    escapeFor quote = concatMap escape
       where
-        escape '&'  = "&amp;"
-        escape '"'  = "&quot;"
-        escape '\'' = "&#39;"
-        escape c | not quoted && (isSpace c || c == '>') = "&#" ++ show (ord c) ++ ";"
-                 | otherwise                             = [c]
+        escape c
+            | c == '&' || Just c == quote = "&#" ++ show (ord c) ++ ";"
+            | quote == Nothing && (isSpace c || c `elem` ("\"'>" :: String)) = "&#" ++ show (ord c) ++ ";"
+            | otherwise = [c]
+
+-- | Every URL rooted at the site (@\/essays\/@, not @\/\/host\/@) made
+--   relative to a page whose path to the site root is @root@ (@..\/..@),
+--   as Hakyll's @relativizeUrlsWith@ does, but reading each URL as
+--   'mapUrlsRead' reads it: a srcset by the HTML standard's parser, so
+--   @\/essays\/a\/lake,summer.svg 1x@ is one candidate, where Hakyll's cuts
+--   it at the comma. Everything it does not change is left as written;
+--   Hakyll's wrote the whole page out again through TagSoup.
+relativizeUrlsWith :: String -> String -> String
+relativizeUrlsWith root = mapUrlsRead $ \u ->
+    if "/" `isPrefixOf` u && not ("//" `isPrefixOf` u) then Just (root ++ u) else Nothing
 
 -- | A @srcset@ value's candidates as the HTML standard parses them
 --   ("parsing a srcset attribute"): each is the separators before it
@@ -223,10 +230,10 @@ piecesFor names = text ""
     value tag name acc (q : rest)
         | q `elem` "\"'" =
             let (v, after) = break (== q) rest
-            in  emit tag name True (q : acc) v (take 1 after) (drop 1 after)
+            in  emit tag name (Just q) (q : acc) v (take 1 after) (drop 1 after)
     value tag name acc s =
         let (v, after) = break (\c -> isSpace c || c == '>') s
-        in  emit tag name False acc v "" after
+        in  emit tag name Nothing acc v "" after
     emit tag name quoted acc v close after
         | name `elem` names = kept acc (Value name quoted v : attributes tag (reverse close) after)
         | otherwise                 = attributes tag (reverse close ++ reverse v ++ acc) after

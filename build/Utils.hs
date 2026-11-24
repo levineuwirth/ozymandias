@@ -43,6 +43,7 @@ module Utils
     , isPdfUrl
     , applySiteFrame
     , inDefault
+    , relativizePage
     , boolSpellings
     , parseBool
     , metadataFlag
@@ -67,8 +68,9 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Yaml as Y
 import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes, bodyField,
                          customRoute, fromFilePath, itemBody, listFieldWith, load, loadAndApplyTemplate,
-                         lookupString, lookupStringList, relativizeUrls,
-                         stripTags, toFilePath)
+                         getRoute, itemIdentifier, lookupString, lookupStringList,
+                         stripTags, toFilePath, toSiteRoot)
+import           HtmlUrls (relativizeUrlsWith)
 import           System.Environment (lookupEnv)
 import           Text.Pandoc.Definition (Format (..), Inline (..), QuoteType (..))
 import           Text.Printf (printf)
@@ -459,4 +461,16 @@ inDefault :: Identifier -> Context String -> Item String -> Compiler (Item Strin
 inDefault tpl ctx item =
     loadAndApplyTemplate tpl ctx item
         >>= applySiteFrame ctx
-        >>= relativizeUrls
+        >>= relativizePage
+
+-- | Every URL rooted at the site made relative to the page, as Hakyll's
+--   @relativizeUrls@ does, by 'HtmlUrls.relativizeUrlsWith': a srcset is
+--   read as the HTML standard reads it, where Hakyll's parser cut a URL
+--   at its first comma and wrote the page's srcset out split
+--   (@lake,summer.svg 1x@ became @lake, summer.svg 1x@).
+relativizePage :: Item String -> Compiler (Item String)
+relativizePage item = do
+    route <- getRoute (itemIdentifier item)
+    return $ case route of
+        Nothing -> item
+        Just r  -> fmap (relativizeUrlsWith (toSiteRoot r)) item

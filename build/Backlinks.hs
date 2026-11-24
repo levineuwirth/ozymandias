@@ -42,6 +42,8 @@ import qualified Data.Text                  as T
 import qualified Data.Text.Lazy             as TL
 import qualified Data.Text.Lazy.Encoding    as TLE
 import qualified Data.Text.Encoding         as TE
+import qualified Data.ByteString            as BS
+import           Data.Char                  (digitToInt, isHexDigit)
 import qualified Data.Aeson                 as Aeson
 import           Data.Aeson                 ((.=))
 import           Text.Pandoc.Class          (runPure)
@@ -339,16 +341,29 @@ resolveFromPage pageRoute u
 -- tools/check-site.py (link-fragments) fails the build on any that slip
 -- through. A fragment the excerpt defines itself stays put: the anchor is
 -- quoted with it. Its ids are read as attributes are (@id='here'@,
--- @id="r&amp;d"@), as the fragment is.
+-- @id="r&amp;d"@), as the fragment is, and a fragment that names none of
+-- them is tried again percent-decoded as UTF-8, as a browser looks for
+-- its anchor: @#caf%C3%A9@ is @id="café"@'s.
 rebaseExcerpt :: FilePath -> String -> String
 rebaseExcerpt pageRoute html = mapUrlsRead rebase html
   where
     localIds = attributeValues "id" html
+    local frag = frag `elem` localIds || maybe False (`elem` localIds) (percentDecoded frag)
     rebase u
-        | "#" `isPrefixOf` u = if drop 1 u `elem` localIds then Nothing
+        | "#" `isPrefixOf` u = if local (drop 1 u) then Nothing
                                else Just (canonicalUrlPath pageRoute ++ u)
         | otherwise          = let u' = resolveFromPage pageRoute u
                                in  if u' == u then Nothing else Just u'
+
+-- | A fragment's percent-encoded bytes read as UTF-8 (@caf%C3%A9@ is
+-- @café@); 'Nothing' if they are not UTF-8.
+percentDecoded :: String -> Maybe String
+percentDecoded = either (const Nothing) (Just . T.unpack) . TE.decodeUtf8' . BS.pack . bytes
+  where
+    bytes ('%' : a : b : rest)
+        | isHexDigit a && isHexDigit b = fromIntegral (digitToInt a * 16 + digitToInt b) : bytes rest
+    bytes (c : rest) = BS.unpack (TE.encodeUtf8 (T.singleton c)) ++ bytes rest
+    bytes []         = []
 
 -- ---------------------------------------------------------------------------
 -- Archive-aware target keying
