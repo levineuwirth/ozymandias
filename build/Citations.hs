@@ -287,6 +287,7 @@ transformInline :: Map Text Int -> Inline -> State MarkerState Inline
 transformInline keyNums (Cite citations _) = do
     let keys = map citationId citations
         nums = mapMaybe (`Map.lookup` keyNums) keys
+        numbered = [ (c, n) | c <- citations, Just n <- [Map.lookup (citationId c) keyNums] ]
     case (keys, nums) of
         -- Both lists are guaranteed non-empty by the @null nums@ check
         -- below, but pattern-match to keep this total instead of
@@ -303,7 +304,7 @@ transformInline keyNums (Cite citations _) = do
                     foldr (\k m -> Map.insertWith (\_ old -> old) k markerId m)
                           (msFirstOccurrence st) keys
                 }
-            return $ RawInline "html" (markerHtml keys markerId firstKey nums)
+            return $ RawInline "html" (markerHtml keys markerId firstKey (markerLabel numbered))
         _ ->
             return (Str "")
 transformInline _ x = return x
@@ -315,15 +316,44 @@ backAnchorId n occ
     | otherwise = base <> "-" <> T.pack (show occ)
   where base = "cite-back-" <> T.pack (show n)
 
-markerHtml :: [Text] -> Text -> Text -> [Int] -> Text
-markerHtml keys markerId firstKey nums =
-    let label   = "[" <> T.intercalate "," (map tshow nums) <> "]"
-        allIds  = T.intercalate " " (map ("ref-" <>) keys)
+markerHtml :: [Text] -> Text -> Text -> Text -> Text
+markerHtml keys markerId firstKey label =
+    let allIds  = T.intercalate " " (map ("ref-" <>) keys)
     in "<sup class=\"cite-marker\" id=\"" <> markerId <> "\">"
     <> "<a href=\"#ref-" <> firstKey <> "\" class=\"cite-link\""
     <> " data-cite-keys=\"" <> allIds <> "\">"
     <> label <> "</a></sup>"
-  where tshow = T.pack . show
+
+-- | A marker's label, as HTML: the numbers of a cluster, @[3,4]@, and,
+--   where its author wrote any, each citation's prefix and locator as
+--   written: @[\@PralatWormald, Theorem 4.1]@ is @[8, Theorem 4.1]@,
+--   @[see \@a, p. 3; \@b]@ is @[see 1, p. 3; 2]@. Pandoc keeps the
+--   locator in the citation's suffix, which the label once left out, and
+--   with it which theorem or page was meant. A cluster with neither is
+--   labelled as it always was.
+markerLabel :: [(Citation, Int)] -> Text
+markerLabel numbered
+    | all (bare . fst) numbered = "[" <> T.intercalate "," (map (tshow . snd) numbered) <> "]"
+    | otherwise                 = "[" <> T.intercalate "; " (map one numbered) <> "]"
+  where
+    bare c = null (citationPrefix c) && null (citationSuffix c)
+    one (c, n) =
+           (if null (citationPrefix c) then "" else inlineHtml (citationPrefix c) <> " ")
+        <> tshow n
+        <> inlineHtml (citationSuffix c)
+    tshow = T.pack . show
+
+-- | Inlines as HTML, for inside the marker's link: links taken off (a link
+--   in a link is not HTML), math as MathML, as the bibliography's is.
+inlineHtml :: [Inline] -> Text
+inlineHtml ils =
+    case runPure (writeHtml5String wOpts (Pandoc nullMeta [Plain (walk unlink ils)])) of
+        Left  _    -> T.concat [ t | Str t <- ils ]
+        Right html -> unclaimMathSpans (T.strip html)
+  where
+    wOpts = def { writerWrapText = WrapNone, writerHTMLMathMethod = MathML }
+    unlink :: [Inline] -> [Inline]
+    unlink = concatMap (\i -> case i of Link _ inner _ -> inner; _ -> [i])
 
 
 -- ---------------------------------------------------------------------------
