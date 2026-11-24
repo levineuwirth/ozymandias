@@ -46,11 +46,13 @@ import qualified Data.Aeson                 as Aeson
 import           Data.Aeson                 ((.=))
 import           Text.Pandoc.Class          (runPure)
 import           Text.Pandoc.Writers        (writeHtml5String)
-import           Text.Pandoc.Definition     (Block (..), Inline (..), Pandoc (..),
-                                             nullMeta)
+import           Text.Pandoc.Definition     (Block (..), Format (..), Inline (..),
+                                             Pandoc (..), nullMeta)
 import           Text.Pandoc.Options        (WriterOptions (..))
 import           Text.Pandoc.Walk           (query, walk)
 import           Hakyll
+import           System.FilePath            (takeDirectory)
+import           HtmlUrls                   (isRelative, mapUrls, resolveAgainst)
 import           Config                     (SiteConfig, loadConfig, switchOn)
 import           PandocOptions              (withMath)
 import           Compilers                  (readerOpts, writerOpts)
@@ -286,17 +288,43 @@ linksCompiler :: Compiler (Item String)
 linksCompiler = do
     cfg  <- loadConfig
     body <- getResourceBody
+    mRoute <- getRoute . setVersion Nothing =<< getUnderlying
     let src   = itemBody body
     let body' = itemSetBody (preprocessSource cfg src) body
     pandocItem <- readPandocWith (withMath (switchOn cfg "math") readerOpts) body'
-    let entries = nubBy sameEntry
-                        (extractLinksWithContext (itemBody pandocItem))
+    let doc     = maybe id (walk . rootRelative) mRoute (itemBody pandocItem)
+        entries = nubBy sameEntry (extractLinksWithContext doc)
     makeItem . TL.unpack . TLE.decodeUtf8 . Aeson.encode $ entries
   where
     sameEntry a b =
         leUrl       a == leUrl       b &&
         leSentence  a == leSentence  b &&
         leParagraph a == leParagraph b
+
+-- | Root a page's relative references at its own directory, so that they
+-- mean the same thing wherever the excerpt is quoted.
+--
+-- On its page, @[shaney.py](shaney.py)@ is the file beside the page. Quoted
+-- in another page's Backlinks footer, the same @href@ named a file beside
+-- that page, which is not there; check-site's link-targets gate failed the
+-- deploy on it (2026-11-24). A relative link to another page fared no
+-- better in the graph: @../b/@ was keyed as written and joined no page.
+-- Rooted at the site, both are relativized for the page that shows them,
+-- as every rooted link is. A URL with a scheme, a rooted one, a fragment
+-- or a query of the page is left as written; fragments are
+-- 'rebaseFragmentLinks''s. Raw HTML in a paragraph is resolved too.
+rootRelative :: FilePath -> Inline -> Inline
+rootRelative pageRoute inline = case inline of
+    Link  attr ils (u, t)       -> Link  attr ils (resolve u, t)
+    Image attr ils (u, t)       -> Image attr ils (resolve u, t)
+    RawInline f@(Format "html") s ->
+        RawInline f (T.pack (mapUrls resolveS (T.unpack s)))
+    x                           -> x
+  where
+    base = "/" ++ case takeDirectory pageRoute of { "." -> ""; d -> d ++ "/" }
+    resolveS u | isRelative u = resolveAgainst base u
+               | otherwise    = u
+    resolve = T.pack . resolveS . T.unpack
 
 -- ---------------------------------------------------------------------------
 -- Archive-aware target keying
