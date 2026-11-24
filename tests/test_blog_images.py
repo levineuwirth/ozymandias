@@ -40,6 +40,7 @@ Whole builds of a small scratch site against this engine:
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 import pty
@@ -238,6 +239,8 @@ class BlogImages(Site):
     def test_a_feed_names_an_entry_s_images_by_their_whole_address(self):
         with (self.blog / "first.md").open("a", encoding="utf-8") as first:
             first.write('\n<!-- Not shown: <img src="commented.png" alt=""> -->\n')
+            # Rooted, though a character reference writes its slash.
+            first.write('\nThe <a href="&#47;index.html">home page</a>, by a reference.\n')
         self.site("rebuild")
         feed = self.read("feed.xml")
         at = "https://example.org/notebook/"
@@ -250,12 +253,18 @@ class BlogImages(Site):
         self.assertRegex(feed, rf'<img[^>]*src="{re.escape(at)}trip/day-one\.map\.svg"')
         self.assertRegex(feed, rf'<img[^>]*src="{re.escape(at)}shared\.svg"')
         # What was whole, rooted at the site or within the page is as written.
-        for kept in ('href="#lake"', 'href="/index.html"', 'href="https://example.org/a.png"'):
+        for kept in ('href="#lake"', 'href="/index.html"', 'href="https://example.org/a.png"',
+                     'href="&#47;index.html"'):
             self.assertIn(kept, feed)
         # A comment is not markup, and is as written too.
         self.assertIn('<!-- Not shown: <img src="commented.png" alt=""> -->', feed)
-        self.assertEqual(re.findall(r'(?:src|srcset|href|poster)="(?![a-z]+:|[/#])[^"]*"',
-                                    re.sub(r"<!--.*?-->", "", feed, flags=re.S)), [])
+        values = re.findall(r'(?:src|srcset|href|poster)="([^"]*)"', re.sub(r"<!--.*?-->", "", feed, flags=re.S))
+        self.assertEqual([v for v in values if not re.match(r"[a-z]+:|[/#]", html.unescape(v))], [])
+        # Every candidate of a srcset, read whole: the fixture writes one's
+        # separators as references (wide.png&#32;2x&#44; wider.png 3x).
+        for srcset in re.findall(r'srcset="([^"]*)"', feed):
+            for candidate in html.unescape(srcset).split(","):
+                self.assertRegex(candidate.split()[0], r"^(https?:|/)", srcset)
         # The page itself still names them from where it is.
         self.assertRegex(self.read("notebook/first.html"), r'<img[^>]*src="charts/depth\.svg"')
 

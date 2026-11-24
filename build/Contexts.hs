@@ -63,7 +63,7 @@ import qualified Data.Map.Strict    as Map
 import System.Directory        (doesFileExist, getModificationTime)
 import System.IO.Unsafe        (unsafePerformIO)
 import System.FilePath         (makeRelative, takeDirectory, takeFileName, (</>))
-import HtmlUrls                (isRelative, mapUrls, resolveAgainst)
+import HtmlUrls                (isRelative, mapUrlsRead, resolveAgainst)
 import System.IO               (hPutStrLn, stderr)
 import Text.Read               (readMaybe)
 import qualified Data.Text     as T
@@ -1188,7 +1188,8 @@ feedBodyField = field "description" (\item -> feedBody item (itemBody item))
 --   page; in a feed there is no page beside it, and a reader resolved it
 --   against the feed's address or its own and found nothing. A URL rooted
 --   at the site, one with a host, and a fragment are left as written, and
---   so is every other character ("HtmlUrls").
+--   so is every other character ("HtmlUrls"). Each is read as a reader
+--   reads it ('mapUrlsRead'): @&#47;index.html@ is rooted, not relative.
 feedBody :: Item a -> String -> Compiler String
 feedBody item html = do
     cfg    <- loadConfig
@@ -1197,7 +1198,7 @@ feedBody item html = do
         Nothing -> html
         Just r  ->
             let base = siteUrl cfg ++ "/" ++ (case takeDirectory r of { "." -> ""; d -> d ++ "/" })
-            in  mapUrls (\url -> if isRelative url then resolveAgainst base url else url) html
+            in  mapUrlsRead (\url -> if isRelative url then Just (resolveAgainst base url) else Nothing) html
 
 -- | @$canonical-url$@ — 'canonicalUrlPath' of the item's own route.
 --
