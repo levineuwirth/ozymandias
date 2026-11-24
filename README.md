@@ -418,6 +418,15 @@ artifact gate, `tools/check-site.py`, fails the build when a name on its own
 list reaches `_site/` anyway. Neither can tell what an ordinary file is for:
 give a private note a `.local.md` name.
 
+Backlink quotations resolve relative links from the page they quote. The
+same URL scanner handles feeds and links on rendered pages. It preserves
+the spelling of the surrounding HTML. A `<math>` directly inside `<svg>`
+stays in the SVG namespace in a browser, but the scanner switches to
+MathML. When a MathML `<annotation-xml>` has multiple `encoding`
+attributes, browsers use the first and the scanner uses the last value.
+Keep MathML outside SVG or inside an SVG
+`<foreignObject>`, and give each annotation a single `encoding` attribute.
+
 First-party scripts and stylesheets are published under `/assets/<hash>/`,
 a hash of all of them, so a page only ever loads the version it was built
 with. `tools/asset-versions.py` keeps a site's earlier versions on its server
