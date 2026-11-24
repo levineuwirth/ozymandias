@@ -193,59 +193,100 @@ pieces = piecesFor urlAttributes
 
 -- | 'pieces', with the values of these attributes (lower case) cut out.
 piecesFor :: [String] -> String -> [Piece]
-piecesFor names = text ""
+piecesFor names = text [] ""
   where
     kept acc rest = [Kept (reverse acc) | not (null acc)] ++ rest
 
-    -- Outside a tag.
-    text acc [] = kept acc []
-    text acc s@('<' : rest)
-        | "<!--" `isPrefixOf` s = let (comment, after) = through "-->" s in text (reverse comment ++ acc) after
+    -- Outside a tag. @ns@ is the open elements that decide how HTML
+    -- parses what follows: an @svg@ or @math@ (foreign content, where
+    -- @style@ and @script@ are elements like any other and @<style/>@
+    -- closes itself), or an integration point inside one (@foreignObject@,
+    -- @desc@ and @title@ in SVG; @mi@, @mo@, @mn@, @ms@ and @mtext@ in
+    -- MathML), where HTML resumes. A closing tag pops its own name.
+    text _ acc [] = kept acc []
+    text ns acc s@('<' : rest)
+        | "<!--" `isPrefixOf` s = let (comment, after) = through "-->" s in text ns (reverse comment ++ acc) after
+        | ('/' : c : _) <- rest, isAlpha c =
+            let (name, after) = span tagChar (drop 1 rest)
+                ns'           = case ns of
+                    top : below | top == map toLower name -> below
+                    _                                     -> ns
+            in  text ns' (reverse name ++ "/<" ++ acc) after
         | (c : _) <- rest, isAlpha c =
-            let (name, after) = span (\x -> isAlphaNum x || x `elem` "-:") rest
-            in  attributes (map toLower name) (reverse name ++ '<' : acc) after
-    text acc (c : rest) = text (c : acc) rest
+            let (name, after) = span tagChar rest
+            in  attributes ns (map toLower name) (reverse name ++ '<' : acc) after
+    text ns acc (c : rest) = text ns (c : acc) rest
+
+    tagChar x = isAlphaNum x || x `elem` ("-:" :: String)
+
+    inForeign (top : _) = top `elem` ["svg", "math"]
+    inForeign []        = False
 
     -- Inside an opening tag, between its attributes.
-    attributes _ acc [] = kept acc []
-    attributes tag acc ('>' : rest)
-        | tag `elem` ["script", "style"] =
-            let (body, after) = through ("</" ++ tag) rest in text (reverse body ++ '>' : acc) after
-        | otherwise = text ('>' : acc) rest
-    attributes tag acc (c : rest)
-        | isSpace c || c == '/' = attributes tag (c : acc) rest
-    attributes tag acc s =
-        let (name, after)   = break (\c -> isSpace c || c `elem` "=>/") s
+    attributes _ _ acc [] = kept acc []
+    attributes ns tag acc ('>' : rest)
+        -- In HTML a raw-text element's contents are not markup, whether or
+        -- not its tag ends in a slash, up to its whole closing tag.
+        | not (inForeign ns) && tag `elem` rawText =
+            let (body, after) = untilClosing tag rest in text ns (reverse body ++ '>' : acc) after
+        | otherwise = text ns' ('>' : acc) rest
+      where
+        ns' | take 1 acc == "/"                     = ns
+            | tag `elem` ["svg", "math"]            = tag : ns
+            | inForeign ns && tag `elem` integrations = tag : ns
+            | otherwise                             = ns
+    attributes ns tag acc (c : rest)
+        | isSpace c || c == '/' = attributes ns tag (c : acc) rest
+    attributes ns tag acc s =
+        let (name, after)   = break (\c -> isSpace c || c `elem` ("=>/" :: String)) s
             (gap, after')   = span isSpace after
             acc'            = reverse gap ++ reverse name ++ acc
         in case after' of
             '=' : more ->
                 let (gap', more') = span isSpace more
                     acc''         = reverse gap' ++ '=' : acc'
-                in  value tag (map toLower name) acc'' more'
-            _ | null name -> attributes tag (reverse (take 1 after') ++ acc') (drop 1 after')
-              | otherwise -> attributes tag acc' after'
+                in  value ns tag (map toLower name) acc'' more'
+            _ | null name -> attributes ns tag (reverse (take 1 after') ++ acc') (drop 1 after')
+              | otherwise -> attributes ns tag acc' after'
 
     -- An attribute's value: quoted, or bare to the next space.
-    value tag name acc (q : rest)
-        | q `elem` "\"'" =
+    value ns tag name acc (q : rest)
+        | q `elem` ("\"'" :: String) =
             let (v, after) = break (== q) rest
-            in  emit tag name (Just q) (q : acc) v (take 1 after) (drop 1 after)
-    value tag name acc s =
+            in  emit ns tag name (Just q) (q : acc) v (take 1 after) (drop 1 after)
+    value ns tag name acc s =
         let (v, after) = break (\c -> isSpace c || c == '>') s
-        in  emit tag name Nothing acc v "" after
-    emit tag name quoted acc v close after
-        | name `elem` names = kept acc (Value name quoted v : attributes tag (reverse close) after)
-        | otherwise                 = attributes tag (reverse close ++ reverse v ++ acc) after
+        in  emit ns tag name Nothing acc v "" after
+    emit ns tag name quoted acc v close after
+        | name `elem` names = kept acc (Value name quoted v : attributes ns tag (reverse close) after)
+        | otherwise         = attributes ns tag (reverse close ++ reverse v ++ acc) after
 
-    -- Up to and including the first occurrence of @end@ (any case), or
-    -- everything when there is none.
+    -- HTML's raw-text and escapable raw-text elements. noscript is left
+    -- out: its fallback markup is relativized, as Hakyll's pass did.
+    rawText      = ["script", "style", "xmp", "iframe", "noembed", "noframes", "title", "textarea"]
+    integrations = ["foreignobject", "desc", "title", "mi", "mo", "mn", "ms", "mtext"]
+
+    -- Up to (not including) the element's closing tag: @</@, its whole
+    -- name in any case, then a space, a @/@ or a @>@. @</scripture>@
+    -- inside a script is the script's.
+    untilClosing tag = go ""
+      where
+        end = "</" ++ tag
+        go acc [] = (reverse acc, [])
+        go acc r@(c : cs)
+            | map toLower (take (length end) r) == end, closes (drop (length end) r) = (reverse acc, r)
+            | otherwise = go (c : acc) cs
+        closes []      = True
+        closes (x : _) = x `elem` ("\t\n\f\r />" :: String)
+
+    -- Up to and including the first occurrence of @end@, or everything
+    -- when there is none.
     through end s = go "" s
       where
         go acc [] = (reverse acc, [])
         go acc r@(c : cs)
-            | map toLower (take (length end) r) == end = (reverse acc ++ take (length end) r, drop (length end) r)
-            | otherwise = go (c : acc) cs
+            | end `isPrefixOf` r = (reverse acc ++ end, drop (length end) r)
+            | otherwise          = go (c : acc) cs
 
 splitOn :: Char -> String -> [String]
 splitOn sep s = case break (== sep) s of

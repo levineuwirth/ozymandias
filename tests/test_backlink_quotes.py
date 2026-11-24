@@ -19,6 +19,8 @@ URL, and whitespace a reference writes before a rooted URL. The fourth:
 a data: URL's comma beside a rebased candidate, a comma in a srcset whose
 candidates are already rooted (which only the page's own relativizing
 pass reads), and a percent-encoded fragment naming an anchor in the quote.
+The fifth, of that page pass itself: an SVG's self-closing <style/> and a
+script whose data holds a prefix of its closing tag.
 
 Whole builds of a small scratch site, in make build's order: a build, the
 footer files, a build.
@@ -39,6 +41,8 @@ from pathlib import Path
 
 from tests._helpers import engine_path, requires_cabal, script_env, site_binary, srcset_urls, write_site_config
 
+# Script data with a prefix of its closing tag, and markup in a string.
+SCRIPT = '{"a": "</scripture>", "b": "<a href=\'/essays/a/\'>A</a>"}'
 # The first sentence is the quote: a link beside the page, one below it,
 # raw HTML (one value without quotes, with an escaped space), a query of
 # the page, fragments of the page (one the quote defines itself), relative
@@ -60,7 +64,12 @@ A = ("The [script](tool.py), the [figure](fig/one.svg), "
      '<img src="/essays/a/lake.svg" srcset="/essays/a/lake,summer.svg 1x, /essays/a/lake.svg 2x" '
      'alt="rooted seasons"> '
      '<img src="one.gif" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7 1x, two.gif 2x" alt="embedded">'
-     "\n\n## Atlas {#atlas}\n\nThe atlas.")
+     "\n\n## Atlas {#atlas}\n\nThe atlas."
+     # Not quoted: what the page's own relativizing pass must read as HTML does.
+     # (The script first: an unclosed style would hide it from the pass.)
+     '\n\n<script type="application/json" id="data">' + SCRIPT + "</script>"
+     '\n\n<svg width="1" height="1"><style/><rect width="1" height="1"/></svg> '
+     'And <a href="/essays/c/">after the svg</a>.')
 # A flat page: its relative links start from the section's directory.
 D = "The [script](a/tool.py) is A's; see [B](/essays/b/)."
 
@@ -182,6 +191,17 @@ class BacklinkQuotes(unittest.TestCase):
         srcset = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="' + re.escape(alt) + '"', markup)
         self.assertIsNotNone(srcset, alt)
         return [self.resolve(page, c)[0] for c in srcset_urls(srcset.group(1))]
+
+    def test_a_self_closing_style_in_svg_leaves_the_page_s_links_to_the_pass(self):
+        # In SVG, <style/> closes itself; read as HTML's raw-text style, it
+        # hid every link after it from relativizing.
+        hrefs = self.anchors(self.read("essays/a/index.html"), "after the svg")
+        self.assertEqual(hrefs, ["../../essays/c/"])
+
+    def test_script_data_is_left_as_written(self):
+        # </scripture> does not close the script; its data is not markup.
+        self.assertIn('<script type="application/json" id="data">' + SCRIPT + "</script>",
+                      self.read("essays/a/index.html"))
 
     def test_the_page_itself_keeps_a_comma_in_a_srcset_url(self):
         # Hakyll's relativizeUrls cut these at the comma on A's own page.
