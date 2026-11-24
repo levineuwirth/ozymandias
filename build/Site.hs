@@ -53,10 +53,11 @@ import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
+import Scholar    (scholarFields, scholarlyPapers, scholarPdfRules)
 import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, tagPageUrl)
 import Stats      (statsRules)
 import Utils      (applySiteFrame, cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
-                   isDevBuild, metadataKeywords, outputDirFor, stripPrefixRoute,
+                   isDevBuild, metadataFlag, metadataKeywords, outputDirFor, stripPrefixRoute,
                    trustScore)
 
 -- ---------------------------------------------------------------------------
@@ -644,6 +645,14 @@ rules = do
                               else fromList []))
     match vizTheme $ compile getResourceLBS
 
+    -- Scholarly papers ("Scholar"): every flagged essay is checked here, and
+    -- the build refused when one cannot carry its citation tags; a PDF
+    -- published elsewhere is published again beside its page, the only
+    -- place Scholar takes citation_pdf_url from. The pages and the copies
+    -- read the one placement made here.
+    papers <- scholarlyPapers cfg allEssays
+    scholarPdfRules papers
+
     rulesExtraDependencies [figureDep] $ match allEssays $ do
         -- content/essays/foo.md → essays/foo.html, a directory essay or
         -- collection entry keeps its path below content/, and a dev draft
@@ -651,7 +660,7 @@ rules = do
         route pageRoute
         compile $ essayCompiler
             >>= saveSnapshot "content"
-            >>= inDefault "templates/essay.html" essayCtx
+            >>= inDefault "templates/essay.html" (scholarFields papers <> essayCtx)
 
     -- Dimension sidecars: tracked, but not shipped.
     --
@@ -1412,7 +1421,7 @@ rules = do
         route idRoute
         compile $ do
             let ctx = constField "title"   "Page not found"
-                   <> constField "noindex" "true"
+                   <> constField "robots-noindex" "true"
                    <> constField "description"
                         "No page exists at this address."
                    -- Keeps the body out of the keyword index; see the
@@ -1450,6 +1459,8 @@ rules = do
     --     already here under their own canonical URLs
     --   * content/library.md    — an intro fragment with no route of its
     --     own (it is snapshot-loaded into /library.html)
+    --   * a page with `noindex: true` — listing a page that asks not to be
+    --     indexed is a contradiction search consoles report
     -- ---------------------------------------------------------------------------
     create ["sitemap.xml"] $ do
         route idRoute
@@ -1636,8 +1647,12 @@ sitemapEntries nowIds idents = do
 sitemapEntry :: [Identifier] -> Identifier -> Compiler (Maybe (String, Maybe String))
 sitemapEntry nowIds ident = do
     mRoute <- getRoute ident
+    -- A created page (library.html) has no front matter to read.
+    noindex <- (metadataFlag "noindex" <$> getMetadata ident)
+                   `catchError` const (return False)
     case mRoute of
         Nothing -> return Nothing
+        Just _ | noindex -> return Nothing
         Just r  -> do
             -- `lastmod` is optional: a page with no `date:` is listed
             -- without one rather than dropped or given an invented date.

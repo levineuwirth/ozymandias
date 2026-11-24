@@ -45,6 +45,7 @@ module Utils
     , inDefault
     , boolSpellings
     , parseBool
+    , metadataFlag
     , canonicalUrlPath
     , isDevBuild
     , outputDirFor
@@ -59,6 +60,9 @@ import qualified Data.Text as T
 import           Data.Time.Format (FormatTime, ParseTime, defaultTimeLocale, formatTime,
                                    parseTimeM)
 import           Data.Aeson (FromJSON)
+import qualified Data.Aeson as A
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Text.Encoding as TE
 import qualified Data.Yaml as Y
 import           Hakyll (Compiler, Context, Identifier, Item, Metadata, Routes, bodyField,
@@ -295,6 +299,14 @@ boolSpellings =
 -- is unset.
 parseBool :: String -> Maybe Bool
 parseBool v = lookup (map toLower (filter (not . isSpace) v)) boolSpellings
+
+-- | A front-matter flag (@noindex:@, @scholarly:@): a YAML boolean, or a
+-- string in one of 'boolSpellings'. Anything else, or no key, is off.
+metadataFlag :: String -> Metadata -> Bool
+metadataFlag key meta = case KM.lookup (Key.fromString key) meta of
+    Just (A.Bool b)   -> b
+    Just (A.String t) -> parseBool (T.unpack t) == Just True
+    _                 -> False
 
 -- | The site's two date spellings: @16 March 2026@ for readers, ISO 8601
 -- for machines and front matter. Pages, feeds and sidecars all format and

@@ -10,9 +10,10 @@ $if(switch-popups)$$if(popup-providers)$<meta name="ozy:popup-providers" content
 $endif$$if(switch-epistemic)$$if(epistemic-about)$<meta name="ozy:epistemic-about" content="$epistemic-about$" data-label="$epistemic-about-label$">
 $endif$$endif$$endif$$if(home)$<title>$site-title$</title>$else$$if(title)$<title>$plain(title)$ — $site-title$</title>$else$<title>$site-title$</title>$endif$$endif$
 $if(description)$<meta name="description" content="$description$">$endif$
-$if(noindex)$<meta name="robots" content="noindex">$endif$
+$if(robots-noindex)$<meta name="robots" content="noindex">$endif$
 <link rel="canonical" href="$site-url$$canonical-url$">
-$if(own-license)$$if(own-license-url)$<link rel="license" href="$own-license-url$">
+$if(scholar-meta)$<!-- Citation tags for Google Scholar (build/Scholar.hs): a scholarly paper's alone. -->
+$scholar-meta$$endif$$if(own-license)$$if(own-license-url)$<link rel="license" href="$own-license-url$">
 $endif$<link rel="schema.dcterms" href="http://purl.org/dc/terms/">
 <meta name="dcterms.rights" content="$rights-notice$">
 $else$$if(site-license-url)$<link rel="license" href="$site-license-url$">

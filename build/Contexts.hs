@@ -43,6 +43,7 @@ module Contexts
 
 import Control.Exception       (IOException, catch, try)
 import Control.Monad           (forM, unless, when)
+import Control.Monad.Except    (catchError)
 import Data.Aeson              (Value (..))
 import qualified Data.Aeson         as Aeson
 import qualified Data.Aeson.Key     as AK
@@ -90,7 +91,7 @@ import Config       (SiteConfig (..), loadConfig, identityOver, navigationContex
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
 import           DerivedImages (pairedWithC)
-import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
+import Utils        (authorUrl, canonicalUrlPath, confidencePercent, escapeHtml, formatIso, formatWriterly, isoDate, isProvedConfidence, itemAuthors, itemCredit, metadataFlag, metadataKeywords, parseIsoDate, trim, trustScore, writerlyDate)
 
 -- ---------------------------------------------------------------------------
 -- Affiliation field
@@ -671,6 +672,17 @@ pageStylesheetsField = listFieldWith "page-stylesheets" (assetsField <> field "n
         unless found $ fail ("stylesheets: no static/css/" ++ name ++ ".css")
         makeItem name
 
+-- | @$robots-noindex$@: the page's @noindex:@ read as a boolean
+--   ('metadataFlag'), the one reading the sitemap and the Scholar check
+--   share. The head tested @$if(noindex)$@, which a field holds whenever it
+--   is set: @noindex: false@ kept a page out of the index. Generated pages
+--   with no front matter set it with a constField.
+robotsNoindexField :: Context a
+robotsNoindexField = field "robots-noindex" $ \item -> do
+    meta <- getMetadata (setVersion Nothing (itemIdentifier item))
+                `catchError` const (return mempty)
+    if metadataFlag "noindex" meta then return "true" else noResult "indexable"
+
 -- | @$plain(field)$@: a field as text that is safe in an attribute or in
 --   @<title>@: tags stripped, whitespace collapsed, @& < > " '@ escaped.
 --   Hakyll hands metadata to templates as it is written. A title may carry
@@ -746,6 +758,7 @@ metadataReaderOpts = do
 siteCtx :: Context String
 siteCtx = identityOver $
        assetsField
+    <> robotsNoindexField
     <> navigationContext
     <> seasonContext
     <> readerSettingContext

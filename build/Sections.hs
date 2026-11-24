@@ -17,6 +17,7 @@ module Sections
     , listedSection
     , sectionLanding
     , contentRoute
+    , contentAddress
     , contentPageRoute
     , reservedSectionDirs
     , sectionOwnedTopLevelTags
@@ -60,13 +61,16 @@ sectionLanding s = sectionAddress s ++ "/index.html"
 --   Every other path is its own address, drafts' included
 --   (@content/drafts/essays/…@ stays under @drafts/essays/@).
 contentRoute :: SiteConfig -> Routes
-contentRoute cfg = customRoute $ \ident ->
-    let path = toFilePath ident
-    in  addressed (fromMaybe path (stripPrefix "content/" path))
+contentRoute cfg = customRoute (contentAddress cfg . toFilePath)
+
+-- | 'contentRoute' as a function of the path: where the file at @path@
+--   (@content/…@) is served.
+contentAddress :: SiteConfig -> FilePath -> FilePath
+contentAddress cfg path = addressed (fromMaybe path (stripPrefix "content/" path))
   where
-    addressed path = case break (== '/') path of
+    addressed p = case break (== '/') p of
         (dir, rest@('/' : _)) | Just s <- listedSection cfg dir -> sectionAddress s ++ rest
-        _                                                       -> path
+        _                                                       -> p
 
 -- | 'contentRoute' for a page: @.md@ → @.html@.
 contentPageRoute :: SiteConfig -> Routes

@@ -543,6 +543,36 @@ lacks, for a site that doesn't push the engine itself.
   an override, not a second image: the site's is served, and it is shown
   with the site's own companion or alone, never with the engine's.
 - **PDF thumbnails:** `make pdf-thumbs`, with `pdftoppm`.
+- **Scholarly papers:** an essay with `scholarly: true` carries Google
+  Scholar's `citation_*` tags in its head (`build/Scholar.hs`): its title,
+  each author in order (each with an institution, if given), the
+  publication date, an optional DOI, and the absolute URL of its PDF.
+  The fields are `citation-title`, `citation-authors`, `citation-date`
+  (`YYYY-MM-DD`, `YYYY-MM` or `YYYY`) and `citation-pdf`, which default to
+  `title`, the names in `authors`, `date` and `preprint`. The optional fields
+  are `citation-doi` (a bare DOI), `citation-arxiv` (the page then links
+  the paper's arXiv abstract page; quote it, `"2611.01230"`, or YAML reads
+  a number and drops its trailing zeros) and `citation-institution`. That is one
+  institution per author, as a list in author order, and it defaults to
+  `affiliation` for a single author. A date is given as Scholar asks:
+  the full date, or the year (a month alone gives its year). Scholar takes
+  a PDF only from the page's own directory, so the build publishes a PDF
+  that lives elsewhere (`/papers/x.pdf`) again beside its page, named for
+  a flat page (`essays/x.md`, `essays/x.pdf`) or as it is in a page's own
+  directory. When a file, or another page's copy, already has that name, the
+  copy takes the next free one (`x-paper.pdf`, `index-paper.pdf`, then
+  `x-2.pdf`, `x-3.pdf`, …); a flat page's own name goes to that page first.
+  The copies are placed together on every build, and a page and its copy
+  are rebuilt whenever their placement changes. The tags and the Preprint
+  link name that copy. Titles are read as a browser shows them: inline
+  markup off, character references (`&eacute;`) decoded. A flagged page missing a field, or naming a
+  PDF that is not there, that the site does not publish (a refused or
+  withheld file) or that is over Scholar's 5 MB limit, stops the build, as
+  does the flag on any published page but an essay; a draft is not
+  checked. `noindex:` is read as a boolean, the same way for the robots
+  tag, the sitemap (which leaves the page out) and this check (a flagged
+  page cannot be one). Flag papers only: Scholar distrusts a site that
+  marks up pages that are not papers.
 
 ## This repository
 

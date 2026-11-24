@@ -31,6 +31,7 @@
         $if(backlinks)$<a href="#backlinks">Backlinks</a>$endif$
         $if(similar-links)$<a href="#similar-links">Related</a>$endif$
         $if(repository)$<a href="$repository$">Repository</a>$endif$
-        $if(preprint)$<a href="$preprint$">Preprint</a>$endif$
+        $if(scholar-pdf)$<a href="$scholar-pdf$">Preprint</a>$else$$if(preprint)$<a href="$preprint$">Preprint</a>$endif$$endif$
+        $if(scholar-arxiv)$<a href="$scholar-arxiv$">arXiv</a>$endif$
     </nav>
 </div>

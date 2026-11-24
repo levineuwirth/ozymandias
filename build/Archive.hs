@@ -436,7 +436,7 @@ archiveIndexRule entries =
                 ctx    = listField "entries" entryListCtx (return items)
                       <> constField "title"   "Archive"
                       <> constField "archive" "true"
-                      <> constField "noindex" "true"
+                      <> constField "robots-noindex" "true"
                       <> constField "description"
                             ("Local preservation snapshots of works cited "
                              ++ "here, kept against link rot.")
@@ -455,7 +455,7 @@ archiveEntryCtx :: ArchiveEntry -> Context String
 archiveEntryCtx ae = mconcat
     [ constField "title"            (pvTitle pv)
     , constField "archive"          "true"
-    , constField "noindex"          "true"
+    , constField "robots-noindex"   "true"
     -- C01: without this the page falls through to a body excerpt, which
     -- on an archive wrapper is the banner label ("Archived copy").
     , constField "description"

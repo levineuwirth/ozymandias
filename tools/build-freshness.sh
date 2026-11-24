@@ -137,8 +137,9 @@ file_rules() {
 DIFF_PATHS=(content/ static/ data/ archive/ code-refs/ engine/static/)
 
 # Frontmatter fields that generate routes of their own (tag indexes, author
-# pages, collection and series listings, epistemic-status listings).
-ROUTE_FIELDS='tags|author|authors|collection|series|status'
+# pages, collection and series listings, epistemic-status listings, and a
+# scholarly paper's PDF published beside its page, build/Scholar.hs).
+ROUTE_FIELDS='tags|author|authors|collection|series|status|scholarly|preprint|citation-pdf'
 
 # Read a document on stdin; print only its route-defining metadata.
 #
