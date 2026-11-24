@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!--
+    Google Scholar: a mortarboard roof over a head, after its mark.
+    One unit of gap between them so the two read apart at text size.
+    All shapes are filled so mask-image works reliably.
+  -->
+  <!-- Roof -->
+  <polygon points="8,1.5 15.5,7 0.5,7" fill="black"/>
+  <!-- Head -->
+  <circle cx="8" cy="11.75" r="3.75" fill="black"/>
+</svg>

@@ -1020,4 +1020,11 @@ a[data-link-icon="document"]::after {
     mask-image: url('/images/link-icons/document.svg');
     -webkit-mask-image: url('/images/link-icons/document.svg');
 }
+
+
+
+a[data-link-icon="google-scholar"]::after {
+    mask-image: url('/images/link-icons/google-scholar.svg');
+    -webkit-mask-image: url('/images/link-icons/google-scholar.svg');
+}
 }

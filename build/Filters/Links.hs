@@ -200,6 +200,7 @@ iconForHost cfg host
     | m "doi.org"              = "doi"
     | m "worldcat.org"         = "worldcat"
     | m "orcid.org"            = "orcid"
+    | m "scholar.google.com"   = "google-scholar"
     | m "archive.org"          = "internet-archive"
     -- Code / software
     | m "github.com"           = "github"
