@@ -16,10 +16,13 @@ and the marker stays one link.
 import json
 import re
 import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
-from tests._helpers import CABAL_PROJECT, engine_path, requires_cabal, script_env, site_binary
-from tests.test_golden import profile_site
+from tests import fixture_variants
+from tests._helpers import CABAL_PROJECT, ENGINE, engine_path, requires_cabal, script_env, site_binary
 
 # Markdown → (each citation cluster's label, how many footnotes it lifts out).
 # Pandoc's smart extension writes "p. 3" with a no-break space (\u00a0).
@@ -31,12 +34,26 @@ CASES = [
     # A locator's own separator is kept, and a textual citation's, which
     # has none, is a comma: neither reads as reference 123.
     ("[@a 23]", [("[1 23]", 0)]),
+    # A no-break space is a separator too, escaped or as the character.
+    ("[@a\\ 23]", [("[1\u00a023]", 0)]),
+    ("[@a\u00a023]", [("[1\u00a023]", 0)]),
     ("@a [23]", [("[1, 23]", 0)]),
+    # A bracketed citation's suffix is as written: no comma is guessed in.
+    ("[@a—passim]", [("[1—passim]", 0)]),
+    ("[@a(23)]", [("[1(23)]", 0)]),
     ("@a [p. 3]", [("[1, p.\u00a03]", 0)]),
     ("[@a, *Lemma* 2]", [("[1, <em>Lemma</em> 2]", 0)]),
     ("[@a, [ch. 2](https://example.org)]", [("[1, ch.\u00a02]", 0)]),
     ('[@a, <a href="#chapter">chapter</a>]', [("[1, chapter]", 0)]),
+    ('[@a, `<a href="#chapter">chapter</a>`{=html}]', [("[1, chapter]", 0)]),
+    ('[@a, `<em><a href="#chapter">chapter</a></em>`{=html}]', [("[1, <em>chapter</em>]", 0)]),
+    # A > in a quoted attribute is the tag's, not its end.
+    ('[@a, <a title="n > 1" href="#chapter">chapter</a>]', [("[1, chapter]", 0)]),
     ("[@a, chapter^[A detail.]]", [("[1, chapter]", 1)]),
+    # A note in a note goes out with it: one note, not two.
+    ("[@a, chapter^[Outer^[Inner.].]]", [("[1, chapter]", 1)]),
+    # Two notes that read the same are two notes.
+    ("[@a, ch^[Outer^[Middle^[Same.].].] and again^[Same.]]", [("[1, ch and again]", 2)]),
     ("[@a, p. <3 & up]", [("[1, p.\u00a0&lt;3 &amp; up]", 0)]),
 ]
 
@@ -56,7 +73,7 @@ class MarkerLabels(unittest.TestCase):
             "import Data.List (nub)",
             GHCI_LABELS.strip(),
             "mapM_ (\\s -> mapM_ (\\(l, ns) -> TIO.putStrLn (l <> T.pack (\"\\t\" ++ show (length ns)))) (labels s) >> putStrLn \"--\") "
-            + "[" + ", ".join(json.dumps(md) for md, _ in CASES) + "]",
+            + "[" + ", ".join(json.dumps(md, ensure_ascii=False) for md, _ in CASES) + "]",
             ":quit",
         ]
         done = subprocess.run(
@@ -85,16 +102,44 @@ A footnote in a locator [@alpha2001, chapter^[A detail.]] and an anchor
 [@beta2010, <a href="#chapter">chapter</a>] keep the paragraph whole.
 """
 
+# A citation in a locator's footnote, a note in a note, and four notes,
+# two of them alike.
+NESTED = """---
+title: Nested
+---
+
+A claim [@alpha2001, chapter^[See [@gamma2020].]] and another
+[@beta2010, part^[Outer^[Inner.].]], and a third
+[@alpha2001, ch^[First^[Middle^[Same.].].] and again^[Same.]].
+"""
+
 
 @requires_cabal
 class ThroughThePipeline(unittest.TestCase):
-    def test_a_marker_is_one_link_and_its_footnote_the_page_s(self):
-        site = profile_site("full")
-        (site / "locators.md").write_text(PAGE, encoding="utf-8")
-        done = subprocess.run([str(site_binary()), "render-fixture", "locators.md"], cwd=site,
-                              env=script_env(SITE_ROOT=str(site)), capture_output=True, text=True, timeout=300)
+    """A copy of the fixture site of this module's own: the golden tests
+    keep theirs (tests.test_golden.profile_site) for their module's life."""
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = tempfile.TemporaryDirectory(prefix="locators-")
+        cls.addClassCleanup(tmp.cleanup)
+        build = next(b for b in fixture_variants.builds() if b.name == "full")
+        cls.site = Path(tmp.name) / "site"
+        fixture_variants.copy_site(build, cls.site, ENGINE)
+        if build.switches["archive"]:
+            subprocess.run([sys.executable, str(engine_path("tools/archive.py")), "fetch"], cwd=cls.site,
+                           env=script_env(SITE_ROOT=str(cls.site)), check=True, capture_output=True, timeout=120)
+
+    def render(self, text: str) -> tuple[str, str]:
+        (self.site / "locators.md").write_text(text, encoding="utf-8")
+        done = subprocess.run([str(site_binary()), "render-fixture", "locators.md"], cwd=self.site,
+                              env=script_env(SITE_ROOT=str(self.site)), capture_output=True, text=True, timeout=300)
         self.assertEqual(done.returncode, 0, done.stderr)
-        body = done.stdout.split("<!-- render-fixture: toc -->")[0]
+        body, rest = done.stdout.split("<!-- render-fixture: toc -->")
+        return body, rest.split("<!-- render-fixture: bibliography -->")[1]
+
+    def test_a_marker_is_one_link_and_its_footnote_the_page_s(self):
+        body, _ = self.render(PAGE)
         markers = re.findall(r'<sup class="cite-marker"[^>]*>(.*?)</sup>', body, re.S)
         self.assertEqual(len(markers), 2, body)
         for marker in markers:
@@ -109,6 +154,20 @@ class ThroughThePipeline(unittest.TestCase):
         self.assertEqual(len(re.findall(r"<p>A footnote in a locator.*?keep the paragraph whole\.</p>", body, re.S)), 1, body)
         self.assertIn("A detail.", body)
         self.assertNotIn('href="#chapter"', body)
+
+    def test_backlinks_land_and_notes_are_printed_once(self):
+        body, bibliography = self.render(NESTED)
+        ids = set(re.findall(r'id="([^"]+)"', body))
+        backs = re.findall(r'href="#(cite-back-[^"]+)"', bibliography)
+        self.assertEqual(len(backs), 3, bibliography)
+        self.assertEqual(body.count("Same."), 2, body)
+        self.assertEqual(body.count("First"), 1, body)
+        self.assertEqual(body.count("Middle"), 1, body)
+        for back in backs:
+            with self.subTest(back=back):
+                self.assertIn(back, ids)
+        self.assertEqual(body.count("Outer"), 1, body)
+        self.assertEqual(body.count("Inner."), 1, body)
 
 
 if __name__ == "__main__":
