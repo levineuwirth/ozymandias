@@ -52,10 +52,11 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.parse
 from pathlib import Path
 
 from tests._helpers import (CABAL_PROJECT, engine_path, record_derived, requires_cabal, script_env, site_binary,
-                            stub_bin, write_site_config)
+                            srcset_urls, stub_bin, write_site_config)
 
 NOTEBOOK = {"dir": "blog", "address": "notebook", "title": "Notebook", "kind": "Note", "dingbat": None}
 FEED = {"path": "feed.xml", "title": "Notes", "description": "Notes.", "sections": ["blog"],
@@ -241,6 +242,12 @@ class BlogImages(Site):
             first.write('\n<!-- Not shown: <img src="commented.png" alt=""> -->\n')
             # Rooted, though a character reference writes its slash.
             first.write('\nThe <a href="&#47;index.html">home page</a>, by a reference.\n')
+            # Rooted too: the URL parser trims a space a reference writes.
+            first.write('\nThe <a href="&#32;/index.html">home page</a>, spaced.\n')
+            # A comma inside a srcset URL is the URL's.
+            first.write('\n<img src="lake.svg" srcset="lake&#44;summer.svg 1x, lake.svg 2x" alt="Seasons">\n')
+        for name in ("lake,summer.svg", "lake.svg"):
+            image(self.blog / name)
         self.site("rebuild")
         feed = self.read("feed.xml")
         at = "https://example.org/notebook/"
@@ -254,17 +261,23 @@ class BlogImages(Site):
         self.assertRegex(feed, rf'<img[^>]*src="{re.escape(at)}shared\.svg"')
         # What was whole, rooted at the site or within the page is as written.
         for kept in ('href="#lake"', 'href="/index.html"', 'href="https://example.org/a.png"',
-                     'href="&#47;index.html"'):
+                     'href="&#47;index.html"', 'href="&#32;/index.html"'):
             self.assertIn(kept, feed)
         # A comment is not markup, and is as written too.
         self.assertIn('<!-- Not shown: <img src="commented.png" alt=""> -->', feed)
         values = re.findall(r'(?:src|srcset|href|poster)="([^"]*)"', re.sub(r"<!--.*?-->", "", feed, flags=re.S))
-        self.assertEqual([v for v in values if not re.match(r"[a-z]+:|[/#]", html.unescape(v))], [])
-        # Every candidate of a srcset, read whole: the fixture writes one's
-        # separators as references (wide.png&#32;2x&#44; wider.png 3x).
+        self.assertEqual([v for v in values if not re.match(r"[a-z]+:|[/#]", html.unescape(v).strip())], [])
+        # Every candidate of a srcset, read whole and parsed as a browser
+        # parses it: the fixture writes one's separators as references
+        # (wide.png&#32;2x&#44; wider.png 3x), and a comma in a URL.
         for srcset in re.findall(r'srcset="([^"]*)"', feed):
-            for candidate in html.unescape(srcset).split(","):
-                self.assertRegex(candidate.split()[0], r"^(https?:|/)", srcset)
+            for url in srcset_urls(srcset):
+                self.assertRegex(url, r"^(https?:|/)", srcset)
+        seasons = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="Seasons"', feed)
+        self.assertIsNotNone(seasons)
+        # %2C names the same file, and survives Hakyll's srcset parser.
+        self.assertEqual([urllib.parse.unquote(u) for u in srcset_urls(seasons.group(1))],
+                         [at + "lake,summer.svg", at + "lake.svg"])
         # The page itself still names them from where it is.
         self.assertRegex(self.read("notebook/first.html"), r'<img[^>]*src="charts/depth\.svg"')
 

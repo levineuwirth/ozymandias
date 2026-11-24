@@ -80,6 +80,32 @@ def load_tool(filename: str, name: str | None = None, *, register: bool = False,
     return module
 
 
+def srcset_urls(value: str) -> list[str]:
+    """The URLs of a srcset attribute's value as written, read (character
+    references decoded) and parsed as the HTML standard parses it: a URL
+    runs to whitespace, less the commas it ends with, and its descriptors
+    run to a comma outside parentheses. A comma inside a URL is the URL's.
+    https://html.spec.whatwg.org/multipage/images.html#parsing-a-srcset-attribute"""
+    import html
+    value, urls, i, space = html.unescape(value), [], 0, " \t\n\f\r"
+    while True:
+        while i < len(value) and (value[i] in space or value[i] == ","):
+            i += 1
+        if i == len(value):
+            return urls
+        j = i
+        while j < len(value) and value[j] not in space:
+            j += 1
+        url, i = value[i:j], j
+        urls.append(url.rstrip(","))
+        if url.endswith(","):
+            continue
+        parens = False
+        while i < len(value) and (value[i] != "," or parens):
+            parens = {"(": True, ")": False}.get(value[i], parens)
+            i += 1
+
+
 requires_cabal = unittest.skipUnless(shutil.which("cabal"), "cabal not on PATH")
 
 # Where cabal runs: the site's project, which builds its engine with the

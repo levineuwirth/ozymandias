@@ -52,7 +52,8 @@ import           Text.Pandoc.Options        (WriterOptions (..))
 import           Text.Pandoc.Walk           (query, walk)
 import           Hakyll
 import           System.FilePath            (takeDirectory)
-import           HtmlUrls                   (isRelative, mapUrlsRead, resolveAgainst)
+import           HtmlUrls                   (attributeValues, isRelative, mapUrlsRead,
+                                             resolveAgainst)
 import           Config                     (SiteConfig, loadConfig, switchOn)
 import           PandocOptions              (withMath)
 import           Compilers                  (readerOpts, writerOpts)
@@ -337,17 +338,17 @@ resolveFromPage pageRoute u
 -- backlinks graph; this keeps them working inside the quote.
 -- tools/check-site.py (link-fragments) fails the build on any that slip
 -- through. A fragment the excerpt defines itself stays put: the anchor is
--- quoted with it.
+-- quoted with it. Its ids are read as attributes are (@id='here'@,
+-- @id="r&amp;d"@), as the fragment is.
 rebaseExcerpt :: FilePath -> String -> String
 rebaseExcerpt pageRoute html = mapUrlsRead rebase html
   where
-    localIds = map (takeWhile (/= '"')) (drop 1 (splitOn " id=\"" html))
+    localIds = attributeValues "id" html
     rebase u
         | "#" `isPrefixOf` u = if drop 1 u `elem` localIds then Nothing
                                else Just (canonicalUrlPath pageRoute ++ u)
         | otherwise          = let u' = resolveFromPage pageRoute u
                                in  if u' == u then Nothing else Just u'
-    splitOn sep = map T.unpack . T.splitOn (T.pack sep) . T.pack
 
 -- ---------------------------------------------------------------------------
 -- Archive-aware target keying
