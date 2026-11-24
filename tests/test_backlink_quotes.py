@@ -11,7 +11,9 @@ page was keyed as written, and the page it named got no backlink.
 The first review of the fix added what a quote must also get right: a
 query of the page, a responsive image's srcset (in the paragraph popup,
 not the sentence), a directory named by a final `.`, and raw HTML whose
-URL is written with a character reference.
+URL is written with a character reference. The second added more of
+what a character reference can hide: a space in a value without quotes,
+a fragment, and a srcset's separators.
 
 Whole builds of a small scratch site, in make build's order: a build, the
 footer files, a build.
@@ -33,13 +35,19 @@ from pathlib import Path
 from tests._helpers import engine_path, requires_cabal, script_env, site_binary, write_site_config
 
 # The first sentence is the quote: a link beside the page, one below it,
-# one in raw HTML, a query of the page, relative links to pages (one ending
-# in a dot), a rooted one, and raw HTML rooted by a character reference.
-# The second is only in the paragraph popup: an image with a srcset.
+# raw HTML (one value without quotes, with an escaped space), a query of
+# the page, fragments of the page (one the quote defines itself), relative
+# links to pages (one ending in a dot), a rooted one, and raw HTML rooted
+# by a character reference. The second is only in the paragraph popup:
+# images with a srcset, one written with escaped separators.
 A = ("The [script](tool.py), the [figure](fig/one.svg), "
-     '<a href="notes.txt">the notes</a> and a [compact view](?view=compact) are beside this page; '
+     '<a href="notes.txt">the notes</a>, <a href=field&#32;notes.txt>the field notes</a> '
+     'and a [compact view](?view=compact) are beside this page, as are <a href="&#35;atlas">the atlas</a> '
+     'and [a mark]{#mark} (<a href="&#35;mark">the mark</a>); '
      'see [B](/essays/b/), [C](../c/), [E](../e/.) and <a href="&#47;essays/c/">C again</a>. '
-     'Here is the figure: ![figure](fig/one.svg){srcset="fig/one.svg 1x, fig/two.svg 2x"}')
+     'Here is the figure: ![figure](fig/one.svg){srcset="fig/one.svg 1x, fig/two.svg 2x"} '
+     '<img src="small.svg" srcset="small.svg&#32;1x&#44; large.svg 2x" alt="sizes">'
+     "\n\n## Atlas {#atlas}\n\nThe atlas.")
 # A flat page: its relative links start from the section's directory.
 D = "The [script](a/tool.py) is A's; see [B](/essays/b/)."
 
@@ -60,7 +68,8 @@ class BacklinkQuotes(unittest.TestCase):
         essays = root / "content/essays"
         page(root / "content/index.md", "Home", "Home.")
         page(essays / "a/index.md", "A", A)
-        for name in ("tool.py", "fig/one.svg", "fig/two.svg", "notes.txt"):
+        for name in ("tool.py", "fig/one.svg", "fig/two.svg", "notes.txt", "field notes.txt",
+                     "small.svg", "large.svg"):
             (essays / "a" / name).parent.mkdir(parents=True, exist_ok=True)
             (essays / "a" / name).write_text("x\n", encoding="utf-8")
         page(essays / "b/index.md", "B", "B.")
@@ -89,7 +98,7 @@ class BacklinkQuotes(unittest.TestCase):
         """Every URL in a page's footer (href, src and each srcset
         candidate), as the file it names in _site and its query."""
         footer = self.footer(path)
-        urls = re.findall(r'(?:href|src)="([^"]+)"', footer)
+        urls = [q or b for q, b in re.findall(r'(?:href|src)=(?:"([^"]*)"|([^\s"\'>]+))', footer)]
         for srcset in re.findall(r'srcset="([^"]+)"', footer):
             urls += [c.split()[0] for c in html.unescape(srcset).split(",") if c.strip()]
         return {self.resolve(path, url) for url in map(html.unescape, urls) if url.split("#")[0]}
@@ -103,6 +112,12 @@ class BacklinkQuotes(unittest.TestCase):
                                     else posixpath.join(posixpath.dirname(path), address))
         return (target + "/index.html" if address.endswith("/") else target, query)
 
+    def anchors(self, footer: str, text: str) -> list[str]:
+        """The hrefs of the footer's links with this text, as read."""
+        found = re.findall(r'<a href=(?:"([^"]*)"|([^\s">]+))[^>]*>' + re.escape(text) + "</a>", footer)
+        self.assertTrue(found, text)
+        return [html.unescape(q or b) for q, b in found]
+
     def targets(self, path: str) -> set[str]:
         return {target for target, _ in self.links(path)}
 
@@ -111,7 +126,8 @@ class BacklinkQuotes(unittest.TestCase):
 
     def test_a_quoted_link_names_the_file_beside_the_page_it_was_quoted_from(self):
         targets = self.targets("essays/b/index.html")
-        for name in ("essays/a/tool.py", "essays/a/fig/one.svg", "essays/a/fig/two.svg", "essays/a/notes.txt"):
+        for name in ("essays/a/tool.py", "essays/a/fig/one.svg", "essays/a/fig/two.svg", "essays/a/notes.txt",
+                     "essays/a/field notes.txt", "essays/a/small.svg", "essays/a/large.svg"):
             self.assertIn(name, targets)
         # What the deploy gate checks: every link in the footer is there.
         for target in targets:
@@ -130,6 +146,24 @@ class BacklinkQuotes(unittest.TestCase):
         popup = re.search(r'class="backlink-full-popup".*?</li>', footer, re.S)
         self.assertIsNotNone(popup)
         self.assertRegex(popup.group(0), r'<img[^>]*srcset="[^"]*essays/a/fig/one\.svg 1x, [^"]*essays/a/fig/two\.svg 2x"')
+        # Escaped separators: both candidates are A's, not only the first.
+        srcset = re.search(r'<img[^>]*srcset="([^"]*)"[^>]*alt="sizes"', popup.group(0))
+        self.assertIsNotNone(srcset)
+        candidates = [c.split()[0] for c in html.unescape(srcset.group(1)).split(",")]
+        self.assertEqual([self.resolve("essays/b/index.html", c)[0] for c in candidates],
+                         ["essays/a/small.svg", "essays/a/large.svg"])
+
+    def test_a_value_without_quotes_keeps_its_whole_url(self):
+        for href in self.anchors(self.footer("essays/b/index.html"), "the field notes"):
+            self.assertEqual(self.resolve("essays/b/index.html", href), ("essays/a/field notes.txt", ""))
+
+    def test_a_fragment_written_with_a_character_reference_is_the_quoted_page_s(self):
+        footer = self.footer("essays/b/index.html")
+        for href in self.anchors(footer, "the atlas"):
+            self.assertEqual(self.resolve("essays/b/index.html", href), ("essays/a/index.html", ""))
+            self.assertTrue(href.endswith("#atlas"), href)
+        # One the quote defines itself stays in the quote, where its anchor is.
+        self.assertEqual(set(self.anchors(footer, "the mark")), {"#mark"})
 
     def test_a_raw_html_link_written_with_a_character_reference_is_read_first(self):
         # &#47;essays/c/ is /essays/c/, rooted: no directory of A's goes before it.
@@ -141,7 +175,11 @@ class BacklinkQuotes(unittest.TestCase):
 
     def test_a_flat_page_s_links_start_from_its_section(self):
         # D's sentence is in B's footer too, and its script is A's.
-        self.assertGreaterEqual(self.footer("essays/b/index.html").count("essays/a/tool.py"), 2)
+        items = self.footer("essays/b/index.html").split('<li class="backlink-item">')
+        d = [item for item in items if re.search(r'class="backlink-source"[^>]*>D</a>', item)]
+        self.assertEqual(len(d), 1)
+        for href in self.anchors(d[0], "script"):
+            self.assertEqual(self.resolve("essays/b/index.html", href), ("essays/a/tool.py", ""))
 
     def test_a_relative_link_to_a_page_is_a_backlink(self):
         self.assertIn("essays/a/index.html", self.targets("essays/c/index.html"))

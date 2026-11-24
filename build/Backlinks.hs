@@ -317,8 +317,8 @@ linksCompiler = do
 -- better in the graph: @../b/@ was keyed as written and joined no page.
 -- A query of the page (@?view=compact@) is the page's own address with
 -- that query. Rooted, all of them are relativized for the page that shows
--- them, as every rooted link is. A URL with a scheme, a rooted one and a
--- fragment are left as written; fragments are 'rebaseFragmentLinks''s.
+-- them, as every rooted link is. A URL with a scheme or a rooted one is
+-- left as written; a fragment is 'rebaseExcerpt''s.
 resolveFromPage :: FilePath -> String -> String
 resolveFromPage pageRoute u
     | "?" `isPrefixOf` u = canonicalUrlPath pageRoute ++ u
@@ -329,10 +329,25 @@ resolveFromPage pageRoute u
 
 -- | 'resolveFromPage' over an excerpt's HTML: every URL attribute, a
 -- @srcset@'s candidates and raw HTML's included, read as a browser reads
--- it ('mapUrlsRead').
+-- it ('mapUrlsRead'), so @href="&#35;atlas"@ is a fragment too.
+--
+-- A fragment points at the page the excerpt was quoted from. Written there
+-- as @[(H1)](#cloud-h1)@, it would otherwise name an anchor the quoting
+-- page does not have. 'isPageLink' already keeps such links out of the
+-- backlinks graph; this keeps them working inside the quote.
+-- tools/check-site.py (link-fragments) fails the build on any that slip
+-- through. A fragment the excerpt defines itself stays put: the anchor is
+-- quoted with it.
 rebaseExcerpt :: FilePath -> String -> String
-rebaseExcerpt pageRoute = mapUrlsRead $ \u ->
-    let u' = resolveFromPage pageRoute u in if u' == u then Nothing else Just u'
+rebaseExcerpt pageRoute html = mapUrlsRead rebase html
+  where
+    localIds = map (takeWhile (/= '"')) (drop 1 (splitOn " id=\"" html))
+    rebase u
+        | "#" `isPrefixOf` u = if drop 1 u `elem` localIds then Nothing
+                               else Just (canonicalUrlPath pageRoute ++ u)
+        | otherwise          = let u' = resolveFromPage pageRoute u
+                               in  if u' == u then Nothing else Just u'
+    splitOn sep = map T.unpack . T.splitOn (T.pack sep) . T.pack
 
 -- ---------------------------------------------------------------------------
 -- Archive-aware target keying
@@ -411,37 +426,11 @@ toSourcePairs item = do
                 Just entries ->
                     return [ ( targetKey (leUrl e)
                              , BacklinkSource srcUrl title abstract
-                                              (rebaseFragmentLinks srcUrl (leSentence  e))
-                                              (rebaseFragmentLinks srcUrl (leParagraph e))
+                                              (leSentence  e)
+                                              (leParagraph e)
                                               (archiveFragment (leUrl e))
                              )
                            | e <- entries ]
-
--- | Point an excerpt's same-page links at the page it was quoted from.
---
--- The excerpt is rendered in its source file's terms, so a cross-reference
--- written there as @[(H1)](#cloud-h1)@ arrives as @href="#cloud-h1"@ — which,
--- quoted in another page's Backlinks footer, names an anchor that page does
--- not have. 'isPageLink' already keeps such links out of the backlinks
--- graph; this keeps them working inside the quote. tools/check-site.py
--- (link-fragments) fails the build on any that slip through.
---
--- A fragment the excerpt defines itself stays put: a quoted footnote is
--- rendered into the excerpt with its own @#fn1@ and @#fnref1@, and the
--- source page has neither, because its notes become sidenotes.
-rebaseFragmentLinks :: String -> String -> String
-rebaseFragmentLinks srcUrl html
-    | null srcUrl = html
-    | otherwise   = case T.splitOn marker (T.pack html) of
-        []             -> html
-        (lead : hrefs) -> T.unpack (T.concat (lead : concatMap rebase hrefs))
-  where
-    marker   = "href=\"#"
-    rebased  = T.pack ("href=\"" ++ escapeHtml srcUrl ++ "#")
-    localIds = map (T.takeWhile (/= '"')) (drop 1 (T.splitOn " id=\"" (T.pack html)))
-    rebase chunk
-        | T.takeWhile (/= '"') chunk `elem` localIds = [marker, chunk]
-        | otherwise                                   = [rebased, chunk]
 
 -- ---------------------------------------------------------------------------
 -- Context field

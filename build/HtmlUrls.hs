@@ -19,13 +19,14 @@ module HtmlUrls
     , resolveAgainst
     ) where
 
-import           Data.Char       (isAlpha, isAlphaNum, isSpace, toLower)
+import           Data.Char       (isAlpha, isAlphaNum, isSpace, ord, toLower)
 import           Data.List       (intercalate, isPrefixOf, isSuffixOf)
+import           Data.Maybe      (fromMaybe, isNothing)
 import qualified Data.Text       as T
 import           Text.Pandoc.XML (fromEntities)
 
 -- | A stretch of the source kept as written, or a URL attribute's value.
-data Piece = Kept String | Value String String   -- ^ attribute (lower case), value
+data Piece = Kept String | Value String Bool String   -- ^ attribute (lower case), quoted, value
 
 -- | The attributes whose value is a URL, and the one whose value is a
 --   list of them (@srcset@: candidates between commas, each a URL and
@@ -38,7 +39,7 @@ urlAttributes = ["src", "href", "poster", "data", "srcset"]
 --   references are read (@A&amp;B.webp@ names @A&B.webp@). 'mapUrls'
 --   leaves them as written, since what it writes is HTML again.
 urlsIn :: String -> [String]
-urlsIn html = concat [ candidates name value | Value name value <- pieces html ]
+urlsIn html = concat [ candidates name value | Value name _ value <- pieces html ]
   where
     -- The whole value first: a reference may write the space or the
     -- comma a srcset is cut at (@art.webp&#32;1x@).
@@ -54,23 +55,44 @@ mapUrls :: (String -> String) -> String -> String
 mapUrls f = concatMap piece . pieces
   where
     piece (Kept s)             = s
-    piece (Value "srcset" v)   = intercalate "," [ lead ++ f url ++ rest | (lead, url, rest) <- srcsetCandidates v ]
-    piece (Value _ v)          = let (lead, body) = span isSpace v
+    piece (Value "srcset" _ v) = intercalate "," [ lead ++ f url ++ rest | (lead, url, rest) <- srcsetCandidates v ]
+    piece (Value _ _ v)        = let (lead, body) = span isSpace v
                                      (url, rest)  = (trimEnd body, drop (length (trimEnd body)) body)
                                  in  lead ++ f url ++ rest
 
 -- | 'mapUrls' for a rewrite that reads each URL as a browser does: @f@
 --   is given the URL with its character references read, and answers
 --   'Nothing' to leave the value exactly as written, or the URL to write
---   in its place, escaped for an attribute. Classifying the written value
---   instead takes @&#47;essays/c/@, which is rooted, for a relative path.
+--   in its place. Classifying the written value instead takes
+--   @&#47;essays/c/@, which is rooted, for a relative path.
+--
+--   A @srcset@ is read whole before it is cut into candidates, since a
+--   reference may write its separators (@a.svg&#32;1x&#44; b.svg 2x@); if
+--   any candidate changes, the whole value is written again. What is
+--   written is escaped for where it stands: in a value without quotes, a
+--   space or a @>@ would end it (@href=field&#32;notes.txt@).
 mapUrlsRead :: (String -> Maybe String) -> String -> String
-mapUrlsRead f = mapUrls (\written -> maybe written (concatMap escape) (f (readValue written)))
+mapUrlsRead f = concatMap piece . pieces
   where
-    escape '&'  = "&amp;"
-    escape '"'  = "&quot;"
-    escape '\'' = "&#39;"
-    escape c    = [c]
+    piece (Kept s) = s
+    piece (Value "srcset" quoted v) =
+        let candidates = srcsetCandidates (readValue v)
+            changed    = [ f url | (_, url, _) <- candidates ]
+        in  if all isNothing changed then v
+            else escapeFor quoted (intercalate ","
+                    [ lead ++ fromMaybe url new ++ rest
+                    | ((lead, url, rest), new) <- zip candidates changed ])
+    piece (Value _ quoted v) =
+        let (lead, body) = span isSpace v
+            (url, rest)  = (trimEnd body, drop (length (trimEnd body)) body)
+        in  maybe v (\new -> lead ++ escapeFor quoted new ++ rest) (f (readValue url))
+    escapeFor quoted = concatMap escape
+      where
+        escape '&'  = "&amp;"
+        escape '"'  = "&quot;"
+        escape '\'' = "&#39;"
+        escape c | not quoted && (isSpace c || c == '>') = "&#" ++ show (ord c) ++ ";"
+                 | otherwise                             = [c]
 
 -- | A @srcset@ value's candidates: the space before each URL, the URL,
 --   and what follows it up to the comma.
@@ -157,12 +179,12 @@ pieces = text ""
     value tag name acc (q : rest)
         | q `elem` "\"'" =
             let (v, after) = break (== q) rest
-            in  emit tag name (q : acc) v (take 1 after) (drop 1 after)
+            in  emit tag name True (q : acc) v (take 1 after) (drop 1 after)
     value tag name acc s =
         let (v, after) = break (\c -> isSpace c || c == '>') s
-        in  emit tag name acc v "" after
-    emit tag name acc v close after
-        | name `elem` urlAttributes = kept acc (Value name v : attributes tag (reverse close) after)
+        in  emit tag name False acc v "" after
+    emit tag name quoted acc v close after
+        | name `elem` urlAttributes = kept acc (Value name quoted v : attributes tag (reverse close) after)
         | otherwise                 = attributes tag (reverse close ++ reverse v ++ acc) after
 
     -- Up to and including the first occurrence of @end@ (any case), or
