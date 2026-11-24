@@ -14,12 +14,13 @@
 module HtmlUrls
     ( urlsIn
     , mapUrls
+    , mapUrlsRead
     , isRelative
     , resolveAgainst
     ) where
 
 import           Data.Char       (isAlpha, isAlphaNum, isSpace, toLower)
-import           Data.List       (intercalate, isPrefixOf)
+import           Data.List       (intercalate, isPrefixOf, isSuffixOf)
 import qualified Data.Text       as T
 import           Text.Pandoc.XML (fromEntities)
 
@@ -41,9 +42,12 @@ urlsIn html = concat [ candidates name value | Value name value <- pieces html ]
   where
     -- The whole value first: a reference may write the space or the
     -- comma a srcset is cut at (@art.webp&#32;1x@).
-    candidates "srcset" value = [ url | (_, url, _) <- srcsetCandidates (text value) ]
-    candidates _        value = [trim (text value)]
-    text = T.unpack . fromEntities . T.pack
+    candidates "srcset" value = [ url | (_, url, _) <- srcsetCandidates (readValue value) ]
+    candidates _        value = [trim (readValue value)]
+
+-- | An attribute's value as text: its character references read.
+readValue :: String -> String
+readValue = T.unpack . fromEntities . T.pack
 
 -- | The HTML with every URL in its attributes given to @f@.
 mapUrls :: (String -> String) -> String -> String
@@ -54,6 +58,19 @@ mapUrls f = concatMap piece . pieces
     piece (Value _ v)          = let (lead, body) = span isSpace v
                                      (url, rest)  = (trimEnd body, drop (length (trimEnd body)) body)
                                  in  lead ++ f url ++ rest
+
+-- | 'mapUrls' for a rewrite that reads each URL as a browser does: @f@
+--   is given the URL with its character references read, and answers
+--   'Nothing' to leave the value exactly as written, or the URL to write
+--   in its place, escaped for an attribute. Classifying the written value
+--   instead takes @&#47;essays/c/@, which is rooted, for a relative path.
+mapUrlsRead :: (String -> Maybe String) -> String -> String
+mapUrlsRead f = mapUrls (\written -> maybe written (concatMap escape) (f (readValue written)))
+  where
+    escape '&'  = "&amp;"
+    escape '"'  = "&quot;"
+    escape '\'' = "&#39;"
+    escape c    = [c]
 
 -- | A @srcset@ value's candidates: the space before each URL, the URL,
 --   and what follows it up to the comma.
@@ -80,12 +97,17 @@ isRelative url = case url of
 --   or a path ending in a slash), with @.@ and @..@ taken out of the
 --   path: @resolveAgainst "https:\/\/a.example\/notes\/" "..\/x.png?v=2"@
 --   is @https:\/\/a.example\/x.png?v=2@. A reference cannot climb above the
---   base's first directory.
+--   base's first directory. A final @.@ or @..@ names a directory, so the
+--   result ends in a slash, as a browser's does: @..\/c\/.@ is @c\/@.
 resolveAgainst :: String -> String -> String
-resolveAgainst base reference = root ++ intercalate "/" (foldl step [] (splitOn '/' (dirs ++ path))) ++ tail'
+resolveAgainst base reference = root ++ joined ++ slash ++ tail'
   where
     (path, tail')   = break (`elem` "?#") reference
     (root, dirs)    = splitRoot base
+    parts           = splitOn '/' (dirs ++ path)
+    joined          = intercalate "/" (foldl step [] parts)
+    slash | last parts `elem` [".", ".."], not (null joined), not ("/" `isSuffixOf` joined) = "/"
+          | otherwise = ""
     step acc "."    = acc
     step acc ".."   = if null acc then [] else init acc
     step acc part   = acc ++ [part]

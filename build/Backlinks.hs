@@ -33,7 +33,7 @@ module Backlinks
     , backlinkMathField
     ) where
 
-import           Data.List                  (isInfixOf, nub, nubBy, partition,
+import           Data.List                  (isInfixOf, isPrefixOf, nub, nubBy, partition,
                                              sortBy, stripPrefix)
 import           Data.Ord                   (comparing)
 import           Data.Maybe                 (fromMaybe)
@@ -46,13 +46,13 @@ import qualified Data.Aeson                 as Aeson
 import           Data.Aeson                 ((.=))
 import           Text.Pandoc.Class          (runPure)
 import           Text.Pandoc.Writers        (writeHtml5String)
-import           Text.Pandoc.Definition     (Block (..), Format (..), Inline (..),
-                                             Pandoc (..), nullMeta)
+import           Text.Pandoc.Definition     (Block (..), Inline (..), Pandoc (..),
+                                             nullMeta)
 import           Text.Pandoc.Options        (WriterOptions (..))
 import           Text.Pandoc.Walk           (query, walk)
 import           Hakyll
 import           System.FilePath            (takeDirectory)
-import           HtmlUrls                   (isRelative, mapUrls, resolveAgainst)
+import           HtmlUrls                   (isRelative, mapUrlsRead, resolveAgainst)
 import           Config                     (SiteConfig, loadConfig, switchOn)
 import           PandocOptions              (withMath)
 import           Compilers                  (readerOpts, writerOpts)
@@ -152,6 +152,8 @@ isPageLink u
         -- protocol-relative //host/path is external, not a page path
         not (T.isPrefixOf "//"       u) &&
         not (T.isPrefixOf "#"        u) &&
+        -- a query of the page itself, as a fragment is
+        not (T.isPrefixOf "?"        u) &&
         not (T.isPrefixOf "mailto:"  u) &&
         not (T.isPrefixOf "tel:"     u) &&
         not (T.null u) &&
@@ -237,14 +239,16 @@ splitSentences = go []
 -- | Extract @LinkEntry@ records from a Pandoc document.
 -- For every internal link in a paragraph, emit an entry carrying the HTML
 -- of the sentence containing the link (default display) and the HTML of
--- the full paragraph (hover/popup context).
+-- the full paragraph (hover/popup context). @keyOf@ gives a link's URL as
+-- the graph keys it and @rebase@ an excerpt's HTML as it is quoted (both
+-- 'resolveFromPage').
 -- Recurses into Div, BlockQuote, BulletList, OrderedList, and
 -- DefinitionList. @Plain@ matters as much as @Para@: Pandoc renders
 -- tight list items (the default @- item@ Markdown form) as @Plain@
 -- blocks, so without it every link written in a tight list would be
 -- invisible to the backlinks system.
-extractLinksWithContext :: Pandoc -> [LinkEntry]
-extractLinksWithContext (Pandoc _ blocks) = concatMap go blocks
+extractLinksWithContext :: (T.Text -> T.Text) -> (String -> String) -> Pandoc -> [LinkEntry]
+extractLinksWithContext keyOf rebase (Pandoc _ blocks) = concatMap go blocks
   where
     go :: Block -> [LinkEntry]
     go (Para inlines)         = paraEntries inlines
@@ -262,16 +266,16 @@ extractLinksWithContext (Pandoc _ blocks) = concatMap go blocks
 
     paraEntries :: [Inline] -> [LinkEntry]
     paraEntries inlines =
-        let paraHtml  = renderInlines inlines
+        let paraHtml  = rebase (renderInlines inlines)
             sentences = splitSentences inlines
         in  concatMap (sentenceEntries paraHtml) sentences
 
     sentenceEntries :: String -> [Inline] -> [LinkEntry]
     sentenceEntries paraHtml sentence =
-        let urls = filter isPageLink (query getUrl sentence)
+        let urls = map keyOf (filter isPageLink (query getUrl sentence))
         in  if null urls then []
             else
-                let sentHtml = renderInlines sentence
+                let sentHtml = rebase (renderInlines sentence)
                 in  map (\u -> LinkEntry u sentHtml paraHtml) urls
 
     getUrl :: Inline -> [T.Text]
@@ -292,8 +296,10 @@ linksCompiler = do
     let src   = itemBody body
     let body' = itemSetBody (preprocessSource cfg src) body
     pandocItem <- readPandocWith (withMath (switchOn cfg "math") readerOpts) body'
-    let doc     = maybe id (walk . rootRelative) mRoute (itemBody pandocItem)
-        entries = nubBy sameEntry (extractLinksWithContext doc)
+    let keyOf   = maybe id (\r -> T.pack . resolveFromPage r . T.unpack) mRoute
+        rebase  = maybe id rebaseExcerpt mRoute
+        entries = nubBy sameEntry
+                        (extractLinksWithContext keyOf rebase (itemBody pandocItem))
     makeItem . TL.unpack . TLE.decodeUtf8 . Aeson.encode $ entries
   where
     sameEntry a b =
@@ -301,30 +307,32 @@ linksCompiler = do
         leSentence  a == leSentence  b &&
         leParagraph a == leParagraph b
 
--- | Root a page's relative references at its own directory, so that they
--- mean the same thing wherever the excerpt is quoted.
+-- | A page's references as they read on the page, rooted at the site, so
+-- that they mean the same thing wherever an excerpt is quoted.
 --
 -- On its page, @[shaney.py](shaney.py)@ is the file beside the page. Quoted
 -- in another page's Backlinks footer, the same @href@ named a file beside
 -- that page, which is not there; check-site's link-targets gate failed the
 -- deploy on it (2026-11-24). A relative link to another page fared no
 -- better in the graph: @../b/@ was keyed as written and joined no page.
--- Rooted at the site, both are relativized for the page that shows them,
--- as every rooted link is. A URL with a scheme, a rooted one, a fragment
--- or a query of the page is left as written; fragments are
--- 'rebaseFragmentLinks''s. Raw HTML in a paragraph is resolved too.
-rootRelative :: FilePath -> Inline -> Inline
-rootRelative pageRoute inline = case inline of
-    Link  attr ils (u, t)       -> Link  attr ils (resolve u, t)
-    Image attr ils (u, t)       -> Image attr ils (resolve u, t)
-    RawInline f@(Format "html") s ->
-        RawInline f (T.pack (mapUrls resolveS (T.unpack s)))
-    x                           -> x
+-- A query of the page (@?view=compact@) is the page's own address with
+-- that query. Rooted, all of them are relativized for the page that shows
+-- them, as every rooted link is. A URL with a scheme, a rooted one and a
+-- fragment are left as written; fragments are 'rebaseFragmentLinks''s.
+resolveFromPage :: FilePath -> String -> String
+resolveFromPage pageRoute u
+    | "?" `isPrefixOf` u = canonicalUrlPath pageRoute ++ u
+    | isRelative u       = resolveAgainst dir u
+    | otherwise          = u
   where
-    base = "/" ++ case takeDirectory pageRoute of { "." -> ""; d -> d ++ "/" }
-    resolveS u | isRelative u = resolveAgainst base u
-               | otherwise    = u
-    resolve = T.pack . resolveS . T.unpack
+    dir = "/" ++ case takeDirectory pageRoute of { "." -> ""; d -> d ++ "/" }
+
+-- | 'resolveFromPage' over an excerpt's HTML: every URL attribute, a
+-- @srcset@'s candidates and raw HTML's included, read as a browser reads
+-- it ('mapUrlsRead').
+rebaseExcerpt :: FilePath -> String -> String
+rebaseExcerpt pageRoute = mapUrlsRead $ \u ->
+    let u' = resolveFromPage pageRoute u in if u' == u then Nothing else Just u'
 
 -- ---------------------------------------------------------------------------
 -- Archive-aware target keying
