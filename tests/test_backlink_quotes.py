@@ -20,7 +20,9 @@ a data: URL's comma beside a rebased candidate, a comma in a srcset whose
 candidates are already rooted (which only the page's own relativizing
 pass reads), and a percent-encoded fragment naming an anchor in the quote.
 The fifth, of that page pass itself: an SVG's self-closing <style/> and a
-script whose data holds a prefix of its closing tag.
+script whose data holds a prefix of its closing tag. The sixth: a CDATA
+section in SVG, an annotation-xml where MathML gives way to HTML, and a
+slash that ends an unquoted value rather than the tag.
 
 Whole builds of a small scratch site, in make build's order: a build, the
 footer files, a build.
@@ -43,6 +45,14 @@ from tests._helpers import engine_path, requires_cabal, script_env, site_binary,
 
 # Script data with a prefix of its closing tag, and markup in a string.
 SCRIPT = '{"a": "</scripture>", "b": "<a href=\'/essays/a/\'>A</a>"}'
+# Data a browser reads as text, which a scanner reading it as markup would
+# relativize: CDATA in SVG, and a script in HTML inside MathML.
+# (Pandoc reflows the markup around them; the data is what must survive.)
+CDATA_DATA = "<![CDATA[{\"x\": \"<a href='/docs/'>Docs</a>\"}]]>"
+CDATA = '<svg width="1" height="1"><script type="application/json">' + CDATA_DATA + "</script></svg>"
+ANNOTATION_DATA = "{\"y\": \"<a href='/docs/'>Docs</a>\"}"
+ANNOTATION = ('<math><annotation-xml encoding="Application/XHTML+xml"><script type="application/json">'
+              + ANNOTATION_DATA + "</script></annotation-xml></math>")
 # The first sentence is the quote: a link beside the page, one below it,
 # raw HTML (one value without quotes, with an escaped space), a query of
 # the page, fragments of the page (one the quote defines itself), relative
@@ -66,10 +76,13 @@ A = ("The [script](tool.py), the [figure](fig/one.svg), "
      '<img src="one.gif" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7 1x, two.gif 2x" alt="embedded">'
      "\n\n## Atlas {#atlas}\n\nThe atlas."
      # Not quoted: what the page's own relativizing pass must read as HTML does.
-     # (The script first: an unclosed style would hide it from the pass.)
+     # (The scripts first: an unclosed style would hide them from the pass,
+     # and the svg whose tag only seems to close itself last, for the same.)
+     "\n\n" + CDATA + "\n\n" + ANNOTATION +
      '\n\n<script type="application/json" id="data">' + SCRIPT + "</script>"
      '\n\n<svg width="1" height="1"><style/><rect width="1" height="1"/></svg> '
-     'And <a href="/essays/c/">after the svg</a>.')
+     'And <a href="/essays/c/">after the svg</a>.'
+     '\n\n<svg data-dir=/icons/><style/></svg> And <a href="/essays/c/">after the icons</a>.')
 # A flat page: its relative links start from the section's directory.
 D = "The [script](a/tool.py) is A's; see [B](/essays/b/)."
 
@@ -197,6 +210,18 @@ class BacklinkQuotes(unittest.TestCase):
         # hid every link after it from relativizing.
         hrefs = self.anchors(self.read("essays/a/index.html"), "after the svg")
         self.assertEqual(hrefs, ["../../essays/c/"])
+
+    def test_a_slash_ending_an_unquoted_value_does_not_close_the_tag(self):
+        # <svg data-dir=/icons/> stays open, so its <style/> closes itself.
+        self.assertEqual(self.anchors(self.read("essays/a/index.html"), "after the icons"), ["../../essays/c/"])
+
+    def test_a_cdata_section_in_svg_is_text(self):
+        self.assertIn(CDATA_DATA, self.read("essays/a/index.html"))
+
+    def test_html_inside_annotation_xml_is_html(self):
+        # Its script is HTML's: raw text, however MathML around it is read.
+        self.assertIn('<script type="application/json">' + ANNOTATION_DATA + "</script>",
+                      self.read("essays/a/index.html"))
 
     def test_script_data_is_left_as_written(self):
         # </scripture> does not close the script; its data is not markup.

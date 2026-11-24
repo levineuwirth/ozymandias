@@ -199,22 +199,32 @@ piecesFor names = text [] ""
 
     -- Outside a tag. @ns@ is the open elements that decide how HTML
     -- parses what follows: an @svg@ or @math@ (foreign content, where
-    -- @style@ and @script@ are elements like any other and @<style/>@
-    -- closes itself), or an integration point inside one (@foreignObject@,
-    -- @desc@ and @title@ in SVG; @mi@, @mo@, @mn@, @ms@ and @mtext@ in
-    -- MathML), where HTML resumes. A closing tag pops its own name.
+    -- @style@ and @script@ are elements like any other, @<style/>@ closes
+    -- itself and a CDATA section is text), or an HTML integration point
+    -- inside one, where HTML resumes: @foreignObject@, @desc@ and @title@
+    -- in SVG; @mi@, @mo@, @mn@, @ms@, @mtext@, and an @annotation-xml@
+    -- whose encoding is text/html or application/xhtml+xml, in MathML. A
+    -- closing tag pops its own name.
     text _ acc [] = kept acc []
     text ns acc s@('<' : rest)
-        | "<!--" `isPrefixOf` s = let (comment, after) = through "-->" s in text ns (reverse comment ++ acc) after
+        | "<!--" `isPrefixOf` s                       = skip (comment s)
+        | "<![CDATA[" `isPrefixOf` s, inForeign ns    = skip (through "]]>" s)
+        -- What HTML reads as a bogus comment (a doctype ends the same
+        -- way): to the first >.
+        | ('!' : _) <- rest                           = skip (through ">" s)
+        | ('?' : _) <- rest                           = skip (through ">" s)
         | ('/' : c : _) <- rest, isAlpha c =
             let (name, after) = span tagChar (drop 1 rest)
                 ns'           = case ns of
                     top : below | top == map toLower name -> below
                     _                                     -> ns
             in  text ns' (reverse name ++ "/<" ++ acc) after
+        | ('/' : _) <- rest                           = skip (through ">" s)
         | (c : _) <- rest, isAlpha c =
             let (name, after) = span tagChar rest
-            in  attributes ns (map toLower name) (reverse name ++ '<' : acc) after
+            in  attributes ns (map toLower name) Nothing (reverse name ++ '<' : acc) after
+      where
+        skip (passed, after) = text ns (reverse passed ++ acc) after
     text ns acc (c : rest) = text ns (c : acc) rest
 
     tagChar x = isAlphaNum x || x `elem` ("-:" :: String)
@@ -222,22 +232,28 @@ piecesFor names = text [] ""
     inForeign (top : _) = top `elem` ["svg", "math"]
     inForeign []        = False
 
-    -- Inside an opening tag, between its attributes.
-    attributes _ _ acc [] = kept acc []
-    attributes ns tag acc ('>' : rest)
-        -- In HTML a raw-text element's contents are not markup, whether or
-        -- not its tag ends in a slash, up to its whole closing tag.
-        | not (inForeign ns) && tag `elem` rawText =
-            let (body, after) = untilClosing tag rest in text ns (reverse body ++ '>' : acc) after
-        | otherwise = text ns' ('>' : acc) rest
+    -- A comment ends at -->, or at --!>; <!--> and <!---> end at once.
+    comment s
+        | "<!-->"  `isPrefixOf` s = splitAt 5 s
+        | "<!--->" `isPrefixOf` s = splitAt 6 s
+        | otherwise               = go (reverse "<!--") (drop 4 s)
       where
-        ns' | take 1 acc == "/"                     = ns
-            | tag `elem` ["svg", "math"]            = tag : ns
-            | inForeign ns && tag `elem` integrations = tag : ns
-            | otherwise                             = ns
-    attributes ns tag acc (c : rest)
-        | isSpace c || c == '/' = attributes ns tag (c : acc) rest
-    attributes ns tag acc s =
+        go acc [] = (reverse acc, [])
+        go acc r@(c : cs)
+            | "-->"  `isPrefixOf` r = (reverse acc ++ "-->", drop 3 r)
+            | "--!>" `isPrefixOf` r = (reverse acc ++ "--!>", drop 4 r)
+            | otherwise             = go (c : acc) cs
+
+    -- Inside an opening tag, between its attributes. @enc@ is its
+    -- encoding attribute's value, read, for annotation-xml. The tag closes
+    -- itself only where a / comes right before its > outside a value: the
+    -- slash ending @data-dir=/icons/@ is the value's.
+    attributes _ _ _ acc [] = kept acc []
+    attributes ns tag enc acc ('/' : '>' : rest) = open ns tag enc True ('>' : '/' : acc) rest
+    attributes ns tag enc acc ('>' : rest)       = open ns tag enc False ('>' : acc) rest
+    attributes ns tag enc acc (c : rest)
+        | isSpace c || c == '/' = attributes ns tag enc (c : acc) rest
+    attributes ns tag enc acc s =
         let (name, after)   = break (\c -> isSpace c || c `elem` ("=>/" :: String)) s
             (gap, after')   = span isSpace after
             acc'            = reverse gap ++ reverse name ++ acc
@@ -245,26 +261,46 @@ piecesFor names = text [] ""
             '=' : more ->
                 let (gap', more') = span isSpace more
                     acc''         = reverse gap' ++ '=' : acc'
-                in  value ns tag (map toLower name) acc'' more'
-            _ | null name -> attributes ns tag (reverse (take 1 after') ++ acc') (drop 1 after')
-              | otherwise -> attributes ns tag acc' after'
+                in  value ns tag enc (map toLower name) acc'' more'
+            _ | null name -> attributes ns tag enc (reverse (take 1 after') ++ acc') (drop 1 after')
+              | otherwise -> attributes ns tag enc acc' after'
+
+    -- After the tag's >: in HTML a raw-text element's contents are not
+    -- markup, whether or not its tag ends in a slash, up to its whole
+    -- closing tag.
+    open ns tag enc selfClosing acc rest
+        | not (inForeign ns) && tag `elem` rawText =
+            let (body, after) = untilClosing tag rest in text ns (reverse body ++ acc) after
+        | otherwise = text ns' acc rest
+      where
+        ns' | selfClosing                = ns
+            | tag `elem` ["svg", "math"] = tag : ns
+            | integration                = tag : ns
+            | otherwise                  = ns
+        integration = case ns of
+            "svg"  : _ -> tag `elem` ["foreignobject", "desc", "title"]
+            "math" : _ -> tag `elem` ["mi", "mo", "mn", "ms", "mtext"]
+                          || (tag == "annotation-xml"
+                              && fmap (map toLower) enc `elem` [Just "text/html", Just "application/xhtml+xml"])
+            _          -> False
 
     -- An attribute's value: quoted, or bare to the next space.
-    value ns tag name acc (q : rest)
+    value ns tag enc name acc (q : rest)
         | q `elem` ("\"'" :: String) =
             let (v, after) = break (== q) rest
-            in  emit ns tag name (Just q) (q : acc) v (take 1 after) (drop 1 after)
-    value ns tag name acc s =
+            in  emit ns tag enc name (Just q) (q : acc) v (take 1 after) (drop 1 after)
+    value ns tag enc name acc s =
         let (v, after) = break (\c -> isSpace c || c == '>') s
-        in  emit ns tag name Nothing acc v "" after
-    emit ns tag name quoted acc v close after
-        | name `elem` names = kept acc (Value name quoted v : attributes ns tag (reverse close) after)
-        | otherwise         = attributes ns tag (reverse close ++ reverse v ++ acc) after
+        in  emit ns tag enc name Nothing acc v "" after
+    emit ns tag enc name quoted acc v close after
+        | name `elem` names = kept acc (Value name quoted v : attributes ns tag enc' (reverse close) after)
+        | otherwise         = attributes ns tag enc' (reverse close ++ reverse v ++ acc) after
+      where
+        enc' = if name == "encoding" then Just (readValue v) else enc
 
     -- HTML's raw-text and escapable raw-text elements. noscript is left
     -- out: its fallback markup is relativized, as Hakyll's pass did.
-    rawText      = ["script", "style", "xmp", "iframe", "noembed", "noframes", "title", "textarea"]
-    integrations = ["foreignobject", "desc", "title", "mi", "mo", "mn", "ms", "mtext"]
+    rawText = ["script", "style", "xmp", "iframe", "noembed", "noframes", "title", "textarea"]
 
     -- Up to (not including) the element's closing tag: @</@, its whole
     -- name in any case, then a space, a @/@ or a @>@. @</scripture>@
