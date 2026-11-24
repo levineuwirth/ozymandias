@@ -304,7 +304,12 @@ transformInline keyNums (Cite citations _) = do
                     foldr (\k m -> Map.insertWith (\_ old -> old) k markerId m)
                           (msFirstOccurrence st) keys
                 }
-            return $ RawInline "html" (markerHtml keys markerId firstKey (markerLabel numbered))
+            -- A footnote written in a locator follows the marker, where the
+            -- notes filter finds it: inside the marker's link it was a
+            -- second document.
+            let (label, notes) = markerLabel numbered
+                marker         = RawInline "html" (markerHtml keys markerId firstKey label)
+            return $ if null notes then marker else Span nullAttr (marker : notes)
         _ ->
             return (Str "")
 transformInline _ x = return x
@@ -324,36 +329,73 @@ markerHtml keys markerId firstKey label =
     <> " data-cite-keys=\"" <> allIds <> "\">"
     <> label <> "</a></sup>"
 
--- | A marker's label, as HTML: the numbers of a cluster, @[3,4]@, and,
---   where its author wrote any, each citation's prefix and locator as
---   written: @[\@PralatWormald, Theorem 4.1]@ is @[8, Theorem 4.1]@,
---   @[see \@a, p. 3; \@b]@ is @[see 1, p. 3; 2]@. Pandoc keeps the
---   locator in the citation's suffix, which the label once left out, and
---   with it which theorem or page was meant. A cluster with neither is
---   labelled as it always was.
-markerLabel :: [(Citation, Int)] -> Text
+-- | A marker's label, as HTML, and the footnotes its citations carried:
+--   the numbers of a cluster, @[3,4]@, and, where its author wrote any, each
+--   citation's prefix and locator as written: @[\@PralatWormald, Theorem
+--   4.1]@ is @[8, Theorem 4.1]@, @[see \@a, p. 3; \@b]@ is @[see 1, p. 3;
+--   2]@. Pandoc keeps the locator in the citation's suffix, which the label
+--   once left out, and with it which theorem or page was meant. A cluster
+--   with neither is labelled as it always was.
+--
+--   The suffix keeps its own separator: @[\@a, p. 3]@ has its comma,
+--   @[\@a 23]@ its space (@[1 23]@, not @[123]@). A textual citation's has
+--   none (@\@a [23]@ is the key and @23@), and is given a comma: @[1, 23]@.
+--   The label is inside the marker's link, so links in it are taken off,
+--   Markdown or HTML, and footnotes are taken out and returned.
+markerLabel :: [(Citation, Int)] -> (Text, [Inline])
 markerLabel numbered
-    | all (bare . fst) numbered = "[" <> T.intercalate "," (map (tshow . snd) numbered) <> "]"
-    | otherwise                 = "[" <> T.intercalate "; " (map one numbered) <> "]"
+    | all (bare . fst) cleaned = ("[" <> T.intercalate "," (map (tshow . snd) cleaned) <> "]", notes)
+    | otherwise                = ("[" <> T.intercalate "; " (map one cleaned) <> "]", notes)
   where
+    notes   = concatMap (\(c, _) -> query footnote (citationPrefix c <> citationSuffix c)) numbered
+    cleaned = [ (c { citationPrefix = clean (citationPrefix c)
+                   , citationSuffix = clean (citationSuffix c) }, n)
+              | (c, n) <- numbered ]
     bare c = null (citationPrefix c) && null (citationSuffix c)
     one (c, n) =
            (if null (citationPrefix c) then "" else inlineHtml (citationPrefix c) <> " ")
         <> tshow n
-        <> inlineHtml (citationSuffix c)
+        <> suffixHtml (citationSuffix c)
+    suffixHtml [] = ""
+    suffixHtml ils@(i : rest)
+        | spacey i                = " " <> inlineHtml (dropWhile spacey rest)
+        | Str t <- i, Just (ch, _) <- T.uncons t, ch `elem` (",;:.)" :: String)
+                                  = inlineHtml ils
+        | otherwise               = ", " <> inlineHtml ils
+    spacey i = case i of Space -> True; SoftBreak -> True; LineBreak -> True; _ -> False
+    footnote :: Inline -> [Inline]
+    footnote i@(Note _) = [i]
+    footnote _          = []
+    clean = walk unlink . walk (filter (not . isNote))
+    isNote i = case i of Note _ -> True; _ -> False
     tshow = T.pack . show
 
--- | Inlines as HTML, for inside the marker's link: links taken off (a link
---   in a link is not HTML), math as MathML, as the bibliography's is.
+-- | Links off, for inside the marker's link (a link in a link is not
+--   HTML): a Markdown link becomes its text, and an HTML anchor's tags go,
+--   leaving what was between them.
+unlink :: [Inline] -> [Inline]
+unlink = concatMap $ \i -> case i of
+    Link _ inner _                    -> inner
+    RawInline (Format f) t
+        | f `elem` ["html", "html5"]
+        , isAnchorTag t               -> []
+    _                                 -> [i]
+  where
+    isAnchorTag t = case T.uncons (T.toLower (T.strip t)) of
+        Just ('<', rest) -> case T.uncons (T.dropWhile (== '/') (T.stripStart rest)) of
+            Just ('a', after) -> T.null after || T.head after `elem` (" \t\n>/" :: String)
+            _                 -> False
+        _ -> False
+
+-- | Inlines as HTML, for inside the marker's link ('markerLabel' has taken
+--   links and notes off), math as MathML, as the bibliography's is.
 inlineHtml :: [Inline] -> Text
 inlineHtml ils =
-    case runPure (writeHtml5String wOpts (Pandoc nullMeta [Plain (walk unlink ils)])) of
+    case runPure (writeHtml5String wOpts (Pandoc nullMeta [Plain ils])) of
         Left  _    -> T.concat [ t | Str t <- ils ]
         Right html -> unclaimMathSpans (T.strip html)
   where
     wOpts = def { writerWrapText = WrapNone, writerHTMLMathMethod = MathML }
-    unlink :: [Inline] -> [Inline]
-    unlink = concatMap (\i -> case i of Link _ inner _ -> inner; _ -> [i])
 
 
 -- ---------------------------------------------------------------------------
