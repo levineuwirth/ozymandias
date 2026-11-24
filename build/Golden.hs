@@ -54,7 +54,7 @@ renderFixture path = do
         initials      = pageInitials (takeDirectory path) meta
     parsed <- either (die . show) return $
         runPure (readMarkdown (withMath (switchOn cfg "math") readerOpts) (T.pack (preprocessSource cfg body)))
-    (doc, bibHtml, furtherHtml) <-
+    (doc, bibHtml, furtherHtml, _) <-
         transformDocument cfg frKeys bibPath numberFigures (takeDirectory path) initials
                           (Headings.normalizeLevels parsed)
     html <- either (die . show) return $ runPure (writeHtml5String writerOpts doc)

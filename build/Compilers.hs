@@ -197,7 +197,7 @@ essayCompilerWith rOpts = do
     let initials = pageInitials srcDir meta
     trackInitials initials
 
-    (pandocFiltered, bibHtml, furtherHtml) <- unsafeCompiler $
+    (pandocFiltered, bibHtml, furtherHtml, citeKeys) <- unsafeCompiler $
         transformDocument cfg frKeys bibPath numberFigures srcDir initials (itemBody pandocItem)
     -- The image filter asked which WebPs are their images': the page is
     -- built again when that may have changed ("DerivedImages").
@@ -216,13 +216,11 @@ essayCompilerWith rOpts = do
     _ <- saveSnapshot "reading-time"         (itemSetBody (show (readingTime src))       htmlItem)
     _ <- saveSnapshot "bibliography"         (itemSetBody (T.unpack bibHtml)             htmlItem)
     _ <- saveSnapshot "further-reading-refs" (itemSetBody (T.unpack furtherHtml)         htmlItem)
-    -- The keys this page cites or lists as further reading, for
+    -- The keys this page shows or lists by name as further reading, for
     -- /bibliography/, which claims "every work cited across this site" and
-    -- so lists only these (audit C07).
-    let citeKeys = query (\i -> case i of
-                              Cite cs _ -> map citationId cs
-                              _         -> []) (itemBody pandocItem)
-    _ <- saveSnapshot "cite-keys"            (itemSetBody (unwords (map T.unpack (citeKeys ++ frKeys))) htmlItem)
+    -- so lists only these (audit C07): by their entries' keys, and not one
+    -- cited only where the page does not show it ('transformDocument').
+    _ <- saveSnapshot "cite-keys"            (itemSetBody (unwords (map T.unpack citeKeys)) htmlItem)
 
     return htmlItem
 
@@ -266,19 +264,22 @@ trackInitials (Initials dirs _) = do
 --   Returns the filtered document, the bibliography HTML and the
 --   further-reading HTML.
 transformDocument :: SiteConfig -> [T.Text] -> T.Text -> Bool -> FilePath -> Initials -> Pandoc
-                  -> IO (Pandoc, T.Text, T.Text)
+                  -> IO (Pandoc, T.Text, T.Text, [T.Text])
 transformDocument cfg frKeys bibPath numberFigures srcDir initials doc = do
-    (withCites, bibHtml, furtherHtml) <-
+    -- With the bibliography, the keys the page shows ('applyCitations');
+    -- without it, every key written, as the page shows them all as text.
+    (withCites, bibHtml, furtherHtml, citeKeys) <-
         if switchOn cfg "bibliography"
             then Citations.applyCitations cfg frKeys bibPath doc
-            else return (Citations.plainCitations doc, T.empty, T.empty)
+            else return ( Citations.plainCitations doc, T.empty, T.empty
+                        , query (\i -> case i of Cite cs _ -> map citationId cs; _ -> []) doc ++ frKeys )
     withScores <- if switchOn cfg "music" then Score.inlineScores srcDir withCites
                                           else return withCites
     withViz    <- if switchOn cfg "viz"
                       then Viz.inlineViz (withMath (switchOn cfg "math") readerOpts) srcDir withScores
                       else return withScores
     filtered   <- applyAll cfg numberFigures srcDir initials withViz
-    return (filtered, bibHtml, furtherHtml)
+    return (filtered, bibHtml, furtherHtml, citeKeys)
 
 -- | Compiler for essays.
 essayCompiler :: Compiler (Item String)

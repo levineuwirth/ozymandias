@@ -41,11 +41,13 @@ data BibExtra = BibExtra
     , bibKeywords :: [String]         -- ^ @keywords:@ — comma-split, trimmed.
     , bibAuthor   :: Maybe String     -- ^ @author:@ — raw value, sort key only.
     , bibYear     :: Maybe String     -- ^ @year:@ — raw value, sort key only.
+    , bibIds      :: [String]         -- ^ @ids:@ — BibLaTeX aliases, comma-split: other
+                                      --   keys citeproc resolves to this entry.
     } deriving (Show)
 
 -- | Neutral default for a citekey with no custom fields.
 emptyBibExtra :: BibExtra
-emptyBibExtra = BibExtra Nothing [] Nothing Nothing
+emptyBibExtra = BibExtra Nothing [] Nothing Nothing []
 
 -- | First-author surname for alphabetic sort. Conservative extraction:
 --   take everything up to the first comma of the first author entry.
@@ -176,4 +178,7 @@ toExtra flds = BibExtra
         Just s  -> filter (not . null) (map trim (splitOn ',' s))
     , bibAuthor   = lookup "author" flds
     , bibYear     = lookup "year" flds
+    , bibIds      = case lookup "ids" flds of
+        Nothing -> []
+        Just s  -> filter (not . null) (map trim (splitOn ',' s))
     }
