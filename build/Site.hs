@@ -49,7 +49,7 @@ import MarkdownSections (markdownSectionsCompiler)
 import Marks      (monogramPattern)
 import qualified Patterns as P
 import Photography (photographyAssets, photographyRules)
-import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
+import Tags       (buildAllTags, applyTagRules, portalShelfContext, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
@@ -545,10 +545,19 @@ rules = do
     -- ---------------------------------------------------------------------------
     -- Homepage
     -- ---------------------------------------------------------------------------
-    match "content/index.md" $ do
+    -- With the shelf, the home page counts what the tag pages list: it is
+    -- out of date when they are (Tags.anchoredTagsRules' anchor).
+    (if switchOn cfg "portal-shelf"
+        then rulesExtraDependencies [IdentifierDependency "_dependencies/tags"]
+        else id) $
+     match "content/index.md" $ do
         route   $ constRoute "index.html"
-        compile $ pageCompiler
-            >>= inDefault "templates/home.html" homeCtx
+        compile $ do
+            -- The portals as a shelf over the map (Tags.portalShelfContext),
+            -- or as a list.
+            shelf <- if switchOn cfg "portal-shelf" then portalShelfContext tags else return mempty
+            pageCompiler
+                >>= inDefault "templates/home.html" (shelf <> homeCtx)
 
     -- ---------------------------------------------------------------------------
     -- Standalone pages: site.yaml's table (me, colophon, current, …)

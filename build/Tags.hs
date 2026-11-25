@@ -30,12 +30,14 @@ module Tags
     , portalIntroField
     , portalTooltipField
     , seeAlsoContext
+    , portalShelfContext
     ) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (forM, forM_, when)
 import Data.Char  (isSpace, toLower, toUpper)
-import Data.List  (intercalate, isPrefixOf, nub, sort, sortBy)
+import qualified Data.Function as F
+import Data.List  (groupBy, intercalate, isPrefixOf, nub, sort, sortBy)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe, mapMaybe)
 import Data.Ord   (Down (..), comparing)
@@ -47,7 +49,7 @@ import Utils (escapeHtml, inDefault, writerlyDate)
 import Config     (SiteConfig (..), Portal (..), Section (..), loadConfig, switchOn, tagDisplayName)
 import System.FilePath (dropFileName, takeFileName)
 import TagMap     (MapPiece (..), MapTag (..), layoutMap, renderMap)
-import Patterns   (tagIndexable)
+import Patterns   (blogPattern, fictionPattern, musicPattern, poetryPattern, tagIndexable)
 import Sections   (sectionOfRoute, sectionOwnedTopLevelTags, tagPageUrl)
 import Contexts   (abstractField, contentKindField, displaySortKey, identifierDisplayUTCMaybe,
                    photographyCtx, recentFirstByDisplay, revisionDateFields, siteCtx,
@@ -635,7 +637,7 @@ tagMapRules tags baseCtx = do
                         ++ (if null inner then "" else "<ul>" ++ concat inner ++ "</ul>")
                         ++ "</li>"
                 index = "<ul class=\"tag-map-index-list\">" ++ concatMap node tops ++ "</ul>"
-                facts = show (length mapTags) ++ " tags and " ++ show (length pieces) ++ " pieces"
+                facts = mapFacts mapTags pieces
                 ctx = constField "title" "Map"
                    <> constField "description"
                         ("Every tag on this site and the pieces filed under it, drawn as one map. "
@@ -645,3 +647,99 @@ tagMapRules tags baseCtx = do
                    <> constField "list-page" "true"
                    <> constField "tag-map" (scrollable (fromMaybe "" (lookup "" drawings)))
             makeItem "" >>= inDefault "templates/tag-map.html" (ctx <> baseCtx)
+
+
+-- | "17 tags and 31 pieces": what the whole map draws.
+mapFacts :: [MapTag] -> [MapPiece] -> String
+mapFacts mapTags pieces = show (length mapTags) ++ " tags and " ++ show (length pieces) ++ " pieces"
+
+
+-- ---------------------------------------------------------------------------
+-- The home page's shelf of portals
+-- ---------------------------------------------------------------------------
+
+-- | A portal as a spine on the home page's shelf.
+data Spine = Spine
+    { spinePortal  :: Portal
+    , spineCount   :: Int            -- ^ the pieces under it
+    , spineCaption :: String         -- ^ its gloss, else its facts
+    , spineCover   :: Maybe String   -- ^ its sidecar's @cover:@, an image
+    }
+
+-- | The home page's shelf (switch @portal-shelf@, templates/partials/
+--   portal-shelf.html): site.yaml's portals as spines, in their order, a
+--   run of portals with one facet standing together, each spine as thick
+--   as the pieces under it. A portal's pieces are those its tag page
+--   lists (the tag index, its subtags' with it) and those published at its
+--   address by a section, which is how a form (Poetry, Music) that is a
+--   section and no tag has any. With tag-map on, the whole map stands open under the
+--   shelf (@$shelf-map$@), and portal-shelf.js lights a portal's region on
+--   it when its spine is pointed at.
+--
+--   The caption a spine gives is its gloss (the sidecar's @tooltip:@),
+--   else its facts in a phrase ("seven essays, May to November 2026");
+--   a portal the map does not draw (a form) may name a @cover:@ image in
+--   its sidecar to show instead.
+portalShelfContext :: Tags -> Compiler (Context String)
+portalShelfContext tags = do
+    cfg        <- loadConfig
+    sidecarSet <- Set.fromList <$> getMatches ("content/tag-meta/*.md" .||. "content/tag-meta/**/*.md")
+    ids        <- getMatches (tagIndexable cfg
+                              .||. ((blogPattern .||. poetryPattern .||. fictionPattern .||. musicPattern)
+                                    .&&. hasNoVersion))
+    -- Where each piece is published: its section's address, which is the
+    -- portal's when the portal is a section (a site may serve a section at
+    -- an address of its own, as a blog at /notebook/).
+    placed <- forM ids $ \i -> do
+        r <- getRoute i
+        return (i, sectionAddress <$> (sectionOfRoute cfg =<< r))
+    -- The tags each piece the tag pages file is written with: a section's
+    -- own tag ("poetry") has no key in the tag index, the section having
+    -- its address, so an essay tagged with it is found here.
+    indexable <- getMatches (tagIndexable cfg)
+    written   <- forM indexable $ \i -> (,) i <$> getTags i
+    spines <- forM (sitePortals cfg) $ \p -> do
+        -- A portal's pieces: everything the tag pages file under its tag
+        -- or any tag beneath it (the tag index, and the tags as written,
+        -- for a section's own tag, which has no key in the index), and
+        -- what its section publishes; each once.
+        let t      = portalTag p
+            under' k = k == t || (t ++ "/") `isPrefixOf` k
+            tagged = Set.fromList ([ i | (k, is) <- tagsMap tags, under' k, i <- is ]
+                                ++ [ i | (i, ts) <- written, any under' ts ])
+            inSec  = Set.fromList [ i | (i, Just a) <- placed, a == t ]
+            under  = Set.toList (tagged `Set.union` inSec)
+        pieces <- mapM (pieceOf cfg) under
+        gloss  <- (Just <$> glossOf sidecarSet t) <|> return Nothing
+        cover  <- if sidecarIdentifier t `Set.member` sidecarSet
+                      then fmap trim . lookupString "cover" <$> getMetadata (sidecarIdentifier t)
+                      else return Nothing
+        let facts = countPhrase (map pieceKind pieces)
+                    ++ maybe "" (", " ++) (spanPhrase (mapMaybe pieceWhen pieces))
+        return (Spine p (length under) (fromMaybe facts gloss) (cover >>= \c -> if null c then Nothing else Just c))
+    mapCtx <- if not (switchOn cfg "tag-map") then return mempty else do
+        drawings          <- loadTagMaps
+        (mapTags, pieces) <- tagMapInput tags
+        return $ constField "shelf-map" (fromMaybe "" (lookup "" drawings))
+              <> constField "shelf-map-facts" (mapFacts mapTags pieces)
+              -- head.html and default.html load the map's stylesheet and
+              -- script on a page with a map.
+              <> constField "tag-map" "shelf"
+    let portal   = spinePortal . itemBody
+        spineCtx =
+               field "shelf-name"    (return . escapeHtml . portalName . portal)
+            <> field "shelf-tag"     (return . escapeHtml . portalTag . portal)
+            <> field "shelf-url"     (\i -> return (escapeHtml ("/" ++ portalTag (portal i) ++ "/")))
+            <> field "shelf-facet"   (\i -> case portalFacet (portal i) of
+                                                "" -> noResult "no facet"
+                                                f  -> return (escapeHtml f))
+            <> field "shelf-size"    (return . show . spineCount . itemBody)
+            <> field "shelf-count"   (\i -> case spineCount (itemBody i) of
+                                                0 -> noResult "nothing under it yet"
+                                                n -> return (show n))
+            <> field "shelf-caption" (return . escapeHtml . spineCaption . itemBody)
+            <> field "shelf-cover"   (maybe (noResult "no cover") (return . escapeHtml) . spineCover . itemBody)
+        facetCtx = listFieldWith "shelf-portals" spineCtx (mapM makeItem . itemBody)
+        facets   = groupBy ((==) `F.on` (portalFacet . spinePortal)) spines
+    return $ listField "shelf-facets" facetCtx (mapM makeItem facets) <> mapCtx
+

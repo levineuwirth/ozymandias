@@ -1,0 +1,280 @@
+@layer engine {
+/* portal-shelf.css — the home page's portals as a shelf
+   (templates/partials/portal-shelf.html, Tags.portalShelfContext, switch
+   portal-shelf), drawn as the catalogue's shelf of scores is
+   (modules/catalog.css): each portal a spine on a board, as thick as the
+   pieces under it, the portals of one facet standing together. With the
+   map on, it stands open under the shelf, captioned as the catalogue's
+   face-out score is: a title over one italic line. portal-shelf.js turns
+   it to the portal pointed at. */
+
+.portal-shelf {
+    --portal-shelf-height: 10rem;
+    margin-top: 2.75rem;
+}
+
+
+/* The board. The top padding is headroom for a spine drawn up off it. */
+.portal-shelf-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.3rem 0;
+    border-bottom: 3px solid var(--text);
+}
+
+
+#markdownBody .portal-shelf-facet {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: flex-end;
+    gap: 3px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+
+/* A spine is a binding wide enough for its title and a little more for
+   each piece, growing as the square root of the count so that a portal of
+   hundreds of photographs is a thick volume and not the whole board. At a
+   large text size the spines narrow together to keep to the column. */
+#markdownBody .portal-shelf-facet > li {
+    flex: 0 1 auto;
+    width: clamp(1.15rem, calc(1.15rem + 0.3rem * sqrt(var(--count, 0))), 2.8rem);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+
+#markdownBody .portal-spine {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--portal-shelf-height);
+    padding: 0.9rem 0 0.4rem;
+    background: var(--text);
+    color: var(--bg);
+    text-decoration: none;
+    box-shadow:
+        inset 1px 0 0 color-mix(in srgb, var(--bg) 16%, transparent),
+        inset -1px 0 0 color-mix(in srgb, var(--bg) 8%, transparent);
+    transition: transform var(--transition-medium);
+}
+
+
+#markdownBody .portal-spine:visited {
+    color: var(--bg);
+}
+
+
+/* Two pairs of rules, where a bound volume's lettering panel would be. */
+.portal-spine::before,
+.portal-spine::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    right: 0.3rem;
+    height: 3px;
+    border-top: 1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+}
+
+
+.portal-spine::before { top: 0.35rem; }
+
+
+.portal-spine::after  { bottom: 1.35rem; }
+
+
+/* Research is bound apart: paper, ruled in ink, as the map draws it as
+   an open circle. */
+#markdownBody .portal-spine--research,
+#markdownBody .portal-spine--research:visited {
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--text);
+}
+
+
+.portal-spine--research::before,
+.portal-spine--research::after {
+    border-color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+
+.portal-spine-title {
+    max-height: calc(var(--portal-shelf-height) - 2.9rem);
+    overflow: hidden;
+    font-family: var(--font-serif);
+    font-size: var(--step--4);
+    line-height: 1.15;
+    letter-spacing: calc(0.04em * var(--tracking-scale));
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    writing-mode: vertical-rl;
+}
+
+
+.portal-spine-count {
+    font-family: var(--font-serif);
+    font-size: var(--step--3);
+    font-variant-numeric: oldstyle-nums;
+    letter-spacing: calc(0.03em * var(--tracking-scale));
+    opacity: var(--shelf-detail-opacity);
+}
+
+
+/* Pointing at a spine draws it a little way off the shelf. */
+#markdownBody .portal-spine:hover,
+#markdownBody .portal-spine:focus-visible,
+#markdownBody .portal-spine.is-out {
+    transform: translateY(-0.4rem);
+}
+
+
+#markdownBody .portal-spine:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 3px;
+}
+
+
+/* The book open under the shelf: the whole map, or a portal's region of
+   it, or a form's cover. */
+.portal-shelf-open {
+    margin-top: 1.75rem;
+}
+
+
+.portal-shelf-stage .tag-map a {
+    text-decoration: none;
+}
+
+
+.portal-shelf-cover {
+    display: block;
+    max-width: 100%;
+    height: 13rem;
+    margin: 0 auto;
+    object-fit: contain;
+    border: 1px solid var(--border);
+    background: var(--shelf-paper, var(--bg));
+}
+
+
+.portal-shelf-cover[hidden],
+.portal-shelf-stage.is-cover .tag-map {
+    display: none;
+}
+
+
+#markdownBody .portal-shelf-caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0.9rem 0 0;
+    text-align: center;
+    text-indent: 0;
+    line-height: 1.35;
+}
+
+
+#markdownBody .portal-shelf-caption-title {
+    color: var(--text);
+    text-decoration: none;
+}
+
+
+#markdownBody .portal-shelf-caption-title:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--link-hover-underline);
+}
+
+
+.portal-shelf-caption-meta {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+
+/* A phone: every spine still on the one shelf, of one width and without
+   its count, a facet's run set off by a wider gap; the map is a picture
+   of the whole, scaled to the column, its caption the way to /map/. */
+@media (max-width: 680px) {
+    /* The shelf takes most of the page's side padding, and on the
+       narrowest phones nearly all of it: thirteen spines need about 316px
+       to stand 24px apart (WCAG 2.2 SC 2.5.8, target size), more than a
+       375px phone's column leaves, and all but the whole of a 320px one. */
+    .portal-shelf {
+        --portal-shelf-height: 7rem;
+        margin-inline: calc(clamp(1px, (100vw - 318px) / 2, 0.4rem) - var(--page-padding));
+    }
+
+
+    .portal-shelf-row {
+        gap: 0;
+        padding: 0.6rem 0 0;
+    }
+
+
+    #markdownBody .portal-shelf-facet {
+        display: contents;
+    }
+
+
+    #markdownBody .portal-shelf-facet > li {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        margin-left: 1px;
+    }
+
+
+    #markdownBody .portal-shelf-facet + .portal-shelf-facet > li:first-child {
+        margin-left: clamp(3px, (100vw - 300px) / 6, 0.3rem);
+    }
+
+
+    #markdownBody .portal-spine {
+        padding: 0.6rem 0 0.4rem;
+    }
+
+
+    .portal-spine::after {
+        bottom: 0.35rem;
+    }
+
+
+    .portal-spine-title {
+        max-height: calc(var(--portal-shelf-height) - 1.4rem);
+        font-size: var(--step--5);
+    }
+
+
+    .portal-spine-count {
+        display: none;
+    }
+
+
+    .portal-shelf-stage .tag-map {
+        min-width: 0;
+    }
+
+
+    .portal-shelf-cover {
+        height: 10rem;
+    }}
+
+
+@media (prefers-reduced-motion: reduce) {
+    #markdownBody .portal-spine {
+        transition: none;
+    }}
+}

@@ -1,0 +1,7 @@
+<nav class="portal-shelf" aria-label="Portals" data-portal-shelf>
+<div class="portal-shelf-row">$for(shelf-facets)$<ol class="portal-shelf-facet">$for(shelf-portals)$<li style="--count: $shelf-size$"><a class="portal-spine$if(shelf-facet)$ portal-spine--$shelf-facet$$endif$" href="$shelf-url$" data-tag="$shelf-tag$" data-caption="$shelf-caption$"$if(shelf-cover)$ data-cover="$shelf-cover$"$endif$><span class="portal-spine-title">$shelf-name$</span>$if(shelf-count)$<span class="portal-spine-count">$shelf-count$</span>$endif$</a></li>$endfor$</ol>$endfor$</div>
+$if(shelf-map)$<div class="portal-shelf-open">
+<div class="portal-shelf-stage">$shelf-map$<img class="portal-shelf-cover" alt="" decoding="async" hidden></div>
+<p class="portal-shelf-caption"><a class="portal-shelf-caption-title" href="/map/">Map</a><span class="portal-shelf-caption-meta">$shelf-map-facts$</span></p>
+</div>$endif$
+</nav>

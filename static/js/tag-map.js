@@ -104,6 +104,13 @@
         });
         svg.addEventListener('pointerleave', clear);
 
+        /* Another script may light a tag's region, or clear it (null):
+           portal-shelf.js, for the spine pointed at. */
+        svg.addEventListener('tagmap:light', function (e) {
+            if (e.detail) lightTag(e.detail);
+            else clear();
+        });
+
         /* Bring a lit map's tag into view where the map pans. */
         var focus = svg.getAttribute('data-focus');
         var scroller = svg.parentElement;

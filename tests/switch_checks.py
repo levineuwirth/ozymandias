@@ -598,12 +598,13 @@ def tag_pages_on(site: Path) -> None:
     assert re.search(rf'<a class="meta-tag" href="[./]*{TAGGED}/">{TAGGED_NAME}</a>', essay), \
         "the essay's tag is not a link under its portal's name"
     assert 'class="nav-portals"' in essay, "the navigation has no portals"
-    assert 'class="hp-portals"' in text(site, "index.html"), "the home page has no portals"
+    home = text(site, "index.html")
+    assert 'class="hp-portals"' in home or "data-portal-shelf" in home, "the home page has no portals"
 
 
 def tag_pages_off(site: Path) -> None:
     assert not (site / "_site" / TAGGED / "index.html").exists(), f"/{TAGGED}/ was built"
-    linking = re.compile(rf'href="[./]*{TAGGED}/"|class="(?:nav-portals|nav-portal-toggle|hp-portals)"')
+    linking = re.compile(rf'href="[./]*{TAGGED}/"|class="(?:nav-portals|nav-portal-toggle|hp-portals|portal-shelf)"')
     linked = [p.name for p in pages(site) if linking.search(p.read_text(encoding="utf-8"))]
     assert not linked, f"links to tag pages, or portals, on {linked}"
     assert f'<span class="meta-tag">{TAGGED_NAME}</span>' in text(site, "essays/long/index.html"), \
@@ -633,6 +634,24 @@ def tag_map_off(site: Path) -> None:
              if re.search(r'class="tag-map[ "]', p.read_text(encoding="utf-8"))
              or TAG_MAP_ASSETS.search(p.read_text(encoding="utf-8"))]
     assert not drawn, f"a map, or its assets, on {drawn}"
+
+
+PORTAL_SHELF_ASSETS = re.compile(r'(?:css/portal-shelf\.css|js/portal-shelf\.js)')
+
+
+def portal_shelf_on(site: Path) -> None:
+    home = text(site, "index.html")
+    assert "data-portal-shelf" in home, "the home page's portals are not a shelf"
+    assert re.search(rf'<a class="portal-spine[^"]*" href="[./]*{TAGGED}/"', home), "no spine for the portal"
+    assert 'class="hp-portals"' not in home, "the home page lists the portals as well"
+    assert PORTAL_SHELF_ASSETS.search(home), "the home page does not load the shelf's stylesheet and script"
+
+
+def portal_shelf_off(site: Path) -> None:
+    shelved = [p.name for p in pages(site)
+               if "data-portal-shelf" in p.read_text(encoding="utf-8")
+               or PORTAL_SHELF_ASSETS.search(p.read_text(encoding="utf-8"))]
+    assert not shelved, f"a shelf of portals, or its assets, on {shelved}"
 
 
 AUTHOR, AUTHOR_SLUG = "Example Author", "example-author"   # site.yaml's author
@@ -778,6 +797,7 @@ CHECKS = {
     "stats-page": (stats_page_on, stats_page_off),
     "tag-pages": (tag_pages_on, tag_pages_off),
     "tag-map": (tag_map_on, tag_map_off),
+    "portal-shelf": (portal_shelf_on, portal_shelf_off),
     "transclusion": (transclusion_on, transclusion_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),

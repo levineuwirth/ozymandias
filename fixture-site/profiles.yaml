@@ -40,6 +40,7 @@ full:
     pdf-viewer: true
     photography: true
     popups: true
+    portal-shelf: true
     random: true
     reading-progress: true
     search-filters: true
@@ -78,6 +79,7 @@ minimal:
     pdf-viewer: false
     photography: true
     popups: true
+    portal-shelf: false
     random: false
     reading-progress: true
     search-filters: false

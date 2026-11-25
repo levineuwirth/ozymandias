@@ -237,6 +237,17 @@ tag-map:
     region lit. The tags of a section's own tree (the photographs' places)
     are left off.
 
+portal-shelf:
+  kind: capability
+  default: false
+  needs: [tag-pages]
+  assets: [css/portal-shelf.css, js/portal-shelf.js]
+  about: >-
+    The home page's portals as a shelf of spines, each as thick as the
+    pieces under it, a facet's portals standing together. With tag-map on,
+    the whole map stands open beneath it, and pointing at a spine lights
+    that portal's region. Without it the portals are a list.
+
 authors:
   kind: generated
   default: true
