@@ -9,7 +9,8 @@
    keyboard reaches the shelf, and stand in the map's own box. The caption
    under the map becomes the portal's name over its gloss, or its facts.
    Leaving the shelf turns it back, and so does tabbing on to the caption,
-   which is then the way to /map/.
+   which is then the way to /map/. Pointing at the map itself names what is
+   pointed at, a tag or a piece, and a portal's region draws its spine.
 
    A touch goes straight to the portal, as any link does: there is no
    pointing without a pointer. Without this script, or without a map, the
@@ -131,9 +132,55 @@
     shelf.addEventListener('focusout', function (e) {
         if (!shelf.contains(e.relatedTarget)) show(null);
     });
-    /* tag-map.js clears its own hover when the pointer leaves the map; the
-       shelf's portal is lit again. */
+    /* Pointing at the map turns the caption to what is pointed at (the
+       lighting is tag-map.js's own): a tag, by its name over its gloss or
+       facts; a piece, by its title over the tags it is filed under. A
+       portal's region draws its spine off the shelf. Leaving the map gives
+       the shelf back to the spine that has focus, if one has, else to the
+       map. */
+    var mapTags = {};
+    shelf.querySelectorAll('.portal-shelf-map-tags li').forEach(function (li) {
+        mapTags[li.getAttribute('data-tag')] = {
+            name: li.getAttribute('data-name'),
+            url: li.getAttribute('data-url'),
+            caption: li.getAttribute('data-caption')
+        };
+    });
+    var spineFor = {};
+    shelf.querySelectorAll('.portal-spine').forEach(function (s) {
+        spineFor[s.getAttribute('data-tag')] = s;
+    });
+
+    function drawOut(spine) {
+        shelf.querySelectorAll('.portal-spine.is-out').forEach(function (s) {
+            if (s !== spine) s.classList.remove('is-out');
+        });
+        if (spine) spine.classList.add('is-out');
+    }
+
+    svg.addEventListener('pointerover', function (e) {
+        var a = e.target.closest && e.target.closest('a');
+        if (!a || !svg.contains(a)) return;
+        showCover(false);
+        if (a.classList.contains('tag-map-tag')) {
+            var tag = a.getAttribute('data-tag');
+            var info = mapTags[tag];
+            if (!info) return;
+            caption(a.getAttribute('href') || info.url, info.name, info.caption);
+            drawOut(spineFor[tag.split('/')[0]] || null);
+        } else if (a.classList.contains('tag-map-piece')) {
+            var label = a.querySelector('title');
+            var tags = (a.getAttribute('data-tags') || '').split(' ').filter(function (t) { return mapTags[t]; });
+            caption(a.getAttribute('href'), label ? label.textContent : '',
+                    tags.map(function (t) { return mapTags[t].name; }).join(' \u00b7 '));
+            drawOut(null);
+        }
+    });
     svg.addEventListener('pointerleave', function () {
-        if (shown && onMap(shown.getAttribute('data-tag'))) light(shown.getAttribute('data-tag'));
+        var focused = document.activeElement;
+        var back = shelf.contains(focused) && focused.classList.contains('portal-spine') ? focused : null;
+        shown = undefined;   /* turn the shelf again, even to the same spine */
+        drawOut(null);
+        show(back);
     });
 })();

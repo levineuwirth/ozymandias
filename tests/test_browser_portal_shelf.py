@@ -9,6 +9,8 @@ page under its enforcing policy:
   · keyboard focus does what pointing does, and tabbing on from the last
     spine reaches the caption naming the map, the keyboard's way to /map/;
     a pointer that leaves gives the shelf back to the focused spine;
+  · pointing at the map names what is pointed at: a tag by its name and
+    caption (its portal's spine drawn out), a piece by its title and tags;
   · a cover that fails to load leaves the map, not the last portal's cover;
     from one cover to the next the map does not show between, and a cover
     stands in the map's box, moving nothing below it;
@@ -146,6 +148,41 @@ class PortalShelf(unittest.TestCase):
                 self.assertEqual(page.evaluate(STATE)["out"], [])
                 page.evaluate("document.activeElement.blur()")
                 self.assertEqual(page.evaluate(STATE)["out"], [])
+                self.assertEqual(errors, [])
+
+    @requires_switch("tag-map")
+    def test_the_map_names_what_is_pointed_at(self):
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, errors = self.open(browser, viewport={"width": 1440, "height": 1000})
+                rest = page.evaluate(STATE)
+                tags = page.evaluate("""() => [...document.querySelectorAll('.portal-shelf-map-tags li')]
+                    .map(li => ({tag: li.dataset.tag, name: li.dataset.name, caption: li.dataset.caption}))""")
+                self.assertTrue(tags)
+                # A subtag, where there is one: its portal's spine comes off the shelf.
+                tag = next((t for t in tags if "/" in t["tag"]), tags[0])
+                portal = tag["tag"].split("/")[0]
+                page.hover(f'.portal-shelf svg .tag-map-tag[data-tag="{tag["tag"]}"] circle')
+                page.wait_for_timeout(150)
+                state = page.evaluate(STATE)
+                self.assertEqual((state["title"], state["meta"]), (tag["name"], tag["caption"]))
+                spines = [s["tag"] for s in page.evaluate(SPINES)]
+                self.assertEqual(state["out"], [portal] if portal in spines else [])
+                # A piece: its title over the tags it is filed under.
+                piece = page.evaluate("""() => { const a = document.querySelector('.portal-shelf svg .tag-map-piece');
+                    return {title: a.querySelector('title').textContent, tags: a.dataset.tags.split(' ')}; }""")
+                page.hover('.portal-shelf svg .tag-map-piece circle')
+                page.wait_for_timeout(150)
+                state = page.evaluate(STATE)
+                names = {t["tag"]: t["name"] for t in tags}
+                self.assertEqual(state["title"], piece["title"])
+                self.assertEqual(state["meta"], " \u00b7 ".join(names[t] for t in piece["tags"] if t in names))
+                self.assertEqual(state["out"], [])
+                # Leaving the map: the shelf at rest again.
+                page.mouse.move(2, 2)
+                page.wait_for_timeout(150)
+                back = page.evaluate(STATE)
+                self.assertEqual((back["title"], back["meta"], back["out"]), (rest["title"], rest["meta"], []))
                 self.assertEqual(errors, [])
 
     @requires_switch("tag-map")

@@ -695,7 +695,9 @@ data Spine = Spine
 --   address by a section, which is how a form (Poetry, Music) that is a
 --   section and no tag has any. With tag-map on, the whole map stands open under the
 --   shelf (@$shelf-map$@), and portal-shelf.js lights a portal's region on
---   it when its spine is pointed at.
+--   it when its spine is pointed at; pointing at the map itself turns the
+--   caption to the tag or piece pointed at (@$for(shelf-map-tags)$@ gives
+--   each tag's name and caption).
 --
 --   The caption a spine gives is its gloss (the sidecar's @tooltip:@),
 --   else its facts in a phrase ("seven essays, May to November 2026");
@@ -741,8 +743,23 @@ portalShelfContext tags = do
     mapCtx <- if not (switchOn cfg "tag-map") then return mempty else do
         drawings          <- loadTagMaps
         (mapTags, pieces) <- tagMapInput tags
+        -- Each tag on the map with the caption the shelf gives it when it
+        -- is pointed at on the map: its gloss, else its facts.
+        captions <- forM mapTags $ \t -> do
+            gloss <- (Just <$> glossOf sidecarSet (mtTag t)) <|> return Nothing
+            ps    <- mapM (pieceOf cfg) (fromMaybe [] (lookup (mtTag t) (tagsMap tags)))
+            let facts = countPhrase (map pieceKind ps)
+                        ++ maybe "" (", " ++) (spanPhrase (mapMaybe pieceWhen ps))
+            return (t, fromMaybe facts gloss)
+        let mapTagCtx = field "map-tag"         (return . escapeHtml . mtTag . fst . itemBody)
+                     <> field "map-tag-name"    (return . escapeHtml . mtName . fst . itemBody)
+                     <> field "map-tag-url"     (return . escapeHtml . mtUrl . fst . itemBody)
+                     <> field "map-tag-caption" (return . escapeHtml . snd . itemBody)
         return $ constField "shelf-map" (fromMaybe "" (lookup "" drawings))
               <> constField "shelf-map-facts" (mapFacts mapTags pieces)
+              <> listField "shelf-map-tags" mapTagCtx
+                     (mapM (\(n, c) -> return (Item (fromFilePath ("_shelf-map-tag/" ++ show n)) c))
+                           (zip [(0 :: Int) ..] captions))
               -- head.html and default.html load the map's stylesheet and
               -- script on a page with a map.
               <> constField "tag-map" "shelf"

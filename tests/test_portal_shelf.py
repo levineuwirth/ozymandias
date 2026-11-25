@@ -119,6 +119,13 @@ class PortalShelf(unittest.TestCase):
         self.assertNotIn("data-cover", notes)
         self.assertIn("portal-spine--research", self.spine("research"))
 
+    def test_each_tag_on_the_map_has_a_caption(self):
+        listed = re.findall(r'<li data-tag="([^"]+)" data-name="([^"]+)" data-url="[^"]+" data-caption="([^"]*)">',
+                            self.home)
+        by_tag = {t: (n, c) for t, n, c in listed}
+        self.assertEqual(by_tag["notes/inner"], ("Inner", "one essay, May 2026"))
+        self.assertEqual(by_tag["notes"][1], "two essays, March to May 2026")
+
     def test_the_map_stands_open_under_the_shelf(self):
         stage = self.home[self.home.index('class="portal-shelf-stage"'):]
         self.assertRegex(stage[:400], r'<svg [^>]*class="tag-map"')

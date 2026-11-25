@@ -64,20 +64,34 @@
 
 #markdownBody.music-index .shelf {
     margin: 3.25rem 0 0;
-    padding-bottom: 3.6rem;       /* the two-line label under the face-out score */
+    padding-bottom: 4.2rem;       /* the two-line label under the face-out score, below the board */
 }
 
 
 
 /* The board the volumes stand on, running the width of the page like a
    shelf that is not yet full; the face-out work stands just past the
-   spines. */
+   spines. Drawn as the home page's shelf is (portal-shelf.css): its top
+   edge in ink, its front a lighter face, a shadow beneath. */
 .shelf-row {
+    position: relative;
     display: flex;
     align-items: flex-end;
     gap: 2rem;
     padding: 0 0.75rem;
-    border-bottom: 3px solid var(--text);
+}
+
+.shelf-row::after {
+    content: "";
+    position: absolute;
+    left: -0.6rem;
+    right: -0.6rem;
+    bottom: -12px;
+    height: 12px;
+    background: linear-gradient(var(--text) 0 3px, color-mix(in srgb, var(--text) 14%, var(--bg)) 3px 100%);
+    border-bottom: 1px solid color-mix(in srgb, var(--text) 55%, transparent);
+    box-shadow: 0 6px 10px -6px color-mix(in srgb, var(--text) 35%, transparent);
+    pointer-events: none;
 }
 
 
@@ -279,7 +293,7 @@
    than it: title on one line, forces and year on the next. */
 .shelf-caption {
     position: absolute;
-    top: calc(100% + 0.8rem);
+    top: calc(100% + 1.4rem);
     left: 0;
     right: 0;
     display: flex;

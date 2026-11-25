@@ -11,15 +11,6 @@ $endif$
 $for(library-see-also)$<a href="$href$">$label$</a>$sep$<span class="library-see-also-sep" aria-hidden="true">·</span>$endfor$
 </nav>
 
-$if(library-subjects)$
-<nav class="library-subjects" aria-label="By subject">
-<p class="library-subjects-label">By subject$if(library-map)$<span class="library-subjects-sep" aria-hidden="true"> · </span><a href="$library-map$">the map</a>$endif$</p>
-<ul class="library-subjects-list">
-$for(library-subjects)$<li><a href="$subject-url$">$subject-name$</a><span class="library-subjects-count">$subject-count$</span></li>
-$endfor$</ul>
-</nav>
-$endif$
-
 $for(library-shelves)$$if(entries)$
 <section class="library-section">
 <h2 id="$tag$"><span class="library-section-ornament" data-ornament="$tag$" aria-hidden="true"></span>$if(shelf-url)$<a href="$shelf-url$">$name$</a>$else$$name$$endif$</h2>
