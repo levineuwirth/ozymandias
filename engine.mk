@@ -156,29 +156,29 @@ engine-published:
 
 build-locked: export SITE_ENV = production
 build-locked: engine-committed
-	# ---- Stage 0: snapshot, freshness decision, asset prerequisites -------
-	#
-	# Auto-snapshot any uncommitted content/ changes BEFORE the build
-	# so the stability heuristic in build/Stability.hs sees a stable
-	# git history. If a subsequent step fails, the snapshot remains in
-	# the history — that's intentional. The next successful build
-	# either reuses it (no new content/ changes) or appends another
-	# snapshot on top, so failures don't disappear from the log.
-	#
-	# `git add content/` respects .gitignore, which excludes credential-
-	# shaped patterns (.env, *.key, *.pem, id_rsa*, credentials*, etc.)
-	# so a stray secret dropped under content/ is NOT auto-staged. To
-	# intentionally commit a normally-ignored file, use `git add -f`
-	# manually before running `make build`.
-	#
-	# The commit and its guard are pathspec-limited to content/ so that
-	# anything the user had previously staged for other reasons is left
-	# staged, not silently swept into the auto-commit.
-	#
-	# SKIP_SNAPSHOT=1 skips the auto-commit entirely, for building
-	# someone else's checkout or verifying a build without touching the
-	# history. The build is otherwise identical; only the stability
-	# labels of just-edited pieces can differ.
+	@echo "build: stage 0, prerequisites"
+#
+# Auto-snapshot any uncommitted content/ changes BEFORE the build
+# so the stability heuristic in build/Stability.hs sees a stable
+# git history. If a subsequent step fails, the snapshot remains in
+# the history — that's intentional. The next successful build
+# either reuses it (no new content/ changes) or appends another
+# snapshot on top, so failures don't disappear from the log.
+#
+# `git add content/` respects .gitignore, which excludes credential-
+# shaped patterns (.env, *.key, *.pem, id_rsa*, credentials*, etc.)
+# so a stray secret dropped under content/ is NOT auto-staged. To
+# intentionally commit a normally-ignored file, use `git add -f`
+# manually before running `make build`.
+#
+# The commit and its guard are pathspec-limited to content/ so that
+# anything the user had previously staged for other reasons is left
+# staged, not silently swept into the auto-commit.
+#
+# SKIP_SNAPSHOT=1 skips the auto-commit entirely, for building
+# someone else's checkout or verifying a build without touching the
+# history. The build is otherwise identical; only the stability
+# labels of just-edited pieces can differ.
 	@if [ "$(SKIP_SNAPSHOT)" = "1" ]; then \
 	  echo "build: SKIP_SNAPSHOT=1 — not auto-committing content/"; \
 	else \
@@ -187,40 +187,40 @@ build-locked: engine-committed
 	fi
 	@mkdir -p data
 	@date +%s > data/build-start.txt
-	# Recorded again as the last step: until then _site is not what its
-	# inputs describe (tools/build-inputs.py, read by the browser tests).
+# Recorded again as the last step: until then _site is not what its
+# inputs describe (tools/build-inputs.py, read by the browser tests).
 	@rm -f data/build-inputs.json
-	# Full-rebuild-or-incremental decision. Four triggers force a clean
-	# here (Hakyll rules changed, content deleted/renamed, route-defining
-	# frontmatter changed, stale full-rebuild stamp); otherwise the build
-	# is incremental. This is what lets `make deploy` skip its old
-	# unconditional `clean`.
+# Full-rebuild-or-incremental decision. Four triggers force a clean
+# here (Hakyll rules changed, content deleted/renamed, route-defining
+# frontmatter changed, stale full-rebuild stamp); otherwise the build
+# is incremental. This is what lets `make deploy` skip its old
+# unconditional `clean`.
 	@python3 $(call tool,build-provenance.py) begin
 	@$(call tool,build-freshness.sh) check
-	# Responsive photo variants (P01). Must come BEFORE convert-images so
-	# each .w480/.w960/.w1440 file gets a .webp companion of its own, and
-	# before the dimension sidecars below (which skip variants outright).
+# Responsive photo variants (P01). Must come BEFORE convert-images so
+# each .w480/.w960/.w1440 file gets a .webp companion of its own, and
+# before the dimension sidecars below (which skip variants outright).
 	@$(call with_switch,photography,$(MAKE) -s thumbnails)
 	@$(call tool,convert-images.sh)
 	@$(MAKE) -s pdf-thumbs
 	@$(call with_switch,pdf-viewer,$(call tool,download-pdfjs.sh))
 	@$(call with_switch,photography,$(call tool,download-leaflet.sh))
-	# The browser libraries once loaded from jsDelivr, served from this
-	# origin like the two above (engine/static/transformers/, vega/).
+# The browser libraries once loaded from jsDelivr, served from this
+# origin like the two above (engine/static/transformers/, vega/).
 	@$(call with_switch,semantic-search,$(call tool,download-libraries.sh) transformers >/dev/null)
 	@$(call with_switch,viz,$(call tool,download-libraries.sh) vega >/dev/null)
-	# The semantic-search model (engine/static/models/, gitignored), like the two
-	# above: without it the deploy's rsync --delete would remove the
-	# published model (audit D07). Skips present files after re-checking
-	# their pinned SHA-256.
+# The semantic-search model (engine/static/models/, gitignored), like the two
+# above: without it the deploy's rsync --delete would remove the
+# published model (audit D07). Skips present files after re-checking
+# their pinned SHA-256.
 	@$(call with_switch,semantic-search,$(call tool,download-model.sh) >/dev/null)
-	# Photography pipeline (Phase 3), behind its switch: generate per-photo
-	# EXIF + palette sidecars under content/photography/**/*.{exif,palette}.yaml
-	# so the Hakyll context can merge them with frontmatter at compile time.
-	# Plus per-image dimension sidecars across static/images/ and
-	# content/** so build/Filters/Images.hs can attach width / height
-	# attrs to body images for CLS prevention.
-	# Gated on .venv presence, same as embed.py — failures are non-fatal.
+# Photography pipeline (Phase 3), behind its switch: generate per-photo
+# EXIF + palette sidecars under content/photography/**/*.{exif,palette}.yaml
+# so the Hakyll context can merge them with frontmatter at compile time.
+# Plus per-image dimension sidecars across static/images/ and
+# content/** so build/Filters/Images.hs can attach width / height
+# attrs to body images for CLS prevention.
+# Gated on .venv presence, same as embed.py — failures are non-fatal.
 	@if [ -x $(VENV_PY) ]; then \
 	  if $(call switch_on,photography); then \
 	    $(VENV_PY) $(call tool,extract-exif.py)     || echo "Warning: EXIF extraction failed (build continues with frontmatter only)"; \
@@ -230,12 +230,12 @@ build-locked: engine-committed
 	else \
 	  echo "Photography sidecars skipped: run 'make venv' to enable EXIF + palette + dimension extraction (build continues with frontmatter only)"; \
 	fi
-	# Archive pipeline (Phase 1): fetch any manifest URL without a local
-	# artifact, extract text, write archive/<slug>/PROVENANCE.json and
-	# data/archive-index.json. Behind the archive switch, and gated on .venv,
-	# same as embed.py. A SHA or slug-URL integrity error exits non-zero and
-	# halts the build; a transient network failure is non-fatal (the entry
-	# retries next build).
+# Archive pipeline (Phase 1): fetch any manifest URL without a local
+# artifact, extract text, write archive/<slug>/PROVENANCE.json and
+# data/archive-index.json. Behind the archive switch, and gated on .venv,
+# same as embed.py. A SHA or slug-URL integrity error exits non-zero and
+# halts the build; a transient network failure is non-fatal (the entry
+# retries next build).
 	@if ! $(call switch_on,archive); then \
 	  echo "Archive fetch skipped: the archive switch is off"; \
 	elif [ -x $(VENV_PY) ]; then \
@@ -243,38 +243,38 @@ build-locked: engine-committed
 	else \
 	  echo "Archive fetch skipped: run 'make venv' to enable link archiving (build continues)"; \
 	fi
-	# Code-reference snapshots: fetch any GitHub blob/tree/commit linked from
-	# content/ that has no snapshot in code-refs/ yet, for the hover popup.
-	# Python stdlib plus the site draft scanner; not gated on .venv.
-	# Network failures are warnings;
-	# the link keeps its previous snapshot or gets no code popup.
+# Code-reference snapshots: fetch any GitHub blob/tree/commit linked from
+# content/ that has no snapshot in code-refs/ yet, for the hover popup.
+# Python stdlib plus the site draft scanner; not gated on .venv.
+# Network failures are warnings;
+# the link keeps its previous snapshot or gets no code popup.
 	@$(call with_switch,code-refs,python3 $(call tool,code-refs.py) fetch)
-	# ---- Stage 1: compile (produces the HTML that embed.py reads) --------
+	@echo "build: stage 1, compile"
 	cabal run site -- build
-	# Purge dev/watch leftovers BEFORE embedding or indexing: drafts under
-	# _site/drafts/ (written only by SITE_ENV=dev builds into this same
-	# _site) must never reach the embedding outputs, pagefind, or the VPS.
-	# This runs before embed.py specifically so a draft paragraph cannot
-	# enter data/semantic-index.bin, which ships to every visitor.
+# Purge dev/watch leftovers BEFORE embedding or indexing: drafts under
+# _site/drafts/ (written only by SITE_ENV=dev builds into this same
+# _site) must never reach the embedding outputs, pagefind, or the VPS.
+# This runs before embed.py specifically so a draft paragraph cannot
+# enter data/semantic-index.bin, which ships to every visitor.
 	@if [ -d _site/drafts ]; then \
 	  echo "build: removing _site/drafts (dev leftovers)"; \
 	  rm -rf _site/drafts; \
 	fi
-	# ---- Stage 2: embed --------------------------------------------------
-	#
-	# embed.py, behind the similar-links switch, reads _site/**/*.html and
-	# writes back into data/: similar-links.json and, with semantic-search on,
-	# the semantic-index.bin / semantic-meta.json pair (copied into _site/data/ by a Hakyll match
-	# rule). Then `site footer-data` splits similar-links.json and stage 1's
-	# _site/data/backlinks.json into one file per page under data/footer/,
-	# rewriting only the files whose entries changed (build/FooterData.hs,
-	# audit H01). It runs whether or not embed.py did: backlinks need it too.
-	#
-	# It used to run AFTER the only compile pass, which meant every one of
-	# those three outputs reached the VPS exactly one build late: the
-	# published semantic metadata described the previous edit of the site,
-	# and a new essay's Related section did not appear until the build
-	# after the one that created it. (B01)
+	@echo "build: stage 2, embed"
+#
+# embed.py, behind the similar-links switch, reads _site/**/*.html and
+# writes back into data/: similar-links.json and, with semantic-search on,
+# the semantic-index.bin / semantic-meta.json pair (copied into _site/data/ by a Hakyll match
+# rule). Then `site footer-data` splits similar-links.json and stage 1's
+# _site/data/backlinks.json into one file per page under data/footer/,
+# rewriting only the files whose entries changed (build/FooterData.hs,
+# audit H01). It runs whether or not embed.py did: backlinks need it too.
+#
+# It used to run AFTER the only compile pass, which meant every one of
+# those three outputs reached the VPS exactly one build late: the
+# published semantic metadata described the previous edit of the site,
+# and a new essay's Related section did not appear until the build
+# after the one that created it. (B01)
 	@touch data/.embed-start
 	@if ! $(call switch_on,similar-links); then \
 	  echo "build: the similar-links switch is off for this site: no embedding"; \
@@ -284,16 +284,16 @@ build-locked: engine-committed
 	  echo "Embedding skipped: run 'make venv' to enable similar-links (build continues)"; \
 	fi
 	cabal run site -- footer-data
-	# ---- Stage 3: recompile the consumers of what stage 2 produced -------
-	#
-	# The footer files and the semantic pair are matched Hakyll resources:
-	# a page whose Backlinks or Related changed recompiles, and the semantic
-	# pair is copied into _site/data/ — including on a first-ever build,
-	# where none of these existed as identifiers during stage 1. Stage 2
-	# leaves identical bytes alone, so when nothing it writes is newer than
-	# its start there is nothing for this pass to do, and it is skipped
-	# rather than paying a second Hakyll start-up and dependency check
-	# (audit D16).
+	@echo "build: stage 3, recompile"
+#
+# The footer files and the semantic pair are matched Hakyll resources:
+# a page whose Backlinks or Related changed recompiles, and the semantic
+# pair is copied into _site/data/ — including on a first-ever build,
+# where none of these existed as identifiers during stage 1. Stage 2
+# leaves identical bytes alone, so when nothing it writes is newer than
+# its start there is nothing for this pass to do, and it is skipped
+# rather than paying a second Hakyll start-up and dependency check
+# (audit D16).
 	@if [ -n "$$(find data/footer -newer data/.embed-start -print -quit)" ] \
 	   || [ data/semantic-index.bin -nt data/.embed-start ] \
 	   || [ data/semantic-meta.json -nt data/.embed-start ]; then \
@@ -302,52 +302,52 @@ build-locked: engine-committed
 	  echo "build: stage 2 changed nothing — the second compile pass is skipped"; \
 	fi
 	@$(call tool,build-freshness.sh) stamp
-	# Defense in depth: stage 3 runs with SITE_ENV=production and cannot
-	# create drafts, but an aborted earlier run could have left some.
+# Defense in depth: stage 3 runs with SITE_ENV=production and cannot
+# create drafts, but an aborted earlier run could have left some.
 	@if [ -d _site/drafts ]; then \
 	  echo "build: removing _site/drafts (post-compile)"; \
 	  rm -rf _site/drafts; \
 	fi
-	# Hakyll never deletes an output whose source is gone, and the score
-	# pages are gitignored, so build-freshness never sees them go: remove
-	# published score files that no longer have a source (audit M02).
+# Hakyll never deletes an output whose source is gone, and the score
+# pages are gitignored, so build-freshness never sees them go: remove
+# published score files that no longer have a source (audit M02).
 	@$(call with_switch,music,python3 $(call tool,prune-site.py) _site)
-	# Nor an earlier version of the first-party assets: only this build's ships
-	# from here. The deploy keeps the earlier ones on the server.
+# Nor an earlier version of the first-party assets: only this build's ships
+# from here. The deploy keeps the earlier ones on the server.
 	@python3 $(call tool,asset-versions.py) prune _site
-	# ---- Stage 4: index --------------------------------------------------
-	# Runs after stage 3 so the keyword index covers the Related sections.
-	# Indexed into a scratch directory and copied over by content, so
-	# unchanged index files keep their mtimes (deploys and readers' caches
-	# skip them) while stale fragments are still removed; see the script.
+	@echo "build: stage 4, index"
+# Runs after stage 3 so the keyword index covers the Related sections.
+# Indexed into a scratch directory and copied over by content, so
+# unchanged index files keep their mtimes (deploys and readers' caches
+# skip them) while stale fragments are still removed; see the script.
 	$(call tool,pagefind-index.sh) _site
-	# ---- Stage 5: stamp --------------------------------------------------
-	# The site-wide build time every footer shows, written once to
-	# _site/build/time.txt; static/js/nav.js puts it in each page's empty
-	# <span data-build-time>. Until 2026-10-06 it was stamped into every
-	# page (P05), so every build rewrote ~500 unchanged pages and every
-	# deploy re-signed and re-sent them; pages now stay byte-identical
-	# until their content changes. See tools/stamp-build-time.py.
+	@echo "build: stage 5, stamp"
+# The site-wide build time every footer shows, written once to
+# _site/build/time.txt; static/js/nav.js puts it in each page's empty
+# <span data-build-time>. Until 2026-10-06 it was stamped into every
+# page (P05), so every build rewrote ~500 unchanged pages and every
+# deploy re-signed and re-sent them; pages now stay byte-identical
+# until their content changes. See tools/stamp-build-time.py.
 	@$(MAKE) --no-print-directory stamp-build-time
 	@$(call tool,compress-assets.sh) _site
-	# ---- Stage 6: gate ---------------------------------------------------
-	# Reject the finished artifact before anything can sign or ship it:
-	# published private/ignored files (S01), figure-render error blocks and
-	# unresolved "Figure ?" references that Hakyll happily exits 0 on
-	# (B03), draft links (B08), missing images, broken feeds. See
-	# tools/check-site.py. `make validate` runs the same gate by hand.
+	@echo "build: stage 6, gate"
+# Reject the finished artifact before anything can sign or ship it:
+# published private/ignored files (S01), figure-render error blocks and
+# unresolved "Figure ?" references that Hakyll happily exits 0 on
+# (B03), draft links (B08), missing images, broken feeds. See
+# tools/check-site.py. `make validate` runs the same gate by hand.
 	@python3 $(call tool,check-site.py) _site $(CHECK_SITE_FLAGS)
-	# IGNORE.txt pins pages against stability changes for one build
-	# (build/Stability.hs). Clear it only once the build has passed the
-	# gate: a rejected build has not used the pins.
+# IGNORE.txt pins pages against stability changes for one build
+# (build/Stability.hs). Clear it only once the build has passed the
+# gate: a rejected build has not used the pins.
 	@: > IGNORE.txt
 	@BUILD_END=$$(date +%s); \
 	 BUILD_START=$$(cat data/build-start.txt); \
 	 echo $$((BUILD_END - BUILD_START)) > data/last-build-seconds.txt.tmp && \
 	 mv data/last-build-seconds.txt.tmp data/last-build-seconds.txt
-	# What this build was built from, for tests that need _site to match
-	# the tree (tests/_browser.py). Last, so nothing the build writes
-	# afterwards reads as a change.
+# What this build was built from, for tests that need _site to match
+# the tree (tests/_browser.py). Last, so nothing the build writes
+# afterwards reads as a change.
 	@python3 $(call tool,build-provenance.py) check
 	@python3 $(call tool,build-inputs.py) record $(BUILD_INPUTS) content
 
@@ -467,12 +467,12 @@ pdf-thumbs:
 	@$(WITH_LOCK) $(MAKE) --no-print-directory pdf-thumbs-locked
 
 pdf-thumbs-locked:
-	# A failing pdftoppm must at least warn: the `find | while` pipeline's
-	# exit status is the last iteration's, so without the `||` a corrupt
-	# PDF would silently ship without a thumbnail.
-	# Walk ALL of static/ (not just papers/): /cv.pdf and /resume.pdf are
-	# the most-linked PDFs on the site and need hover thumbnails too.
-	# An old static/pdfjs/ (download-pdfjs.sh refuses it) is pruned.
+# A failing pdftoppm must at least warn: the `find | while` pipeline's
+# exit status is the last iteration's, so without the `||` a corrupt
+# PDF would silently ship without a thumbnail.
+# Walk ALL of static/ (not just papers/): /cv.pdf and /resume.pdf are
+# the most-linked PDFs on the site and need hover thumbnails too.
+# An old static/pdfjs/ (download-pdfjs.sh refuses it) is pruned.
 	@if command -v pdftoppm >/dev/null 2>&1; then \
 	  find static -path static/pdfjs -prune -o -name '*.pdf' -print 2>/dev/null | while read pdf; do \
 	    thumb="$${pdf%.pdf}.thumb"; \
@@ -491,7 +491,7 @@ watch:
 
 watch-locked: export SITE_ENV = dev
 watch-locked:
-	# Hakyll's watcher doesn't look inside a linked engine; a second one does.
+# Hakyll's watcher doesn't look inside a linked engine; a second one does.
 	python3 $(call tool,watch-engine.py) -- cabal run site -- watch
 
 clean:
@@ -542,6 +542,10 @@ clean:
 # deploy-locked -> validate-locked -> test.
 SKIP_TESTS ?=
 
+# unittest's verbosity: -v lists every test by name; the deploy sets it
+# empty, so a passing suite is a line of dots.
+TEST_VERBOSE ?= -v
+
 test:
 	@if [ "$(strip $(SKIP_TESTS))" = "1" ]; then \
 	  echo "test: SKIP_TESTS=1 — both suites skipped (check-site still gates _site/)."; \
@@ -559,10 +563,10 @@ test:
 	fi; \
 	export PYTHONPATH="$(CURDIR)/engine$${PYTHONPATH:+:$$PYTHONPATH}"; \
 	echo "== engine/tests/ =="; \
-	"$$PY" -m unittest discover -s engine/tests -v || exit 1; \
+	"$$PY" -m unittest discover -s engine/tests $(TEST_VERBOSE) || exit 1; \
 	if [ -d tests ]; then \
 	  echo "== tests/ =="; \
-	  "$$PY" -m unittest discover -s tests -v; rc=$$?; \
+	  "$$PY" -m unittest discover -s tests $(TEST_VERBOSE); rc=$$?; \
 	  if [ "$$rc" = 5 ]; then echo "tests/: unittest found no tests — nothing to run"; \
 	  elif [ "$$rc" != 0 ]; then exit 1; fi; \
 	else \
@@ -571,7 +575,7 @@ test:
 	for dir in $(SITE_TEST_DIRS); do \
 	  if [ -d "$$dir/tests" ]; then \
 	    echo "== $$dir/tests/ =="; \
-	    ( cd "$$dir" && "$$PY" -m unittest discover -s tests -v ); rc=$$?; \
+	    ( cd "$$dir" && "$$PY" -m unittest discover -s tests $(TEST_VERBOSE) ); rc=$$?; \
 	    if [ "$$rc" = 5 ]; then echo "$$dir/tests/: unittest found no tests — nothing to run"; \
 	    elif [ "$$rc" != 0 ]; then exit 1; fi; \
 	  else \
