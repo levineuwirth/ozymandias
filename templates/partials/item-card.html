@@ -7,7 +7,7 @@
         <div class="item-card-header">
             <a class="item-card-title" href="$canonical-url$">$title$</a>
             <span class="item-card-dateline">
-                <time class="item-card-date" datetime="$date-iso$">$date-display$</time>
+                $if(date-display)$<time class="item-card-date" datetime="$date-iso$">$date-display$</time>$endif$
                 $if(has-revision)$<span class="item-card-dateline-sep" aria-hidden="true">·</span><span class="item-card-revised" tabindex="0">Revised$if(date-original)$<span class="item-card-revised-from"> from $date-original$</span>$endif$</span>$endif$
             $if(own-license)$<span class="item-card-dateline-sep" aria-hidden="true">·</span><span class="item-card-rights">$own-license$</span>$endif$</span>
         </div>

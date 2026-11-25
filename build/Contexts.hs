@@ -28,7 +28,9 @@ module Contexts
     , authorLinksField
     , dateDisplayField
     , revisionDateFields
+    , identifierDisplayUTCMaybe
     , recentFirstByDisplay
+    , displaySortKey
     , canonicalUrlField
     , feedMetaFields
     , feedBodyField
@@ -56,13 +58,14 @@ import Data.Maybe              (fromMaybe, isJust, isNothing, mapMaybe, maybeToL
 import Data.Ord                (Down (..), comparing)
 import qualified Data.Scientific    as Sci
 import qualified Data.Set           as Set
+import Data.Time.Calendar      (Day)
 import Data.Time.Clock         (UTCTime, utctDay)
 import Data.Time.Format        (formatTime, defaultTimeLocale)
 import Data.IORef              (IORef, atomicModifyIORef', newIORef, readIORef)
 import qualified Data.Map.Strict    as Map
 import System.Directory        (doesFileExist, getModificationTime)
 import System.IO.Unsafe        (unsafePerformIO)
-import System.FilePath         (makeRelative, takeDirectory, takeFileName, (</>))
+import System.FilePath         (makeRelative, splitDirectories, takeDirectory, takeFileName, (</>))
 import HtmlUrls                (isRelative, mapUrlsRead, resolveAgainst)
 import System.IO               (hPutStrLn, stderr)
 import Text.Read               (readMaybe)
@@ -87,7 +90,7 @@ import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Themes       (themeContext)
-import Config       (SiteConfig (..), loadConfig, identityOver, navigationContext, seasonContext, readerSettingContext,
+import Config       (SiteConfig (..), loadConfig, tagDisplayName, identityOver, navigationContext, seasonContext, readerSettingContext,
                      scriptContext, switchContext, bundleContext, switchOn)
 import PandocOptions (withMath)
 import           DerivedImages (pairedWithC)
@@ -195,7 +198,11 @@ tagLinksWhere fieldName keep why = listFieldWith fieldName ctx $ \item -> do
     toItem t = Item (fromFilePath (t ++ "/index.html")) t
     -- A tag with no page ('Sections.tagPageUrl') has no @tag-url@, and
     -- templates show its name alone.
-    ctx      = field "tag-name" (return . itemBody)
+    -- The tag's display name ('Config.tagDisplayName'): a portal's own
+    -- name, site.yaml's tag-names, or its last segment.
+    ctx      = field "tag-name" (\i -> do
+                   cfg <- loadConfig
+                   return (escapeHtml (tagDisplayName cfg (itemBody i))))
             <> field "tag-url"  (\i -> do
                    cfg <- loadConfig
                    maybe (noResult "no page for this tag") return (tagPageUrl cfg (itemBody i)))
@@ -1045,26 +1052,62 @@ itemDisplayUTC = identifierDisplayUTC . itemIdentifier
 --   the paginate grouper ("Tags") runs in 'Rules', where no 'Item's exist
 --   yet, so this needs only 'MonadMetadata'.
 identifierDisplayUTC :: (MonadMetadata m, MonadFail m) => Identifier -> m UTCTime
-identifierDisplayUTC ident = do
+identifierDisplayUTC ident =
+    maybe (fail ("no date for " ++ toFilePath ident)) return =<< identifierDisplayUTCMaybe ident
+
+-- | 'identifierDisplayUTC', or 'Nothing' for a page with no date to give:
+--   no @revised:@, no creation date ('createdUTCMaybe').
+identifierDisplayUTCMaybe :: (MonadMetadata m, MonadFail m) => Identifier -> m (Maybe UTCTime)
+identifierDisplayUTCMaybe ident = do
     meta <- getMetadata ident
     case getRevisions meta of
         (r:_) | Just utc <- (parseIsoDate (revisionDateISO r) :: Maybe UTCTime)
-              -> return utc
-        _ -> getItemUTC defaultTimeLocale ident
+              -> return (Just utc)
+        _ -> createdUTCMaybe ident
+
+-- | An item's creation date, if it states one: its @date:@ (or
+--   @published:@, or a dated file name) as 'getItemUTC' reads it; for a
+--   page with none, the oldest entry of its @history:@ ("Stability"), as
+--   the About page keeps. 'Nothing' for a page that states none anywhere:
+--   a standalone page with only a @revised:@, or with nothing, which the
+--   tag pages list all the same. A date that is stated but unreadable
+--   still fails, as 'getItemUTC' does.
+createdUTCMaybe :: (MonadMetadata m, MonadFail m) => Identifier -> m (Maybe UTCTime)
+createdUTCMaybe ident = do
+    meta <- getMetadata ident
+    let dated = any (`KM.member` meta) ["date", "published"]
+        -- getItemUTC also reads a yyyy-mm-dd at the head of any path
+        -- component (a dated file name).
+        named = any (\c -> isJust (parseIsoDate (take 10 c) :: Maybe UTCTime))
+                    (splitDirectories (toFilePath ident))
+        history = case KM.lookup "history" meta of
+            Just (Array v) -> mapMaybe entryDate (V.toList v)
+            _              -> []
+        entryDate (Object o) | Just (String t) <- KM.lookup "date" o = parseIsoDate (T.unpack t)
+        entryDate _ = Nothing
+    if dated || named
+        then Just <$> getItemUTC defaultTimeLocale ident
+        else return (if null history then Nothing else Just (minimum history))
 
 -- | @$date-display$@ — the date shown next to an item in list renderings.
 --   Most-recent revision date if the item has a 'revised:' entry, else
 --   its creation date. Formatted "17 April 2026".
 dateDisplayField :: Context String
 dateDisplayField = field "date-display" $ \item ->
-    formatWriterly <$> itemDisplayUTC item
+    maybe (noResult "undated") (return . formatWriterly) =<< itemDisplayUTCMaybe item
 
 -- | @$date-iso$@ — ISO-8601 form of the display date, for
 --   @<time datetime="...">@ attributes. Same revision-aware
 --   semantics as 'dateDisplayField'.
 dateDisplayIsoField :: Context String
 dateDisplayIsoField = field "date-iso" $ \item ->
-    formatIso <$> itemDisplayUTC item
+    maybe (noResult "undated") (return . formatIso) =<< itemDisplayUTCMaybe item
+
+-- | 'itemDisplayUTC', or 'Nothing' for a page with no date to give: a
+--   standalone page with neither @date:@ nor @history:@, which the tag
+--   pages list without one ('createdUTC').
+itemDisplayUTCMaybe :: Item a -> Compiler (Maybe UTCTime)
+itemDisplayUTCMaybe = identifierDisplayUTCMaybe . itemIdentifier
 
 -- | @$date-original$@ — the item's creation date, present in the
 --   context only when the most-recent revision date differs from it.
@@ -1078,11 +1121,13 @@ dateOriginalField = field "date-original" $ \item -> do
     case getRevisions meta of
         [] -> noResult "no revisions"
         (r:_) -> do
-            created <- getItemUTC defaultTimeLocale (itemIdentifier item)
-            let createdIso = formatIso created
-            if revisionDateISO r == createdIso
-                then noResult "revision date equals creation date"
-                else return (formatWriterly created)
+            mCreated <- createdUTCMaybe (itemIdentifier item)
+            case mCreated of
+                Nothing -> noResult "no creation date to show"
+                Just created
+                    | revisionDateISO r == formatIso created ->
+                        noResult "revision date equals creation date"
+                    | otherwise -> return (formatWriterly created)
 
 -- | @$revision-note$@ — prose note attached to the most-recent
 --   'revised:' entry, if any. Rendered under the abstract on the item
@@ -1108,10 +1153,12 @@ hasRevisionField = field "has-revision" $ \item -> do
     case getRevisions meta of
         [] -> noResult "no revisions"
         (r:_) -> do
-            created <- getItemUTC defaultTimeLocale (itemIdentifier item)
-            let createdIso = formatIso created
-                hasNote    = maybe False (not . null . trim) (revisionNote r)
-            if revisionDateISO r /= createdIso || hasNote
+            -- A page with no creation date has only its revision to show,
+            -- which is a date of its own.
+            mCreated <- createdUTCMaybe (itemIdentifier item)
+            let newDate = maybe True ((/= revisionDateISO r) . formatIso) mCreated
+                hasNote = maybe False (not . null . trim) (revisionNote r)
+            if newDate || hasNote
                 then return "true"
                 else noResult "revision adds neither a date nor a note"
 
@@ -1227,15 +1274,24 @@ canonicalUrlField = field "canonical-url" $ \item ->
 --   ('sortBy' is stable).
 recentFirstByDisplay :: [Item a] -> Compiler [Item a]
 recentFirstByDisplay items = do
-    keyed <- mapM key items
+    keyed <- mapM (\i -> (,) <$> displaySortKey (itemIdentifier i) <*> pure i) items
     return $ map snd $ sortBy (comparing fst) keyed
-  where
-    key i = do
-        displayed <- itemDisplayUTC i
-        fresh     <- isNewAtDisplay i
-        -- Day first so "same day" survives any time component on the
-        -- date; the full timestamp only orders across distinct days.
-        return ((Down (utctDay displayed), Down fresh, Down displayed), i)
+
+-- | The key 'recentFirstByDisplay' sorts by, ascending. The paginate
+--   groupers ("Tags") cut pages by it too, in 'Rules', so a day's new
+--   pieces and its revisions fall on either side of a page break in the
+--   order each page shows them.
+--
+--   An undated page ('identifierDisplayUTCMaybe') sorts after every dated
+--   one: 'Down' puts 'Nothing' last. Day first so "same day" survives any
+--   time component on the date; the full timestamp only orders across
+--   distinct days.
+displaySortKey :: (MonadMetadata m, MonadFail m)
+               => Identifier -> m (Down (Maybe Day), Down Bool, Down (Maybe UTCTime))
+displaySortKey ident = do
+    mDisplayed <- identifierDisplayUTCMaybe ident
+    fresh      <- maybe (return False) (const (isNewAtDisplay ident)) mDisplayed
+    return (Down (utctDay <$> mDisplayed), Down fresh, Down mDisplayed)
 
 -- | Is the item at its display date because it was /published/ then,
 --   rather than revised then? True for never-revised pieces, for a
@@ -1243,11 +1299,14 @@ recentFirstByDisplay items = do
 --   'itemDisplayUTC' takes when a revision's date fails to parse —
 --   in every one of those cases the displayed date /is/ the creation
 --   date, which is exactly what the comparison asks.
-isNewAtDisplay :: Item a -> Compiler Bool
-isNewAtDisplay item = do
-    displayed <- itemDisplayUTC item
-    created   <- getItemUTC defaultTimeLocale (itemIdentifier item)
-    return (utctDay displayed == utctDay created)
+isNewAtDisplay :: (MonadMetadata m, MonadFail m) => Identifier -> m Bool
+isNewAtDisplay ident = do
+    displayed <- identifierDisplayUTCMaybe ident
+    created   <- createdUTCMaybe ident
+    -- A page with a revision but no creation date sorts as revised.
+    return $ case (displayed, created) of
+        (Just d, Just c) -> utctDay d == utctDay c
+        _                -> False
 
 -- ---------------------------------------------------------------------------
 -- Revised: frontmatter schema

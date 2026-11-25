@@ -1,0 +1,210 @@
+@layer engine {
+/* tag-map.css — the tag map (build/TagMap.hs): tags as labelled circles,
+   pieces as dots, filed-under lines and dashed subtag-to-parent lines.
+   Ink only from the theme's tokens, so it holds in light, dark and print.
+   The label faces here are the ones TagMap.labelWidth estimates: portals in
+   spaced capitals at 12.5 units, subtags in italic at 13.5. Change one, change
+   the other. */
+
+.tag-map {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+}
+
+/* On a narrow screen the map keeps a legible size and pans sideways, as
+   drawn figures do (viz.css). The drawing is about 730 units wide; at 620px
+   its labels are still about 10.5px. tag-map.js brings a lit region into
+   view. */
+.tag-map-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+.tag-map-scroll .tag-map {
+    min-width: 620px;
+}
+
+
+/* ---- Lines ---- */
+
+.tag-map-edge {
+    stroke: var(--text-faint);
+    stroke-width: 1px;
+    stroke-opacity: 0.55;
+    vector-effect: non-scaling-stroke;
+    fill: none;
+}
+
+.tag-map-edge--parent {
+    stroke: var(--text-muted);
+    stroke-opacity: 0.8;
+    stroke-dasharray: 3 3;
+}
+
+
+/* ---- Pieces ---- */
+
+.tag-map-piece circle {
+    fill: var(--text-muted);
+    /* A wider target than the dot itself. */
+    stroke: transparent;
+    stroke-width: 6;
+}
+
+
+/* ---- Tags ---- */
+
+.tag-map-tag circle {
+    fill: var(--text);
+}
+
+.tag-map-tag--subtag circle {
+    fill: var(--text-muted);
+}
+
+/* Research is a facet, not a subject: drawn hollow. */
+.tag-map-tag--research circle {
+    fill: var(--bg);
+    stroke: var(--text);
+    stroke-width: 1.3;
+}
+
+.tag-map-tag--subtag.tag-map-tag--research circle {
+    stroke: var(--text-muted);
+}
+
+.tag-map-tag text {
+    fill: var(--text);
+    /* A halo of the page's ground keeps labels clear of the lines. */
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 3.5px;
+    stroke-linejoin: round;
+}
+
+.tag-map-tag--portal text {
+    font-size: 12.5px;
+    letter-spacing: calc(0.09em * var(--tracking-scale));
+    text-transform: uppercase;
+}
+
+.tag-map-tag--subtag text {
+    font-size: 13.5px;
+    font-style: italic;
+    fill: var(--text-muted);
+}
+
+.tag-map a {
+    cursor: pointer;
+    /* The page's links are underlined (core.css); in the drawing only a
+       hovered label is. */
+    text-decoration: none;
+}
+
+.tag-map a:hover text {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+}
+
+
+/* ---- A tag's region lit ----
+   TagMap.renderMap marks the region: .is-lit for the tag, its subtags, the
+   pieces under them and the lines among them; .is-near, one notch less, for
+   the other tags those pieces carry and the tag's ancestors; .is-here for
+   the tag itself, ringed. Everything else dims but stays in place. */
+
+.tag-map-edge,
+.tag-map-piece,
+.tag-map-tag {
+    transition: opacity var(--transition-fast);
+}
+
+.tag-map--focus .tag-map-edge,
+.tag-map--focus .tag-map-piece,
+.tag-map--focus .tag-map-tag {
+    opacity: 0.2;
+}
+
+.tag-map--focus .is-lit,
+.tag-map--focus .is-near {
+    opacity: 1;
+}
+
+.tag-map--focus .tag-map-edge.is-lit {
+    stroke: var(--text);
+    stroke-opacity: 0.85;
+}
+
+.tag-map--focus .tag-map-edge.is-near {
+    stroke-opacity: 0.7;
+}
+
+.tag-map--focus .tag-map-piece.is-lit circle,
+.tag-map--focus .tag-map-tag.is-lit circle {
+    fill: var(--text);
+}
+
+.tag-map--focus .tag-map-tag.is-lit text {
+    fill: var(--text);
+    font-weight: var(--weight-semibold);
+}
+
+.tag-map--focus .tag-map-tag.is-near text {
+    fill: var(--text-muted);
+}
+
+.tag-map--focus .tag-map-tag.is-near circle {
+    fill: var(--text-faint);
+}
+
+.tag-map--focus .tag-map-tag--research.is-lit circle,
+.tag-map--focus .tag-map-tag--research.is-near circle {
+    fill: var(--bg);
+}
+
+.tag-map--focus .tag-map-tag--research.is-near circle {
+    stroke: var(--text-faint);
+}
+
+/* The ring round the tag itself; it must not take the lit circles' fill. */
+.tag-map--focus .tag-map-tag.is-here circle.tag-map-here {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+}
+
+
+/* ---- Hover (tag-map.js): the same region, for whatever is pointed at ---- */
+
+.tag-map--hover .tag-map-edge,
+.tag-map--hover .tag-map-piece,
+.tag-map--hover .tag-map-tag {
+    opacity: 0.2;
+}
+
+.tag-map--hover .is-hover-lit,
+.tag-map--hover .is-hover-near {
+    opacity: 1;
+}
+
+.tag-map--hover .tag-map-edge.is-hover-lit {
+    stroke: var(--text);
+    stroke-opacity: 0.85;
+}
+
+.tag-map--hover .tag-map-piece.is-hover-lit circle {
+    fill: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tag-map-edge,
+    .tag-map-piece,
+    .tag-map-tag {
+        transition: none;
+    }
+}
+}

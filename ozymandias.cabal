@@ -52,6 +52,7 @@ executable site
         Scholar
         SvgColor
         Tags
+        TagMap
         Themes
         Pagination
         Citations

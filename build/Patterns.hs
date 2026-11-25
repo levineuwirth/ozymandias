@@ -223,7 +223,12 @@ authorIndexable = (essayPattern .||. blogPattern) .&&. hasNoVersion
 --   'Tags.getExpandedTags' to avoid colliding with the section
 --   landing's route at @/photography/@. A frame is one only with the
 --   photography switch on.
+--
+--   site.yaml's standalone pages are filed too: a tag on one (the About
+--   page's @meta@) puts it on that tag's page beside the essays. Until
+--   November 2026 such a tag was read by nothing.
 tagIndexable :: SiteConfig -> Pattern
 tagIndexable cfg =
-    (if switchOn cfg "photography" then essayPattern .||. allPhotoEntries else essayPattern)
+    ((if switchOn cfg "photography" then essayPattern .||. allPhotoEntries else essayPattern)
+     .||. published (standaloneSources cfg))
     .&&. hasNoVersion

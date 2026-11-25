@@ -225,6 +225,18 @@ tag-pages:
     text (Sections.tagPageUrl; a tag that names a section still links its
     landing).
 
+tag-map:
+  kind: generated
+  default: false
+  needs: [tag-pages]
+  routes: [/map/]
+  assets: [css/tag-map.css, js/tag-map.js]
+  about: >-
+    The map of tags and the pieces filed under them (TagMap.hs), drawn at
+    build time: whole at /map/, and on every tag page with that tag's
+    region lit. The tags of a section's own tree (the photographs' places)
+    are left off.
+
 authors:
   kind: generated
   default: true

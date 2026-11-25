@@ -50,6 +50,7 @@ full:
     signing: true
     source-refs: true
     stats-page: true
+    tag-map: true
     tag-pages: true
     transclusion: true
     vita: true
@@ -87,6 +88,7 @@ minimal:
     signing: false
     source-refs: false
     stats-page: false
+    tag-map: false
     tag-pages: true
     transclusion: false
     vita: false

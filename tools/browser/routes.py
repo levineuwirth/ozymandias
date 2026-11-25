@@ -106,7 +106,9 @@ KINDS = {
     "search": Kind(None, None, 'id="search"', ("content/search.md",)),
     "not-found": Kind(None),
     "new": Kind("new", r"/new\.html", 'class="item-card-list"'),
-    "tag": Kind("tag-pages", r"/.+/", 'class="item-card-list"', ESSAYS + FRAMES["content"]),
+    # Every tag page has its head; a short one shows its pieces in full,
+    # without a card list.
+    "tag": Kind("tag-pages", r"/.+/", 'class="tag-head"', ESSAYS + FRAMES["content"]),
     "author": Kind("authors", r"/authors/[^/]+/", 'class="essay-list"',
                    ESSAYS + writing("blog")["content"], writing("blog")["exclude"]),
     "library": Kind("library", r"/library\.html", "library-see-also"),

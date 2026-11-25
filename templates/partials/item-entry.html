@@ -1,0 +1,10 @@
+<article class="item-entry$if(has-monogram)$ item-entry--has-monogram$endif$">
+    $if(has-monogram)$
+    <span class="item-entry-monogram" aria-hidden="true">$monogramSvg$</span>
+    $endif$
+    <div class="item-entry-main">
+        <p class="item-entry-dateline"><span class="item-entry-kind">$item-kind$</span>$if(date-display)$<span class="item-entry-sep" aria-hidden="true"> · </span><time datetime="$date-iso$">$date-display$</time>$endif$$if(has-revision)$<span class="item-entry-sep" aria-hidden="true"> · </span><span class="item-entry-revised">Revised</span>$endif$</p>
+        <h2 class="item-entry-title"><a href="$canonical-url$">$title$</a></h2>
+        $if(abstract)$<p class="item-entry-abstract">$abstract$</p>$endif$
+    </div>
+</article>

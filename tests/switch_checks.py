@@ -589,12 +589,14 @@ def footer_build_time_off(site: Path) -> None:
 
 
 TAGGED = "notes"   # the fixture's portal, and its essays' tag
+TAGGED_NAME = "Notes"   # its portal's name, which every tag list shows (Config.tagDisplayName)
 
 
 def tag_pages_on(site: Path) -> None:
     assert (site / "_site" / TAGGED / "index.html").is_file(), f"/{TAGGED}/ was not built"
     essay = text(site, "essays/long/index.html")
-    assert re.search(rf'<a class="meta-tag" href="[./]*{TAGGED}/">{TAGGED}</a>', essay), "the essay's tag is not a link"
+    assert re.search(rf'<a class="meta-tag" href="[./]*{TAGGED}/">{TAGGED_NAME}</a>', essay), \
+        "the essay's tag is not a link under its portal's name"
     assert 'class="nav-portals"' in essay, "the navigation has no portals"
     assert 'class="hp-portals"' in text(site, "index.html"), "the home page has no portals"
 
@@ -604,11 +606,33 @@ def tag_pages_off(site: Path) -> None:
     linking = re.compile(rf'href="[./]*{TAGGED}/"|class="(?:nav-portals|nav-portal-toggle|hp-portals)"')
     linked = [p.name for p in pages(site) if linking.search(p.read_text(encoding="utf-8"))]
     assert not linked, f"links to tag pages, or portals, on {linked}"
-    assert f'<span class="meta-tag">{TAGGED}</span>' in text(site, "essays/long/index.html"), \
-        "the essay's tag is not shown"
-    landing = re.compile(r'<a class="meta-tag" href="[./]*photography/">photography</a>')
+    assert f'<span class="meta-tag">{TAGGED_NAME}</span>' in text(site, "essays/long/index.html"), \
+        "the essay's tag is not shown under its portal's name"
+    # A tag that is not a portal is named by its last segment, capitalized.
+    landing = re.compile(r'<a class="meta-tag" href="[./]*photography/">Photography</a>')
     assert any(landing.search(p.read_text(encoding="utf-8")) for p in pages(site)), \
         "a tag naming a section no longer links its landing"
+
+
+TAG_MAP_ASSETS = re.compile(r'(?:css/tag-map\.css|js/tag-map\.js)')
+
+
+def tag_map_on(site: Path) -> None:
+    whole = text(site, "map/index.html")
+    assert 'class="tag-map' in whole, "/map/ has no map"
+    assert f'href="/{TAGGED}/"' in whole or re.search(rf'href="[./]*{TAGGED}/"', whole), \
+        "/map/ does not link the portal"
+    tag_page = text(site, f"{TAGGED}/index.html")
+    assert "tag-map--focus" in tag_page, f"/{TAGGED}/ has no map with its region lit"
+    assert TAG_MAP_ASSETS.search(tag_page), f"/{TAGGED}/ does not load the map's stylesheet and script"
+
+
+def tag_map_off(site: Path) -> None:
+    assert not (site / "_site/map").exists(), "/map/ was built"
+    drawn = [p.name for p in pages(site)
+             if re.search(r'class="tag-map[ "]', p.read_text(encoding="utf-8"))
+             or TAG_MAP_ASSETS.search(p.read_text(encoding="utf-8"))]
+    assert not drawn, f"a map, or its assets, on {drawn}"
 
 
 AUTHOR, AUTHOR_SLUG = "Example Author", "example-author"   # site.yaml's author
@@ -753,6 +777,7 @@ CHECKS = {
     "source-refs": (source_refs_on, source_refs_off),
     "stats-page": (stats_page_on, stats_page_off),
     "tag-pages": (tag_pages_on, tag_pages_off),
+    "tag-map": (tag_map_on, tag_map_off),
     "transclusion": (transclusion_on, transclusion_off),
     "vita": (vita_on, vita_off),
     "viz": (viz_on, viz_off),

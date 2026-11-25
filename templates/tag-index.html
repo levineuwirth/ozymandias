@@ -1,40 +1,78 @@
-<main id="markdownBody">
-    <h1 class="page-title">$title$</h1>
-    $if(has-see-also)$
-    <nav class="see-also" aria-label="See also">
-        <ul class="see-also-list">
-            $for(see-also-parent)$
-            <li class="see-also-item see-also-parent">
-                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
-            </li>
-            $endfor$
-            $for(see-also-siblings)$
-            <li class="see-also-item see-also-sibling">
-                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
-            </li>
-            $endfor$
-            $for(see-also-children)$
-            <li class="see-also-item see-also-child">
-                <a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$
-            </li>
+<main id="markdownBody" data-no-collapse>
+    <header class="tag-head">
+        $if(tag-crumbs)$<p class="tag-crumbs">$for(tag-crumbs)$<a href="$crumb-url$">$crumb-name$</a><span class="tag-crumbs-sep" aria-hidden="true"> › </span>$endfor$</p>$endif$
+        <h1 class="page-title">$title$</h1>
+        $if(portal-tooltip)$<p class="tag-gloss">$portal-tooltip$</p>$endif$
+        $if(tag-facts)$<p class="tag-facts">$tag-facts$</p>$endif$
+    </header>
+    $if(tag-within)$
+    <section class="tag-within" aria-labelledby="tag-within-heading">
+        <h2 id="tag-within-heading" class="tag-label">Within</h2>
+        <ul class="tag-within-list">
+            $for(tag-within)$
+            <li><a href="$within-url$">$within-name$</a>$if(within-gloss)$<span class="tag-within-dash" aria-hidden="true"> — </span><span class="tag-within-gloss">$within-gloss$</span>$endif$<span class="tag-within-count">$within-count$</span></li>
             $endfor$
         </ul>
-    </nav>
+    </section>
     $endif$
     $if(portal-intro)$
     <section class="portal-intro">
         $portal-intro$
     </section>
     $endif$
-    $if(items)$
-    $partial("templates/partials/list-controls.html")$
+    $if(featured)$
+    <div class="item-entry-list item-entry-list--featured">
+        $for(featured)$
+        $partial("templates/partials/item-entry.html")$
+        $endfor$
+    </div>
+    $endif$
+    $if(entries)$
+    <div class="item-entry-list">
+        $for(entries)$
+        $partial("templates/partials/item-entry.html")$
+        $endfor$
+    </div>
+    $endif$
+    $if(cards)$
+    $if(tag-toggle)$$partial("templates/partials/list-controls.html")$$endif$
     <ul class="item-card-list">
-        $for(items)$
+        $for(cards)$
         $partial("templates/partials/item-card.html")$
         $endfor$
     </ul>
-    $else$
-    <p class="essay-list-empty">No items yet.</p>
+    $endif$
+    $if(photos)$
+    <ul class="photography-grid" data-photography-mode="grid">
+        $for(photos)$
+        $partial("templates/partials/photo-card.html")$
+        $endfor$
+    </ul>
     $endif$
     $partial("templates/partials/paginate-nav.html")$
+    $if(tag-map)$
+    <figure class="tag-map-figure">
+        $tag-map$
+    </figure>
+    $endif$
+    $if(tag-alongside)$
+    <section class="tag-alongside" aria-labelledby="tag-alongside-heading">
+        <h2 id="tag-alongside-heading" class="tag-label">Filed alongside</h2>
+        <ul class="tag-alongside-list">
+            $for(tag-alongside)$
+            <li>$if(alongside-parent)$<span class="tag-alongside-parent">$alongside-parent$ › </span>$endif$<a href="$alongside-url$">$alongside-name$</a><span class="tag-alongside-count">$alongside-count$</span></li>
+            $endfor$
+        </ul>
+    </section>
+    $endif$
+    $if(see-also)$
+    <nav class="see-also" aria-labelledby="see-also-heading">
+        <h2 id="see-also-heading" class="tag-label">See also</h2>
+        <ul class="see-also-list">
+            $for(see-also)$
+            <li class="see-also-item$if(see-also-up)$ see-also-parent$endif$"><a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$</li>
+            $endfor$
+        </ul>
+    </nav>
+    $endif$
 </main>

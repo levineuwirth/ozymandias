@@ -233,7 +233,7 @@ class Routes(unittest.TestCase):
         for path, switch in (("/stats/", "stats-page"), ("/build/", "build-page"), ("/archive/", "archive"),
                              ("/bibliography/", "bibliography-index"), ("/authors/a/", "authors"),
                              ("/photography/by-year/", "photography")):
-            for kind, mark in (("tag", 'class="item-card-list" class="page-title"'),
+            for kind, mark in (("tag", 'class="tag-head" class="page-title"'),
                                ("essay", 'class="essay-frontmatter" class="page-title"'),
                                ("page", 'class="page-title"')):
                 for build in ({path: mark}, None):

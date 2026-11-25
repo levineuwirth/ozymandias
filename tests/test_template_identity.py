@@ -88,8 +88,7 @@ main = hakyll $ do
     create ["see-also.html"] $ do
         route idRoute
         compile $ makeItem ("" :: String) >>= loadAndApplyTemplate "templates/tag-index.html"
-            (T.seeAlsoContext [(portalName p, portalTag p) | p <- sitePortals cfg] tags "first"
-             <> constField "title" "First")
+            (T.seeAlsoContext mempty tags "first" <> constField "title" "First")
 ''')
         cls.binary = build / "probe"
         done = subprocess.run(["cabal", "exec", "--", "ghc", "-v0", f"-i{engine_path('build')}",

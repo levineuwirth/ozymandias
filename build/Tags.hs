@@ -32,20 +32,25 @@ module Tags
     , seeAlsoContext
     ) where
 
-import Control.Monad (forM_)
-import Data.Char  (isSpace)
+import Control.Applicative ((<|>))
+import Control.Monad (forM, forM_, when)
+import Data.Char  (isSpace, toLower, toUpper)
 import Data.List  (intercalate, isPrefixOf, nub, sort, sortBy)
-import Data.Maybe (fromMaybe, isNothing, maybeToList)
-import Data.Ord   (comparing)
+import qualified Data.Map.Strict as Map
+import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe, mapMaybe)
+import Data.Ord   (Down (..), comparing)
 import Data.Set   (Set)
 import qualified Data.Set as Set
+import Data.Time  (UTCTime (..), toGregorian)
 import Hakyll hiding (escapeHtml)
 import Utils (escapeHtml, inDefault, writerlyDate)
-import Config     (SiteConfig)
+import Config     (SiteConfig (..), Portal (..), Section (..), loadConfig, switchOn, tagDisplayName)
+import System.FilePath (dropFileName, takeFileName)
+import TagMap     (MapPiece (..), MapTag (..), layoutMap, renderMap)
 import Patterns   (tagIndexable)
-import Sections   (sectionOwnedTopLevelTags)
-import Contexts   (abstractField, contentKindField, identifierDisplayUTC,
-                   recentFirstByDisplay, revisionDateFields, siteCtx,
+import Sections   (sectionOfRoute, sectionOwnedTopLevelTags, tagPageUrl)
+import Contexts   (abstractField, contentKindField, displaySortKey, identifierDisplayUTCMaybe,
+                   photographyCtx, recentFirstByDisplay, revisionDateFields, siteCtx,
                    tagLinksFieldExcludingScope)
 
 
@@ -161,13 +166,12 @@ portalTooltipField getSidecarId = field "portal-tooltip" $ \item -> do
         _                     -> noResult "no tooltip"
 
 -- ---------------------------------------------------------------------------
--- See Also: parent / sibling / child computation
+-- A tag page's surroundings
 -- ---------------------------------------------------------------------------
 
--- | Direct parent of a tag path. @Nothing@ for top-level tags (portals).
---   "nonfiction/philosophy" → Just "nonfiction"
---   "nonfiction"            → Nothing
---   "a/b/c"                 → Just "a/b"
+-- | Direct parent of a tag path. @Nothing@ for top-level tags.
+--   "epistemology/social" → Just "epistemology"
+--   "a/b/c"               → Just "a/b"
 parentOf :: String -> Maybe String
 parentOf t = case wordsBy (== '/') t of
     []   -> Nothing
@@ -178,84 +182,109 @@ parentOf t = case wordsBy (== '/') t of
 slashCount :: String -> Int
 slashCount = length . filter (== '/')
 
--- | Parent / siblings / children of a scope tag, each filtered to tags that
---   appear in 'tagsMap' (i.e., have at least one item). Parent is returned
---   unconditionally — if it isn't in @tagsMap@ the See Also still links it,
---   since a parent with no direct items but some descendant items is still
---   a navigable aggregation page.
---
---   Sibling portals (scope is top-level) render in @portalOrder@. Sibling
---   subcategories (scope has a parent) render alphabetically. Children
---   always render alphabetically.
-seeAlsoGroups :: [String]              -- ^ canonical portal tag order
-              -> Tags                   -- ^ all tags for has-items filter
-              -> String                 -- ^ current scope
-              -> (Maybe String, [String], [String])
-seeAlsoGroups portalOrder tags scope =
-    let tKeys = map fst (tagsMap tags)
-        mParent = parentOf scope
+-- | The tags with items directly beneath a scope, alphabetically.
+childrenOf :: Tags -> String -> [String]
+childrenOf tags scope = sort
+    [ c | (c, _) <- tagsMap tags
+        , (scope ++ "/") `isPrefixOf` c
+        , slashCount c == slashCount scope + 1 ]
 
-        sibs = case mParent of
-            Nothing ->
-                -- Scope is a portal. Siblings: other portals in tagsMap,
-                -- emitted in portalOrder.
-                [ p | p <- portalOrder, p /= scope, p `elem` tKeys ]
-            Just parent ->
-                -- Scope is a subcategory. Siblings: other direct children
-                -- of the parent, alphabetical.
-                sort [ s | s <- tKeys
-                         , parentOf s == Just parent
-                         , s /= scope
-                         ]
-
-        kids = sort
-            [ c | c <- tKeys
-                , (scope ++ "/") `isPrefixOf` c
-                , slashCount c == slashCount scope + 1
-                ]
-    in (mParent, sibs, kids)
-
-
--- ---------------------------------------------------------------------------
--- See Also: rendering into a Context
--- ---------------------------------------------------------------------------
-
--- | Display name for a tag path. Portals get their capitalized form from
---   @portalPairs@ (e.g., "Research"); subcategories display their raw tag
---   path (e.g., "nonfiction/philosophy").
-displayNameFor :: [(String, String)] -> String -> String
-displayNameFor portalPairs t =
-    fromMaybe t (lookup t (map (\(d, tg) -> (tg, d)) portalPairs))
-
--- | Item-level context for See Also entries. Body is a tag path string.
-seeAlsoItemCtx :: [(String, String)] -> Context String
-seeAlsoItemCtx portalPairs =
-       field "see-also-name" (\i -> return (escapeHtml (displayNameFor portalPairs (itemBody i))))
-    <> field "see-also-url"  (\i -> return $ "/" ++ itemBody i ++ "/")
-    <> portalTooltipField (sidecarIdentifier . itemBody)
-
--- | Full See Also context contribution for a scope: three listFields
---   (@see-also-parent@ at most one entry, @see-also-siblings@,
---   @see-also-children@) and a @has-see-also@ gate that fails when all
---   three are empty so the template's @$if(has-see-also)$@ suppresses
---   the entire @<nav>@ wrapper.
-seeAlsoContext :: [(String, String)] -> Tags -> String -> Context String
-seeAlsoContext portalPairs tags scope =
-       listField "see-also-parent"   itemCtx (return (toItems (maybeToList mParent)))
-    <> listField "see-also-siblings" itemCtx (return (toItems sibs))
-    <> listField "see-also-children" itemCtx (return (toItems kids))
-    <> field     "has-see-also" (\_ ->
-          if isNothing mParent && null sibs && null kids
-              then noResult "no see-also entries"
-              else return "true")
+-- | What a tag page offers to go to next. A subtag: its parent, then its
+--   siblings, alphabetically. A portal: the other portals of its facet
+--   (site.yaml's order). Any other top-level tag: every portal. Only tags
+--   with a page are offered: a tag with items, or a portal whose page is a
+--   section's landing.
+seeAlsoTags :: SiteConfig -> Tags -> String -> [String]
+seeAlsoTags cfg tags scope = case parentOf scope of
+    Just parent -> parent : sort [ s | s <- tKeys, parentOf s == Just parent, s /= scope ]
+    Nothing -> case [ p | p <- portals, portalTag p == scope ] of
+        (p : _) -> [ portalTag q | q <- portals, portalTag q /= scope
+                                 , portalFacet q == portalFacet p, hasPage (portalTag q) ]
+        []      -> [ portalTag q | q <- portals, hasPage (portalTag q) ]
   where
-    (mParent, sibs, kids) = seeAlsoGroups (map snd portalPairs) tags scope
-    itemCtx = seeAlsoItemCtx portalPairs
-    toItems = map (Item (fromFilePath ""))
+    portals   = sitePortals cfg
+    tKeys     = map fst (tagsMap tags)
+    hasPage t = t `elem` tKeys || t `elem` sectionOwnedTopLevelTags cfg
 
+-- | @$for(see-also)$@ on a tag page ('seeAlsoTags'): @$see-also-name$@,
+--   @$see-also-url$@, @$see-also-up$@ on the parent, and the tag's gloss as
+--   @$portal-tooltip$@. 'noResult' when there is nothing to offer.
+seeAlsoContext :: Set Identifier -> Tags -> String -> Context String
+seeAlsoContext sidecarSet tags scope = listFieldWith "see-also" itemCtx $ \_ -> do
+    cfg <- loadConfig
+    case seeAlsoTags cfg tags scope of
+        [] -> noResult "nothing to see also"
+        ts -> return [ Item (fromFilePath ("_tag/" ++ t)) t | t <- ts ]
+  where
+    itemCtx =
+           field "see-also-name" (\i -> do cfg <- loadConfig
+                                           return (escapeHtml (tagDisplayName cfg (itemBody i))))
+        <> field "see-also-url"  (\i -> do cfg <- loadConfig
+                                           maybe (noResult "no page") return (tagPageUrl cfg (itemBody i)))
+        <> field "see-also-up"   (\i -> if Just (itemBody i) == parentOf scope
+                                            then return "true" else noResult "not the parent")
+        <> field "portal-tooltip" (glossOf sidecarSet . itemBody)
 
--- | Context contribution for the current tag's sidecar, if one exists,
---   and eager registration of the snapshot dependency.
+-- | What a tag page needs to know of each piece under it.
+data Piece = Piece
+    { pieceKind    :: String          -- ^ its section's kind, or "Page"
+    , pieceSection :: Maybe String    -- ^ its section's directory
+    , pieceWhen    :: Maybe UTCTime   -- ^ its display date, if it has one
+    }
+
+pieceOf :: SiteConfig -> Identifier -> Compiler Piece
+pieceOf cfg ident = do
+    r <- getRoute ident
+    let sec = sectionOfRoute cfg =<< r
+    t <- identifierDisplayUTCMaybe ident
+    return (Piece (maybe "Page" sectionKind sec) (sectionDir <$> sec) t)
+
+-- | "one essay", "seven essays", "97 photos", "eight pieces": the count in
+--   words up to ten, and the pieces' kind when they share one.
+countPhrase :: [String] -> String
+countPhrase kinds = numberWord n ++ " " ++ plural noun
+  where
+    n    = length kinds
+    noun = case nub kinds of
+        [k] -> map toLower k
+        _   -> "piece"
+    plural w = if n == 1 then w else w ++ "s"
+    numberWord k
+        | k >= 1 && k <= 10 = words "one two three four five six seven eight nine ten" !! (k - 1)
+        | otherwise         = show k
+
+-- | When the pieces date from: "November 2026", "May to November 2026",
+--   "2024 to 2026". Nothing for no pieces.
+spanPhrase :: [UTCTime] -> Maybe String
+spanPhrase [] = Nothing
+spanPhrase ts
+    | (y0, m0) == (y1, m1) = Just (month m0 ++ " " ++ show y0)
+    | y0 == y1             = Just (month m0 ++ " to " ++ month m1 ++ " " ++ show y1)
+    | otherwise            = Just (show y0 ++ " to " ++ show y1)
+  where
+    ym t = let (y, m, _) = toGregorian (utctDay t) in (y, m)
+    (y0, m0) = ym (minimum ts)
+    (y1, m1) = ym (maximum ts)
+    month m = words "January February March April May June July August September October November December" !! (m - 1)
+
+capitalize :: String -> String
+capitalize (c : cs) = toUpper c : cs
+capitalize []       = []
+
+-- | A sidecar's tooltip, the tag's one-line gloss, or 'noResult'.
+glossOf :: Set Identifier -> String -> Compiler String
+glossOf sidecarSet tag
+    | sidecarId `Set.member` sidecarSet = do
+        meta <- getMetadata sidecarId
+        case fmap trim (lookupString "tooltip" meta) of
+            Just t | not (null t) -> return t
+            _                     -> noResult "no tooltip"
+    | otherwise = noResult "no sidecar"
+  where
+    sidecarId = sidecarIdentifier tag
+
+-- | Context for the current tag's sidecar, if one exists, and eager
+--   registration of the snapshot dependency.
 --
 --   When a sidecar exists, the body snapshot is loaded unconditionally
 --   (and discarded) so Hakyll's dependency tracker sees the edge
@@ -278,15 +307,33 @@ sidecarContext sidecarSet tag
   where
     sidecarId = sidecarIdentifier tag
 
+-- | The sidecar's @featured:@ paths (@content/essays/foo.md@), in order.
+featuredPaths :: Set Identifier -> String -> Compiler [FilePath]
+featuredPaths sidecarSet tag
+    | sidecarId `Set.member` sidecarSet =
+        fromMaybe [] . lookupStringList "featured" <$> getMetadata sidecarId
+    | otherwise = return []
+  where
+    sidecarId = sidecarIdentifier tag
+
 
 -- ---------------------------------------------------------------------------
 -- Tag index page rules
 -- ---------------------------------------------------------------------------
 
--- | Item-level context used inside @$for(items)$@ on tag index pages.
---   Provides the fields consumed by @templates/partials/item-card.html@
---   (@$item-kind$@, @$date-iso$@, @$date-created$@, @$abstract$@,
---   @$item-tags$@) with tag-ribbon suppression scoped to the current tag.
+-- | Up to this many items a tag page shows each in full, as an entry;
+--   above it, as cards.
+tagEntryLimit :: Int
+tagEntryLimit = 6
+
+-- | Above this many items a tag page offers the 25/50/100/All toggle.
+tagToggleThreshold :: Int
+tagToggleThreshold = 25
+
+-- | Item-level context for a card on a tag page. Provides the fields
+--   consumed by @templates/partials/item-card.html@ (@$item-kind$@,
+--   @$date-iso$@, @$date-created$@, @$abstract$@, @$item-tags$@) with
+--   tag-ribbon suppression scoped to the current tag.
 --
 --   Composes 'siteCtx' (not bare 'defaultContext') so per-item fields
 --   the card partial gates on — notably @$has-monogram$@ — fire here
@@ -301,6 +348,96 @@ tagItemCtx scope =
     <> abstractField
     <> siteCtx
 
+-- | Everything a tag page shows besides its items' own fields:
+--
+--   * @$title$@, the tag's display name, and @$for(tag-crumbs)$@ (its
+--     ancestors: @$crumb-name$@, @$crumb-url$@);
+--   * @$tag-facts$@ ("Seven essays · May to November 2026"), over the
+--     whole tag, not only this page of it;
+--   * @$for(tag-within)$@, the tags directly beneath it (@$within-name$@,
+--     @$within-url$@, @$within-count$@, @$within-gloss$@);
+--   * the items, in exactly one of four lists: @$featured$@ (the sidecar's
+--     @featured:@ pieces, shown in full ahead of the cards), @$entries$@
+--     (every piece in full, when there are at most 'tagEntryLimit'),
+--     @$cards$@, or @$photos$@ (when every piece is a photograph), with
+--     @$tag-toggle$@ above 'tagToggleThreshold';
+--   * @$for(tag-alongside)$@, the other tags its pieces carry, most shared
+--     first (@$alongside-parent$@, @$alongside-name$@, @$alongside-url$@,
+--     @$alongside-count$@);
+--   * @$for(see-also)$@ ('seeAlsoTags': @$see-also-name$@,
+--     @$see-also-url$@, @$see-also-up$@ on a parent, @$portal-tooltip$@).
+tagPageContext :: Tags -> Set Identifier -> String -> [Item String]
+               -> Compiler (Context String)
+tagPageContext tags sidecarSet scope items = do
+    cfg <- loadConfig
+    let name    = tagDisplayName cfg
+        urlOf t = tagPageUrl cfg t
+        allIds  = fromMaybe [] (lookup scope (tagsMap tags))
+        idsOf t = fromMaybe [] (lookup t (tagsMap tags))
+    scCtx  <- sidecarContext sidecarSet scope
+    pieces <- mapM (pieceOf cfg) allIds
+    paths  <- featuredPaths sidecarSet scope
+    within <- mapM (\c -> do ks <- mapM (fmap pieceKind . pieceOf cfg) (idsOf c)
+                             return (c, countPhrase ks))
+                   (childrenOf tags scope)
+    written <- mapM getTags allIds
+    let facts = capitalize (countPhrase (map pieceKind pieces))
+                ++ maybe "" (" \183 " ++) (spanPhrase (mapMaybe pieceWhen pieces))
+        related t = t == scope || (t ++ "/") `isPrefixOf` scope || (scope ++ "/") `isPrefixOf` t
+        shared = Map.fromListWith (+)
+            [ (t, 1 :: Int) | ts <- written, t <- nub ts, not (related t), isJust (urlOf t) ]
+        alongside = sortBy (comparing (\(t, n) -> (Down n, map toLower (name t))))
+                           (Map.toList shared)
+        crumbs = init (expandTag scope)
+
+        total     = length allIds
+        photoGrid = not (null pieces) && all ((== Just "photography") . pieceSection) pieces
+        entryMode = not photoGrid && total <= tagEntryLimit
+        featured  = [ i | p <- paths, i <- items, itemIdentifier i == fromFilePath p ]
+        rest      = [ i | i <- items, itemIdentifier i `notElem` map itemIdentifier featured ]
+        lists
+            | photoGrid = (Nothing, Nothing, Nothing, Just (featured ++ rest))
+            | entryMode = (Nothing, Just (featured ++ rest), Nothing, Nothing)
+            | otherwise = (Just featured, Nothing, Just rest, Nothing)
+        (mFeatured, mEntries, mCards, mPhotos) = lists
+        itemsField key ctx = maybe mempty (listField key ctx . return)
+        entryCtx = constField "full-abstract" "true" <> tagItemCtx scope
+
+        tagItem t = Item (fromFilePath ("_tag/" ++ t)) t
+        crumbCtx = field "crumb-name" (return . escapeHtml . name . itemBody)
+                <> field "crumb-url"  (maybe (noResult "no page") return . urlOf . itemBody)
+        withinCtx = field "within-name"  (return . escapeHtml . name . fst . itemBody)
+                 <> field "within-url"   (maybe (noResult "no page") return . urlOf . fst . itemBody)
+                 <> field "within-count" (return . snd . itemBody)
+                 <> field "within-gloss" (glossOf sidecarSet . fst . itemBody)
+        alongsideCtx =
+               field "alongside-parent" (\i -> maybe (noResult "top-level") (return . escapeHtml . name)
+                                                     (parentOf (fst (itemBody i))))
+            <> field "alongside-name"  (return . escapeHtml . name . fst . itemBody)
+            <> field "alongside-url"   (maybe (noResult "no page") return . urlOf . fst . itemBody)
+            <> field "alongside-count" (return . show . snd . itemBody)
+        nonEmpty key ctx xs = if null xs then mempty else listField key ctx (return xs)
+        flag key on = if on then constField key "true" else mempty
+    return $
+           constField "title" (name scope)
+        <> constField "tag"   scope
+        <> constField "tag-facts" facts
+        <> nonEmpty "tag-crumbs" crumbCtx (map tagItem crumbs)
+        <> nonEmpty "tag-within" withinCtx
+                    [ Item (fromFilePath ("_tag-within/" ++ c)) w | w@(c, _) <- within ]
+        <> nonEmpty "tag-alongside" alongsideCtx
+                    [ Item (fromFilePath ("_tag-alongside/" ++ t)) a | a@(t, _) <- alongside ]
+        <> seeAlsoContext sidecarSet tags scope
+        <> itemsField "featured" entryCtx mFeatured
+        <> itemsField "entries"  entryCtx mEntries
+        <> itemsField "cards"    (tagItemCtx scope) mCards
+        <> itemsField "photos"   (photographyCtx <> tagItemCtx scope) mPhotos
+        <> flag "tag-toggle"  (not entryMode && total > tagToggleThreshold)
+        <> constField "list-page" "true"
+        <> flag "photography" photoGrid
+        <> tagDescriptionField cfg sidecarSet scope
+        <> scCtx
+
 -- | Page identifier for a tag index page.
 --   Page 1 → <tag>/index.html
 --   Page N → <tag>/page/N/index.html
@@ -310,27 +447,47 @@ tagPageId tag n = fromFilePath $ tag ++ "/page/" ++ show n ++ "/index.html"
 
 -- | Generate index pages for every tag. Tags with at most
 --   'tagPaginationThreshold' items render a single page with the full
---   list and rely on the client-side count toggle; larger tags fall
---   back to server-side pagination at 'tagPageSize' per page.
---
---   Each tag's context is augmented with its sidecar, if present, so
---   the template can render a @$portal-intro$@ section and (later)
---   a See Also block keyed on @$portal-tooltip$@.
+--   list; larger tags fall back to server-side pagination at
+--   'tagPageSize' per page, partitioned and sorted by the same
+--   display-date key ('sortAndGroupByDisplayAt') so ordering across pages
+--   is monotone. 'tagPageContext' says what each page shows.
 --
 --   @baseCtx@ should be @siteCtx@ (passed in to avoid a circular import).
-applyTagRules :: Tags -> [(String, String)] -> Context String -> Rules ()
-applyTagRules tags portalPairs baseCtx = do
+applyTagRules :: SiteConfig -> Tags -> Context String -> Rules ()
+applyTagRules cfg tags baseCtx = do
     -- Hakyll's @**/*@ glob needs a subdirectory level, so the flat and
     -- nested sidecar paths each need their own pattern. Keep this list
     -- in sync with the matching rule in Site.rules.
     sidecarIds <- getMatches ("content/tag-meta/*.md" .||. "content/tag-meta/**/*.md")
     let sidecarSet = Set.fromList sidecarIds
+        mapOn      = switchOn cfg "tag-map"
+        page tag pat extra = do
+            route idRoute
+            compile $ do
+                items  <- recentFirstByDisplay =<< loadAll (pat .&&. hasNoVersion)
+                ctx    <- tagPageContext tags sidecarSet tag items
+                mapCtx <- if mapOn
+                    then maybe mempty (constField "tag-map" . scrollable) . lookup tag
+                             <$> loadTagMaps
+                    else return mempty
+                makeItem ""
+                    >>= inDefault "templates/tag-index.html" (ctx <> mapCtx <> extra <> baseCtx)
+    when mapOn $ tagMapRules tags baseCtx
     anchoredTagsRules "_dependencies/tags" tags $ \tag pat -> do
         let itemCount = length (fromMaybe [] (lookup tag (tagsMap tags)))
-            saCtx     = seeAlsoContext portalPairs tags tag
         if itemCount <= tagPaginationThreshold
-            then clientPaginatedRule tag pat sidecarSet saCtx baseCtx
-            else serverPaginatedRule tag pat sidecarSet saCtx baseCtx
+            then page tag pat mempty
+            else do
+                -- The sidecar's featured pieces lead the first page, so
+                -- they go first before the tag is cut into pages.
+                featuredIds <- if sidecarIdentifier tag `Set.member` sidecarSet
+                    then map fromFilePath . fromMaybe [] . lookupStringList "featured"
+                             <$> getMetadata (sidecarIdentifier tag)
+                    else return []
+                paginate <- buildPaginateWith (sortAndGroupFeaturedAt featuredIds tagPageSize)
+                                              pat (tagPageId tag)
+                paginateRules paginate $ \pageNum pat' ->
+                    page tag pat' (paginateContext paginate pageNum)
 
 -- | 'tagsRules', with the dependency every tag page shares held once.
 --
@@ -352,33 +509,36 @@ anchoredTagsRules anchor tags rules = do
             create [tagsMakeId tags tag] $
                 rules tag (fromList identifiers)
 
--- | Single-page tag index: the count toggle runs client-side against
---   the full list. No server-side pagination, no @page/N@ URLs.
-clientPaginatedRule :: String
-                    -> Pattern
-                    -> Set Identifier
-                    -> Context String  -- ^ See Also contribution
-                    -> Context String  -- ^ base (siteCtx)
-                    -> Rules ()
-clientPaginatedRule tag pat sidecarSet saCtx baseCtx = do
-    route idRoute
-    compile $ do
-        scCtx <- sidecarContext sidecarSet tag
-        tdCtx <- tagDescriptionField sidecarSet tag
-        items <- recentFirstByDisplay =<< loadAll (pat .&&. hasNoVersion)
-        let ctx = listField "items" (tagItemCtx tag) (return items)
-               <> constField "tag"       tag
-               <> constField "title"     tag
-               <> constField "list-page" "true"
-               <> tdCtx
-               <> saCtx
-               <> scCtx
-               <> baseCtx
-        makeItem ""
-            >>= inDefault "templates/tag-index.html" ctx
 
--- | @$description$@ for a tag index, from the tag's own sidecar tooltip
---   when it has one.
+
+-- | Partition identifiers into pages of @n@, most recent first by
+--   /display/ date — the same key ('displaySortKey') that
+--   'recentFirstByDisplay' sorts by within each rendered page, new pieces
+--   before revisions on a shared day — so cross-page ordering is monotone. With creation-date partitioning
+--   (plain @sortRecentFirst@), a recently revised old item stayed on a
+--   late page but jumped to its top; now it migrates to the early page
+--   where its displayed date says it belongs.
+--
+--   An undated page sorts after every dated one, as on the page itself
+--   ('recentFirstByDisplay').
+sortAndGroupByDisplayAt :: (MonadMetadata m, MonadFail m)
+                        => Int -> [Identifier] -> m [[Identifier]]
+sortAndGroupByDisplayAt = sortAndGroupFeaturedAt []
+
+-- | 'sortAndGroupByDisplayAt' with some identifiers first, in their order:
+--   a tag's sidecar's @featured:@, which lead its first page however old
+--   they are.
+sortAndGroupFeaturedAt :: (MonadMetadata m, MonadFail m)
+                       => [Identifier] -> Int -> [Identifier] -> m [[Identifier]]
+sortAndGroupFeaturedAt featured n ids = do
+    keyed <- mapM (\i -> (,) <$> displaySortKey i <*> pure i) ids
+    let sorted = map snd (sortBy (comparing fst) keyed)
+        lead   = [ f | f <- featured, f `elem` ids ]
+    return $ paginateEvery n $ lead ++ filter (`notElem` lead) sorted
+
+
+-- | @$description$@ for a tag index: what is filed under it, with the
+--   tag's own sidecar tooltip when it has one.
 --
 --   Composed /before/ @baseCtx@ so it wins over 'Contexts.descriptionField'.
 --   That fallback excerpts the page's first body paragraph, which on a
@@ -387,61 +547,101 @@ clientPaginatedRule tag pat sidecarSet saCtx baseCtx = do
 --   fallback policy for list pages; this is it, and the @tooltip:@ in
 --   @content\/tag-meta\/\<tag\>.md@ (the same string the home-page portal
 --   grid shows on hover) is the author's own one-line gloss of the tag.
-tagDescriptionField :: Set Identifier -> String -> Compiler (Context String)
-tagDescriptionField sidecarSet tag = do
-    mTip <- if sidecarId `Set.member` sidecarSet
-                then do
-                    meta <- getMetadata sidecarId
-                    return (lookupString "tooltip" meta >>= nonEmpty)
-                else return Nothing
-    return $ constField "description" $ case mTip of
+tagDescriptionField :: SiteConfig -> Set Identifier -> String -> Context String
+tagDescriptionField cfg sidecarSet tag = field "description" $ \_ -> do
+    mTip <- (Just <$> glossOf sidecarSet tag) <|> return Nothing
+    return $ case mTip of
         Just tip -> filed ++ " \8212 " ++ tip ++ "."
         Nothing  -> filed ++ "."
   where
-    sidecarId  = sidecarIdentifier tag
-    filed      = "Everything on this site filed under \8220" ++ tag ++ "\8221"
-    nonEmpty x = if all isSpace x then Nothing else Just x
+    filed = "Everything on this site filed under \8220" ++ tagDisplayName cfg tag ++ "\8221"
 
--- | Partition identifiers into pages of @n@, most recent first by
---   /display/ date — the same revision-aware key
---   'recentFirstByDisplay' sorts by within each rendered page — so
---   cross-page ordering is monotone. With creation-date partitioning
---   (plain @sortRecentFirst@), a recently revised old item stayed on a
---   late page but jumped to its top; now it migrates to the early page
---   where its displayed date says it belongs.
-sortAndGroupByDisplayAt :: (MonadMetadata m, MonadFail m)
-                        => Int -> [Identifier] -> m [[Identifier]]
-sortAndGroupByDisplayAt n ids = do
-    keyed <- mapM (\i -> (,) <$> identifierDisplayUTC i <*> pure i) ids
-    return $ paginateEvery n $ map snd $ sortBy (flip (comparing fst)) keyed
 
--- | Server-side pagination at 'tagPageSize' per page. Previous/next
---   navigation renders via @templates/partials/paginate-nav.html@;
---   the count toggle operates within the current page only. Pages are
---   partitioned and sorted by the same display-date key (see
---   'sortAndGroupByDisplayAt').
-serverPaginatedRule :: String
-                    -> Pattern
-                    -> Set Identifier
-                    -> Context String  -- ^ See Also contribution
-                    -> Context String  -- ^ base (siteCtx)
-                    -> Rules ()
-serverPaginatedRule tag pat sidecarSet saCtx baseCtx = do
-    paginate <- buildPaginateWith (sortAndGroupByDisplayAt tagPageSize) pat (tagPageId tag)
-    paginateRules paginate $ \pageNum pat' -> do
+
+-- ---------------------------------------------------------------------------
+-- The map
+-- ---------------------------------------------------------------------------
+
+-- | The item holding every drawing of the map: the whole map under @""@
+--   and each tag's lit version under the tag, as a 'show'n association
+--   list. One layout per build, shared by the tag pages and /map/.
+tagMapId :: Identifier
+tagMapId = "_tag-map/drawings"
+
+loadTagMaps :: Compiler [(String, String)]
+loadTagMaps = read . itemBody <$> load tagMapId
+
+-- | The SVG in the container that lets it pan sideways at phone widths,
+--   where the labels would otherwise be too small to read (tag-map.css).
+scrollable :: String -> String
+scrollable svg = "<div class=\"tag-map-scroll\">" ++ svg ++ "</div>"
+
+-- | The tags and pieces the map draws: every tag outside the sections'
+--   own trees (the photographs' places have the photography pages), and
+--   the pieces filed under them, each with the tags it is written with.
+tagMapInput :: Tags -> Compiler ([MapTag], [MapPiece])
+tagMapInput tags = do
+    cfg <- loadConfig
+    let owned    = sectionOwnedTopLevelTags cfg
+        top      = takeWhile (/= '/')
+        entries  = [ e | e@(t, _) <- tagsMap tags, top t `notElem` owned ]
+        onMap    = Set.fromList (map fst entries)
+        facetOf t = fromMaybe "" (listToMaybe [ portalFacet p | p <- sitePortals cfg
+                                                              , portalTag p == top t ])
+        mapTags  = [ MapTag t (tagDisplayName cfg t) (fromMaybe ("/" ++ t ++ "/") (tagPageUrl cfg t))
+                            (length ids) (parentOf t) (facetOf t)
+                   | (t, ids) <- entries ]
+    pieces <- forM (nub (sort (concatMap snd entries))) $ \i -> do
+        title <- fromMaybe (toFilePath i) <$> getMetadataField i "title"
+        ts    <- filter (`Set.member` onMap) <$> getTags i
+        r     <- getRoute i
+        let url = maybe "" (\p -> "/" ++ (if takeFileName p == "index.html" then dropFileName p else p)) r
+        return (MapPiece (toFilePath i) (stripTags title) url ts)
+    return (mapTags, pieces)
+
+-- | The drawings, and /map/: the whole map, and beneath it every tag on
+--   it as a list, which is what a screen reader and a search engine read.
+tagMapRules :: Tags -> Context String -> Rules ()
+tagMapRules tags baseCtx = do
+    rulesExtraDependencies [IdentifierDependency "_dependencies/tags"] $
+        create [tagMapId] $ compile $ do
+            (mapTags, pieces) <- tagMapInput tags
+            let layout = layoutMap mapTags pieces
+            makeItem $ show $ ("", renderMap layout Nothing)
+                : [ (mtTag t, renderMap layout (Just (mtTag t))) | t <- mapTags ]
+    create ["map/index.html"] $ do
         route idRoute
         compile $ do
-            scCtx <- sidecarContext sidecarSet tag
-            tdCtx <- tagDescriptionField sidecarSet tag
-            items <- recentFirstByDisplay =<< loadAll (pat' .&&. hasNoVersion)
-            let ctx = listField "items" (tagItemCtx tag) (return items)
-                   <> paginateContext paginate pageNum
-                   <> constField "tag"       tag
-                   <> constField "title"     tag
+            cfg      <- loadConfig
+            drawings <- loadTagMaps
+            (mapTags, pieces) <- tagMapInput tags
+            let portalOrder = map portalTag (sitePortals cfg)
+                rank t = (fromMaybe (length portalOrder) (lookup (mtTag t) (zip portalOrder [0 ..])),
+                          map toLower (mtName t))
+                tops   = sortBy (comparing rank) (filter (isNothing . mtParent) mapTags)
+                kids t = sortBy (comparing rank) [ c | c <- mapTags, mtParent c == Just (mtTag t) ]
+                filedUnder t = sortBy (comparing (map toLower . mpTitle))
+                                      [ q | q <- pieces, mtTag t `elem` mpTags q ]
+                link url label = "<a href=\"" ++ escapeHtml url ++ "\">" ++ escapeHtml label ++ "</a>"
+                -- The whole tree, to any depth, and under each tag the
+                -- pieces written with it: every destination the drawing
+                -- has, in the tab order, as the drawing's are not.
+                node t =
+                    let inner = map node (kids t)
+                             ++ [ "<li class=\"tag-map-index-piece\">" ++ link (mpUrl q) (mpTitle q) ++ "</li>"
+                                | q <- filedUnder t ]
+                    in  "<li>" ++ link (mtUrl t) (mtName t)
+                        ++ "<span class=\"tag-within-count\">" ++ show (mtCount t) ++ "</span>"
+                        ++ (if null inner then "" else "<ul>" ++ concat inner ++ "</ul>")
+                        ++ "</li>"
+                index = "<ul class=\"tag-map-index-list\">" ++ concatMap node tops ++ "</ul>"
+                facts = show (length mapTags) ++ " tags and " ++ show (length pieces) ++ " pieces"
+                ctx = constField "title" "Map"
+                   <> constField "description"
+                        ("Every tag on this site and the pieces filed under it, drawn as one map. "
+                         ++ "A section's own tags, such as the photographs' places, are on its pages instead.")
+                   <> constField "map-facts" facts
+                   <> constField "map-index" index
                    <> constField "list-page" "true"
-                   <> tdCtx
-                   <> saCtx
-                   <> scCtx
-                   <> baseCtx
-            makeItem ""
-                >>= inDefault "templates/tag-index.html" ctx
+                   <> constField "tag-map" (scrollable (fromMaybe "" (lookup "" drawings)))
+            makeItem "" >>= inDefault "templates/tag-map.html" (ctx <> baseCtx)

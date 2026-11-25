@@ -23,7 +23,7 @@ from pathlib import Path
 
 from tests._browser import (BROWSERS, check_site, enforcing_csp, require_playwright,
                             requires_browser, site_server)
-from tests.target import route
+from tests.target import optional_route, route
 
 # The pages, asked for in the tests: a list of more cards than the first
 # choice shows (route("list")), and another list page sharing the choice
@@ -96,10 +96,15 @@ class ListCounts(unittest.TestCase):
                 page.click('.list-count-btn[data-count="50"]')
                 page.reload(wait_until="load")
                 self.assertEqual(self.state(page)["pressed"], ["50"])
-                page.goto(self.base + route("list-other"), wait_until="load")
-                other = self.state(page)
-                self.assertEqual(other["pressed"], ["50"])
-                self.assertEqual(other["shown"], min(50, other["total"]))
+                # A site may have no second page that offers the choice (a
+                # tag page offers it only above 25 cards): the reload is
+                # then the whole of what is kept.
+                other_route = optional_route("list-other")
+                if other_route is not None:
+                    page.goto(self.base + other_route, wait_until="load")
+                    other = self.state(page)
+                    self.assertEqual(other["pressed"], ["50"])
+                    self.assertEqual(other["shown"], min(50, other["total"]))
 
     def test_stored_counts_that_are_not_choices(self) -> None:
         for browser in BROWSERS:

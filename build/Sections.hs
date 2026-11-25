@@ -82,7 +82,7 @@ contentPageRoute cfg = contentRoute cfg `composeRoutes` setExtension "html"
 generatedIndexPages :: [(String, String)]
 generatedIndexPages =
     [ ("archive", "archive"), ("bibliography", "bibliography-index")
-    , ("build", "build-page"), ("stats", "stats-page") ]
+    , ("build", "build-page"), ("map", "tag-map"), ("stats", "stats-page") ]
 
 -- | Those the site's switches build.
 generatedIndexes :: SiteConfig -> [String]

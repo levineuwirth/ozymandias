@@ -7,7 +7,7 @@ import Control.Monad.Except (catchError)
 import Data.Char     (isSpace, toUpper)
 import Data.List     (groupBy, isInfixOf, isPrefixOf, isSuffixOf, nub, sort, sortBy)
 import Data.Map.Strict (Map)
-import Data.Maybe    (catMaybes, fromMaybe, isNothing, listToMaybe, mapMaybe)
+import Data.Maybe    (catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe)
 import Data.Ord      (Down (..), comparing)
 import Data.Set      (Set)
 import qualified Data.Set as Set
@@ -54,7 +54,7 @@ import Tags       (buildAllTags, applyTagRules, sidecarIdentifier,
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
 import Scholar    (scholarFields, scholarlyPapers, scholarPdfRules)
-import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, tagPageUrl)
+import Sections   (contentPageRoute, contentRoute, listedSection, sectionLanding, sectionOfRoute, tagPageUrl)
 import Stats      (statsRules)
 import Utils      (applySiteFrame, cacheDirFor, confidencePercent, escapeHtml, formatIso, inDefault,
                    relativizePage,
@@ -159,10 +159,13 @@ neverPublish path =
 notSiteInput :: FilePath -> Bool
 notSiteInput path = takeFileName path `elem` ["fixture-site", "dist-newstyle"]
 
--- | One library shelf: a portal and the cards it shows, and whether the
---   portal holds more than that.
+-- | One library shelf: a portal's or a section's, the cards it shows, and
+--   whether there are more than that.
 data Shelf = Shelf
-    { shelfPortal  :: Portal
+    { shelfKey     :: String        -- ^ the portal's tag or the section's directory
+    , shelfName    :: String
+    , shelfUrl     :: Maybe String  -- ^ its tag page or landing
+    , shelfScope   :: String        -- ^ the portal whose tags its cards leave out
     , shelfEntries :: [Item String]
     , shelfHasMore :: Bool
     }
@@ -394,7 +397,7 @@ rules = do
     -- their pages only with tag-pages on.
     tags <- buildAllTags cfg
     when (switchOn cfg "tag-pages") $
-        applyTagRules tags (map portalPair (sitePortals cfg)) siteCtx
+        applyTagRules cfg tags siteCtx
     statsRules cfg tags
 
     -- Per-page JS files — authored alongside content in content/**/*.js.
@@ -1089,11 +1092,9 @@ rules = do
                                 else return html
                     else return mempty
 
-            -- One shelf: its cards, featured first, and whether the portal
-            -- holds more than the shelf shows.
-            let shelfOf portal = do
-                    let p           = portalTag portal
-                        portalItems = fromMaybe [] (Map.lookup p itemsByPortal)
+            -- One shelf: its cards, featured first (a portal's sidecar's
+            -- @featured:@), and whether it holds more than it shows.
+            let fill key name url scope p portalItems = do
                     sorted <- recentFirstByDisplay portalItems
 
                     featuredPaths <-
@@ -1120,33 +1121,82 @@ rules = do
                         rest = filter (\i -> not (itemIdentifier i `Set.member` featuredIds)) sorted
                         merged = take cap (featuredItems ++ rest)
 
-                    return (Shelf portal merged (length portalItems > length merged))
+                    return (Shelf key name url scope merged (length portalItems > length merged))
+                shelfOf portal =
+                    let p = portalTag portal
+                    in  fill p (portalName portal) (tagPageUrl current p) p p
+                             (fromMaybe [] (Map.lookup p itemsByPortal))
 
-            -- Shelf order follows the portals — single ordering authority.
-            shelves <- mapM shelfOf (sitePortals current)
+            -- Shelved by portal, the portals' order is the shelves'. Shelved
+            -- by section, the leading portals come first, each taking every
+            -- item filed under it, then each section takes the rest of its
+            -- own, in site.yaml's order; no item is left off.
+            shelves <- case libraryShelveBy library of
+                "sections" -> do
+                    let leading = [ q | t <- libraryLeading library
+                                      , q <- sitePortals current, portalTag q == t ]
+                    placed <- forM allContent $ \i -> do
+                        ts <- getTags (itemIdentifier i)
+                        r  <- getRoute (itemIdentifier i)
+                        let tops = map (takeWhile (/= '/')) ts
+                            lead = listToMaybe [ portalTag q | q <- leading, portalTag q `elem` tops ]
+                            sec  = sectionDir <$> (sectionOfRoute current =<< r)
+                        return (maybe (fmap ("section:" ++) sec) Just lead, i)
+                    let byShelf = Map.fromListWith (flip (++)) [ (k, [i]) | (Just k, i) <- placed ]
+                        on k = fromMaybe [] (Map.lookup k byShelf)
+                    leads <- forM leading $ \q ->
+                        fill (portalTag q) (portalName q) (tagPageUrl current (portalTag q))
+                             (portalTag q) (portalTag q) (on (portalTag q))
+                    secs <- forM (siteSections current) $ \sec ->
+                        fill (sectionDir sec) (sectionLandingTitle sec)
+                             (Just ("/" ++ sectionAddress sec ++ "/")) "" ""
+                             (on ("section:" ++ sectionDir sec))
+                    return (leads ++ secs)
+                _ -> mapM shelfOf (sitePortals current)
+
+            -- Shelved by section, the subjects are not shelves: a row of
+            -- the other portals with a page, each with its count over
+            -- everything the tag pages file ('tagIndexable').
+            subjects <- if libraryShelveBy library /= "sections" then return [] else do
+                filed <- getMatches (P.tagIndexable current)
+                tops  <- mapM (fmap (nub . map (takeWhile (/= '/'))) . getTags) filed
+                let shelved = libraryLeading library ++ map sectionDir (siteSections current)
+                return [ (q, n) | q <- sitePortals current
+                                , portalTag q `notElem` shelved
+                                , isJust (tagPageUrl current (portalTag q))
+                                , let n = length (filter (portalTag q `elem`) tops)
+                                , n > 0 ]
 
             -- @$entries$@ is a list whose cards hide the shelf's own portal
             -- tag, so its context depends on the shelf; absent when empty,
             -- so @$if(entries)$@ skips the shelf.
             let shelfCtx =
-                       field "tag"  (return . escapeHtml . portalTag . shelfPortal . itemBody)
-                    <> field "name" (return . escapeHtml . portalName . shelfPortal . itemBody)
-                    -- The shelf's tag page, if it has one (Sections.tagPageUrl).
+                       field "tag"  (return . escapeHtml . shelfKey . itemBody)
+                    <> field "name" (return . escapeHtml . shelfName . itemBody)
+                    -- The shelf's tag page or landing, if it has one.
                     <> field "shelf-url" (\i ->
-                           maybe (noResult "no page for this shelf's tag") (return . escapeHtml)
-                                 (tagPageUrl current (portalTag (shelfPortal (itemBody i)))))
+                           maybe (noResult "no page for this shelf") (return . escapeHtml)
+                                 (shelfUrl (itemBody i)))
                     <> boolField "has-more" (shelfHasMore . itemBody)
                     <> Context (\key _ item ->
                            let shelf = itemBody item
                            in  if key == "entries" && not (null (shelfEntries shelf))
-                                   then return (ListField (portalItemCtx (portalTag (shelfPortal shelf)))
+                                   then return (ListField (portalItemCtx (shelfScope shelf))
                                                           (shelfEntries shelf))
                                    else noResult ("no " ++ key ++ " on this shelf"))
+                subjectCtx =
+                       field "subject-name"  (return . escapeHtml . portalName . fst . itemBody)
+                    <> field "subject-url"   (\i -> maybe (noResult "no page") (return . escapeHtml)
+                                                     (tagPageUrl current (portalTag (fst (itemBody i)))))
+                    <> field "subject-count" (return . show . snd . itemBody)
                 seeAlsoCtx =
                        field "label" (return . escapeHtml . navLabel . itemBody)
                     <> field "href"  (return . escapeHtml . navHref . itemBody)
 
             let ctx = listField "library-shelves" shelfCtx (mapM makeItem shelves)
+                   <> (if null subjects then mempty
+                       else listField "library-subjects" subjectCtx (mapM makeItem subjects))
+                   <> (if switchOn current "tag-map" then constField "library-map" "/map/" else mempty)
                    <> listField "library-see-also" seeAlsoCtx (mapM makeItem (librarySeeAlso library))
                    <> libraryIntroFld
                    <> constField "title"   "Library"

@@ -6,7 +6,7 @@
 -- process-global configuration.
 module Config
     ( SiteConfig (..), FeedSpec (..), FeedSection (..), ManifestConfig (..)
-    , Section (..), writingDirs, sectionLandingTitle, Portal (..), NavLink (..), LibraryConfig (..)
+    , Section (..), writingDirs, sectionLandingTitle, Portal (..), tagDisplayName, NavLink (..), LibraryConfig (..)
     , Standalone (..), PageKind (..), Season (..), ReaderSetting (..), standaloneDir, engineSources, engineContentDirs
     , configRules, readSiteConfig, loadConfig, configField, switchOn, switchContext, bundleContext, registryPath
     , renderSiteFeed, configMake, photoFeed, sectionName, loadFeed
@@ -57,6 +57,10 @@ data SiteConfig = SiteConfig
     , siteFeeds :: [FeedSpec]
     , siteSections :: [Section]
     , sitePortals :: [Portal]
+      -- | Display names for tags that are not portals (site.yaml's
+      --   @tag-names@), by tag path: @ai/llm: LLMs@. A tag with none is
+      --   named by its last segment ('tagDisplayName').
+    , siteTagNames :: Map.Map String String
     , siteNavPrimary :: [NavLink]
       -- | The library page's settings: needed with the library switch on,
       --   and its see-also also lists the bibliography pages' links.
@@ -355,21 +359,44 @@ instance ToJSON Section where
 
 -- | A home-page portal: a top-level tag whose page is @/<tag>/@, in
 --   home-page order. The navigation lists them alphabetically.
+--
+--   @facet@ groups portals that classify the same way (a site's might be
+--   @form@, @research@ and @subject@): a portal's page offers the others
+--   of its facet, and the home page and the navigation may group by it.
+--   Portals without one form a single group, as all portals did before.
 data Portal = Portal
-    { portalName :: String
-    , portalTag  :: String
+    { portalName  :: String
+    , portalTag   :: String
+    , portalFacet :: String
     } deriving (Eq, Show)
 
 instance FromJSON Portal where
     parseJSON = withObject "portal" $ \o -> do
-        onlyKeys ["name", "tag"] o
-        p <- Portal <$> o .: "name" <*> o .: "tag"
+        onlyKeys ["name", "tag", "facet"] o
+        p <- Portal <$> o .: "name" <*> o .: "tag" <*> o .:? "facet" .!= ""
         singleLine "portal name" (portalName p)
         unless (slug (portalTag p)) $ fail "portal tag must be a lowercase slug"
+        unless (null (portalFacet p) || slug (portalFacet p)) $
+            fail "portal facet must be a lowercase slug"
         pure p
 
 instance ToJSON Portal where
-    toJSON p = object ["name" .= portalName p, "tag" .= portalTag p]
+    toJSON p = object (["name" .= portalName p, "tag" .= portalTag p]
+                       ++ ["facet" .= portalFacet p | not (null (portalFacet p))])
+
+-- | A tag's display name: a portal's own name, else site.yaml's
+--   @tag-names@, else its last segment with hyphens as spaces and the
+--   first letter capitalized (@tech/cryptography@ → "Cryptography").
+tagDisplayName :: SiteConfig -> String -> String
+tagDisplayName cfg t =
+    case [ portalName p | p <- sitePortals cfg, portalTag p == t ] of
+        (n : _) -> n
+        []      -> Map.findWithDefault humanized t (siteTagNames cfg)
+  where
+    lastSeg   = reverse (takeWhile (/= '/') (reverse t))
+    humanized = case map (\ch -> if ch == '-' then ' ' else ch) lastSeg of
+        (c0 : cs) -> toUpper c0 : cs
+        []        -> t
 
 -- | A labelled link in the navigation or among the library's see-also
 --   links: root-relative, or an absolute HTTP(S) URL.
@@ -395,26 +422,40 @@ instance ToJSON NavLink where
 -- | The library page: shelf sizes (a shelf shows the cap, raised by its
 --   sidecar's @featured:@ list up to the maximum), the page's description
 --   and its see-also links.
+--
+--   @shelve-by@ is @portals@ (a shelf per portal, an item on its first
+--   portal's, an item with none left off) or @sections@ (the @leading@
+--   portals' shelves first, each taking every item filed under it, then a
+--   shelf per section for the rest, with the other portals in a row above).
 data LibraryConfig = LibraryConfig
     { libraryShelfCap     :: Int
     , libraryShelfMax     :: Int
     , libraryDescription  :: String
     , librarySeeAlso      :: [NavLink]
+    , libraryShelveBy     :: String
+    , libraryLeading      :: [String]
     } deriving (Eq, Show)
 
 instance FromJSON LibraryConfig where
     parseJSON = withObject "library" $ \o -> do
-        onlyKeys ["shelf-cap", "shelf-max", "description", "see-also"] o
+        onlyKeys ["shelf-cap", "shelf-max", "description", "see-also", "shelve-by", "leading"] o
         l <- LibraryConfig <$> o .: "shelf-cap" <*> o .: "shelf-max"
                            <*> o .: "description" <*> o .: "see-also"
+                           <*> o .:? "shelve-by" .!= "portals" <*> o .:? "leading" .!= []
         unless (1 <= libraryShelfCap l && libraryShelfCap l <= libraryShelfMax l) $
             fail "library shelf-cap must be at least 1 and at most shelf-max"
+        unless (libraryShelveBy l `elem` ["portals", "sections"]) $
+            fail "library shelve-by must be portals or sections"
+        unless (null (libraryLeading l) || libraryShelveBy l == "sections") $
+            fail "library leading takes shelve-by: sections"
         singleLine "library description" (libraryDescription l)
         pure l
 
 instance ToJSON LibraryConfig where
-    toJSON l = object [ "shelf-cap" .= libraryShelfCap l, "shelf-max" .= libraryShelfMax l
-                      , "description" .= libraryDescription l, "see-also" .= librarySeeAlso l ]
+    toJSON l = object ([ "shelf-cap" .= libraryShelfCap l, "shelf-max" .= libraryShelfMax l
+                       , "description" .= libraryDescription l, "see-also" .= librarySeeAlso l ]
+                       ++ [ "shelve-by" .= libraryShelveBy l | libraryShelveBy l /= "portals" ]
+                       ++ [ "leading" .= libraryLeading l | not (null (libraryLeading l)) ])
 
 -- | The engine context a standalone page is compiled with: its compiler and
 --   the fields its template reads ("Site").
@@ -519,7 +560,7 @@ engineAddresses = sort $ engineContentDirs ++
 instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
-                  ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals",
+                  ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals", "tag-names",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
                       "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "reader-settings",
                       "scripts", "source-preview",
@@ -532,6 +573,7 @@ instance FromJSON SiteConfig where
                         <*> o .:? "code-license" .!= "" <*> o .:? "signing-fingerprint" .!= ""
                         <*> o .: "manifest" <*> o .: "feeds"
                         <*> o .: "sections" <*> o .: "portals"
+                        <*> o .:? "tag-names" .!= Map.empty
                         <*> o .: "nav-primary" <*> o .:? "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
@@ -595,6 +637,10 @@ instance FromJSON SiteConfig where
         forM_ addresses $ \address -> when (address `elem` engineAddresses) $
             fail ("section address is a directory of the engine's: " ++ address)
         when (nub tags /= tags) $ fail "portal tags must be unique"
+        forM_ (Map.toList (siteTagNames c)) $ \(t, name) -> do
+            unless (all slug (splitDirectories t) && not (null t)) $
+                fail ("tag-names keys must be tag paths of lowercase slugs: " ++ t)
+            singleLine "tag name" name
         let sources = map standaloneSource (siteStandalone c)
             routes  = map standaloneRoute (siteStandalone c)
         when (nub sources /= sources || nub routes /= routes) $
@@ -606,6 +652,7 @@ instance FromJSON SiteConfig where
 
 instance ToJSON SiteConfig where
     toJSON c = object ([Key.fromString k .= v | (k, v) <- identityValues c]
+                       ++ [ "tag-names" .= siteTagNames c | not (Map.null (siteTagNames c)) ]
                        ++ ["feeds" .= siteFeeds c, "manifest" .= siteManifest c,
                            "signing-fingerprint" .= siteSigningFingerprint c,
                            "sections" .= siteSections c, "portals" .= sitePortals c,

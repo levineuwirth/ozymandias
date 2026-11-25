@@ -579,4 +579,231 @@
     .item-card-dateline-sep {
         display: none;
     }}
+
+
+/* ============================================================
+   TAG PAGES
+   The head (ancestors, name, gloss, the count and its dates), the
+   tags within, the pieces in full while there are few, and at the
+   foot what else they are filed under and where to go next.
+   ============================================================ */
+
+.tag-head {
+    margin-bottom: 2rem;
+}
+
+.tag-crumbs,
+.tag-facts,
+#markdownBody .tag-label {
+    font-family: var(--font-sans);
+    font-size: var(--step--2);
+    font-variant: all-small-caps;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
+    color: var(--text-faint);
+    font-weight: normal;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.tag-crumbs a {
+    color: var(--text-faint);
+}
+
+.tag-head .page-title {
+    margin-block: 0.1rem 0;
+}
+
+/* No first-line indent: they are a heading's lines, not prose. The id
+   outranks typography's #markdownBody p + p. */
+#markdownBody .tag-head p {
+    text-indent: 0;
+}
+
+.tag-gloss {
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: var(--step-1);
+    margin: 0.4rem 0 0;
+}
+
+.tag-facts {
+    margin-top: 0.6rem;
+}
+
+#markdownBody .tag-label {
+    margin-bottom: 0.4rem;
+}
+
+.tag-within,
+.tag-alongside,
+.tag-head + .see-also {
+    margin-bottom: 2rem;
+}
+
+#markdownBody .tag-within-list,
+#markdownBody .tag-alongside-list,
+#markdownBody .tag-head + .see-also .see-also-list,
+#markdownBody .see-also .tag-label + .see-also-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#markdownBody .tag-within-list li + li,
+#markdownBody .see-also .tag-label + .see-also-list li + li {
+    margin-top: 0.15rem;
+}
+
+#markdownBody .tag-alongside-list li + li {
+    margin-top: 0;
+}
+
+.tag-within-gloss {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.tag-within-count,
+.tag-alongside-count {
+    font-family: var(--font-sans);
+    font-size: var(--step--2);
+    color: var(--text-faint);
+    padding-left: 0.5em;
+    font-variant-numeric: oldstyle-nums;
+}
+
+#markdownBody .tag-alongside-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+}
+
+.tag-alongside-parent {
+    color: var(--text-faint);
+}
+
+.tag-alongside,
+.tag-map-figure + .tag-alongside,
+.item-card-list + .tag-alongside,
+.item-entry-list + .tag-alongside {
+    margin-top: 2.5rem;
+}
+
+/* The map is a drawing on the page's own ground, not a plate: none of
+   typography.css's figure frame. */
+#markdownBody .tag-map-figure {
+    margin: 2.5rem 0 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    max-width: none;
+}
+
+/* The pieces in full: a larger mark, the dateline above the title, the
+   whole abstract. */
+
+.item-entry-list {
+    border-bottom: 1px solid var(--border);
+}
+
+.item-entry {
+    display: flex;
+    gap: 1.75rem;
+    padding: 1.6rem 0 1.8rem;
+    border-top: 1px solid var(--border);
+}
+
+.item-entry-monogram {
+    flex-shrink: 0;
+    line-height: 0;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.item-entry-monogram .frontmatter-mark.frontmatter-mark--monogram {
+    width: 112px;
+    height: 112px;
+    margin: 0;
+}
+
+.item-entry-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.item-entry-dateline {
+    font-family: var(--font-sans);
+    font-size: var(--step--2);
+    font-variant: all-small-caps;
+    letter-spacing: calc(0.07em * var(--tracking-scale));
+    color: var(--text-faint);
+    margin: 0 0 0.25rem;
+}
+
+#markdownBody .item-entry-title {
+    font-size: var(--step-2);
+    font-weight: normal;
+    line-height: 1.25;
+    margin: 0;
+}
+
+.item-entry-title a {
+    text-decoration-color: var(--border);
+}
+
+.item-entry-abstract {
+    color: var(--text-muted);
+    margin: 0.6rem 0 0;
+}
+
+.item-entry-list--featured {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+
+.tag-alongside + .see-also,
+.item-entry-list + .see-also,
+.item-card-list + .see-also {
+    margin-top: 2rem;
+}
+
+@media (max-width: 540px) {
+    .item-entry {
+        gap: 1rem;
+    }
+    .item-entry-monogram .frontmatter-mark.frontmatter-mark--monogram {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+@media print {
+    .tag-map-figure {
+        break-inside: avoid;
+    }
+}
+
+/* /map/: every tag on the map, its subtags beneath it. */
+
+#markdownBody .tag-map-index-list,
+#markdownBody .tag-map-index-list ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#markdownBody .tag-map-index-list ul {
+    padding-left: 1.25em;
+}
+
+.tag-map-index-piece {
+    font-size: var(--step--1);
+    color: var(--text-muted);
+}
+
+.tag-map-index {
+    margin-top: 2.5rem;
+}
 }
