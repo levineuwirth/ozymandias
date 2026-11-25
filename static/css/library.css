@@ -438,9 +438,13 @@
 }
 
 
+/* Each letter at least 24px wide (WCAG 2.2 SC 2.5.8, target size): at the
+   smallest text size 1.2em is 18.7px, about 21px apart, so neighbors' 24px
+   circles overlapped and axe counted every linked letter. Its line is
+   already 24px high. */
 .bibliography-alphabet .alpha {
     display: inline-block;
-    min-width: 1.2em;
+    min-width: max(1.2em, 24px);
     padding: 0.05em 0.2em;
     text-align: center;
     color: var(--text-muted);
