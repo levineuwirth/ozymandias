@@ -162,6 +162,67 @@ def throwaway_key(home: Path) -> dict:
 
 
 @requires_cabal
+class CacheRecord(unittest.TestCase):
+    """The cache records the engine sources that wrote it, and a build
+    removes one other sources wrote (EngineFiles.staleCache), through the
+    site's own executable: a rebuild keeps the record its clean removes, and
+    a dry run changes neither the cache nor the record (review, 2026-11-25)."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory(prefix="fixture-cache-")
+        self.addCleanup(tmp.cleanup)
+        self.site = Path(tmp.name) / "site"
+        minimal = next(b for b in fixture_variants.builds() if b.name == "minimal")
+        fixture_variants.copy_site(minimal, self.site, ENGINE)
+        git = ["git", "-c", "user.email=fixture@example.org", "-c", "user.name=Fixture",
+               "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+        for args in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "the fixture site"]):
+            subprocess.run(git + args, cwd=self.site, check=True, capture_output=True)
+        self.binary = str(site_binary())
+        self.env = script_env(SITE_ENV="production", SITE_ROOT=str(self.site), SITE_BINARY=self.binary)
+        self.record = self.site / "_cache/engine-sources"
+        self.sources = self.site_command("version").stdout.split()[-1]
+
+    def site_command(self, *args):
+        done = subprocess.run([self.binary, *args], cwd=self.site, env=self.env,
+                              capture_output=True, text=True, timeout=600)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done
+
+    def compiled(self, *args):
+        """How many items the command compiled, and what it said on stderr."""
+        done = self.site_command(*args)
+        return done.stdout.count("  updated "), done.stderr
+
+    def cache_files(self):
+        return {p for p in (self.site / "_cache").rglob("*") if p.is_file()}
+
+    def test_a_rebuild_keeps_its_record_and_the_next_build_its_cache(self):
+        everything, _ = self.compiled("rebuild")
+        self.assertEqual(self.record.read_text(), self.sources + "\n")
+        # The telemetry pages compile on every build (Main.writeBuildStamp).
+        again, said = self.compiled("build")
+        self.assertNotIn("other engine sources", said)
+        self.assertLess(again, everything // 10)
+
+    def test_a_dry_run_leaves_a_stale_cache_to_the_next_build(self):
+        everything, _ = self.compiled("build")
+        self.record.write_text("older\n")
+        files = self.cache_files()
+        compiled, said = self.compiled("build", "--dry-run")
+        self.assertEqual(compiled, 0)
+        self.assertIn("the next build compiles everything", said)
+        self.assertEqual(self.record.read_text(), "older\n")
+        # Hakyll's own dry run drops an entry or two; a removed cache leaves
+        # a few dozen of hundreds.
+        self.assertGreater(len(self.cache_files() & files), len(files) * 9 // 10)
+        compiled, said = self.compiled("build")
+        self.assertIn("rebuilding everything", said)
+        self.assertEqual(compiled, everything)
+        self.assertEqual(self.record.read_text(), self.sources + "\n")
+
+
+@requires_cabal
 @unittest.skipUnless(shutil.which("pagefind"), "pagefind not on PATH")
 @unittest.skipUnless(shutil.which("gpg") and shutil.which("gpgconf"), "gpg not on PATH (the signing switch)")
 class FixtureBuilds(unittest.TestCase):

@@ -44,6 +44,9 @@ module EngineFiles
     , assetsField
     , staticImageDimensions
     , hasImport
+    , staleCache
+    , discardStaleCache
+    , recordCache
     ) where
 
 import           Control.Exception (IOException, catch)
@@ -59,11 +62,59 @@ import qualified Data.Set          as Set
 import qualified Data.Text         as T
 import qualified Data.Text.Encoding as TE
 import           Hakyll
-import           System.Directory  (doesFileExist, listDirectory)
+import           System.Directory  (createDirectoryIfMissing, doesDirectoryExist, doesFileExist,
+                                    listDirectory, removeDirectoryRecursive)
 import           System.FilePath   ((</>))
+import           System.IO         (hPutStrLn, stderr)
 
 import           Themes            (Themes (..), dingbatsId, scanDingbats, scanThemes, systemDark, themesId)
 import           Utils             (stripHtmlComments, stripPrefixRoute)
+
+-- | A cache that other engine sources wrote, and its record.
+--
+-- Hakyll records an item's dependencies as it compiles the item, under the
+-- rules of the engine compiling it, and holds a cached item to those alone:
+-- a dependency newer rules add is never acquired while the item stays fresh
+-- by the old ones. After the asset version's tag arrived, a cache from the
+-- engine before it kept its files, and a change of the bundle plan gave the
+-- pages a version whose files were never written. @make build@ cleans when
+-- the rules change (tools/build-freshness.sh), but @make watch@ builds on
+-- the cache it finds, as does a build run by hand. So the cache records the
+-- sources that wrote it ('EngineVersion.compiledSourceHash' for the site),
+-- and a build removes one written from others, or before that record.
+--
+-- 'staleCache' says whether the store at the path is such a cache: an empty
+-- or absent one is not. 'discardStaleCache' removes it, before Hakyll opens
+-- the store. 'recordCache' writes the record, from the rules, which Hakyll
+-- runs after the clean that @site rebuild@ begins with.
+staleCache :: String -> FilePath -> IO Bool
+staleCache sources store = do
+    present  <- doesDirectoryExist store
+    entries  <- if present then filter (/= cacheRecord) <$> listDirectory store else pure []
+    recorded <- readRecord (store </> cacheRecord)
+    pure (not (null entries) && recorded /= Just sources)
+
+discardStaleCache :: String -> FilePath -> IO ()
+discardStaleCache sources store = do
+    stale <- staleCache sources store
+    when stale $ do
+        hPutStrLn stderr ("site: " ++ store ++ " was written by other engine sources; rebuilding everything")
+        removeDirectoryRecursive store
+
+recordCache :: String -> FilePath -> IO ()
+recordCache sources store = do
+    recorded <- readRecord (store </> cacheRecord)
+    unless (recorded == Just sources) $ do
+        createDirectoryIfMissing True store
+        writeFile (store </> cacheRecord) (sources ++ "\n")
+
+cacheRecord :: FilePath
+cacheRecord = "engine-sources"
+
+readRecord :: FilePath -> IO (Maybe String)
+readRecord path = do
+    kept <- doesFileExist path
+    if kept then Just . BC.unpack . BC.strip <$> BS.readFile path else pure Nothing
 
 -- | Where the engine sits in the site.
 engineDir :: FilePath

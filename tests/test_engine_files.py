@@ -33,7 +33,9 @@ main = getArgs >>= \\args -> case args of
     "existing" : paths -> mapM_ (existingFile >=> print) paths
     "files" : dirs -> mapM_ (filesIn >=> mapM_ putStrLn) dirs
     "imports" : sheets -> mapM_ (print . hasImport) sheets
-    _ -> lookupEnv "PROBE_OFF" >>= \\off -> hakyll $ do
+    _ -> lookupEnv "PROBE_OFF" >>= \\off -> lookupEnv "PROBE_ENGINE" >>= \\engine ->
+         let sources = maybe "probe" id engine in
+         discardStaleCache sources "_cache" >> hakyll (preprocess (recordCache sources "_cache") >> do
         twins <- engineTwins
         staticRules twins [] (`notElem` maybe [] words off) (Themes [] "" Nothing)
         templateRules twins
@@ -57,7 +59,7 @@ main = getArgs >>= \\args -> case args of
         -- has for the source-preview corpus.
         match "static/**" $ version "source-preview" $ do
             route $ customRoute (("source/" ++) . toFilePath)
-            compile copyFileCompiler
+            compile copyFileCompiler)
 '''
 
 
@@ -360,6 +362,34 @@ class EngineFilesTests(unittest.TestCase):
         self.assertEqual(self.version(), first)
         self.assertIn("b{color:blue}", self.asset("css/score.css"))
         self.assertEqual(self.asset("js/engine.js"), "engine();\n")
+
+    def test_a_cache_other_engine_sources_wrote_is_rebuilt_from_scratch(self):
+        # Hakyll holds a cached item to the dependencies it was compiled
+        # with, under the rules of the engine compiling it. After the
+        # version's tag arrived, a cache from the engine before it kept its
+        # files, and switching music off then gave the pages a version whose
+        # files were never written; make watch builds on that cache (review,
+        # 2026-11-25). So a cache from other sources compiles everything anew.
+        self.write("engine/static/css/tokens.css", "a { color: red; }\n")
+        self.write("engine/static/js/engine.js", "engine();\n")
+        self.write("static/css/site.css", "b { color: blue; }\n")
+        record = self.root / "_cache/engine-sources"
+        self.run_probe("build", PROBE_ENGINE="earlier")
+        self.assertEqual(record.read_text(), "earlier\n")
+        self.assertNotIn("updated", self.run_probe("build", PROBE_ENGINE="earlier"))
+        for setup in ("other sources", "no record"):
+            with self.subTest(setup=setup):
+                if setup == "no record":
+                    record.unlink()
+                log = self.run_probe("build", PROBE_ENGINE="later")
+                for item in ("stamped.html", "plain.html", "css-bundle/core", "engine/static/js/engine.js"):
+                    self.assertIn(f"updated {item}\n", log)
+                self.assertEqual(record.read_text(), "later\n")
+                self.assertNotIn("updated", self.run_probe("build", PROBE_ENGINE="later"))
+        # A cache that is gone, as after `site clean`, has nothing to remove.
+        shutil.rmtree(self.root / "_cache")
+        self.run_probe("build", PROBE_ENGINE="later")
+        self.assertEqual(record.read_text(), "later\n")
 
     def test_template_migration_cleans_then_engine_edits_rebuild(self):
         # Exercise the real freshness decision and alias rules together.

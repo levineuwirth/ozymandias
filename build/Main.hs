@@ -8,12 +8,15 @@ import System.Directory      (createDirectoryIfMissing, doesFileExist)
 import System.Environment    (getArgs)
 import System.Exit           (die)
 import System.FilePath       ((</>))
-import EngineFiles           (bundlePlan, engineDir, modulePlan, readDingbats, readThemes)
+import EngineFiles           (bundlePlan, engineDir, modulePlan, readDingbats, readThemes,
+                              discardStaleCache, recordCache, staleCache)
 import Themes                (Themes (..), Theme (..), systemDark, themeLabel)
 import EngineVersion         (compiledSourceHash, currentSourceHash)
 import Config                (SiteConfig (..), readSiteConfig, configMake, identityFields, switchOn)
 import SiteThreads           (siteThreads)
-import Hakyll                (toFilePath)
+import Hakyll                (preprocess, storeDirectory, toFilePath)
+import Hakyll.Core.Runtime   (RunMode (..))
+import System.IO             (hPutStrLn, stderr)
 import Hakyll.Main           (Command (..), Options (..), defaultParser, hakyllWithArgs)
 import Golden                (renderFixture)
 import Contract              (renderTemplate)
@@ -157,6 +160,23 @@ main = do
             options <- defaultParser conf
             let run = running (optCommand options)
             when (run /= NoBuild) checkSources
+            -- A cache other engine sources wrote holds its items to that
+            -- engine's dependencies: removed here, where make watch passes
+            -- too, and the record written from the rules, after the clean a
+            -- rebuild begins with ("EngineFiles"). A dry run compiles
+            -- nothing, and changes neither: it says what the build will do.
+            let store = storeDirectory conf
+                dry   = case optCommand options of
+                    Build RunModePrintOutOfDate -> True
+                    _                           -> False
+                recording = run /= NoBuild && not dry
+            when (run /= NoBuild) $
+                if dry
+                    then do
+                        stale <- staleCache compiledSourceHash store
+                        when stale $ hPutStrLn stderr $
+                            "site: " ++ store ++ " was written by other engine sources; the next build compiles everything"
+                    else discardStaleCache compiledSourceHash store
             -- What the tools' records pair now, where the pages' dependencies
             -- look for it, before Hakyll reads the site.
             when (run /= NoBuild) refreshPairingStates
@@ -167,7 +187,8 @@ main = do
             writeBuildStamp
             cfg <- readSiteConfig
             hakyllWithArgs conf options
-                (withCheckedRoutes (siteSwitchedLinks cfg) (withoutUnpublished currentUnpublished rules))
+                (when recording (preprocess (recordCache compiledSourceHash store))
+                    >> withCheckedRoutes (siteSwitchedLinks cfg) (withoutUnpublished currentUnpublished rules))
 
 -- | What a Hakyll command does with the site's pages.
 data Running = NoBuild | OneBuild | Watching deriving Eq
