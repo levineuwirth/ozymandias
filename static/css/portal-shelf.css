@@ -153,25 +153,38 @@
 }
 
 
+/* The map and a cover share one box, the map's: a cover stands in the
+   middle of the space the map leaves, so turning from one to the other
+   moves nothing below. */
+.portal-shelf-stage {
+    position: relative;
+}
+
+
 .portal-shelf-stage .tag-map a {
     text-decoration: none;
 }
 
 
 .portal-shelf-cover {
+    position: absolute;
+    inset: 0;
     display: block;
     max-width: 100%;
-    height: 13rem;
-    margin: 0 auto;
-    object-fit: contain;
+    max-height: calc(100% - 1rem);
+    margin: auto;
     border: 1px solid var(--border);
     background: var(--shelf-paper, var(--bg));
 }
 
 
-.portal-shelf-cover[hidden],
-.portal-shelf-stage.is-cover .tag-map {
+.portal-shelf-cover[hidden] {
     display: none;
+}
+
+
+.portal-shelf-stage.is-cover .tag-map {
+    visibility: hidden;
 }
 
 
@@ -265,11 +278,6 @@
 
     .portal-shelf-stage .tag-map {
         min-width: 0;
-    }
-
-
-    .portal-shelf-cover {
-        height: 10rem;
     }}
 
 

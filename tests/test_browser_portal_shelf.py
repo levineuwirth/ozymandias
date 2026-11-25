@@ -10,6 +10,8 @@ page under its enforcing policy:
     spine reaches the caption naming the map, the keyboard's way to /map/;
     a pointer that leaves gives the shelf back to the focused spine;
   · a cover that fails to load leaves the map, not the last portal's cover;
+    from one cover to the next the map does not show between, and a cover
+    stands in the map's box, moving nothing below it;
   · on a phone (375, 360 and 320px) every spine stands on one shelf, inside the
     window, the spines' centres 24px apart (target size), and the page
     does not scroll sideways;
@@ -39,7 +41,7 @@ STATE = """() => {
         lit: svg ? [...svg.querySelectorAll('.tag-map-tag.is-hover-lit')].map(t => t.dataset.tag) : [],
         hover: svg ? svg.classList.contains('tag-map--hover') : false,
         cover: cover ? !cover.hidden && cover.getBoundingClientRect().height > 0 : false,
-        map: svg ? svg.getBoundingClientRect().height > 0 : false,
+        map: svg ? svg.getBoundingClientRect().height > 0 && getComputedStyle(svg).visibility !== 'hidden' : false,
     };
 }"""
 
@@ -167,6 +169,34 @@ class PortalShelf(unittest.TestCase):
                 self.assertEqual(errors, [])
 
     @requires_switch("tag-map")
+    def test_cover_to_cover_turns_at_once_in_one_box(self):
+        for browser in BROWSERS:
+            with self.subTest(browser=browser):
+                page, errors = self.open(browser, viewport={"width": 1440, "height": 1000})
+                covered = [s for s in page.evaluate(SPINES) if s["cover"] and not s["onMap"]]
+                if len(covered) < 2:
+                    self.skipTest("fewer than two portals with covers")
+                below = "() => document.querySelector('.portal-shelf-caption').getBoundingClientRect().top + scrollY"
+                at_rest = page.evaluate(below)
+                page.hover(f'.portal-spine[data-tag="{covered[0]["tag"]}"]')
+                page.wait_for_load_state("networkidle")       # the covers, loaded on reaching the shelf
+                page.wait_for_function("() => !document.querySelector('.portal-shelf-cover').hidden")
+                self.assertEqual(page.evaluate(below), at_rest, "a cover moved what is below the map")
+                # Every state the stage passes through on the way to the next cover.
+                page.evaluate("""() => { window.__stage = [];
+                    const stage = document.querySelector('.portal-shelf-stage');
+                    new MutationObserver(() => window.__stage.push(stage.classList.contains('is-cover')))
+                        .observe(stage, {attributes: true, subtree: true}); }""")
+                page.hover(f'.portal-spine[data-tag="{covered[1]["tag"]}"]')
+                page.wait_for_timeout(300)
+                self.assertNotIn(False, page.evaluate("window.__stage"), "the map showed between two covers")
+                state = page.evaluate(STATE)
+                self.assertEqual(state["title"], covered[1]["name"])
+                self.assertTrue(state["cover"])
+                self.assertEqual(page.evaluate(below), at_rest)
+                self.assertEqual(errors, [])
+
+    @requires_switch("tag-map")
     def test_a_cover_that_fails_leaves_the_map(self):
         for browser in BROWSERS:
             with self.subTest(browser=browser):
@@ -175,9 +205,10 @@ class PortalShelf(unittest.TestCase):
                 if len(covered) < 2:
                     self.skipTest("fewer than two portals with covers")
                 first, second = covered[0], covered[1]
+                # Blocked before the shelf is reached, when the covers load.
+                page.route("**" + second["cover"], lambda route: route.abort())
                 page.hover(f'.portal-spine[data-tag="{first["tag"]}"]')
                 page.wait_for_function("() => !document.querySelector('.portal-shelf-cover').hidden")
-                page.route("**" + second["cover"], lambda route: route.abort())
                 page.hover(f'.portal-spine[data-tag="{second["tag"]}"]')
                 page.wait_for_timeout(600)
                 state = page.evaluate(STATE)
