@@ -40,7 +40,7 @@ import Catalog      (musicCatalogCtx)
 import Commonplace  (commonplaceCtx)
 import EngineFiles  (engineTwins, readThemes, siteRelative, staticImageDimensions, staticRules, templateRules)
 import Now          (nowCtx, nowLastUpdated)
-import Vita         (vitaCtx, projectsCtx)
+import Vita         (vitaCtx, projectsCtx, languagesField)
 import Contexts   (feedTitleField, siteCtx, essayCtx, postCtx, pageCtx, poetryCtx, fictionCtx, compositionCtx,
                    contentKindField, declaresScore, recentFirstByDisplay, revisionDateFields,
                    tagLinksFieldExcludingTopSegment,
@@ -215,7 +215,7 @@ standaloneRules page = do
   where
     flags = mconcat [constField flag "true" | flag <- standaloneFlags page]
     (compiler, ctx) = case standaloneContext page of
-        EssayPage    -> (essayCompiler, essayCtx)
+        EssayPage    -> (essayCompiler, languagesField <> essayCtx)
         PlainPage    -> (pageCompiler, pageCtx)
         NowPage      -> (pageCompiler, nowCtx)
         VitaPage     -> (pageCompiler, vitaCtx)
@@ -673,7 +673,7 @@ rules = do
         route pageRoute
         compile $ essayCompiler
             >>= saveSnapshot "content"
-            >>= inDefault "templates/essay.html" (scholarFields papers <> essayCtx)
+            >>= inDefault "templates/essay.html" (scholarFields papers <> languagesField <> essayCtx)
 
     -- Dimension sidecars: tracked, but not shipped.
     --

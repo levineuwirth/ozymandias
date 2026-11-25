@@ -225,6 +225,16 @@
 
 /* Preamble, notes, project descriptions — the connective prose. Same
    register as .item-card-abstract.is-full, unclamped. */
+/* The languages a project's code is written in, under its title, in the
+   code face (projects.yml's languages, by site.yaml's names). */
+#markdownBody .vita-languages {
+    font-family: var(--font-mono);
+    font-size: var(--step--3);
+    color: var(--text-muted);
+    margin: 0.25rem 0 0;
+}
+
+
 #markdownBody .vita-note {
     font-family: var(--font-sans);
     font-size: var(--text-size-small);

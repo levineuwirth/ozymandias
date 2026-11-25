@@ -61,6 +61,11 @@ data SiteConfig = SiteConfig
       --   @tag-names@), by tag path: @ai/llm: LLMs@. A tag with none is
       --   named by its last segment ('tagDisplayName').
     , siteTagNames :: Map.Map String String
+      -- | The programming languages a work's own code may be written in
+      --   (site.yaml's @languages@), by key: @rust: Rust@. A project in
+      --   projects.yml, or an essay, names its languages by these keys, and
+      --   a key not here fails the build, so one language has one name.
+    , siteLanguages :: Map.Map String String
     , siteNavPrimary :: [NavLink]
       -- | The library page's settings: needed with the library switch on,
       --   and its see-also also lists the bibliography pages' links.
@@ -560,7 +565,7 @@ engineAddresses = sort $ engineContentDirs ++
 instance FromJSON SiteConfig where
     parseJSON = withObject "site config" $ \o -> do
         onlyKeys (map Key.fromString identityKeys
-                  ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals", "tag-names",
+                  ++ ["feeds", "manifest", "signing-fingerprint", "sections", "portals", "tag-names", "languages",
                       "nav-primary", "library", "standalone", "font-preloads", "epistemic-about",
                       "epistemic-about-label", "epistemic-figure", "popup-providers", "seasons", "reader-settings",
                       "scripts", "source-preview",
@@ -574,6 +579,7 @@ instance FromJSON SiteConfig where
                         <*> o .: "manifest" <*> o .: "feeds"
                         <*> o .: "sections" <*> o .: "portals"
                         <*> o .:? "tag-names" .!= Map.empty
+                        <*> o .:? "languages" .!= Map.empty
                         <*> o .: "nav-primary" <*> o .:? "library"
                         <*> o .: "standalone" <*> o .:? "font-preloads" .!= []
                         <*> o .:? "epistemic-about" .!= ""
@@ -641,6 +647,9 @@ instance FromJSON SiteConfig where
             unless (all slug (splitDirectories t) && not (null t)) $
                 fail ("tag-names keys must be tag paths of lowercase slugs: " ++ t)
             singleLine "tag name" name
+        forM_ (Map.toList (siteLanguages c)) $ \(k, name) -> do
+            unless (slug k) $ fail ("languages keys must be lowercase slugs: " ++ k)
+            singleLine "language name" name
         let sources = map standaloneSource (siteStandalone c)
             routes  = map standaloneRoute (siteStandalone c)
         when (nub sources /= sources || nub routes /= routes) $
@@ -653,6 +662,7 @@ instance FromJSON SiteConfig where
 instance ToJSON SiteConfig where
     toJSON c = object ([Key.fromString k .= v | (k, v) <- identityValues c]
                        ++ [ "tag-names" .= siteTagNames c | not (Map.null (siteTagNames c)) ]
+                       ++ [ "languages" .= siteLanguages c | not (Map.null (siteLanguages c)) ]
                        ++ ["feeds" .= siteFeeds c, "manifest" .= siteManifest c,
                            "signing-fingerprint" .= siteSigningFingerprint c,
                            "sections" .= siteSections c, "portals" .= sitePortals c,

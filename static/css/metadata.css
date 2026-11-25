@@ -42,6 +42,13 @@
 }
 
 
+/* The languages an essay's code is written in, in the code face. */
+.meta-languages {
+    font-family: var(--font-mono);
+    font-size: var(--step--3);
+}
+
+
 /* Tags, authors, jump links: centered */
 .meta-tags,
 .meta-authors,

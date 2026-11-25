@@ -4,6 +4,11 @@
         $for(essay-tags)$$if(tag-url)$<a class="meta-tag" href="$tag-url$">$tag-name$</a>$else$<span class="meta-tag">$tag-name$</span>$endif$$endfor$
     </div>
     $endif$
+    $if(essay-languages)$
+    <div class="meta-row meta-languages">
+        $for(essay-languages)$$language-name$$sep$ · $endfor$
+    </div>
+    $endif$
     $if(essay-keywords)$
     <div class="meta-row meta-keywords">
         $for(essay-keywords)$$if(kw-url)$<a class="meta-keyword" href="$kw-url$">$kw-name$</a>$else$<span class="meta-keyword">$kw-name$</span>$endif$$endfor$

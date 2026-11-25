@@ -22,6 +22,7 @@
 module Vita
     ( vitaCtx
     , projectsCtx
+    , languagesField
     ) where
 
 import Data.Aeson         (FromJSON (..), Object, Value (..), withObject, (.:), (.:?), (.!=))
@@ -33,6 +34,9 @@ import Data.Scientific    (isInteger, toRealFloat)
 import qualified Data.Aeson.Key        as K
 import qualified Data.Text             as T
 import Hakyll hiding (escapeHtml)
+import Control.Applicative ((<|>))
+import qualified Data.Map.Strict as Map
+import Config   (SiteConfig (..), loadConfig)
 import Contexts (siteCtx)
 import Utils    (escapeHtml, loadYaml)
 
@@ -218,6 +222,7 @@ data Proj = Proj
     , pjDescription :: String
     , pjLinks       :: [Link]
     , pjWeb         :: Bool
+    , pjLanguages   :: [String]       -- ^ keys of site.yaml's @languages@
     }
 
 instance FromJSON Proj where
@@ -230,6 +235,7 @@ instance FromJSON Proj where
         <*> reqLoose o "description"
         <*> o .:? "links" .!= []
         <*> webVisible o
+        <*> o .:? "languages" .!= []
 
 newtype ProjDoc = ProjDoc { unProjDoc :: [Proj] }
 
@@ -540,12 +546,15 @@ renderExperience xs = research ++ industry
 --   deliberately not generated: a writeup is an informal presentation of a
 --   project, not a record of it, and belongs in the same voice as the rest of
 --   the essays.
-renderProjects :: [Proj] -> String
-renderProjects ps = concatMap one (groupOrder visible)
+--
+--   Under each title, the languages its code is written in (projects.yml's
+--   @languages@, by site.yaml's names), set in the code face.
+renderProjects :: [(Proj, [String])] -> String
+renderProjects named = concatMap one (groupOrder visible)
   where
-    visible = filter pjWeb ps
+    visible = filter (pjWeb . fst) named
     groupOrder = foldl (\acc g -> if g `elem` acc then acc else acc ++ [g]) []
-               . map pjGroup
+               . map (pjGroup . fst)
     -- "Machine Learning & Deployed" → "machine-learning-deployed".
     slugify s = case foldr step [] s of
         ('-':rest) -> rest
@@ -557,13 +566,16 @@ renderProjects ps = concatMap one (groupOrder visible)
             | null acc || head acc == '-'         = acc
             | otherwise                           = '-' : acc
     one g = section ("projects-" ++ slugify g) (escapeHtml g) $
-        cardList (concatMap entry (filter ((== g) . pjGroup) visible))
-    entry p = card
+        cardList (concatMap entry (filter ((== g) . pjGroup . fst) visible))
+    entry (p, languages) = card
         [ headerRow
             (case pjEssay p of
                 Just u  -> "<a href=\"" ++ escapeHtml u ++ "\">" ++ tex (pjName p) ++ "</a>"
                 Nothing -> tex (pjName p))
             (dateRange (pjStart p) (pjEnd p))
+        , case languages of
+            [] -> ""
+            ns -> "<div class=\"vita-languages\">" ++ intercalate " \183 " (map escapeHtml ns) ++ "</div>"
         , "<p class=\"vita-note\">", tex (pjDescription p), "</p>"
         , renderLinks (pjLinks p)
         ]
@@ -623,6 +635,46 @@ vitaCtx =
 projectsCtx :: Context String
 projectsCtx =
     constField "vita" "true"
-    <> sectionField "vita-projects-html"
-        (renderProjects . unProjDoc <$> loadYaml "yaml-source/data/projects.yml")
+    <> sectionField "vita-projects-html" (do
+        cfg <- loadConfig
+        ps  <- unProjDoc <$> loadYaml projectsYaml
+        named <- mapM (\p -> (,) p <$> languageNames cfg (pjName p) (pjLanguages p)) ps
+        return (renderProjects named))
     <> siteCtx
+
+projectsYaml :: FilePath
+projectsYaml = "yaml-source/data/projects.yml"
+
+-- | The names of language keys, from site.yaml's @languages@. A key it
+--   does not have fails the build, naming @whose@.
+languageNames :: SiteConfig -> String -> [String] -> Compiler [String]
+languageNames cfg whose = mapM name
+  where
+    name k = maybe (fail (whose ++ ": language " ++ show k ++ " is not in site.yaml's languages"))
+                   return (Map.lookup k (siteLanguages cfg))
+
+-- | @$essay-languages$@ (each item's @$language-name$@): the languages an
+--   essay's code is written in. Its own @languages:@, else those of the
+--   project in projects.yml whose @essay@ is this page; nothing (no
+--   field) when neither names any.
+languagesField :: Context String
+languagesField = listFieldWith "essay-languages" (field "language-name" (return . escapeHtml . itemBody)) $ \item -> do
+    cfg  <- loadConfig
+    meta <- getMetadata (itemIdentifier item)
+    keys <- case (lookupStringList "languages" meta, lookupString "languages" meta) of
+        (Just ks, _) -> return ks
+        (_, Just k)  -> return [k]
+        _ -> do
+            r  <- getRoute (itemIdentifier item)
+            ps <- (unProjDoc <$> loadYaml projectsYaml) <|> return []
+            let here = page . ("/" ++) <$> r
+            return [ k | p <- ps, Just e <- [pjEssay p], Just (page e) == here, k <- pjLanguages p ]
+    names <- languageNames cfg (toFilePath (itemIdentifier item)) keys
+    if null names then noResult "no languages" else mapM makeItem names
+  where
+    -- A page's address, its directory's index named or not.
+    page u = case stripSuffix "index.html" u of
+        Just d  -> d
+        Nothing -> u
+    stripSuffix suf str = reverse <$> stripPrefix' (reverse suf) (reverse str)
+    stripPrefix' pre str = if pre `isPrefixOf` str then Just (drop (length pre) str) else Nothing
