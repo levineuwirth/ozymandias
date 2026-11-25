@@ -37,21 +37,26 @@ import Control.Applicative ((<|>))
 import Control.Monad (forM, forM_, when)
 import Data.Char  (isSpace, toLower, toUpper)
 import qualified Data.Function as F
-import Data.List  (groupBy, intercalate, isPrefixOf, nub, sort, sortBy)
+import Data.List  (groupBy, intercalate, isPrefixOf, isSuffixOf, nub, sort, sortBy)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe, mapMaybe)
 import Data.Ord   (Down (..), comparing)
 import Data.Set   (Set)
 import qualified Data.Set as Set
 import Data.Time  (UTCTime (..), toGregorian)
+import qualified Data.Text as T
 import Hakyll hiding (escapeHtml)
 import Utils (escapeHtml, inDefault, writerlyDate)
 import Config     (SiteConfig (..), Portal (..), Section (..), loadConfig, switchOn, tagDisplayName)
+import System.Directory (doesFileExist)
 import System.FilePath (dropFileName, takeFileName)
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Scientific as Sci
+import qualified Data.Yaml as Y
 import TagMap     (MapPiece (..), MapTag (..), layoutMap, renderMap)
 import Patterns   (blogPattern, fictionPattern, musicPattern, poetryPattern, tagIndexable)
 import Sections   (sectionOfRoute, sectionOwnedTopLevelTags, tagPageUrl)
-import Contexts   (abstractField, contentKindField, displaySortKey, identifierDisplayUTCMaybe,
+import Contexts   (abstractField, contentKindField, displaySortKey, identifierDisplayUTCMaybe, svgAspect,
                    photographyCtx, recentFirstByDisplay, revisionDateFields, siteCtx,
                    tagLinksFieldExcludingScope)
 
@@ -323,15 +328,6 @@ featuredPaths sidecarSet tag
 -- Tag index page rules
 -- ---------------------------------------------------------------------------
 
--- | Up to this many items a tag page shows each in full, as an entry;
---   above it, as cards.
-tagEntryLimit :: Int
-tagEntryLimit = 6
-
--- | Above this many items a tag page offers the 25/50/100/All toggle.
-tagToggleThreshold :: Int
-tagToggleThreshold = 25
-
 -- | Item-level context for a card on a tag page. Provides the fields
 --   consumed by @templates/partials/item-card.html@ (@$item-kind$@,
 --   @$date-iso$@, @$date-created$@, @$abstract$@, @$item-tags$@) with
@@ -356,13 +352,20 @@ tagItemCtx scope =
 --     ancestors: @$crumb-name$@, @$crumb-url$@);
 --   * @$tag-facts$@ ("Seven essays · May to November 2026"), over the
 --     whole tag, not only this page of it;
+--   * @$tag-facet$@, the portal's facet (site.yaml), which the title
+--     page's ornament follows;
 --   * @$for(tag-within)$@, the tags directly beneath it (@$within-name$@,
---     @$within-url$@, @$within-count$@, @$within-gloss$@);
---   * the items, in exactly one of four lists: @$featured$@ (the sidecar's
---     @featured:@ pieces, shown in full ahead of the cards), @$entries$@
---     (every piece in full, when there are at most 'tagEntryLimit'),
---     @$cards$@, or @$photos$@ (when every piece is a photograph), with
---     @$tag-toggle$@ above 'tagToggleThreshold';
+--     @$within-url$@, @$within-count$@ in words, @$within-n$@ in figures,
+--     @$within-gloss$@);
+--   * the items: @$photos$@ when every piece is a photograph (the
+--     sidecar's @featured:@ first), else @$for(contents)$@, the page's
+--     pieces by year (@$contents-year$@, "Undated" for the last run, and
+--     @$for(contents-entries)$@ with each piece's fields, @$entry-month$@,
+--     and @$entry-mixed$@ where the tag mixes kinds), and
+--     @$for(tag-frontispiece)$@, the sidecar's first @featured:@ piece on
+--     this page;
+--   * @$for(tag-gallery)$@, the sidecar's @gallery:@ ('galleryOf':
+--     @$gallery-src$@, @$gallery-url$@, @$gallery-title$@, @$gallery-ar$@);
 --   * @$for(tag-alongside)$@, the other tags its pieces carry, most shared
 --     first (@$alongside-parent$@, @$alongside-name$@, @$alongside-url$@,
 --     @$alongside-count$@);
@@ -380,8 +383,12 @@ tagPageContext tags sidecarSet scope items = do
     pieces <- mapM (pieceOf cfg) allIds
     paths  <- featuredPaths sidecarSet scope
     within <- mapM (\c -> do ks <- mapM (fmap pieceKind . pieceOf cfg) (idsOf c)
-                             return (c, countPhrase ks))
+                             return (c, ks))
                    (childrenOf tags scope)
+    -- The page's pieces by the year of their display date, newest first as
+    -- they come, an undated run last ('recentFirstByDisplay').
+    dated <- mapM (\i -> (,) i <$> identifierDisplayUTCMaybe (itemIdentifier i)) items
+    gallery <- galleryOf sidecarSet scope
     written <- mapM getTags allIds
     let facts = capitalize (countPhrase (map pieceKind pieces))
                 ++ maybe "" (" \183 " ++) (spanPhrase (mapMaybe pieceWhen pieces))
@@ -392,25 +399,33 @@ tagPageContext tags sidecarSet scope items = do
                            (Map.toList shared)
         crumbs = init (expandTag scope)
 
-        total     = length allIds
         photoGrid = not (null pieces) && all ((== Just "photography") . pieceSection) pieces
-        entryMode = not photoGrid && total <= tagEntryLimit
         featured  = [ i | p <- paths, i <- items, itemIdentifier i == fromFilePath p ]
         rest      = [ i | i <- items, itemIdentifier i `notElem` map itemIdentifier featured ]
-        lists
-            | photoGrid = (Nothing, Nothing, Nothing, Just (featured ++ rest))
-            | entryMode = (Nothing, Just (featured ++ rest), Nothing, Nothing)
-            | otherwise = (Just featured, Nothing, Just rest, Nothing)
-        (mFeatured, mEntries, mCards, mPhotos) = lists
-        itemsField key ctx = maybe mempty (listField key ctx . return)
-        entryCtx = constField "full-abstract" "true" <> tagItemCtx scope
+        -- The portal's facet (site.yaml), which the title page's ornament
+        -- follows; a subtag takes its portal's.
+        facet = listToMaybe [ portalFacet q | q <- sitePortals cfg
+                                            , portalTag q == takeWhile (/= '/') scope
+                                            , not (null (portalFacet q)) ]
+        mixed = length (nub (map pieceKind pieces)) > 1
+        years = groupBy (\a b -> yearOf a == yearOf b) dated
+        yearOf = fmap (\t -> let (y, _, _) = toGregorian (utctDay t) in y) . snd
+        yearItem run = Item (fromFilePath ("_tag-year/" ++ maybe "undated" show (yearOf (head run)))) run
+        yearCtx = field "contents-year" (return . maybe "Undated" show . yearOf . head . itemBody)
+               <> listFieldWith "contents-entries" entryCtx (return . map toItem . itemBody)
+        toItem (i, t) = itemSetBody (itemBody i, t) i
+        entryCtx = field "entry-month" (\i -> maybe (noResult "undated") (return . monthName) (snd (itemBody i)))
+                <> (if mixed then constField "entry-mixed" "true" else mempty)
+                <> contramapItem fst (tagItemCtx scope)
+        itemsField key ctx = listField key ctx . return
 
         tagItem t = Item (fromFilePath ("_tag/" ++ t)) t
         crumbCtx = field "crumb-name" (return . escapeHtml . name . itemBody)
                 <> field "crumb-url"  (maybe (noResult "no page") return . urlOf . itemBody)
         withinCtx = field "within-name"  (return . escapeHtml . name . fst . itemBody)
                  <> field "within-url"   (maybe (noResult "no page") return . urlOf . fst . itemBody)
-                 <> field "within-count" (return . snd . itemBody)
+                 <> field "within-count" (return . countPhrase . snd . itemBody)
+                 <> field "within-n"     (return . show . length . snd . itemBody)
                  <> field "within-gloss" (glossOf sidecarSet . fst . itemBody)
         alongsideCtx =
                field "alongside-parent" (\i -> maybe (noResult "top-level") (return . escapeHtml . name)
@@ -419,6 +434,10 @@ tagPageContext tags sidecarSet scope items = do
             <> field "alongside-url"   (maybe (noResult "no page") return . urlOf . fst . itemBody)
             <> field "alongside-count" (return . show . snd . itemBody)
         nonEmpty key ctx xs = if null xs then mempty else listField key ctx (return xs)
+        galleryCtx = field "gallery-src"   (return . escapeHtml . gSrc . itemBody)
+                  <> field "gallery-url"   (return . escapeHtml . gUrl . itemBody)
+                  <> field "gallery-title" (return . escapeHtml . gTitle . itemBody)
+                  <> field "gallery-ar"    (return . gAspect . itemBody)
         flag key on = if on then constField key "true" else mempty
     return $
            constField "title" (name scope)
@@ -430,11 +449,13 @@ tagPageContext tags sidecarSet scope items = do
         <> nonEmpty "tag-alongside" alongsideCtx
                     [ Item (fromFilePath ("_tag-alongside/" ++ t)) a | a@(t, _) <- alongside ]
         <> seeAlsoContext sidecarSet tags scope
-        <> itemsField "featured" entryCtx mFeatured
-        <> itemsField "entries"  entryCtx mEntries
-        <> itemsField "cards"    (tagItemCtx scope) mCards
-        <> itemsField "photos"   (photographyCtx <> tagItemCtx scope) mPhotos
-        <> flag "tag-toggle"  (not entryMode && total > tagToggleThreshold)
+        <> (if photoGrid
+                then itemsField "photos" (photographyCtx <> tagItemCtx scope) (featured ++ rest)
+                else nonEmpty "contents" yearCtx (map yearItem years)
+                  <> nonEmpty "tag-frontispiece" (tagItemCtx scope) (take 1 featured))
+        <> maybe mempty (constField "tag-facet" . escapeHtml) facet
+        <> nonEmpty "tag-gallery" galleryCtx
+                    [ Item (fromFilePath ("_tag-gallery/" ++ show n)) g | (n, g) <- zip [(0 :: Int) ..] gallery ]
         <> constField "list-page" "true"
         <> flag "photography" photoGrid
         <> tagDescriptionField cfg sidecarSet scope
@@ -742,4 +763,88 @@ portalShelfContext tags = do
         facetCtx = listFieldWith "shelf-portals" spineCtx (mapM makeItem . itemBody)
         facets   = groupBy ((==) `F.on` (portalFacet . spinePortal)) spines
     return $ listField "shelf-facets" facetCtx (mapM makeItem facets) <> mapCtx
+
+
+-- ---------------------------------------------------------------------------
+-- A tag page's optional gallery, and its contents' months
+-- ---------------------------------------------------------------------------
+
+monthName :: UTCTime -> String
+monthName t = let (_, m, _) = toGregorian (utctDay t)
+              in  words "January February March April May June July August September October November December" !! (m - 1)
+
+-- | Hakyll has no contramap for contexts; a context over the first of a
+--   pair, for the contents' entries (an item with its display date).
+contramapItem :: (a -> b) -> Context b -> Context a
+contramapItem f (Context c) = Context $ \key args item -> c key args (fmap f item)
+
+-- | A figure in a tag's gallery: its image, and the piece it is from.
+data Plate = Plate
+    { gSrc    :: String   -- ^ the image, a path on the site
+    , gUrl    :: String   -- ^ the piece's page
+    , gTitle  :: String   -- ^ the piece's title, for the image's alt and title
+    , gAspect :: String   -- ^ width over height, for the row's proportions
+    }
+
+-- | The sidecar's @gallery:@, set by hand: images from the writings filed
+--   here, each with the piece it is from, shown in one justified row
+--   (each as wide as its shape needs, at one height) without frames or
+--   captions. A gallery that names a piece the build does not publish
+--   fails, naming it.
+--
+--   > gallery:
+--   >   - image: /essays/example/figures/plot.svg
+--   >     piece: content/essays/example/index.md
+galleryOf :: Set Identifier -> String -> Compiler [Plate]
+galleryOf sidecarSet tag
+    | sidecarId `Set.notMember` sidecarSet = return []
+    | otherwise = do
+        meta <- getMetadata sidecarId
+        case KM.lookup "gallery" meta of
+            Nothing -> return []
+            Just (Y.Array v) -> mapM plate (foldr (:) [] v)
+            Just _ -> fail (toFilePath sidecarId ++ ": gallery must be a list of image and piece")
+  where
+    sidecarId = sidecarIdentifier tag
+    plate (Y.Object o)
+        | Just (Y.String img) <- KM.lookup "image" o
+        , Just (Y.String pc)  <- KM.lookup "piece" o = do
+            let src   = T.unpack img
+                ident = fromFilePath (T.unpack pc)
+            r <- getRoute ident
+            url <- maybe (fail (toFilePath sidecarId ++ ": gallery piece is not published: " ++ T.unpack pc))
+                         (return . pageAddress) r
+            title <- fromMaybe url <$> getMetadataField ident "title"
+            ar <- unsafeCompiler (imageAspect src)
+            return (Plate src url title ar)
+    plate _ = fail (toFilePath sidecarId ++ ": each gallery entry has an image and a piece")
+    pageAddress r = "/" ++ (if "index.html" `isSuffixOf` r then take (length r - length ("index.html" :: String)) r else r)
+
+-- | Width over height of an image at a path on the site, from its source
+--   in content/ or static/: a @.dims.yaml@ sidecar beside it, or an SVG's
+--   own viewBox; 1.5 when neither says.
+imageAspect :: String -> IO String
+imageAspect url = do
+    found <- filterIO doesFileExist [ root ++ url | root <- ["content", "static"] ]
+    case found of
+        []       -> return fallback
+        path : _ -> do
+            dims <- readDims (path ++ ".dims.yaml")
+            case dims of
+                Just (w, h) | w > 0 && h > 0 -> return (show (fromIntegral (round (fromIntegral w / fromIntegral h * 10000 :: Double) :: Integer) / 10000 :: Double))
+                _ | ".svg" `isSuffixOf` path -> fromMaybe fallback <$> svgAspect path
+                  | otherwise -> return fallback
+  where
+    fallback = "1.5"
+    filterIO f = fmap concat . mapM (\x -> (\b -> [x | b]) <$> f x)
+    readDims file = do
+        exists <- doesFileExist file
+        if not exists then return Nothing else do
+            decoded <- Y.decodeFileEither file
+            return $ case decoded of
+                Right (Y.Object o) -> (,) <$> (int =<< KM.lookup "width" o) <*> (int =<< KM.lookup "height" o)
+                _ -> Nothing
+    int :: Y.Value -> Maybe Int
+    int (Y.Number n) = Sci.toBoundedInteger n
+    int _            = Nothing
 

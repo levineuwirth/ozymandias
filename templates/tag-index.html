@@ -1,46 +1,45 @@
 <main id="markdownBody" data-no-collapse>
     <header class="tag-head">
-        $if(tag-crumbs)$<p class="tag-crumbs">$for(tag-crumbs)$<a href="$crumb-url$">$crumb-name$</a><span class="tag-crumbs-sep" aria-hidden="true"> › </span>$endfor$</p>$endif$
-        <h1 class="page-title">$title$</h1>
-        $if(portal-tooltip)$<p class="tag-gloss">$portal-tooltip$</p>$endif$
-        $if(tag-facts)$<p class="tag-facts">$tag-facts$</p>$endif$
+        <div class="tag-volume$if(tag-facet)$ tag-volume--$tag-facet$$endif$$if(tag-crumbs)$ tag-volume--sub$endif$">
+            $partial("templates/partials/tag-ornament.html")$
+            $if(tag-crumbs)$<p class="tag-crumbs">$for(tag-crumbs)$<a href="$crumb-url$">$crumb-name$</a><span class="tag-crumbs-sep" aria-hidden="true"> › </span>$endfor$</p>$endif$
+            <h1 class="page-title">$title$</h1>
+            $if(portal-tooltip)$<p class="tag-gloss">$portal-tooltip$</p>$endif$
+            $partial("templates/partials/tag-ornament.html")$
+            $if(tag-facts)$<p class="tag-facts">$tag-facts$</p>$endif$
+            $if(tag-within)$
+            <ul class="tag-within-list" aria-label="Within">
+                $for(tag-within)$<li><a href="$within-url$">$within-name$</a><span class="tag-within-count" aria-label="$within-count$">$within-n$</span></li>$endfor$
+            </ul>
+            $endif$
+        </div>
     </header>
-    $if(tag-within)$
-    <section class="tag-within" aria-labelledby="tag-within-heading">
-        <h2 id="tag-within-heading" class="tag-label">Within</h2>
-        <ul class="tag-within-list">
-            $for(tag-within)$
-            <li><a href="$within-url$">$within-name$</a>$if(within-gloss)$<span class="tag-within-dash" aria-hidden="true"> — </span><span class="tag-within-gloss">$within-gloss$</span>$endif$<span class="tag-within-count">$within-count$</span></li>
-            $endfor$
-        </ul>
-    </section>
-    $endif$
     $if(portal-intro)$
     <section class="portal-intro">
         $portal-intro$
     </section>
     $endif$
-    $if(featured)$
-    <div class="item-entry-list item-entry-list--featured">
-        $for(featured)$
-        $partial("templates/partials/item-entry.html")$
+    $if(tag-frontispiece)$
+    <section class="tag-featured" aria-labelledby="tag-featured-heading">
+        <h2 id="tag-featured-heading" class="tag-featured-head"><span class="tag-featured-rule" aria-hidden="true"></span><span class="tag-spaced">Featured</span><span class="tag-featured-rule" aria-hidden="true"></span></h2>
+        $for(tag-frontispiece)$
+        $if(has-monogram)$<a class="tag-featured-mark" href="$canonical-url$" aria-hidden="true" tabindex="-1">$monogramSvg$</a>$endif$
+        <p class="tag-featured-title"><a href="$canonical-url$">$title$</a></p>
+        $if(date-display)$<p class="tag-featured-date">$date-display$</p>$endif$
         $endfor$
-    </div>
+    </section>
     $endif$
-    $if(entries)$
-    <div class="item-entry-list">
-        $for(entries)$
-        $partial("templates/partials/item-entry.html")$
+    $if(contents)$
+    <section class="tag-contents" aria-labelledby="tag-contents-heading">
+        <h2 id="tag-contents-heading" class="tag-contents-head">Contents</h2>
+        $for(contents)$
+        <h3 class="tag-contents-year"><span class="tag-spaced">$contents-year$</span></h3>
+        <ol class="tag-contents-list">
+            $for(contents-entries)$<li><span class="tag-contents-title"><a href="$canonical-url$">$title$</a>$if(entry-mixed)$ <span class="tag-contents-kind">$item-kind$</span>$endif$$if(own-license)$ <span class="tag-contents-rights">$own-license$</span>$endif$</span><span class="tag-contents-leader" aria-hidden="true"></span>$if(entry-month)$<span class="tag-contents-date">$entry-month$</span>$endif$</li>$endfor$
+        </ol>
         $endfor$
-    </div>
-    $endif$
-    $if(cards)$
-    $if(tag-toggle)$$partial("templates/partials/list-controls.html")$$endif$
-    <ul class="item-card-list">
-        $for(cards)$
-        $partial("templates/partials/item-card.html")$
-        $endfor$
-    </ul>
+        <div class="tag-tailpiece" aria-hidden="true"><span></span><span></span><span></span></div>
+    </section>
     $endif$
     $if(photos)$
     <ul class="photography-grid" data-photography-mode="grid">
@@ -50,29 +49,36 @@
     </ul>
     $endif$
     $partial("templates/partials/paginate-nav.html")$
+    $if(tag-gallery)$
+    <section class="tag-gallery" aria-label="Figures from the writings">
+        $for(tag-gallery)$<a href="$gallery-url$" title="$gallery-title$" style="--ar: $gallery-ar$"><img src="$gallery-src$" alt="A figure from $gallery-title$" loading="lazy" decoding="async"></a>$endfor$
+    </section>
+    $endif$
     $if(tag-map)$
     <figure class="tag-map-figure">
         $tag-map$
     </figure>
     $endif$
-    $if(tag-alongside)$
-    <section class="tag-alongside" aria-labelledby="tag-alongside-heading">
-        <h2 id="tag-alongside-heading" class="tag-label">Filed alongside</h2>
-        <ul class="tag-alongside-list">
-            $for(tag-alongside)$
-            <li>$if(alongside-parent)$<span class="tag-alongside-parent">$alongside-parent$ › </span>$endif$<a href="$alongside-url$">$alongside-name$</a><span class="tag-alongside-count">$alongside-count$</span></li>
-            $endfor$
-        </ul>
-    </section>
-    $endif$
-    $if(see-also)$
-    <nav class="see-also" aria-labelledby="see-also-heading">
-        <h2 id="see-also-heading" class="tag-label">See also</h2>
-        <ul class="see-also-list">
-            $for(see-also)$
-            <li class="see-also-item$if(see-also-up)$ see-also-parent$endif$"><a class="see-also-name" href="$see-also-url$">$see-also-name$</a>$if(portal-tooltip)$<span class="see-also-dash" aria-hidden="true">—</span><span class="see-also-desc">$portal-tooltip$</span>$endif$</li>
-            $endfor$
-        </ul>
-    </nav>
-    $endif$
+    <div class="tag-back">
+        $if(tag-alongside)$
+        <section class="tag-alongside" aria-labelledby="tag-alongside-heading">
+            <h2 id="tag-alongside-heading" class="tag-label">Filed alongside</h2>
+            <ul class="tag-alongside-list">
+                $for(tag-alongside)$
+                <li>$if(alongside-parent)$<span class="tag-alongside-parent">$alongside-parent$ › </span>$endif$<a href="$alongside-url$">$alongside-name$</a><span class="tag-alongside-count">$alongside-count$</span></li>
+                $endfor$
+            </ul>
+        </section>
+        $endif$
+        $if(see-also)$
+        <nav class="see-also" aria-labelledby="see-also-heading">
+            <h2 id="see-also-heading" class="tag-label">See also</h2>
+            <ul class="see-also-list">
+                $for(see-also)$
+                <li class="see-also-item$if(see-also-up)$ see-also-parent$endif$"><a class="see-also-name" href="$see-also-url$">$see-also-name$</a></li>
+                $endfor$
+            </ul>
+        </nav>
+        $endif$
+    </div>
 </main>

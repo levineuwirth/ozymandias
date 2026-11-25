@@ -11,7 +11,10 @@ site (Tags.hs, TagMap.hs):
   · /map/'s list under the drawing names every tag at any depth and links
     every piece the drawing has;
   · a tag page's photographs keep the order of its sidecar's featured:,
-    which leads the first page of a tag too large for one.
+    which leads the first page of a tag too large for one;
+  · a tag page is a volume: its title page's ornament follows the portal's
+    facet (smaller on a subtag), the tags within are named and numbered,
+    and a sidecar may add a featured piece and a gallery.
 
     python -m unittest tests.test_tag_pages -v
 """
@@ -57,6 +60,14 @@ class TagPages(unittest.TestCase):
             page(root / f"content/essays/many-{n:03d}.md",
                  f"title: Many {n:03d}\ndate: 2025-{n % 12 + 1:02d}-{n % 28 + 1:02d}\ntags: [many]")
         page(root / "content/undated-many.md", "title: Undated Among Many\ntags: [many]")
+        # The volume's optional parts, set in a sidecar: a featured piece and
+        # a gallery (an SVG's proportions come from its viewBox).
+        (root / "content/essays").mkdir(parents=True, exist_ok=True)
+        (root / "content/essays/wide.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"></svg>', encoding="utf-8")
+        page(root / "content/tag-meta/notes.md",
+             "featured:\n  - content/essays/dated.md\n"
+             "gallery:\n  - image: /essays/wide.svg\n    piece: content/essays/dated.md", "")
         # A tag of several pages whose pieces share one day: some new that
         # day, the rest revised then (Contexts.displaySortKey).
         for n in range(76):
@@ -67,7 +78,8 @@ class TagPages(unittest.TestCase):
                  f"title: Day Rev {n:03d}\ndate: 2024-02-01\nrevised: 2026-08-01\ntags: [sameday]")
         config = write_site_config(
             root,
-            portals=[{"name": "Notes", "tag": "notes"}, {"name": "Test", "tag": "test"}],
+            portals=[{"name": "Notes", "tag": "notes", "facet": "subject"},
+                     {"name": "Test", "tag": "test", "facet": "research"}],
             standalone=[PLAIN | {"source": "content/probe.md", "route": "probe.html"},
                         PLAIN | {"source": "content/secret.md", "route": "secret.html"},
                         PLAIN | {"source": "content/revised.md", "route": "revised.html"},
@@ -100,25 +112,28 @@ class TagPages(unittest.TestCase):
         self.assertIn("A Dated Essay", notes)
         # Two pieces, of two kinds; the range is the dated one's month.
         self.assertRegex(notes, r'class="tag-facts">Two pieces · March 2026<')
-        # The dated piece comes first; the undated one has no <time>.
+        # The dated piece comes first, under its year; the undated one
+        # under "Undated", with no month.
         self.assertLess(notes.index("A Dated Essay"), notes.index("An Undated Page"))
-        undated = notes[notes.index("An Undated Page") - 600:notes.index("An Undated Page")]
-        self.assertNotIn("<time", undated.split('class="item-entry')[-1])
+        self.assertEqual(re.findall(r'class="tag-contents-year"><span class="tag-spaced">([^<]*)<', notes), ["2026", "Undated"])
+        row = re.search(r"<li>(?:(?!</li>).)*An Undated Page(?:(?!</li>).)*</li>", notes, re.S).group(0)
+        self.assertNotIn("tag-contents-date", row)
 
     def test_a_page_with_only_a_revision_is_listed_at_it(self):
         self.assertEqual(self.done.returncode, 0, self.done.stderr)
         solo = self.read("solo/index.html")
         self.assertIn("A Revised Page", solo)
-        self.assertIn('datetime="2026-06-01"', solo)
+        row = re.search(r"<li>(?:(?!</li>).)*A Revised Page(?:(?!</li>).)*</li>", solo, re.S).group(0)
+        self.assertIn('class="tag-contents-date">June<', row)
         self.assertRegex(solo, r'class="tag-facts">One page · June 2026<')
 
     def test_an_undated_page_goes_last_in_a_tag_of_several_pages(self):
         self.assertEqual(self.done.returncode, 0, self.done.stderr)
         def cards(rel: str) -> str:
-            # The cards only: the page's map names every piece.
+            # The contents only: the page's map names every piece.
             html = self.read(rel)
-            start = html.index('class="item-card-list"')
-            return html[start:html.index("</ul>", start)]
+            start = html.index('class="tag-contents"')
+            return html[start:html.index("</section>", start)]
         self.assertNotIn("Undated Among Many", cards("many/index.html"))
         last = cards("many/page/2/index.html")
         self.assertIn("Undated Among Many", last)
@@ -129,9 +144,30 @@ class TagPages(unittest.TestCase):
         titles = []
         for rel in ("sameday/index.html", "sameday/page/2/index.html"):
             html = self.read(rel)
-            start = html.index('class="item-card-list"')
-            titles += re.findall(r"Day (New|Rev) \d{3}", html[start:html.index("</ul>", start)])
+            start = html.index('class="tag-contents"')
+            titles += re.findall(r"Day (New|Rev) \d{3}", html[start:html.index("</section>", start)])
         self.assertEqual(titles, ["New"] * 76 + ["Rev"] * 75)
+
+    def test_the_title_page_and_its_optional_parts(self):
+        self.assertEqual(self.done.returncode, 0, self.done.stderr)
+        notes = self.read("notes/index.html")
+        # The ornament follows the portal's facet, and a subtag's is smaller.
+        self.assertIn('<div class="tag-volume tag-volume--subject">', notes)
+        self.assertIn('<div class="tag-volume tag-volume--research tag-volume--sub">',
+                      self.read("test/nested/index.html"))
+        # The tags within, by name and number.
+        within = re.search(r'<ul class="tag-within-list".*?</ul>', self.read("test/index.html"), re.S).group(0)
+        self.assertRegex(within, r'>Nested</a><span class="tag-within-count" aria-label="one essay">1</span>')
+        # The sidecar's featured piece, under its heading, and its gallery.
+        featured = re.search(r'<section class="tag-featured".*?</section>', notes, re.S).group(0)
+        self.assertIn(">Featured<", featured)
+        self.assertIn(">A Dated Essay</a>", featured)
+        gallery = re.search(r'<section class="tag-gallery".*?</section>', notes, re.S).group(0)
+        self.assertRegex(gallery, r'href="[./]*essays/dated\.html" title="A Dated Essay" style="--ar: 3\.0">'
+                                  r'<img src="[./]*essays/wide\.svg" alt="A figure from A Dated Essay"')
+        # A tag without a sidecar has neither.
+        self.assertNotIn("tag-featured", self.read("solo/index.html"))
+        self.assertNotIn("tag-gallery", self.read("solo/index.html"))
 
     def test_the_map_s_list_names_every_tag_and_links_every_piece(self):
         self.assertEqual(self.done.returncode, 0, self.done.stderr)
@@ -142,6 +178,8 @@ class TagPages(unittest.TestCase):
         self.assertIn("A Dated Essay</a>", index)
         self.assertIn("An Undated Page</a>", index)
         self.assertNotIn("Hidden Draft Title", whole)
+        # No caption under the map's name: its description is for search.
+        self.assertNotIn('class="tag-gloss"', whole)
         # The drawing holds links, so it is hidden from assistive technology
         # (an image's links are nested interactive controls); a hidden
         # paragraph says what it shows.

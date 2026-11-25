@@ -181,6 +181,33 @@ class Tokens(unittest.TestCase):
         settings = engine_path("static/js/settings.js").read_text(encoding="utf-8")
         self.assertNotRegex(settings, r"(min|max|base):\s*\d")
 
+    def test_a_sum_in_min_max_or_clamp_is_inside_calc(self):
+        """Hakyll's compressCss keeps the spaces around + only inside calc():
+        min(100vw - 4rem, 100% + 14rem) is served as ...100%+14rem), which
+        is invalid, and the declaration is dropped. A sum there is written
+        calc(100% + 14rem)."""
+        bad = []
+        for rel, text in sheets(engine_path("")).items():
+            for m in re.finditer(r"\b(?:min|max|clamp)\(", text):
+                depth, i = 1, m.end()
+                while i < len(text) and depth:
+                    depth += {"(": 1, ")": -1}.get(text[i], 0)
+                    i += 1
+                args = text[m.end():i - 1]
+                # Drop every calc(...) group, nested ones included.
+                while True:
+                    c = re.search(r"calc\(", args)
+                    if not c:
+                        break
+                    depth, j = 1, c.end()
+                    while j < len(args) and depth:
+                        depth += {"(": 1, ")": -1}.get(args[j], 0)
+                        j += 1
+                    args = args[:c.start()] + args[j:]
+                if re.search(r"\s\+\s", args):
+                    bad.append((rel, text[m.start():i]))
+        self.assertEqual(bad, [])
+
 
 if __name__ == "__main__":
     unittest.main()

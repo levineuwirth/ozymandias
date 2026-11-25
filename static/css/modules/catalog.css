@@ -32,7 +32,7 @@
 #markdownBody.music-index .music-title {
     margin: 0;
     font-family: var(--font-serif);
-    font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.6rem);
+    font-size: clamp(2.4rem, calc(1.8rem + 2.4vw), 3.6rem);
     font-weight: var(--weight-regular);
     line-height: 1.04;
     letter-spacing: calc(-0.012em * var(--tracking-scale));
