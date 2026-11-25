@@ -135,6 +135,9 @@ KINDS = {
     "vita": Kind("vita", context="vita"),
     "stats": Kind("stats-page", r"/stats/", 'id="activity"'),
     "build": Kind("build-page", r"/build/", "Build Telemetry"),
+    # The whole tag map (Tags.tagMapRules); a tag page's own map is part of
+    # the tag kind.
+    "tag-map": Kind("tag-map", r"/map/", "tag-map-head"),
 }
 # A tag may have any directory path nothing else claims: its route says nothing
 # about it, as no route says nothing about a kind with none.

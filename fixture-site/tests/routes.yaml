@@ -34,6 +34,7 @@ pages:
   vita:         /cv.html
   stats:        /stats/
   build:        /build/
+  map:          /map/
   '404':        /does-not-exist
 kinds:
   home: home
@@ -69,6 +70,7 @@ kinds:
   vita: vita
   stats: stats
   build: build
+  tag-map: map
 keyboard: [home, essay, photo-series, search]
 motion: [home, essay, photo-series, photo-map]
 perf: [home, essay, photo-index, photo-map, new]

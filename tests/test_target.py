@@ -230,7 +230,8 @@ class Routes(unittest.TestCase):
         # With stats-page off a tag `stats` has /stats/ (test_route_check), and
         # likewise each generated index and namespace: the kinds that yield a
         # path to these are free to have it once their switch is off.
-        for path, switch in (("/stats/", "stats-page"), ("/build/", "build-page"), ("/archive/", "archive"),
+        for path, switch in (("/stats/", "stats-page"), ("/build/", "build-page"), ("/map/", "tag-map"),
+                             ("/archive/", "archive"),
                              ("/bibliography/", "bibliography-index"), ("/authors/a/", "authors"),
                              ("/photography/by-year/", "photography")):
             for kind, mark in (("tag", 'class="tag-head" class="page-title"'),
