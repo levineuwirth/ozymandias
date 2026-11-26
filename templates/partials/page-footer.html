@@ -38,15 +38,15 @@ $partial("templates/partials/ornament.html")-$
 
         $if(page-map)$
         <div class="meta-footer-section meta-footer-map" id="on-the-map">
-            <h3><a href="/map/">On the map</a></h3>
+            <h3 class="visually-hidden">On the map</h3>
             $page-map$
-            <p class="meta-footer-map-filed"><span class="meta-footer-map-label">Filed under</span> $page-map-filed$</p>
+            <p class="meta-footer-map-filed"><a class="meta-footer-map-label" href="/map/">Filed under</a> $page-map-filed$</p>
         </div>
         $endif$
 
         $if(build)$$else$
         <div class="meta-footer-section" id="version-history">
-            <h3>Version history</h3>
+            <h3 class="visually-hidden">Version history</h3>
             $if(version-history)$
             <ul class="version-history-list">
                 $for(version-history)$
@@ -65,7 +65,7 @@ $partial("templates/partials/ornament.html")-$
 
         $if(own-license)$
         <div class="meta-footer-section meta-footer-rights" id="rights">
-            <h3>Rights</h3>
+            <h3 class="visually-hidden">Rights</h3>
             <p>$if(rights-holder)$$rights-holder$. $endif$$if(own-license-url)$<a href="$own-license-url$" rel="license">$own-license$</a>$else$$own-license$$endif$.$if(license-note)$ $license-note$$endif$</p>
         </div>
         $endif$

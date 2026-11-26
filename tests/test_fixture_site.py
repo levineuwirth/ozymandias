@@ -579,7 +579,7 @@ class FixtureBuilds(unittest.TestCase):
         self.assertIn('<meta name="dcterms.rights" content="Public domain.">', poem)
         self.assertNotIn(by_nc_sa, poem)
         self.assertEqual(poem.count('<a href="#rights" class="meta-rights">Public domain</a>'), 1)
-        record = re.search(r'id="rights">\s*<h3>Rights</h3>\s*<p>(.*?)</p>', poem, re.S)
+        record = re.search(r'id="rights">\s*<h3 class="visually-hidden">Rights</h3>\s*<p>(.*?)</p>', poem, re.S)
         self.assertEqual(record.group(1), '<a href="https://creativecommons.org/publicdomain/mark/1.0/"'
                                           ' rel="license">Public domain</a>.')
         # On a card and in a plain list.
@@ -616,7 +616,7 @@ class FixtureBuilds(unittest.TestCase):
         self.assertIn(f'<meta name="dcterms.rights" content="{notice}">', essay)
         self.assertNotIn('rel="license"', essay)
         self.assertIn('<a href="#rights" class="meta-rights">All rights reserved</a>', essay)
-        record = re.search(r'id="rights">\s*<h3>Rights</h3>\s*<p>(.*?)</p>', essay, re.S)
+        record = re.search(r'id="rights">\s*<h3 class="visually-hidden">Rights</h3>\s*<p>(.*?)</p>', essay, re.S)
         self.assertEqual(record.group(1), notice + " This work, with its figures, is not under the site's license.")
         self.assertEqual(sorted(re.findall(r'<span class="item-card-rights">([^<]+)</span>',
                                            (site / "new.html").read_text(encoding="utf-8"))),

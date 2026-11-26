@@ -219,8 +219,12 @@ class TagPages(unittest.TestCase):
             cx, cy, r = float(cx), float(cy), float(r)
             self.assertTrue(x - r - 5 <= cx <= x + w + r + 5 and y - r - 5 <= cy <= y + h + r + 5,
                             (cx, cy, x, y, w, h))
-        # The same tags in words, as links, beside the drawing.
-        self.assertRegex(foot, r'<span class="meta-footer-map-label">Filed under</span> '
+        # The same tags in words, as links, beside the drawing; its label
+        # the way to the whole map, the section's heading only for a
+        # screen reader, as the history's is.
+        self.assertIn('<h3 class="visually-hidden">On the map</h3>', foot)
+        self.assertIn('<h3 class="visually-hidden">Version history</h3>', essay)
+        self.assertRegex(foot, r'<a class="meta-footer-map-label" href="[./]*map/">Filed under</a> '
                                r'<a href="[./]*notes/">Notes</a> · <a href="[./]*test/nested/leaf/">Leaf</a>')
         self.assertNotIn("Hidden Draft Title", essay)
         # A page on no map has no map at its foot, and no map's assets.

@@ -133,6 +133,13 @@
 
 /* Shared heading style for full-width section headings */
 .meta-footer-full > h3,
+/* The row of the record, the map, the history and Rights names its
+   sections only to a screen reader (each heading visually hidden): what
+   each holds says what it is. What follows the heading starts the line. */
+.meta-footer-section > h3.visually-hidden + * {
+    margin-top: 0;
+}
+
 .meta-footer-section h3 {
     font-size: var(--step--2);
     font-weight: var(--weight-semibold);
@@ -213,11 +220,17 @@
     text-align: center;
 }
 
+/* The way to the whole map, now that the section has no heading to
+   carry it. */
 .meta-footer-map-label {
     font-variant-caps: all-small-caps;
     letter-spacing: calc(0.08em * var(--tracking-scale));
     color: var(--text-faint);
     margin-right: 0.35em;
+}
+
+.meta-footer-map-label:hover {
+    color: var(--text-muted);
 }
 
 
