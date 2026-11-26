@@ -8,7 +8,8 @@ size and the largest:
   · no section of the row is narrower than what it holds: nothing in it
     overflows its box, so a section that does not fit goes to the next
     line rather than being squeezed;
-  · each line of the row is centered under the page;
+  · each line of the row is centered under the page, whether the sections
+    stand in a row (flex) or stack one to a line (the phone's grid);
   · the map is drawn, and the page does not scroll sideways.
 
     RUN_BROWSER_TESTS=1 python -m unittest tests.test_browser_page_map -v
@@ -35,14 +36,13 @@ SECTION_ID = r'<div class="meta-footer-section[^"]*" id="([^"]+)"'
 MEASURE = """() => {
     const grid = document.querySelector('.meta-footer-grid--map');
     const box = grid.getBoundingClientRect();
-    const flex = getComputedStyle(grid).display === 'flex';
     const sections = [...grid.children].map(s => {
         const r = s.getBoundingClientRect();
         return { id: s.id, left: r.left, right: r.right, top: Math.round(r.top),
                  width: r.width, scroll: s.scrollWidth, client: s.clientWidth };
     });
     const svg = grid.querySelector('svg.tag-map');
-    return { flex, left: box.left, right: box.right, sections,
+    return { left: box.left, right: box.right, sections,
              map: svg ? svg.getBoundingClientRect().height : 0,
              sideways: document.documentElement.scrollWidth - innerWidth };
 }"""
@@ -81,14 +81,16 @@ class PageMap(unittest.TestCase):
 
     def measure(self, browser: str, path: str, width: int, text_size: int | None) -> dict:
         context = self.browsers[browser].new_context(viewport={"width": width, "height": 900})
-        self.addCleanup(context.close)
-        if text_size:
-            context.add_init_script(TEXT_SIZE_INIT % text_size)
-        page = context.new_page()
-        page.goto(self.base + path, wait_until="load")
-        page.locator(".meta-footer-grid--map").scroll_into_view_if_needed()
-        page.wait_for_timeout(150)
-        return page.evaluate(MEASURE)
+        try:
+            if text_size:
+                context.add_init_script(TEXT_SIZE_INIT % text_size)
+            page = context.new_page()
+            page.goto(self.base + path, wait_until="load")
+            page.locator(".meta-footer-grid--map").scroll_into_view_if_needed()
+            page.wait_for_timeout(150)
+            return page.evaluate(MEASURE)
+        finally:
+            context.close()
 
     def test_the_row_fits_what_it_holds_and_is_centered(self) -> None:
         self.assertTrue(self.shapes, "no page has the map at its foot")
@@ -104,8 +106,6 @@ class PageMap(unittest.TestCase):
                             squeezed = [(s["id"], s["client"], s["scroll"]) for s in m["sections"]
                                         if s["scroll"] > s["client"] + 1]
                             self.assertEqual(squeezed, [], "a section narrower than what it holds")
-                            if not m["flex"]:
-                                continue
                             lines: dict[int, list[dict]] = {}
                             for s in m["sections"]:
                                 lines.setdefault(s["top"], []).append(s)

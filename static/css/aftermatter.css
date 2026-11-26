@@ -168,20 +168,20 @@
    ON THE MAP | VERSION HISTORY as one row, centered as a group under the
    page: the record and the map at set measures, the history (and Rights,
    on a page with its own license) as wide as it needs up to a short
-   column. A section that no longer fits goes to the next line, centered
-   too, never narrower than its own longest word. Where the footer cannot
-   hold the record and the map side by side, the grid takes two to a line;
-   on a phone, one. Measured on the footer, in rem, so that the reader's
-   text size moves the breaks with the text. */
+   column. A section that does not fit goes to the next line, centered
+   too, never narrower than what it holds. Where the footer cannot hold
+   the record and the map side by side (a phone), the grid stacks them,
+   one to a line. Measured on the footer, in rem, so that the reader's
+   text size moves the break with the text. */
 .page-meta-footer {
     container: page-meta-footer / inline-size;
 }
 
 .meta-footer-grid--map {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    grid-template-columns: minmax(0, 1fr);
 }
 
-@container page-meta-footer (width >= 44.5rem) {
+@container page-meta-footer (width >= 34rem) {
     .meta-footer-grid--map {
         display: flex;
         flex-wrap: wrap;
