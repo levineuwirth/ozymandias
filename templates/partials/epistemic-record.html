@@ -1,0 +1,23 @@
+<div class="meta-footer-section meta-footer-epistemic" id="epistemic">
+    <h3>$if(epistemic-about)$<a href="$epistemic-about$">Epistemic</a>$else$Epistemic$endif$</h3>$if(standing)$
+    <div class="ep-record">
+        <div class="ep-plate">
+            $if(epistemic-record-figure)$$if(overall-score)$<div class="ep-figure" data-ep-term="trust">$epistemic-record-figure$</div>$else$$epistemic-record-figure$$endif$$endif$
+            <p class="ep-reading" id="ep-reading">$if(confidence-proved)$<span data-ep-term="confidence">proved confidence</span> $else$$if(confidence)$<span data-ep-term="confidence">$confidence$% confidence</span> $endif$$endif$$if(importance-dots)$<span data-ep-term="importance"><span class="ep-dots">$importance-dots$</span> importance</span> $endif$$if(evidence-dots)$<span data-ep-term="evidence"><span class="ep-dots">$evidence-dots$</span> evidence</span>$endif$</p>
+            <p class="ep-orientation" id="ep-orientation">$if(scope)$<span data-ep-term="scope">$scope$ scope</span> $endif$$if(novelty)$<span data-ep-term="novelty">$novelty$ novelty</span> $endif$$if(practicality)$<span data-ep-term="practicality">$practicality$ practicality</span>$endif$</p>
+        </div>
+        <div class="ep-lists">
+            <dl class="ep-values">
+                <dt data-ep-term="status">Status</dt><dd>$status$</dd>
+                $if(result-shape)$<dt data-ep-term="result-shape">Result</dt><dd>$result-shape$</dd>$endif$
+                $if(epistemic-record-figure)$$else$$if(overall-score)$<dt data-ep-term="trust">Trust</dt><dd>$overall-score$%</dd>$endif$$endif$
+                $if(peer-status-display)$<dt data-ep-term="peer-status">Peer status</dt><dd>$peer-status-display$</dd>$endif$
+            </dl>$endif$
+            <dl class="ep-expanded">
+                <dt data-ep-term="stability">Stability</dt><dd>$stability$</dd>
+                $if(last-reviewed)$<dt>Last reviewed</dt><dd class="date-hover"$if(last-reviewed-iso)$ data-date-start="$last-reviewed-iso$"$endif$>$last-reviewed$</dd>$endif$
+                $if(confidence-trend)$<dt data-ep-term="confidence">Confidence trend</dt><dd>$confidence-trend$</dd>$endif$
+            </dl>$if(standing)$
+        </div>
+    </div>$endif$
+</div>

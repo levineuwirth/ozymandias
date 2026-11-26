@@ -11,6 +11,10 @@ further-reading:
 history:
   - date: "2026-01-15"
     note: First written.
+  - date: "2026-01-16"
+  - date: "2026-01-17"
+    note: The citations checked.
+  - date: "2026-01-18"
   - date: "2026-01-20"
     note: A section added.
 ---

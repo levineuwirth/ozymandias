@@ -413,8 +413,8 @@
 
 
 /* Second and later mentions from the same source page, folded away.
-   Styled as the version-history "More" disclosure below, so the two
-   collapsed lists in this footer read as one affordance. The quotes keep
+   The version history's "More" button below is set the same way, so the
+   two folded lists in this footer read as one affordance. The quotes keep
    their own margin, so the summary only needs to clear the first one. */
 .backlink-more {
     margin-top: 0.35rem;
@@ -509,17 +509,18 @@
 
 
 /* ============================================================
-   VERSION HISTORY — cap at 3 with a <details> "more" affordance.
+   VERSION HISTORY — every entry; where the history stands beside the
+   record or the map, js/version-history.js folds what runs past them
+   under a "More" button, set as the backlinks' disclosure is.
    .version-history-list inherits list styling from .meta-footer-section ul.
    ============================================================ */
 
 .version-history-more {
+    display: block;
     margin-top: 0.35rem;
-}
-
-
-.version-history-more > summary {
-    list-style: none;
+    padding: 0 0 0 1em;
+    border: 0;
+    background: none;
     cursor: pointer;
     font-family: var(--font-sans);
     font-size: var(--step--3);
@@ -527,35 +528,24 @@
     letter-spacing: calc(0.06em * var(--tracking-scale));
     color: var(--text-faint);
     user-select: none;
-    padding-left: 1em;
     transition: color var(--transition-fast);
 }
 
 
-.version-history-more > summary::-webkit-details-marker {
-    display: none;
-}
-
-
-.version-history-more > summary::before {
+.version-history-more::before {
     content: "▸\00a0";
     font-size: 0.7em;
     vertical-align: 0.1em;
 }
 
 
-.version-history-more[open] > summary::before {
+.version-history-more[aria-expanded="true"]::before {
     content: "▾\00a0";
 }
 
 
-.version-history-more > summary:hover {
+.version-history-more:hover {
     color: var(--text-muted);
-}
-
-
-.version-history-more > .version-history-list {
-    margin-top: 0.25rem;
 }
 
 

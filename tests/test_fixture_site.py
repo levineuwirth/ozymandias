@@ -694,9 +694,29 @@ class FixtureBuilds(unittest.TestCase):
                 self.assertEqual(essay.count("<figure class=\"frontmatter-mark frontmatter-mark--epistemic"), 1)
                 self.assertLess(essay.index('class="ep-record"'), essay.index('class="ep-expanded"'))
                 self.assertIn('<dt data-ep-term="peer-status">Peer status</dt>', essay)
-                # Drawn as a glyph on the figure, named in words in the record.
-                self.assertIn('<dt data-ep-term="status">Status</dt><dd>Working</dd>\n'
-                              '                    <dt data-ep-term="result-shape">Result</dt><dd>mixed</dd>', essay)
+                # The record: the figure with its six values in words as its
+                # caption; then what it does not draw, the result's shape
+                # (only a glyph on it) among them, but not the trust, which
+                # it shows and names on hover.
+                start = essay.index('class="ep-record"')
+                record = essay[start:essay.index("</dl>", essay.index('class="ep-expanded"', start))]
+                # The figure is described by its values written out: a
+                # reader moving from figure to figure hears them too.
+                self.assertIn('<div class="ep-figure" data-ep-term="trust"><figure class="frontmatter-mark '
+                              'frontmatter-mark--epistemic" aria-describedby="ep-reading ep-orientation">', record)
+                self.assertRegex(record, r'<p class="ep-reading" id="ep-reading"><span data-ep-term="confidence">70% confidence</span> '
+                                         r'<span data-ep-term="importance"><span class="ep-dots">[^<]+</span> importance</span> '
+                                         r'<span data-ep-term="evidence"><span class="ep-dots">[^<]+</span> evidence</span></p>')
+                self.assertIn('<p class="ep-orientation" id="ep-orientation"><span data-ep-term="scope">broad scope</span> '
+                              '<span data-ep-term="novelty">moderate novelty</span> '
+                              '<span data-ep-term="practicality">low practicality</span></p>', record)
+                self.assertRegex(record, r'<div class="ep-lists">\s*<dl class="ep-values">\s*'
+                                         r'<dt data-ep-term="status">Status</dt><dd>Working</dd>\s*'
+                                         r'<dt data-ep-term="result-shape">Result</dt><dd>mixed</dd>\s*'
+                                         r'<dt data-ep-term="peer-status">Peer status</dt><dd>[^<]+</dd>\s*</dl>\s*'
+                                         r'<dl class="ep-expanded">')
+                for term in ("trust", "confidence", "importance", "evidence", "scope", "novelty", "practicality"):
+                    self.assertNotIn(f'<dt data-ep-term="{term}">', record)
                 self.assertEqual("seal-legend" in essay, figure == "seal")
                 self.assertEqual("dial-disc" in essay, figure == "dial")
                 # The page's links keep the record's in words, for where
@@ -849,6 +869,20 @@ class FixtureBuilds(unittest.TestCase):
     def test_a_site_that_turns_the_build_and_stats_pages_off_builds_neither(self):
         switch_checks.build_page_off(self.turned_off("build-page"))
         switch_checks.stats_page_off(self.turned_off("stats-page"))
+
+    def test_the_version_history_lists_every_entry(self):
+        # All five, newest first, in one list: none folded at the build.
+        # Where the history stands beside the record or the map,
+        # js/version-history.js folds what runs past them, on the screen
+        # only (tests/test_browser_page_map.py).
+        essay = switch_checks.text(self.sites["full"], "essays/long/index.html")
+        start = essay.index('id="version-history"')
+        section = essay[start:essay.index("</div>", start)]
+        dates = re.findall(r'<li class="date-hover" data-date-start="([0-9-]+)">', section)
+        self.assertEqual(dates, ["2026-01-20", "2026-01-18", "2026-01-17", "2026-01-16", "2026-01-15"])
+        self.assertEqual(section.count("<ul"), 1)
+        self.assertNotIn("<details", section)
+        self.assertRegex(section, r'<script src="[^"]*/js/version-history\.js" defer></script>')
 
     def test_a_site_that_turns_the_footer_build_time_off_shows_none(self):
         # The stamp is a make stage, which the minimal build's make shows

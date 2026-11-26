@@ -80,13 +80,13 @@ import Hakyll.Core.Compiler.Internal (compilerAsk, compilerUniverse)
 import Backlinks    (backlinksField)
 import Dingbat      (dingbatField)
 import EngineFiles  (assetsField)
-import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, standingField, peerStatusValues)
+import Marks        (monogramSvgField, hasMonogramField, epistemicSvgField, epistemicRecordFigureField,
+                     standingField, peerStatusValues)
 import Sections     (Section (..), sectionOfRoute, tagPageUrl)
 import SimilarLinks (similarLinksField)
 import FooterData   (footerDepsField)
 import Stability    (stabilityField, lastReviewedField, lastReviewedIsoField,
                      versionHistoryField,
-                     versionHistoryPrimaryField, versionHistoryRestField,
                      versionHistoryRangeField, versionHistoryRangeStartField,
                      versionHistoryRangeEndField, versionHistoryCommitsField)
 import Themes       (themeContext)
@@ -1027,6 +1027,7 @@ epistemicCtx =
     <> lastReviewedField
     <> lastReviewedIsoField
     <> epistemicSvgField
+    <> epistemicRecordFigureField
 
 -- ---------------------------------------------------------------------------
 -- Essay context
@@ -1376,8 +1377,6 @@ essayCtx =
     <> footerDepsField
     <> epistemicCtx
     <> versionHistoryField
-    <> versionHistoryPrimaryField
-    <> versionHistoryRestField
     <> versionHistoryRangeField
     <> versionHistoryRangeStartField
     <> versionHistoryRangeEndField

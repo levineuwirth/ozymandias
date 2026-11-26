@@ -50,6 +50,12 @@
         display: none !important;
     }
 
+    /* Version history prints whole: the entries version-history.js
+       folds for the screen's line, and not its button (above). */
+    .version-history-list > li[hidden] {
+        display: list-item !important;
+    }
+
 
     /* ----------------------------------------------------------------
        Collapsed sections print in full (audit J07). collapse.js closes

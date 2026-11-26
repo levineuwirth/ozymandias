@@ -28,8 +28,6 @@ module Stability
     , lastReviewedField
     , lastReviewedIsoField
     , versionHistoryField
-    , versionHistoryPrimaryField
-    , versionHistoryRestField
     , versionHistoryRangeField
     , versionHistoryRangeStartField
     , versionHistoryRangeEndField
@@ -296,17 +294,11 @@ parseFmHistory meta =
 gitLogHistory :: FilePath -> Metadata -> IO [VHEntry]
 gitLogHistory fp meta = map (\d -> VHEntry (isoToWriterly d) d Nothing) <$> effectiveDates fp meta
 
--- | Maximum entries shown by default in the version-history footer block.
--- The remainder is revealed via a <details>/<summary> expand affordance,
--- matching the cap on the RELATED column.
-versionHistoryHeadCount :: Int
-versionHistoryHeadCount = 3
-
 -- | Load version-history entries for an item.
 -- Priority: frontmatter @history:@ list → git log dates → empty.
 --
 -- Entries are sorted newest-first by ISO date regardless of authored
--- order: every consumer (primary/rest split, range fields) assumes the
+-- order: every consumer (the footer's list, range fields) assumes the
 -- head is the newest entry, and the @history:@ list may be authored in
 -- either direction. Git dates already arrive newest-first; the sort is
 -- idempotent there.
@@ -337,8 +329,11 @@ vhEntryCtx =
             Nothing -> fail "no message"
             Just m  -> return m)
 
--- | Context list field @$version-history$@ — full list, kept for callers
--- (e.g. feeds, stats) that want every entry in one pass.
+-- | Context list field @$version-history$@: every entry, newest first.
+-- The footer lists them all; on a wide page, where the history stands
+-- beside the record and the map, js/version-history.js folds what runs
+-- past them under a "More" button, and without the script every entry
+-- shows.
 versionHistoryField :: Context String
 versionHistoryField =
     listFieldWith "version-history" vhEntryCtx $ \item -> do
@@ -346,30 +341,6 @@ versionHistoryField =
         if null entries
             then fail "no version history"
             else return (vhItems "vh" entries)
-
--- | @$version-history-primary$@ — first 'versionHistoryHeadCount' entries,
--- rendered outside the expand affordance.
-versionHistoryPrimaryField :: Context String
-versionHistoryPrimaryField =
-    listFieldWith "version-history-primary" vhEntryCtx $ \item -> do
-        entries <- loadVersionHistory item
-        let primary = take versionHistoryHeadCount entries
-        if null primary
-            then fail "no version history"
-            else return (vhItems "vh-p" primary)
-
--- | @$version-history-rest$@ — overflow entries (count > head cap), which
--- the template wraps in a <details> block. Fails (noResult) when the total
--- fits inside the head cap, so @$if(version-history-rest)$@ collapses
--- cleanly.
-versionHistoryRestField :: Context String
-versionHistoryRestField =
-    listFieldWith "version-history-rest" vhEntryCtx $ \item -> do
-        entries <- loadVersionHistory item
-        let rest = drop versionHistoryHeadCount entries
-        if null rest
-            then fail "no overflow"
-            else return (vhItems "vh-r" rest)
 
 -- | @$version-history-range$@ — formatted span between the oldest and
 -- newest entry. A single-date history renders as that date alone; a

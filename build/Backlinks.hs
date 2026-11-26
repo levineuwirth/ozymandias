@@ -565,8 +565,7 @@ fragmentLabel frag =
 -- @<details>@ so a page cited four times costs four lines instead of four
 -- repetitions of its title.
 --
--- The disclosure is plain @<details>/<summary>@, the same construct the
--- version-history "More" list uses: it needs no JavaScript, it is
+-- The disclosure is plain @<details>/<summary>@: it needs no JavaScript, it is
 -- keyboard-operable and announced by screen readers for free, and its
 -- contents stay in the DOM while closed — which lets in-page search find
 -- it.

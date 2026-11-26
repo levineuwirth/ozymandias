@@ -151,7 +151,10 @@
 /* ============================================================
    THE RECORD
    With a standing figure at the head (frontmatter.css) the foot of the
-   page holds the whole profile: the radar beside every value.
+   page holds the whole profile: the radar with its six values in words as
+   its caption, beside what the radar does not draw (the status and the
+   result, peer review, stability). Where the record is narrow, as in the
+   footer's row, the list goes under the plate.
    ============================================================ */
 
 .ep-record {
@@ -162,18 +165,72 @@
     margin-top: 0.5rem;
 }
 
+.ep-plate {
+    flex: 1 1 12rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+
 .ep-record .frontmatter-mark {
     flex: none;
     width: 9rem;
     height: 9rem;
 }
 
-/* At a phone's width and the largest text size the list is narrower than
-   its longest label and a value side by side: the labels may wrap. */
-.ep-record .ep-values {
+.ep-reading,
+.ep-orientation {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--step--2);
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.ep-reading + .ep-orientation {
+    margin-top: -0.5rem;
+}
+
+.ep-orientation {
+    font-style: italic;
+}
+
+.ep-reading:empty,
+.ep-orientation:empty {
+    display: none;
+}
+
+/* Each value whole on its line, the next after a middle dot. */
+.ep-reading > span,
+.ep-orientation > span {
+    white-space: nowrap;
+}
+
+.ep-reading > span:not(:last-child)::after,
+.ep-orientation > span:not(:last-child)::after {
+    content: "\00a0·";
+}
+
+/* The two lists share one label column, so their values line up. At a
+   phone's width and the largest text size the column beside the labels is
+   narrower than the longest label and a value side by side: the labels may
+   wrap. */
+.ep-lists {
     flex: 1 1 12rem;
     min-width: 0;
-    margin: 0;
+    display: grid;
     grid-template-columns: fit-content(60%) minmax(0, 1fr);
+    column-gap: 0.75rem;
+}
+
+.ep-lists > dl {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+}
+
+.ep-lists > .ep-values {
+    margin: 0;
 }
 }

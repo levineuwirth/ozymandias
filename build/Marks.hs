@@ -13,6 +13,8 @@
 --   * @$epistemicSvg$@ — the generated epistemic figure, or 'noResult'
 --                        when the item has no @status:@ frontmatter
 --                        (MARKS.md §3.1).
+--   * @$epistemic-record-figure$@ — the same figure for the record at the
+--     foot, described by the values written out beneath it.
 --
 -- Both fields are deterministic: byte-identical inputs produce
 -- byte-identical SVGs, so the GPG signing pipeline is undisturbed.
@@ -22,6 +24,7 @@ module Marks
     , monogramSvgFieldFor
     , hasMonogramFieldFor
     , epistemicSvgField
+    , epistemicRecordFigureField
     , standingField
     , standingFieldFor
     , hasMonogram
@@ -634,18 +637,32 @@ renderResultShape (Just shape) mScore =
 --   MARKS.md §3.1) or the site has the epistemic switch off. Otherwise
 --   returns the inline SVG string ready for template interpolation.
 epistemicSvgField :: Context String
-epistemicSvgField = field "epistemicSvg" $ \item -> do
+epistemicSvgField = epistemicFigure "epistemicSvg" ""
+
+-- | @$epistemic-record-figure$@: the figure in the record at the foot
+--   (templates/partials/epistemic-record.html), where its six values are
+--   written out beneath it, in the paragraphs @#ep-reading@ and
+--   @#ep-orientation@. The SVG's label gives the trust and the stability;
+--   the description ties the figure to the rest, for a reader who reaches
+--   it by moving from figure to figure. The record is on a page once, so
+--   the ids are too.
+epistemicRecordFigureField :: Context String
+epistemicRecordFigureField =
+    epistemicFigure "epistemic-record-figure" " aria-describedby=\"ep-reading ep-orientation\""
+
+epistemicFigure :: String -> T.Text -> Context String
+epistemicFigure name attrs = field name $ \item -> do
     meta <- getMetadata (itemIdentifier item)
     on   <- (`switchOn` "epistemic") <$> loadConfig
     case lookupString "status" meta of
         Just _ | on -> do
             d <- readEpistemicData item
-            return $ T.unpack (wrapEpistemic (renderEpistemicFigure d))
+            return $ T.unpack (wrapEpistemic attrs (renderEpistemicFigure d))
         _ -> noResult "no status, or the epistemic switch off; epistemic figure suppressed"
 
-wrapEpistemic :: T.Text -> T.Text
-wrapEpistemic svg = T.concat
-    [ "<figure class=\"frontmatter-mark frontmatter-mark--epistemic\">"
+wrapEpistemic :: T.Text -> T.Text -> T.Text
+wrapEpistemic attrs svg = T.concat
+    [ "<figure class=\"frontmatter-mark frontmatter-mark--epistemic\"", attrs, ">"
     , svg
     , "</figure>"
     ]

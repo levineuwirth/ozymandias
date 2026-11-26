@@ -42,8 +42,10 @@ from tests.target import requires_switch, route, site_yaml
 POPUP = ".link-popup.is-visible"
 # A term where the page shows it: the strip under the abstract, or, where a
 # seal stands at the head and the strip is for narrow windows
-# (site.yaml's epistemic-figure), the record at the foot.
-SHOWN_TERM = ':is(.meta-epistemic-strip, .ep-values) [data-ep-term="{term}"]:visible'
+# (site.yaml's epistemic-figure), the record at the foot: its list, the
+# caption under its figure, or (the trust) the figure itself.
+SHOWN_TERM = (':is(.meta-epistemic-strip [data-ep-term="{term}"], .ep-values [data-ep-term="{term}"],'
+              ' .ep-plate [data-ep-term="{term}"]):visible')
 
 # The pages' .sig files come from signing at deploy (tools/sign-site.sh), not
 # from `make build`, so a freshly built _site has none: the signature popup

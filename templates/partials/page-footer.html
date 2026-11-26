@@ -33,29 +33,7 @@ $partial("templates/partials/ornament.html")-$
     <div class="meta-footer-grid$if(page-map)$ meta-footer-grid--map$endif$">
 
         $if(has-epistemic)$
-        <div class="meta-footer-section meta-footer-epistemic" id="epistemic">
-            <h3>$if(epistemic-about)$<a href="$epistemic-about$">Epistemic</a>$else$Epistemic$endif$</h3>$if(standing)$
-            <div class="ep-record">
-                $if(epistemicSvg)$$epistemicSvg$$endif$
-                <dl class="ep-values">
-                    <dt data-ep-term="status">Status</dt><dd>$status$</dd>
-                    $if(result-shape)$<dt data-ep-term="result-shape">Result</dt><dd>$result-shape$</dd>$endif$
-                    $if(overall-score)$<dt data-ep-term="trust">Trust</dt><dd>$overall-score$%</dd>$endif$
-                    $if(peer-status-display)$<dt data-ep-term="peer-status">Peer status</dt><dd>$peer-status-display$</dd>$endif$
-                    $if(confidence-proved)$<dt data-ep-term="confidence">Confidence</dt><dd>proved</dd>$else$$if(confidence)$<dt data-ep-term="confidence">Confidence</dt><dd>$confidence$%</dd>$endif$$endif$
-                    $if(importance-dots)$<dt data-ep-term="importance">Importance</dt><dd><span class="ep-dots">$importance-dots$</span></dd>$endif$
-                    $if(evidence-dots)$<dt data-ep-term="evidence">Evidence quality</dt><dd><span class="ep-dots">$evidence-dots$</span></dd>$endif$
-                    $if(scope)$<dt data-ep-term="scope">Scope</dt><dd>$scope$</dd>$endif$
-                    $if(novelty)$<dt data-ep-term="novelty">Novelty</dt><dd>$novelty$</dd>$endif$
-                    $if(practicality)$<dt data-ep-term="practicality">Practicality</dt><dd>$practicality$</dd>$endif$
-                </dl>
-            </div>$endif$
-            <dl class="ep-expanded">
-                <dt data-ep-term="stability">Stability</dt><dd>$stability$</dd>
-                $if(last-reviewed)$<dt>Last reviewed</dt><dd class="date-hover"$if(last-reviewed-iso)$ data-date-start="$last-reviewed-iso$"$endif$>$last-reviewed$</dd>$endif$
-                $if(confidence-trend)$<dt data-ep-term="confidence">Confidence trend</dt><dd>$confidence-trend$</dd>$endif$
-            </dl>
-        </div>
+        $partial("templates/partials/epistemic-record.html")$
         $endif$
 
         $if(page-map)$
@@ -69,22 +47,13 @@ $partial("templates/partials/ornament.html")-$
         $if(build)$$else$
         <div class="meta-footer-section" id="version-history">
             <h3>Version history</h3>
-            $if(version-history-primary)$
+            $if(version-history)$
             <ul class="version-history-list">
-                $for(version-history-primary)$
+                $for(version-history)$
                 <li class="date-hover" data-date-start="$vh-date-iso$">$vh-date$$if(vh-message)$ &middot; $vh-message$$endif$</li>
                 $endfor$
             </ul>
-            $if(version-history-rest)$
-            <details class="version-history-more">
-                <summary>More</summary>
-                <ul class="version-history-list">
-                    $for(version-history-rest)$
-                    <li class="date-hover" data-date-start="$vh-date-iso$">$vh-date$$if(vh-message)$ &middot; $vh-message$$endif$</li>
-                    $endfor$
-                </ul>
-            </details>
-            $endif$
+            <script src="$assets$/js/version-history.js" defer></script>
             $else$
             <ul class="version-history-list">
                 $if(date-created)$<li>$date-created$ &middot; Created</li>$endif$
