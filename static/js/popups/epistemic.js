@@ -18,6 +18,9 @@
         /* templates/partials/metadata-header.html tags this one too; it
            had no entry, so hovering it showed nothing. */
         'peer-status': 'The external review state: unreviewed, under review, peer reviewed, published, or retracted. Distinct from status, the author\u2019s own position: a piece can be Durable and unreviewed at the same time.',
+        /* The figure draws it as a glyph beside the trust score; the
+           footer's record names it in words. */
+        'result-shape': 'The shape of the central claim: positive (something works), negative (something does not), mixed (both), comparative (approaches compared), or descriptive (described, not argued for or against).',
         confidence:   'An integer from 0\u2013100, representing the author\u2019s credence in the central thesis.',
         importance:   'How much the author thinks this matters, on a 1\u20135 dot scale. Useful for orienting a reader who has limited time.',
         evidence:     'How well-evidenced the claims are, on a 1\u20135 scale. High importance and low evidence indicates a speculative position.',

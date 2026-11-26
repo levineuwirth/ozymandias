@@ -694,6 +694,9 @@ class FixtureBuilds(unittest.TestCase):
                 self.assertEqual(essay.count("<figure class=\"frontmatter-mark frontmatter-mark--epistemic"), 1)
                 self.assertLess(essay.index('class="ep-record"'), essay.index('class="ep-expanded"'))
                 self.assertIn('<dt data-ep-term="peer-status">Peer status</dt>', essay)
+                # Drawn as a glyph on the figure, named in words in the record.
+                self.assertIn('<dt data-ep-term="status">Status</dt><dd>Working</dd>\n'
+                              '                    <dt data-ep-term="result-shape">Result</dt><dd>mixed</dd>', essay)
                 self.assertEqual("seal-legend" in essay, figure == "seal")
                 self.assertEqual("dial-disc" in essay, figure == "dial")
                 # The page's links keep the record's in words, for where

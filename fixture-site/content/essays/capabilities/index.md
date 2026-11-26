@@ -15,6 +15,7 @@ scope: broad
 novelty: moderate
 practicality: low
 peer-status: under-review
+result-shape: mixed
 ---
 
 ## Math
