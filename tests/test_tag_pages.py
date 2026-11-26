@@ -14,7 +14,10 @@ site (Tags.hs, TagMap.hs):
     which leads the first page of a tag too large for one;
   · a tag page is a volume: its title page's ornament follows the portal's
     facet (smaller on a subtag), the tags within are named and numbered,
-    and a sidecar may add a featured piece and a gallery.
+    and a sidecar may add a featured piece and a gallery;
+  · a piece's page shows at its foot where it sits on the map: a crop of
+    the map around it, its tags lit, and the same tags named as links; a
+    page on no map has none.
 
     python -m unittest tests.test_tag_pages -v
 """
@@ -50,6 +53,7 @@ class TagPages(unittest.TestCase):
         page(root / "content/index.md", "title: Home\nhome: true", "Home.")
         page(root / "content/essays/dated.md",
              "title: A Dated Essay\ndate: 2026-03-02\ntags: [notes, test/nested/leaf]")
+        page(root / "content/essays/untagged.md", "title: An Untagged Essay\ndate: 2026-03-03")
         page(root / "content/probe.md", "title: An Undated Page\ntags: [notes]")
         page(root / "content/secret.md",
              "title: Hidden Draft Title\ndate: 2026-04-01\ndraft: true\ntags: [notes, secret/inner]")
@@ -186,6 +190,44 @@ class TagPages(unittest.TestCase):
         self.assertRegex(whole, r'<p class="visually-hidden">Map of tags\. A map of the \d+ tags')
         self.assertRegex(whole, r'<svg [^>]*class="tag-map"[^>]* aria-hidden="true"')
         self.assertNotIn('role="img"', whole[whole.index("<svg"):whole.index("</svg>")])
+
+    def test_a_piece_s_foot_shows_where_it_sits_on_the_map(self):
+        self.assertEqual(self.done.returncode, 0, self.done.stderr)
+        essay = self.read("essays/dated.html")
+        self.assertIn('class="meta-footer-grid meta-footer-grid--map"', essay)
+        self.assertIn("css/tag-map.css", essay)
+        foot = re.search(r'<div class="meta-footer-section meta-footer-map" id="on-the-map">.*?</p>\s*</div>',
+                         essay, re.S).group(0)
+        svg = re.search(r"<svg .*?</svg>", foot, re.S).group(0)
+        self.assertRegex(svg, r'^<svg [^>]*class="tag-map tag-map--focus tag-map--detail"[^>]* aria-hidden="true"')
+        # The piece ringed and lit; the tags it is written with lit, their
+        # ancestors one notch less; nothing of another tag's region.
+        self.assertRegex(svg, r'<a class="tag-map-piece is-lit is-here" href="[./]*essays/dated\.html"'
+                              r'[^>]*data-tags="notes test/nested/leaf"><title>A Dated Essay</title>'
+                              r'<circle class="tag-map-here"')
+        levels = {tag: level.strip() for level, tag in
+                  re.findall(r'<a class="tag-map-tag[^"]*?( is-lit| is-near)?" '
+                             r'href="[^"]*" tabindex="-1" data-tag="([^"]+)"', svg)}
+        self.assertEqual(levels.get("notes"), "is-lit")
+        self.assertEqual(levels.get("test/nested/leaf"), "is-lit")
+        self.assertEqual(levels.get("test/nested"), "is-near")
+        self.assertEqual(levels.get("test"), "is-near")
+        self.assertIn(levels.get("solo", ""), ("",))
+        # A crop: nothing is drawn wholly outside its viewBox.
+        x, y, w, h = map(float, re.search(r'viewBox="([^"]+)"', svg).group(1).split())
+        for cx, cy, r in re.findall(r'<circle cx="([-\d.]+)" cy="([-\d.]+)" r="([\d.]+)"', svg):
+            cx, cy, r = float(cx), float(cy), float(r)
+            self.assertTrue(x - r - 5 <= cx <= x + w + r + 5 and y - r - 5 <= cy <= y + h + r + 5,
+                            (cx, cy, x, y, w, h))
+        # The same tags in words, as links, beside the drawing.
+        self.assertRegex(foot, r'<span class="meta-footer-map-label">Filed under</span> '
+                               r'<a href="[./]*notes/">Notes</a> · <a href="[./]*test/nested/leaf/">Leaf</a>')
+        self.assertNotIn("Hidden Draft Title", essay)
+        # A page on no map has no map at its foot, and no map's assets.
+        untagged = self.read("essays/untagged.html")
+        self.assertNotIn("meta-footer-map", untagged)
+        self.assertNotIn("meta-footer-grid--map", untagged)
+        self.assertNotIn("css/tag-map.css", untagged)
 
 
 @requires_cabal

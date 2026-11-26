@@ -30,7 +30,7 @@ $partial("templates/partials/ornament.html")-$
     </div>
     $endif$
 
-    <div class="meta-footer-grid">
+    <div class="meta-footer-grid$if(page-map)$ meta-footer-grid--map$endif$">
 
         $if(has-epistemic)$
         <div class="meta-footer-section meta-footer-epistemic" id="epistemic">
@@ -54,6 +54,14 @@ $partial("templates/partials/ornament.html")-$
                 $if(last-reviewed)$<dt>Last reviewed</dt><dd class="date-hover"$if(last-reviewed-iso)$ data-date-start="$last-reviewed-iso$"$endif$>$last-reviewed$</dd>$endif$
                 $if(confidence-trend)$<dt data-ep-term="confidence">Confidence trend</dt><dd>$confidence-trend$</dd>$endif$
             </dl>
+        </div>
+        $endif$
+
+        $if(page-map)$
+        <div class="meta-footer-section meta-footer-map" id="on-the-map">
+            <h3><a href="/map/">On the map</a></h3>
+            $page-map$
+            <p class="meta-footer-map-filed"><span class="meta-footer-map-label">Filed under</span> $page-map-filed$</p>
         </div>
         $endif$
 

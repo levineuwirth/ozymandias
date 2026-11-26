@@ -31,6 +31,7 @@ module Tags
     , portalTooltipField
     , seeAlsoContext
     , portalShelfContext
+    , pageMapContext
     ) where
 
 import Control.Applicative ((<|>))
@@ -53,7 +54,7 @@ import System.FilePath (dropFileName, takeFileName)
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Scientific as Sci
 import qualified Data.Yaml as Y
-import TagMap     (MapPiece (..), MapTag (..), layoutMap, renderMap)
+import TagMap     (MapPiece (..), MapTag (..), layoutMap, renderMap, renderPieceMap)
 import Patterns   (blogPattern, fictionPattern, musicPattern, poetryPattern, tagIndexable)
 import Sections   (sectionOfRoute, sectionOwnedTopLevelTags, tagPageUrl)
 import Contexts   (abstractField, contentKindField, displaySortKey, identifierDisplayUTCMaybe, svgAspect,
@@ -587,12 +588,42 @@ tagDescriptionField cfg sidecarSet tag = field "description" $ \_ -> do
 
 -- | The item holding every drawing of the map: the whole map under @""@
 --   and each tag's lit version under the tag, as a 'show'n association
---   list. One layout per build, shared by the tag pages and /map/.
+--   list. One layout per build, shared by the tag pages, /map/ and the
+--   pieces' pages, whose drawings ('renderPieceMap') are snapshots of this
+--   item, so that a page loads its own and parses nothing: @pieces@, the
+--   identifiers of the pieces on the map, one to a line, and for each its
+--   drawing (@svg <identifier>@) and the tags it is filed under on the map,
+--   as links (@filed <identifier>@).
 tagMapId :: Identifier
 tagMapId = "_tag-map/drawings"
 
 loadTagMaps :: Compiler [(String, String)]
 loadTagMaps = read . itemBody <$> load tagMapId
+
+-- | The foot of a piece's page (templates/partials/page-footer.html), with
+--   the tag-map switch on: @$page-map$@, its detail of the map, and
+--   @$page-map-filed$@, the tags it is filed under on the map as links,
+--   which say in words what the drawing shows. @$tag-map$@ loads the map's
+--   stylesheet and script (head.html, default.html). Nothing for a page
+--   that is not on the map. A page whose template has no shared footer,
+--   such as the projects index (vita's projects.html, a list rather than a
+--   piece), has nowhere to show it and is not given this context.
+pageMapContext :: Context String
+pageMapContext =
+       field "page-map" (\i -> entry i >>= loadSnapshotBody tagMapId . ("svg " ++))
+    <> field "page-map-filed" (\i -> entry i >>= loadSnapshotBody tagMapId . ("filed " ++))
+    <> field "tag-map" (fmap (const "page") . entry)
+  where
+    entry item = do
+        cfg <- loadConfig
+        if not (switchOn cfg "tag-map") then noResult "no tag map" else do
+            onMap <- lines <$> loadSnapshotBody tagMapId "pieces"
+            let pid = toFilePath (itemIdentifier item)
+            if pid `elem` onMap then return pid else noResult "not on the map"
+
+-- | A tag as a link, by its name and URL.
+tagLink :: (String, String) -> String
+tagLink (name, url) = "<a href=\"" ++ escapeHtml url ++ "\">" ++ escapeHtml name ++ "</a>"
 
 -- | The SVG in the container that lets it pan sideways at phone widths,
 --   where the labels would otherwise be too small to read (tag-map.css).
@@ -630,6 +661,13 @@ tagMapRules tags baseCtx = do
         create [tagMapId] $ compile $ do
             (mapTags, pieces) <- tagMapInput tags
             let layout = layoutMap mapTags pieces
+                tagAt  = Map.fromList [ (mtTag t, t) | t <- mapTags ]
+                drawn  = [ (mpId p, svg, [ (mtName t, mtUrl t) | g <- mpTags p, Just t <- [Map.lookup g tagAt] ])
+                         | p <- pieces, Just svg <- [renderPieceMap layout (mpId p)] ]
+            forM_ drawn $ \(pid, svg, filed) -> do
+                _ <- makeItem svg >>= saveSnapshot ("svg " ++ pid)
+                makeItem (intercalate " \183 " (map tagLink filed)) >>= saveSnapshot ("filed " ++ pid)
+            _ <- makeItem (unlines [ pid | (pid, _, _) <- drawn ]) >>= saveSnapshot "pieces"
             makeItem $ show $ ("", renderMap layout Nothing)
                 : [ (mtTag t, renderMap layout (Just (mtTag t))) | t <- mapTags ]
     create ["map/index.html"] $ do

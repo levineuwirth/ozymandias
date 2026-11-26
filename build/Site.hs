@@ -49,7 +49,7 @@ import MarkdownSections (markdownSectionsCompiler)
 import Marks      (monogramPattern)
 import qualified Patterns as P
 import Photography (photographyAssets, photographyRules)
-import Tags       (buildAllTags, applyTagRules, portalShelfContext, sidecarIdentifier,
+import Tags       (buildAllTags, applyTagRules, pageMapContext, portalShelfContext, sidecarIdentifier,
                    portalIntroField, portalTooltipField)
 import Pagination (blogPaginateRules)
 import Stability  (resolveStability)
@@ -215,7 +215,7 @@ standaloneRules page = do
   where
     flags = mconcat [constField flag "true" | flag <- standaloneFlags page]
     (compiler, ctx) = case standaloneContext page of
-        EssayPage    -> (essayCompiler, languagesField <> essayCtx)
+        EssayPage    -> (essayCompiler, pageMapContext <> languagesField <> essayCtx)
         PlainPage    -> (pageCompiler, pageCtx)
         NowPage      -> (pageCompiler, nowCtx)
         VitaPage     -> (pageCompiler, vitaCtx)
@@ -585,7 +585,7 @@ rules = do
     when commonplace $ match "content/commonplace.md" $ do
         route   $ constRoute "commonplace.html"
         compile $ pageCompiler
-            >>= inDefault "templates/commonplace.html" commonplaceCtx
+            >>= inDefault "templates/commonplace.html" (pageMapContext <> commonplaceCtx)
 
     -- Every other top-level page.
     match ("content/*.md" .&&. complement (fromList (map fromFilePath ownSources)
@@ -673,7 +673,7 @@ rules = do
         route pageRoute
         compile $ essayCompiler
             >>= saveSnapshot "content"
-            >>= inDefault "templates/essay.html" (scholarFields papers <> languagesField <> essayCtx)
+            >>= inDefault "templates/essay.html" (scholarFields papers <> pageMapContext <> languagesField <> essayCtx)
 
     -- Dimension sidecars: tracked, but not shipped.
     --
@@ -783,7 +783,7 @@ rules = do
         route   pageRoute
         compile $ poetryCompiler
             >>= saveSnapshot "content"
-            >>= inDefault "templates/reading.html" poetryCtx
+            >>= inDefault "templates/reading.html" (pageMapContext <> poetryCtx)
 
     -- Collection index pages (e.g. content/poetry/shakespeare-sonnets/index.md).
     -- See 'collectionCtx' for the rendering contract. A landing that is
@@ -803,7 +803,7 @@ rules = do
         route   pageRoute
         compile $ fictionCompiler
             >>= saveSnapshot "content"
-            >>= inDefault "templates/reading.html" fictionCtx
+            >>= inDefault "templates/reading.html" (pageMapContext <> fictionCtx)
 
     -- Fiction collection index pages
     -- (content/fiction/<collection>/index.md → fiction/<collection>/index.html).
@@ -859,7 +859,7 @@ rules = do
             route   pageRoute
             compile $ compositionCompiler
                 >>= saveSnapshot "content"
-                >>= inDefault "templates/composition.html" compositionCtx
+                >>= inDefault "templates/composition.html" (pageMapContext <> compositionCtx)
 
         -- Score reader — separate URL, minimal chrome.
         -- Compiled from the same source with version "score-reader".

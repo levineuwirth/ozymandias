@@ -9,8 +9,9 @@
 --   specific ones), and links to the piece.
 --
 --   'layoutMap' places everything once; 'renderMap' draws that one layout
---   either whole or with one tag's region lit, so every page that shows the
---   map shows the same map. Both are pure and deterministic: the same input
+--   either whole or with one tag's region lit, and 'renderPieceMap' a
+--   detail of it around one piece, so every page that shows the map shows
+--   the same map. Both are pure and deterministic: the same input
 --   gives a byte-identical SVG.
 --
 --   The layout is force-directed (Fruchterman–Reingold forces, cooled over a
@@ -33,6 +34,7 @@ module TagMap
     , Layout
     , layoutMap
     , renderMap
+    , renderPieceMap
     ) where
 
 import Data.Bits ((.&.), xor)
@@ -497,6 +499,10 @@ minimumOn f = foldr1 (\a b -> if f a <= f b then a else b)
 --   or the region itself. A line is as lit as its less lit end.
 data Lit = Dim | Near | Lit deriving (Eq, Ord)
 
+-- | What a drawing lights: nothing (the whole map), a tag's region, or
+--   one piece (by its index in 'lyPieces').
+data Focus = Whole | OnTag String | OnPiece Int deriving (Eq)
+
 -- | Draw the map: whole ('Nothing'), or with one tag's region lit, after a
 --   visually hidden paragraph that describes it. The lit
 --   region is the tag and its descendants, the pieces filed under any of
@@ -506,35 +512,150 @@ data Lit = Dim | Near | Lit deriving (Eq, Ord)
 renderMap :: Layout -> Maybe String -> String
 renderMap ly focus0 = concat
     [ "<p class=\"visually-hidden\">", escapeHtml label, ". ", escapeHtml description, "</p>"
-    , "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"tag-map"
+    , draw ly focus Nothing ]
+  where
+    tagAt = Map.fromList [ (mtTag t, t) | (t, _, _) <- lyTags ly ]
+    focus = case focus0 of
+        Just t | Map.member t tagAt -> OnTag t
+        _                           -> Whole
+    (_, corePieces, near) = region ly focus
+    nameOf g = maybe g mtName (Map.lookup g tagAt)
+    label = case focus of
+        OnTag f -> "Map of tags, with " ++ nameOf f ++ " lit"
+        _       -> "Map of tags"
+    description = concat
+        [ "A map of the ", show (length (lyTags ly)), " tags and the "
+        , countWords (length (lyPieces ly)), " filed under them. Each top-level tag "
+        , "is a labeled circle, sized by how many pieces it holds, and each subtag a "
+        , "smaller one joined to its parent by a dashed line; each piece is a dot "
+        , "joined to the tags it is filed under."
+        , case focus of
+            OnTag f -> concat
+                [ " The region of ", nameOf f, " is lit: "
+                , countWords (Set.size corePieces)
+                , case [ nameOf g | g <- Set.toList near, g `notElem` ancestorsOn ly f ] of
+                    []  -> "."
+                    gs  -> ", and the tags they are also filed under: "
+                           ++ intercalate ", " (sort gs) ++ "." ]
+            _ -> "" ]
+
+-- | The detail of the map around one piece, for the foot of its page: the
+--   piece ringed, the tags it is filed under lit with its lines to them,
+--   their ancestors one notch less, and the rest dimmed; cropped to that
+--   neighborhood, centered on the piece, so that its labels read at a
+--   third of a page's width. 'Nothing' for a piece not on the map (by its
+--   'mpId'). Nothing outside the crop is drawn. It has no visually hidden
+--   description: the page lists the same tags in words beside it.
+renderPieceMap :: Layout -> String -> Maybe String
+renderPieceMap ly pid =
+    case [ i | (i, (p, _)) <- zip [0 ..] (lyPieces ly), mpId p == pid ] of
+        (i : _) -> Just (draw ly (OnPiece i) (Just (pieceCrop ly i)))
+        []      -> Nothing
+
+-- | The least width of a piece's crop, in viewBox units: a piece filed
+--   under one tag nearby is not drawn larger than about twice the whole.
+cropMinW :: Double
+cropMinW = 300
+
+-- | The crop's proportions, width over height, at the least and most.
+cropAspect :: (Double, Double)
+cropAspect = (1.05, 1.6)
+
+-- | The crop around a piece: the box of everything lit or near (circles
+--   and labels), padded, made symmetric about the piece, held to
+--   'cropMinW' and 'cropAspect', then moved back toward the map where it
+--   overhangs it by more than the padding (so that a lit label at the
+--   map's edge clears the fade); no larger than the map and its padding.
+pieceCrop :: Layout -> Int -> Box
+pieceCrop ly i = (x0', y0', x0' + w', y0' + h')
+  where
+    (_, V px py) = lyPieces ly !! i
+    (core, _, near) = region ly (OnPiece i)
+    boxes = circleBox (radius Dot 0) (V px py)
+          : [ nodeBox (Spec (kindOf t) r (Just (mtName t))) place at
+            | (t, at, place) <- lyTags ly
+            , mtTag t `Set.member` core || mtTag t `Set.member` near
+            , let r = radius (kindOf t) (mtCount t) ]
+    pad = 24
+    bx0 = minimum [ a | (a, _, _, _) <- boxes ] - pad
+    by0 = minimum [ b | (_, b, _, _) <- boxes ] - pad
+    bx1 = maximum [ c | (_, _, c, _) <- boxes ] + pad
+    by1 = maximum [ d | (_, _, _, d) <- boxes ] + pad
+    hw0 = max (cropMinW / 2) (max (px - bx0) (bx1 - px))
+    hh0 = max (py - by0) (by1 - py)
+    (lo, hi) = cropAspect
+    (hw, hh) | hw0 < lo * hh0 = (lo * hh0, hh0)
+             | hw0 > hi * hh0 = (hw0, hw0 / hi)
+             | otherwise      = (hw0, hh0)
+    w' = min (lyWidth ly + 2 * pad) (2 * hw)
+    h' = min (lyHeight ly + 2 * pad) (2 * hh)
+    x0' = max (-pad) (min (lyWidth ly + pad - w') (px - w' / 2))
+    y0' = max (-pad) (min (lyHeight ly + pad - h') (py - h' / 2))
+
+-- | The tags of a focus's lit region, the pieces lit with them, and the
+--   tags one notch less lit. A tag's region: the tag and its descendants,
+--   the pieces filed under any of them, and near, the other tags those
+--   pieces carry and the tag's ancestors. A piece's: the tags it is filed
+--   under, itself, and near, their ancestors.
+region :: Layout -> Focus -> (Set.Set String, Set.Set Int, Set.Set String)
+region ly focus = case focus of
+    Whole -> (Set.empty, Set.empty, Set.empty)
+    OnTag f ->
+        let core = Set.fromList [ mtTag t | (t, _, _) <- lyTags ly
+                                          , mtTag t == f || (f ++ "/") `isPrefixOf` mtTag t ]
+            lit  = Set.fromList [ i | (i, (p, _)) <- pieces, any (`Set.member` core) (mpTags p) ]
+            near = (Set.fromList [ g | (i, (p, _)) <- pieces, i `Set.member` lit, g <- mpTags p ]
+                    `Set.union` Set.fromList (ancestorsOn ly f))
+                   `Set.difference` core
+        in (core, lit, near)
+    OnPiece i ->
+        let core = Set.fromList (mpTags (fst (lyPieces ly !! i)))
+            near = Set.fromList (concatMap (ancestorsOn ly) (Set.toList core))
+                   `Set.difference` core
+        in (core, Set.singleton i, near)
+  where
+    pieces = zip [0 :: Int ..] (lyPieces ly)
+
+-- | A tag's ancestors that are on the map.
+ancestorsOn :: Layout -> String -> [String]
+ancestorsOn ly f = [ a | (n, c) <- zip [0 ..] f, c == '/', let a = take n f
+                       , any (\(t, _, _) -> mtTag t == a) (lyTags ly) ]
+
+-- | The SVG of a drawing: the whole map, or one with a focus lit, and
+--   either the whole frame or a crop of it (only what meets the crop
+--   drawn).
+draw :: Layout -> Focus -> Maybe Box -> String
+draw ly focus crop = concat
+    [ "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"tag-map"
     , if focused then " tag-map--focus" else ""
-    , "\" viewBox=\"0 0 ", num (lyWidth ly), " ", num (lyHeight ly)
+    , maybe "" (const " tag-map--detail") crop
+    , "\" viewBox=\"", viewBox
     , "\" aria-hidden=\"true\" focusable=\"false\""
-    , maybe "" (\t -> " data-focus=\"" ++ escapeHtml t ++ "\"") focus
+    , case focus of
+        OnTag t -> " data-focus=\"" ++ escapeHtml t ++ "\""
+        _       -> ""
     , ">"
     , "<g class=\"tag-map-edges\">", concat parentLines, concat filedLines, "</g>"
     , "<g class=\"tag-map-pieces\">", concat dots, "</g>"
     , "<g class=\"tag-map-tags\">", concat tagNodes, "</g>"
     , "</svg>" ]
   where
-    focus   = case focus0 of
-        Just t | Map.member t tagAt -> Just t
-        _                           -> Nothing
-    focused = focus /= Nothing
+    focused = focus /= Whole
     tagAt   = Map.fromList [ (mtTag t, (t, p)) | (t, p, _) <- lyTags ly ]
     pieces  = zip [0 :: Int ..] (lyPieces ly)
+    (core, corePieces, near) = region ly focus
 
-    -- The region: core tags, the pieces under them, their neighbors.
-    core    = case focus of
-        Nothing -> Set.empty
-        Just f  -> Set.fromList [ mtTag t | (t, _, _) <- lyTags ly
-                                          , mtTag t == f || (f ++ "/") `isPrefixOf` mtTag t ]
-    corePieces = Set.fromList [ i | (i, (p, _)) <- pieces, any (`Set.member` core) (mpTags p) ]
-    near    = (Set.fromList [ g | (i, (p, _)) <- pieces, i `Set.member` corePieces, g <- mpTags p ]
-               `Set.union` Set.fromList (maybe [] ancestors focus))
-              `Set.difference` core
-    ancestors f = [ a | a <- prefixes f, Map.member a tagAt ]
-    prefixes f = [ take n f | (n, c) <- zip [0 ..] f, c == '/' ]
+    viewBox = case crop of
+        Nothing -> "0 0 " ++ num (lyWidth ly) ++ " " ++ num (lyHeight ly)
+        Just (a, b, c, d) -> unwords (map num [a, b, c - a, d - b])
+    -- Whether a box, or a line, meets the crop: everything does uncropped.
+    shows' bx = case crop of
+        Nothing -> True
+        Just c  -> overlap 0 c bx /= Nothing
+    showsLine u v = case crop of
+        Nothing -> True
+        Just c  -> segmentHits u v c
+
     tagLit g
         | not focused          = Lit
         | g `Set.member` core  = Lit
@@ -551,11 +672,11 @@ renderMap ly focus0 = concat
     radiusOf t = radius (kindOf t) (mtCount t)
 
     -- A line between two circles, trimmed to their rims.
-    line cls extra (V x1 y1) r1 (V x2 y2) r2 =
+    line cls extra a@(V x1 y1) r1 b@(V x2 y2) r2 =
         let dx = x2 - x1; dy = y2 - y1
             d  = max 0.01 (sqrt (dx * dx + dy * dy))
             ux = dx / d; uy = dy / d
-        in if d <= r1 + r2 then "" else concat
+        in if d <= r1 + r2 || not (showsLine a b) then "" else concat
             [ "<line class=\"", cls, "\"", extra
             , " x1=\"", num (x1 + ux * r1), "\" y1=\"", num (y1 + uy * r1)
             , "\" x2=\"", num (x2 - ux * r2), "\" y2=\"", num (y2 - uy * r2), "\"/>" ]
@@ -575,12 +696,19 @@ renderMap ly focus0 = concat
 
     dots =
         [ concat
-            [ "<a class=\"tag-map-piece", litClass (pieceLit i), "\" href=\"", escapeHtml (mpUrl p)
+            [ "<a class=\"tag-map-piece", litClass (pieceLit i), if here then " is-here" else ""
+            , "\" href=\"", escapeHtml (mpUrl p)
             , "\" tabindex=\"-1\" data-piece=\"", show i
             , "\" data-tags=\"", escapeHtml (unwords (mpTags p)), "\">"
             , "<title>", escapeHtml (mpTitle p), "</title>"
+            , if here then ring x y (radius Dot 0 + 4.5) else ""
             , "<circle cx=\"", num x, "\" cy=\"", num y, "\" r=\"", num (radius Dot 0), "\"/></a>" ]
-        | (i, (p, V x y)) <- pieces ]
+        | (i, (p, at@(V x y))) <- pieces
+        , shows' (circleBox (radius Dot 0 + 5) at)
+        , let here = focus == OnPiece i ]
+
+    ring x y r = concat [ "<circle class=\"tag-map-here\" cx=\"", num x, "\" cy=\"", num y
+                        , "\" r=\"", num r, "\"/>" ]
 
     -- Portals last, so that their labels sit over subtags' lines.
     tagNodes =
@@ -591,38 +719,18 @@ renderMap ly focus0 = concat
             , "\" href=\"", escapeHtml (mtUrl t)
             , "\" tabindex=\"-1\" data-tag=\"", escapeHtml (mtTag t), "\">"
             , "<title>", escapeHtml (mtName t ++ " (" ++ countWords (mtCount t) ++ ")"), "</title>"
-            , if here then concat [ "<circle class=\"tag-map-here\" cx=\"", num x, "\" cy=\"", num y
-                                  , "\" r=\"", num (r + 3.5), "\"/>" ] else ""
+            , if here then ring x y (r + 3.5) else ""
             , "<circle cx=\"", num x, "\" cy=\"", num y, "\" r=\"", num r, "\"/>"
             , "<text x=\"", num lx, "\" y=\"", num ly', "\" text-anchor=\"", anchor, "\">"
             , escapeHtml (mtName t), "</text></a>" ]
         | (t, V x y, place) <- sortOn (\(t, _, _) -> kindOf t == Portal) (lyTags ly)
         , let r = radiusOf t
-              here = focus == Just (mtTag t)
-              (lx, ly', anchor) = labelAnchor (kindOf t) r place (V x y) ]
+              here = focus == OnTag (mtTag t)
+              (lx, ly', anchor) = labelAnchor (kindOf t) r place (V x y)
+        , shows' (nodeBox (Spec (kindOf t) r (Just (mtName t))) place (V x y)) ]
 
     kindName Portal = "portal"
     kindName _      = "subtag"
-
-    nameOf g = maybe g (mtName . fst) (Map.lookup g tagAt)
-    label = case focus of
-        Nothing -> "Map of tags"
-        Just f  -> "Map of tags, with " ++ nameOf f ++ " lit"
-    description = concat
-        [ "A map of the ", show (length (lyTags ly)), " tags and the "
-        , countWords (length (lyPieces ly)), " filed under them. Each top-level tag "
-        , "is a labeled circle, sized by how many pieces it holds, and each subtag a "
-        , "smaller one joined to its parent by a dashed line; each piece is a dot "
-        , "joined to the tags it is filed under."
-        , case focus of
-            Nothing -> ""
-            Just f  -> concat
-                [ " The region of ", nameOf f, " is lit: "
-                , countWords (Set.size corePieces)
-                , case [ nameOf g | g <- Set.toList near, g `notElem` ancestors f ] of
-                    []  -> "."
-                    gs  -> ", and the tags they are also filed under: "
-                           ++ intercalate ", " (sort gs) ++ "." ] ]
 
 countWords :: Int -> String
 countWords 1 = "1 piece"

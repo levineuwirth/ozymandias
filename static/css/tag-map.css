@@ -14,6 +14,17 @@
     overflow: visible;
 }
 
+/* A piece's detail of the map (TagMap.renderPieceMap) is a crop of it:
+   what lies past the crop is not drawn, and the drawing fades out at its
+   edges rather than ending at a line. */
+.tag-map--detail {
+    overflow: hidden;
+    mask-image:
+        linear-gradient(to right, transparent, #000 7%, #000 93%, transparent),
+        linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
+    mask-composite: intersect;
+}
+
 /* On a narrow screen the map keeps a legible size and pans sideways, as
    drawn figures do (viz.css). The drawing is about 730 units wide; at 620px
    its labels are still about 10.5px. tag-map.js brings a lit region into
@@ -169,8 +180,9 @@
     stroke: var(--text-faint);
 }
 
-/* The ring round the tag itself; it must not take the lit circles' fill. */
-.tag-map--focus .tag-map-tag.is-here circle.tag-map-here {
+/* The ring round the tag itself, or round the piece at the foot of its own
+   page; it must not take the lit circles' fill. */
+.tag-map--focus .is-here circle.tag-map-here {
     fill: none;
     stroke: var(--text);
     stroke-width: 1px;

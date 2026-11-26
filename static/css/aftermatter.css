@@ -164,6 +164,63 @@
 }
 
 
+/* With the map (a piece on the tag map, TagMap.renderPieceMap): EPISTEMIC |
+   ON THE MAP | VERSION HISTORY as one row, centered as a group under the
+   page: the record and the map at set measures, the history (and Rights,
+   on a page with its own license) as wide as it needs up to a short
+   column. A section that no longer fits goes to the next line, centered
+   too, never narrower than its own longest word. Where the footer cannot
+   hold the record and the map side by side, the grid takes two to a line;
+   on a phone, one. Measured on the footer, in rem, so that the reader's
+   text size moves the breaks with the text. */
+.page-meta-footer {
+    container: page-meta-footer / inline-size;
+}
+
+.meta-footer-grid--map {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+@container page-meta-footer (width >= 44.5rem) {
+    .meta-footer-grid--map {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.65rem 2.25rem;
+    }
+
+    .meta-footer-grid--map > .meta-footer-section {
+        flex: 0 1 auto;
+        max-width: 15rem;
+    }
+
+    .meta-footer-grid--map > .meta-footer-epistemic {
+        flex: 0 0 15.5rem;
+        max-width: none;
+    }
+
+    .meta-footer-grid--map > .meta-footer-map {
+        flex: 0 0 16rem;
+        max-width: none;
+    }
+}
+
+.meta-footer-map .tag-map {
+    margin: 0.25rem 0 0.6rem;
+}
+
+.meta-footer-map-filed {
+    text-align: center;
+}
+
+.meta-footer-map-label {
+    font-variant-caps: all-small-caps;
+    letter-spacing: calc(0.08em * var(--tracking-scale));
+    color: var(--text-faint);
+    margin-right: 0.35em;
+}
+
+
 .meta-footer-section p,
 .meta-footer-section ul {
     margin: 0;
