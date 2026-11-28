@@ -538,8 +538,11 @@ pre code {
           <figcaption><a href="…">Title</a> — Author</figcaption></figure>
    The blockquote inherits the default #markdownBody blockquote styles entirely
    (dashed left line, muted italic). The figure cancels the image-figure box
-   styling (bg / border / padding / shadow) and uses the inherited centering
-   (max-width: fit-content + margin: auto from #markdownBody figure).
+   styling (bg / border / padding / shadow) and spans the column, so the
+   inherited text-align: center (images.css) centers every poem on the
+   column. Left at fit-content it would sit flush left (the block-rhythm
+   margin wins over `auto`) and a long caption would widen it, pushing its
+   poem off-center from its neighbors.
    When a source link is present, a stretched ::after covers the whole figure
    so the entire excerpt is clickable.                                           */
 
@@ -548,6 +551,7 @@ pre code {
     border: none;
     padding: 0;
     box-shadow: none;
+    max-width: none;
     position: relative;
 }
 
